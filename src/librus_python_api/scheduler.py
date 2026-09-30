@@ -11,8 +11,9 @@ from typing import Any, Self
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import SchedulerLimits
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.lifecycle import join_owned
+from librus_python_api.models import SchedulerSnapshot
 
 
 @dataclass(slots=True)
@@ -25,13 +26,6 @@ class _Waiter:
 class _Account:
     queue: deque[_Waiter] = field(default_factory=deque)
     active: int = 0
-
-
-@dataclass(frozen=True, slots=True)
-class SchedulerSnapshot:
-    active: int
-    queued: int
-    requests_dispatched: int
 
 
 class RequestScheduler:

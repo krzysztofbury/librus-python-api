@@ -66,17 +66,23 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked mypy
 uv run --locked python -m pytest
-uv run --locked python tools/check_contracts.py
-uv run --locked python tools/transport_spike.py
-uv run --locked python -m tools.parser_probe
 uv build --no-sources
 ```
 
-The transport spike starts a disposable HTTP server on loopback. Its routes,
-account names, and login behavior are synthetic and are not Librus fixtures.
-It checks the dependency's behavior without calling any school service. It does
-not qualify retries, live auth, or parser coverage. Scheduler tests separately
-exercise service-wide request budgets and saturated four-account HTTP admission.
+The default suite includes OpenAPI/catalogue validation and real transport,
+authentication, parser, and scheduler tests against original synthetic loopback
+fixtures. There is no separate transport experiment or contract-check CLI to run.
+All requests remain offline. Hardware-sensitive measurements and cross-repository
+integration are opt-in, not silently skipped release gates:
+
+```sh
+uv run --locked python -m pytest tests/performance -m performance
+```
+
+The performance test preserves the maximum-body memory/heartbeat checks outside
+the portable default suite. It records measurements as pytest properties; add
+`-o junit_family=xunit1 --junitxml=/tmp/opencode/parser-resources.xml` when a
+machine-readable measurement report is needed.
 
 To repeat the suite on Python 3.13, use a separate environment so the primary
 environment is not replaced:
@@ -97,7 +103,7 @@ cd /tmp/opencode
 
 Use a fresh environment path for subsequent runs. This import/configuration
 smoke check alone is not an installed-client E2E read. The full offline suite and
-consumer probe below exercise that gate. No PyPI upload or publishing CI
+consumer integration test below exercise that gate. No PyPI upload or publishing CI
 is required for the 0.x deliveries. PyPI publication and publishing automation
 start at `1.0.0rc1`; local `librus-mcp` integration can use the exact built wheel
 before that candidate. Production consumer releases must still use PyPI artifacts.
@@ -114,8 +120,8 @@ PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/
 ```
 
 Replace `/path/to/librus-python-api` with the checkout root, never its `src/`
-directory. This makes development tools/fixtures available without replacing
-the installed library. Reinstall the wheel after rebuilding the same dev version;
+directory. This makes test fixtures available without replacing
+the installed library. Reinstall the wheel after rebuilding the same local version;
 check `librus_python_api.__file__` points into the separate environment.
 
 For the real MCP stdio identity experiment, install the consumer adapter branch
@@ -126,14 +132,15 @@ library checkout:
 ```sh
 uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python /path/to/librus-mcp
 cd /tmp/opencode
-PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python /path/to/librus-python-api/tools/mcp_identity_probe.py /path/to/librus-mcp
+PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests/integration -m integration --mcp-checkout=/path/to/librus-mcp
 ```
 
-The probe uses original synthetic HTTP fixtures, four independent logins, real
+The test uses original synthetic HTTP fixtures, four independent logins, real
 consumer field mapping, and MCP stdio. Its subprocess configuration explicitly
 replaces operator credentials with synthetic accounts and permits localhost
 destinations only. Expected scoped denials are redacted non-successes. No live
-school requests or production notification/filesystem state are used.
+school requests or production notification/filesystem state are used. Selecting
+integration without a valid adapter checkout is an actionable test failure.
 
 Also install `dist/librus_python_api-0.1.0.tar.gz` in a separate environment and
 run the same public-boundary suite to qualify the sdist build path. Record hashes

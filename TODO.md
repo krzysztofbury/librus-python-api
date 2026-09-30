@@ -22,7 +22,7 @@ The local-first 0.1.0 identity delivery is complete. Later operation families,
 live qualification, publishing, and full consumer cutover below remain pending.
 
 Current delivery: `0.1.0` packaging, typed route/error configuration,
-OpenAPI catalogue checks, a loopback-only async transport evaluation, and shared
+OpenAPI catalogue tests and shared
 request admission/budgets verified with a saturated four-account HTTP workload.
 The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
 are implemented. The public service, coalesced safe reads, account-scoped freshness,
@@ -285,7 +285,8 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
-  Selected `aiohttp` using the executable loopback spike. The 0.1.0 account
+  Selected `aiohttp` after a loopback experiment, now retired in favor of real
+  transport/service tests. The 0.1.0 account
   transport and login/identity network paths are implemented and tested offline.
 - [ ] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.

@@ -6,7 +6,7 @@ import yaml
 
 from librus_python_api import __version__
 from librus_python_api.config import ENDPOINTS, Endpoint, Evidence, SideEffect
-from tools.check_contracts import SPEC_PATH, check_contract
+from tests.contract_support import SPEC_PATH, check_contract
 
 
 def fixture_contract() -> dict[str, Any]:

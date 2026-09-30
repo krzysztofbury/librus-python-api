@@ -41,11 +41,15 @@ path = "src/librus_python_api/__init__.py"
 packages = ["src/librus_python_api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/tools", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/DESIGN.md", "/API.md", "/CHANGELOG.md", "/REVIEW.md", "/VERIFICATION.md", "/LICENSE"]
+include = ["/src", "/tests", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/DESIGN.md", "/API.md", "/CHANGELOG.md", "/REVIEW.md", "/VERIFICATION.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--import-mode=importlib -ra"
+addopts = "--import-mode=importlib -ra -m 'not integration and not performance'"
+markers = [
+  "integration: opt-in cross-repository consumer verification",
+  "performance: opt-in hardware-sensitive resource measurements",
+]
 
 [tool.ruff]
 target-version = "py313"
@@ -57,7 +61,7 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["src", "tools", "tests"]
+files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
 # Optional integration checkout, not part of this library's import namespace.

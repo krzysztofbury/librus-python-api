@@ -7,6 +7,11 @@ Authentication can change the upstream last-login timestamp.
 
 ## Ownership and typed results
 
+Module ownership is explicit: shared transport/wire/domain/diagnostic records live
+in `models.py`; settings and route policy in `config.py`; exception definitions and
+the factory in `exceptions.py`. Transport/parser/scheduler/service modules own
+behavior, with private worker and queue state beside their implementation.
+
 ```python
 from librus_python_api import (
     AccountCredentials, LibrusService, StudentInformation,

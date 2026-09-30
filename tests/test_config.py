@@ -12,7 +12,7 @@ from librus_python_api.config import (
     SideEffect,
     TransportLimits,
 )
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 
 
 @pytest.mark.parametrize("size", [0, -1, True, 1.5])

@@ -4,7 +4,7 @@ import asyncio
 import time
 
 from librus_python_api.config import DEFAULT_OPERATION_LIMITS, OperationLimits
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 
 
 class RequestBudget:

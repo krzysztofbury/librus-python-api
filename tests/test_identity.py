@@ -13,7 +13,7 @@ from librus_python_api.config import (
     AccountCredentials,
     ConnectionSettings,
 )
-from librus_python_api.diagnostics import DiagnosticEvent, loguru_sink
+from librus_python_api.diagnostics import loguru_sink
 from librus_python_api.exceptions import (
     AccessDeniedError,
     AccountActionRequiredError,
@@ -26,6 +26,7 @@ from librus_python_api.exceptions import (
     SessionExpiredError,
     error_for,
 )
+from librus_python_api.models import DiagnosticEvent
 from librus_python_api.parsers import parse_identity, parse_profile
 from librus_python_api.service import LibrusService
 from tests.http_support import FIXTURE_SECRET, SchoolFixture, profile_html, serve

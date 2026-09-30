@@ -47,12 +47,18 @@ in place; its full migration has not been performed.
 - No old-backend comparison or live performance improvement is claimed. Fast
   fixture settings are not recommended live tuning values.
 
-Reproduce using CONTRIBUTING.md, `python -m tools.parser_probe`, the full suites,
-and `tools/mcp_identity_probe.py` in the installed-artifact environment. Expected
+Reproduce using CONTRIBUTING.md and pytest: the default suite owns OpenAPI and
+transport verification, `tests/performance` owns opt-in resource measurements,
+and `tests/integration` owns opt-in consumer stdio verification in the installed
+artifact environment. Expected
 denied-account MCP calls return redacted error text rather than success/empty data.
 The consumer adapter is draft PR #38 and remains opt-in.
 Final distribution checksums are recorded in `release-evidence/0.1.0.sha256`,
 outside the sdist inputs to avoid a self-referential archive checksum.
+These checksums and the 122-test counts above describe the initial qualified
+0.1.0 artifacts. The subsequent tools/model ownership cleanup retains their
+behavioral proof with 121 default tests plus one performance and one integration
+test; the retired experiment's duplicate-cookie case is in the real transport test.
 
 ## Explicitly pending
 

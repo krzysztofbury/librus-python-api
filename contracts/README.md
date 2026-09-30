@@ -39,7 +39,7 @@ hide operations from the catalogue parity check. Local schema references remain
 supported.
 
 ```sh
-uv run --locked python tools/check_contracts.py
+uv run --locked python -m pytest tests/test_contracts.py
 ```
 
 The check rejects missing/extra routes and mismatched operation IDs, effects,

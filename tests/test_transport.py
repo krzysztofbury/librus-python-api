@@ -12,7 +12,7 @@ from librus_python_api.config import (
     SchedulerLimits,
     TransportLimits,
 )
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import LoginSubmission
 from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.transport import AiohttpTransport
@@ -23,8 +23,10 @@ def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> N
     async def scenario() -> None:
         async def submit(request: web.Request) -> web.Response:
             data = await request.post()
+            login = str(data["login"])
             response = web.Response(text="{}")
-            response.set_cookie("oauth_token", str(data["login"]), path="/")
+            response.set_cookie("oauth_token", login, path="/")
+            response.headers.add("Set-Cookie", f"oauth_token=api-{login}; Path=/OAuth")
             response.set_cookie("DeviceCookie", "synthetic-device", path="/OAuth")
             return response
 
@@ -32,8 +34,12 @@ def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> N
             assert "DeviceCookie" not in request.cookies
             return web.Response(text=request.cookies["oauth_token"])
 
+        async def authorization(request: web.Request) -> web.Response:
+            return web.Response(text=request.cookies["oauth_token"])
+
         app = web.Application()
         app.router.add_post("/OAuth/Authorization", submit)
+        app.router.add_get("/OAuth/Authorization", authorization)
         app.router.add_get("/gateway/api/2.0/Me", profile)
         async with serve(app) as url, AsyncExitStack() as stack:
             scheduler = await stack.enter_async_context(
@@ -63,13 +69,22 @@ def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> N
                 *(item.request("identity", RequestBudget()) for item in transports)
             )
             assert [item.body for item in results] == [b"a", b"b"]
+            scoped = await asyncio.gather(
+                *(
+                    item.request("login_authorization", RequestBudget())
+                    for item in transports
+                )
+            )
+            assert [item.body for item in scoped] == [b"api-a", b"api-b"]
             assert "synthetic-device" not in repr(results)
             assert transports[0].has_cookie("DeviceCookie", "login_authorization")
             assert not transports[0].has_cookie("DeviceCookie", "identity")
             transports[0].clear_auth()
             assert not transports[0].has_cookie("oauth_token", "identity")
+            assert not transports[0].has_cookie("oauth_token", "login_authorization")
             assert transports[0].has_cookie("DeviceCookie", "login_authorization")
             assert transports[1].has_cookie("oauth_token", "identity")
+            assert transports[1].has_cookie("oauth_token", "login_authorization")
 
     asyncio.run(scenario())
 

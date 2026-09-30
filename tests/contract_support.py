@@ -1,14 +1,13 @@
-"""Offline OpenAPI validation and central route-catalogue parity check."""
+"""Test-owned OpenAPI validation and central route-catalogue parity helpers."""
 
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import yaml
 from openapi_spec_validator import OpenAPIV30SpecValidator
 
 from librus_python_api import __version__
-from librus_python_api.config import ENDPOINTS, UPSTREAM_ORIGINS, Endpoint
+from librus_python_api.config import UPSTREAM_ORIGINS, Endpoint
 
 SPEC_PATH = Path(__file__).resolve().parents[1] / "contracts/upstream.openapi.yaml"
 HTTP_METHODS = frozenset(
@@ -76,13 +75,3 @@ def check_contract(spec: dict[str, Any], endpoints: Mapping[str, Endpoint]) -> N
         note = operation.get("x-evidence-note")
         if not isinstance(note, str) or not note.strip():
             raise ValueError("Each operation needs a nonempty evidence note")
-
-
-def main() -> None:
-    spec = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
-    check_contract(spec, ENDPOINTS)
-    print(f"OpenAPI contract valid; {len(ENDPOINTS)} enabled operations")
-
-
-if __name__ == "__main__":
-    main()

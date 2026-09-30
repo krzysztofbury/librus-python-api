@@ -43,9 +43,9 @@ See [the implementation roadmap](TODO.md).
 - [OpenAPI YAML and endpoint evidence requirements](contracts/README.md), with
   an offline check preventing route/contract drift. Import the YAML into Bruno
   for explicit manual validation; its default destination is loopback.
-- Loopback-only `aiohttp` evaluation with four independent synthetic sessions,
-  scoped duplicate cookies, body limits, deadline, and cancellation checks.
-  This is transport-selection evidence, not a supported client or load test.
+- Real transport/service tests with isolated synthetic logins, same-name scoped
+  cookies, body/deadline bounds, and joined cancellation. Optional parser-resource
+  and consumer stdio tests live alongside the portable offline suite.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,

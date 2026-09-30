@@ -49,6 +49,16 @@ source-informed, not copied upstream material.
 
 ## DX and remaining qualification
 
+- Tool audit: the transport experiment and its wrapper test were retired after
+  preserving scoped duplicate cookies in the real transport test. Contract
+  validation is a pytest helper with existing drift/reference regressions, not a
+  second CLI. Parser measurements are opt-in performance tests; consumer stdio
+  assertions are opt-in integration tests with a minimal subprocess fixture.
+  No production seam was added, and no historical experiment remains a release gate.
+- Shared data records and wire validators are centralized in models.py, settings/
+  route policy in config.py, and the actual exception definitions/factory in
+  exceptions.py. Private worker/queue state remains local to its implementation.
+
 - TigerStyle #11: Warning clean. Ruff, formatting, strict mypy, OpenAPI/catalogue
   parity, offline suites, and installed-artifact checks are release gates.
 - Public inputs, transport payloads/responses, wire validation, immutable domain

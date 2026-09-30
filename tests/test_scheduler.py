@@ -10,7 +10,7 @@ from aiohttp import ClientSession, web
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import SchedulerLimits
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.scheduler import RequestScheduler
 
 

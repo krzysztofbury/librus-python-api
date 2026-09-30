@@ -27,23 +27,25 @@ from librus_python_api.config import (
     SchedulerLimits,
     TransportLimits,
 )
-from librus_python_api.diagnostics import DiagnosticEvent, DiagnosticSink
-from librus_python_api.errors import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.diagnostics import DiagnosticSink
+from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
+    DiagnosticEvent,
     Identity,
     LoginSubmission,
     Observation,
+    SchedulerSnapshot,
     StudentInformation,
+    TransportResponse,
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
-from librus_python_api.scheduler import RequestScheduler, SchedulerSnapshot
+from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.transport import (
     AccountTransport,
     AiohttpTransport,
     TransportFactory,
-    TransportResponse,
 )
 
 OperationName = Literal["identity", "student_information"]

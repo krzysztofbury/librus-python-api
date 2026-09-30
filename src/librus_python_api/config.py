@@ -25,7 +25,7 @@ from pydantic import (
     model_validator,
 )
 
-from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError
 
 HttpMethod = Literal["GET", "POST"]
 

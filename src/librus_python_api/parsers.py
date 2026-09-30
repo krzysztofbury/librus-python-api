@@ -2,25 +2,20 @@
 
 import json
 import re
-from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any
 
 from lxml import etree, html
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import ValidationError
 
 from librus_python_api.config import PROFILE_LABELS
-from librus_python_api.errors import ErrorKind, LibrusError
-from librus_python_api.models import Availability, LuckyNumber, Person
-
-
-@dataclass(frozen=True, slots=True)
-class ProfileFields:
-    name: str
-    class_name: str
-    register_number: int
-    tutor: str
-    school: str
-    lucky_number: LuckyNumber
+from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.models import (
+    Availability,
+    LuckyNumber,
+    Person,
+    ProfileFields,
+    _EnvelopeWire,
+)
 
 
 def decode_json(body: bytes) -> Any:
@@ -62,31 +57,6 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError("Duplicate JSON key")
         result[key] = value
     return result
-
-
-class _PersonWire(BaseModel):
-    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
-    FirstName: Annotated[str | None, Field(max_length=256)] = None
-    LastName: Annotated[str | None, Field(max_length=256)] = None
-
-    @field_validator("Id", mode="before")
-    @classmethod
-    def normalize_id(cls, value: Any) -> Any:
-        if type(value) is int and 0 <= value < 10**64:
-            return str(value)
-        return value
-
-
-class _MeWire(BaseModel):
-    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Account: _PersonWire
-    User: _PersonWire
-
-
-class _EnvelopeWire(BaseModel):
-    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Me: _MeWire
 
 
 def parse_identity(body: bytes) -> tuple[Person, Person]:

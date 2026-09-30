@@ -1,20 +1,10 @@
 """Opt-in allowlisted structured diagnostics; no global logging configuration."""
 
-from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 
 from loguru import logger
 
-from librus_python_api.errors import ErrorKind
-
-
-@dataclass(frozen=True, slots=True)
-class DiagnosticEvent:
-    operation: Literal["identity", "student_information"]
-    outcome: ErrorKind | Literal["ok", "cancelled"]
-    elapsed_seconds: float
-    budget_requests_dispatched: int
-    budget_response_bytes: int
+from librus_python_api.models import DiagnosticEvent
 
 
 class DiagnosticSink(Protocol):

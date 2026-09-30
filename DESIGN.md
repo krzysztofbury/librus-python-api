@@ -28,6 +28,11 @@ are translated to a closed library category without attaching their raw input
 or validation exception. Domain records remain independent of MCP wire schemas.
 Runtime dependency distribution metadata is checked when building/installing.
 
+An initial loopback experiment selected aiohttp. Its separate HTTP implementation
+was retired once production-boundary tests covered isolation, scoped duplicate
+cookies, bounds, cancellation, and closure. Shared data records now live in
+models.py, settings/route policy in config.py, and exceptions/factory in exceptions.py.
+
 FastAPI is not needed: this library is an HTTP client, not an application server.
 Logging is not implicitly configured. Diagnostics are opt-in,
 bounded, and redacted before reaching any logging implementation.

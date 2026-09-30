@@ -2,8 +2,6 @@
 
 import math
 import zlib
-from collections.abc import Mapping
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -25,17 +23,9 @@ from librus_python_api.config import (
     SideEffect,
     TransportLimits,
 )
-from librus_python_api.errors import ErrorKind, LibrusError
-from librus_python_api.models import LoginSubmission
+from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.models import LoginSubmission, TransportResponse
 from librus_python_api.scheduler import RequestScheduler
-
-
-@dataclass(frozen=True, slots=True)
-class TransportResponse:
-    status: int
-    body: bytes = field(repr=False)
-    url: str = field(repr=False)
-    headers: Mapping[str, str] = field(repr=False)
 
 
 class AccountTransport(Protocol):
