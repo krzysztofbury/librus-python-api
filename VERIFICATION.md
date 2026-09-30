@@ -60,6 +60,21 @@ These checksums and the 122-test counts above describe the initial qualified
 behavioral proof with 121 default tests plus one performance and one integration
 test; the retired experiment's duplicate-cookie case is in the real transport test.
 
+## GitHub-hosted CI
+
+[CI run 36721820811](https://github.com/krzysztofbury/librus-python-api/actions/runs/36721820811)
+passed on 2026-09-30 for commit `95261910b7c7582cceb6155d42f5fea6523730fc`
+in [PR #2](https://github.com/krzysztofbury/librus-python-api/pull/2).
+All three Ubuntu 24.04 jobs passed: quality/security and Python 3.13/3.14.
+Each Python job passed 121 portable tests against source, installed wheel, and
+installed sdist. Logs confirm imports from separate site-packages directories.
+Metadata/license/py.typed and dependency consistency checks passed, and both
+distribution/report artifacts were uploaded. The quality job passed workflow
+lint, repository hooks, full-history secrets, and the locked runtime/development
+vulnerability audit. No live Librus requests or publishing occurred. These are
+PR execution results, not evidence that the workflow has merged onto `main`.
+The hardware-sensitive and cross-repository tests remain explicitly opt-in.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and
