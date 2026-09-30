@@ -17,8 +17,26 @@ sessions, parsers, and notification types.
 Research date: 2026-09-29. The local `docs/ECOSYSTEM_REVIEW.md`
 compares all seven requested packages and records regression requirements
 R01-R17 with current consumer source/test owners. Research, repository
-documentation, and commit checks exist today; all library implementation and
-release milestones below are pending.
+documentation, commit checks, and a local package foundation exist today.
+The local-first 0.1.0 identity delivery is complete. Later operation families,
+live qualification, publishing, and full consumer cutover below remain pending.
+
+Current delivery: `0.1.0` packaging, typed route/error configuration,
+OpenAPI catalogue tests and shared
+request admission/budgets verified with a saturated four-account HTTP workload.
+The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
+are implemented. The public service, coalesced safe reads, account-scoped freshness,
+authentication, typed identity/profile, bounded Tenacity recovery, and redacted
+Loguru diagnostics are implemented and tested offline. Installed-artifact and
+real MCP stdio adapter qualification are complete on Linux. See VERIFICATION.md
+for measurements, exact proof commands, and explicit live/platform limitations.
+
+**Local-first scope adjustment:** develop and verify `0.x` using local wheel/
+sdist builds and offline runtime tests, including local `librus-mcp` integration.
+PyPI publication and its CI automation are deferred until `1.0.0rc1`, not required
+for the earlier local deliveries and not marked complete.
+The daily credentialed workflow remains planned separately. No live verification
+is authorized merely by documenting its future workflow.
 
 Repository hygiene is configured separately from the library milestones:
 pre-commit checks block common private files and scan staged secrets; manual
@@ -33,7 +51,9 @@ remain a separately released follow-up, not a prerequisite for replacement.
 then a shared-budget multi-account service with authentication and student
 information through a real consumer adapter and a local fixture server. Add
 the daily live check once this slice can safely use configured test credentials.
-Prove this slice before porting every endpoint.
+Prove this slice before porting every endpoint. Ship centralized route metadata
+and a matching OpenAPI YAML contract with each implemented operation, including
+HTML scraping routes, evidence gaps, and explicit side effects.
 
 ## Versioned delivery plan
 
@@ -50,53 +70,55 @@ operations enabled in that release, then extend them with later capabilities.
 
 | Target | Related work delivered together | Detailed scope |
 | --- | --- | --- |
-| `0.1.0` | Secure async account service, authentication, identity, daily live CI, and first PyPI distribution | P0; core P1/P2; P3 identity; initial P6/P6-live/P7; identity adapter experiment from P8 |
+| `0.1.0` | Locally installable secure async account service, authentication, identity, and offline proof | P0; core P1/P2; P3 identity; initial P6; local artifact subset of P7; identity adapter experiment from P8 |
 | `0.2.0` | Academic and school-information reads with economical pagination and metadata reuse | Remaining academic P1/P3; P4 notes evidence decision; corresponding P6/P6-live and P8 adapter slices |
 | `0.3.0` | Messaging, attachment streaming, and notification primitives with explicit side effects | Remaining message P1/P3; P4 content/attachments; P5; corresponding P6 and P8 adapter slices |
 | `1.0.0rc1` | Complete MCP replacement candidate and representative qualification | Full P6; migration-ready P7; P8 implementation, installed-artifact proof, and rollback rehearsal |
 | `1.0.0` | Stable library contract and coordinated backward-compatible MCP backend cutover | Final P7/P8 release gates and supported API documentation |
 | MCP `2.0.0` | Consumer-facing contract, packaging, configuration, and resource changes | P9 and ownership-map A01-A18; separate consumer version line |
 
-Release order is sequential. P6 acceptance and P7 artifact checks run for every
-library release, not only the release candidate. During 0.x development, document
+Release order is sequential. P6 acceptance and local P7 artifact checks run for
+every delivery, not only the release candidate. PyPI publishing gates start at
+`1.0.0rc1`. During 0.x development, document
 breaking library API changes in minor-release migration notes; reserve patches
 for compatible fixes. After 1.0, use semantic versioning for the supported public
 API. Release candidates use Python-compatible versions such as `1.0.0rc1`.
 
-### 0.1.0 - Secure account service and real login verification
+### 0.1.0 - Local-first secure account service and identity
 
 First useful release: MCP can use public async methods to authenticate and read
 identity through independent login-scoped clients under one shared scheduler.
 
-- [ ] Group packaging, provenance, transport selection, public lifecycle, typed
+- [x] Group packaging, provenance, transport selection, public lifecycle, typed
   identity/errors/references, and consumer contract inventory into the foundation.
   Design the domain conventions now; implement later endpoint records with their
   endpoint release instead of shipping unused model-only versions.
-- [ ] Deliver account isolation, session reuse, coalesced authentication, scoped
+- [x] Deliver account isolation, session reuse, coalesced authentication, scoped
   cookies, destination validation, safe recovery, and redacted errors together.
-- [ ] Enforce shared rate/burst/concurrency/queue limits and bounded attempts,
+- [x] Enforce shared rate/burst/concurrency/queue limits and bounded attempts,
   bodies, deadlines, parsing, and cancellation from the first network operation.
   Introduce safe-read coalescing and account-scoped cache infrastructure here;
   domain-specific metadata caches follow in 0.2.0.
-- [ ] Complete identity retrieval and the public-service/MCP adapter experiment,
+- [x] Complete identity retrieval and the public-service/MCP adapter experiment,
   including the four-independent-login fixture-server workload from P6. Capture
   initial request-count and lifecycle measurements before widening coverage.
-- [ ] Enable P6-live for bounded login and identity checks after owner setup.
-  Its first scheduled run must produce redacted actual-authentication evidence;
-  unavailable credentials leave this gate pending. Add a bounded academic read
-  in 0.2.0 rather than claiming identity verifies other endpoints.
-- [ ] Establish the complete P7 publishing machinery and publish/install the
-  first useful artifact. A `0.1.0rc1` rehearsal may precede the release; a bare
-  skeleton is not a separate public milestone.
+- [x] Build wheel/sdist and verify a clean local installation through a real
+  fixture-server identity read. Publishing automation and PyPI installation
+  evidence are deferred to P7 at `1.0.0rc1`; a bare skeleton is not a functional
+  milestone. Exercise the consumer adapter with the exact local built artifact.
+- [x] Document remaining live authentication/identity evidence gaps. P6-live is
+  enabled separately after owner setup; it is not a local-first release gate.
+  A later academic check must not be claimed from identity verification alone.
 
 Suggested commit groups: package/contracts; scheduler/transport; authentication/
-identity; adapter/E2E evidence; daily CI/release automation/documentation. These
+identity; adapter/E2E evidence; local artifacts/documentation. These
 are review boundaries within one release, not five versions.
 
-Release gate: usable typed identity API, enforced combined traffic bounds and
-login isolation, installed-wheel E2E proof, configured daily live check, and a
-verified PyPI installation. Existing MCP production backend migration remains
-in progress.
+Local delivery gate: usable typed identity API, enforced combined traffic bounds
+and login isolation, installed-wheel offline E2E proof, and explicit live
+verification status. Daily live CI/PyPI gates remain deferred and incomplete.
+Local gates are satisfied on Linux/Python 3.13 and 3.14. The opt-in adapter is
+consumer draft PR #38; default production backend migration remains pending.
 
 ### 0.2.0 - Academic and school-information coverage
 
@@ -242,7 +264,7 @@ the library policy; nested recovery must not multiply login or send attempts.
 
 P0-P9 are work packages shared by the release slices above, not an instruction
 to finish every domain model before the first endpoint or to wait until P6/P7
-to test and publish early useful releases.
+   to test early useful deliveries. Publish to PyPI starting at `1.0.0rc1`.
 
 Dependencies: none. Regression coverage: R01-R17 inventory.
 
@@ -256,10 +278,16 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
   bundled license, `py.typed`, and a single package-version source. Select and
   test supported Python versions; Python 3.14 compatibility is mandatory for
-  the consumer. Claim older-version support only if included in CI.
-- [ ] Choose one async transport after a small lifecycle/cookie/cancellation
+  the consumer. Claim older-version support only if exercised in the declared
+  verification matrix; CI automation is deferred for the local-first increment.
+  Local 0.1.0 progress: builds, checks, and installed-client/adapter reads are
+  verified on Linux/3.13/3.14. Automated CI and other platforms remain pending.
+- [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
+  Selected `aiohttp` after a loopback experiment, now retired in favor of real
+  transport/service tests. The 0.1.0 account
+  transport and login/identity network paths are implemented and tested offline.
 - [ ] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.
   Construction/import must do no network I/O or implicit environment discovery.
@@ -271,6 +299,12 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Create a per-operation contract matrix: account types, source endpoint,
   requested fields, result types, capability status, pagination, side effects,
   retry safety, and evidence confidence. Include every row in P3-P5.
+- [ ] Keep upstream routes centralized in `config.py` and maintain importable
+  OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
+  Validate method/path/operation/policy parity offline and document fixture
+  provenance and live gaps. The initial empty contract/checker is implemented;
+   nine login/identity wire contracts are populated. Later contracts accompany
+   their own operation slices.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -323,6 +357,13 @@ the proposed records can be mapped to existing MCP outputs without data loss.
 ## P2 - Session, transport, and authentication
 
 Dependencies: P0-P1. Regression requirements: R01-R04, R10, R17.
+
+Scheduler progress: global/per-account active and queue limits, shared rate/burst
+admission, round-robin fairness, service pauses, shared request/deadline budgets,
+and cancellation/close ownership are implemented and tested offline. Every enabled
+0.1.0 authentication/identity request passes through this boundary. Remaining
+messaging/page/capability requirements below are extended with later releases;
+their broad checkboxes are not blanket claims from the identity slice.
 
 - [ ] Use one authenticated session/cookie jar per configured login, including
   separate student and parent logins for the same student. Confirm expected
@@ -546,7 +587,9 @@ redacted evidence, and signals failure without unsafe retries or secret exposure
 
 ## P7 - PyPI release pipeline
 
-Dependencies: P0 packaging; first useful release after the identity slice.
+Dependencies: P0 packaging; PyPI publication starts at `1.0.0rc1`.
+Before that candidate, verify exact local wheel/sdist artifacts and the local
+consumer adapter without requiring publishing automation or a PyPI installation.
 
 - [ ] Configure PyPI/TestPyPI project ownership and a GitHub Trusted Publisher
   tied to the exact repository, workflow, and protected release environment.
@@ -559,8 +602,9 @@ Dependencies: P0 packaging; first useful release after the identity slice.
 - [ ] Test a clean install outside the checkout, including import, public async
   client lifecycle, and a fixture-server read. Test both locked and newest
   permitted dependencies; schedule dependency-drift checks.
-- [ ] Publish a useful pre-release and document its coverage/limitations. Prove
-  the consumer adapter against that PyPI artifact before the complete cutover.
+- [ ] Publish `1.0.0rc1` and document its coverage/limitations. Prove the consumer
+  adapter against that PyPI artifact before the complete cutover; earlier 0.x
+  adapter qualification uses exact local built artifacts.
   Use separate library/consumer versions and changelogs.
 - [ ] Publish the migration-ready library before releasing the consumer that
   requires it. Prefer an exact tested dependency pin initially; no Git/path

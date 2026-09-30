@@ -1,0 +1,277 @@
+openapi: 3.0.3
+info:
+  title: Librus upstream integration contract
+  version: 0.1.0
+  license:
+    name: MIT
+  description: |
+    Unofficial, independently authored, source-informed integration contract.
+    Not an API supplied or guaranteed by Librus. Current evidence is synthetic
+    offline HTTP/parser verification, not independently observed live responses.
+    Raw HTML is not a JSON domain record. Unknown login destinations are rejected
+    rather than silently followed. Authentication can change last_login.
+    Default requests target loopback; live requests require separate authorization.
+servers:
+  - url: http://localhost:8080
+    description: Local fixture server; replace explicitly for authorized validation
+paths:
+  /loguj/portalRodzina:
+    get:
+      operationId: login_portal
+      tags: [Authentication]
+      summary: Begin cookie-based portal login
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed portal route; independently authored redirect fixture. No live reproduction.
+      responses:
+        '302':
+          description: Authorization redirect with account-scoped cookies
+          headers:
+            Location:
+              schema: {type: string, maxLength: 4096}
+        default:
+          $ref: '#/components/responses/Failure'
+  /OAuth/Authorization:
+    get:
+      operationId: login_authorization
+      tags: [Authentication]
+      summary: Establish API-side cookies from the portal redirect
+      x-origin: api
+      x-upstream-origin: https://api.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed form/cookie sequence; synthetic cookie-scope fixtures. Not independently observed.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+        - in: query
+          name: response_type
+          schema: {type: string, enum: [code]}
+        - in: query
+          name: scope
+          schema: {type: string, enum: [mydata]}
+        - in: query
+          name: state
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+    post:
+      operationId: login_submit
+      tags: [Authentication]
+      summary: Submit credentials once, without automatic retries
+      x-origin: api
+      x-upstream-origin: https://api.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed form and goTo field; error/challenge conditions qualified offline only.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [action, login, pass]
+              properties:
+                action: {type: string, enum: [login]}
+                login: {type: string, minLength: 1, maxLength: 256, writeOnly: true}
+                pass: {type: string, minLength: 1, maxLength: 1024, writeOnly: true}
+      responses:
+        '200':
+          description: JSON login result, or an unsupported interactive challenge
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, enum: [ok, error]}
+                  goTo: {type: string, nullable: true, maxLength: 4096}
+            text/html:
+              schema: {type: string}
+        default:
+          $ref: '#/components/responses/Failure'
+  /OAuth/Authorization/2FA:
+    get:
+      operationId: login_continue
+      tags: [Authentication]
+      summary: Follow the non-interactive continuation when returned by goTo
+      description: The route name is not proof of support for interactive 2FA or CAPTCHA.
+      x-origin: api
+      x-upstream-origin: https://api.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Research-described continuation; offline redirect and unsupported-challenge proof only.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /loguj:
+    get:
+      operationId: login_callback
+      tags: [Authentication]
+      summary: Bounded allowlisted callback route
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: synthetic_only
+      x-evidence-note: Synthetic callback shape, not independently observed; actual account variants remain a live evidence gap.
+      parameters:
+        - in: query
+          name: code
+          schema: {type: string, maxLength: 512}
+        - in: query
+          name: state
+          schema: {type: string, maxLength: 512}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /:
+    get:
+      operationId: login_landing
+      tags: [Authentication]
+      summary: Optional landing response, never sufficient proof of login
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: synthetic_only
+      x-evidence-note: Synthetic terminal route; cookie presence plus validated Me is required separately.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+  /uczen/index:
+    get:
+      operationId: login_student_landing
+      tags: [Authentication]
+      summary: Optional student landing if explicitly returned in the redirect chain
+      description: Never bootstrap this route unconditionally or require it for parent access.
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed student route; not a parent-account capability assumption. Offline verification only.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+  /gateway/api/2.0/Me:
+    get:
+      operationId: identity
+      tags: [Identity]
+      summary: Read login owner and represented student as distinct identities
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: Source-informed Me/Account/User distinction; synthetic populated, malformed, and parent/student variants. No live reproduction.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Account denotes login owner; User denotes represented student
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Me]
+                properties:
+                  Me:
+                    type: object
+                    required: [Account, User]
+                    properties:
+                      Account:
+                        $ref: '#/components/schemas/Person'
+                      User:
+                        $ref: '#/components/schemas/Person'
+        default:
+          $ref: '#/components/responses/Failure'
+  /informacja:
+    get:
+      operationId: student_information
+      tags: [Identity]
+      summary: Read HTML fields missing from gateway identity
+      description: |
+        Requires an unambiguous table with semantic labels for student name,
+        class, register number, tutor, and school. Labels are centralized in
+        config.py. Arbitrary table positions are not a supported fallback.
+        A luckyNumber element can supply a number without an evidenced civil
+        date; never invent today's date. Missing lucky-number markup is explicit
+        unavailability. Header variants and actual live layout remain unverified.
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: Source-informed route/required fields/lucky-number marker; independently authored semantic-label fixtures, not copied layouts or live captures.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: oauth_token
+      description: Scope-preserving jar may also hold DZIENNIKSID, SDZIENNIKSID, and API DeviceCookie.
+  parameters:
+    ClientId:
+      in: query
+      name: client_id
+      required: true
+      schema: {type: string, enum: ['46'], default: '46'}
+  schemas:
+    Person:
+      type: object
+      required: [Id]
+      properties:
+        Id:
+          oneOf:
+            - {type: integer, minimum: 0}
+            - {type: string, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+        FirstName: {type: string, nullable: true, maxLength: 256}
+        LastName: {type: string, nullable: true, maxLength: 256}
+  responses:
+    Html:
+      description: Raw bounded HTML, not normalized domain JSON
+      content:
+        text/html:
+          schema: {type: string}
+    Redirect:
+      description: Validate origin, exact allowed path, hop count, cumulative bytes, and deadline before following
+      headers:
+        Location:
+          schema: {type: string, maxLength: 4096}
+    Failure:
+      description: |
+        401 session expiry; 403 scoped access denial; 429 throttle; 503 maintenance.
+        No response excerpts in errors. Malformed required data is a parse failure,
+        not empty success. Unknown/challenging authentication is unsupported.
