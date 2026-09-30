@@ -17,6 +17,7 @@ class ErrorKind(StrEnum):
     LIMIT = "limit"
     PARSE = "parse"
     UNKNOWN_DELIVERY = "unknown_delivery"
+    CLOSED = "closed"
 
 
 class LibrusError(Exception):

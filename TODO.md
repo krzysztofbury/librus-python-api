@@ -21,8 +21,9 @@ documentation, commit checks, and a local package foundation exist today.
 Functional network operations and release milestones below are pending.
 
 Current increment: `0.1.0.dev0` packaging, typed route/error configuration,
-OpenAPI catalogue checks, and a loopback-only async transport evaluation.
-This is not authentication, identity coverage, or the shared-budget service.
+OpenAPI catalogue checks, a loopback-only async transport evaluation, and shared
+request admission/budgets verified with a saturated four-account HTTP workload.
+This is not authentication, identity coverage, or the complete account service.
 
 **Local-first scope adjustment:** develop and verify `0.x` using local wheel/
 sdist builds and offline runtime tests, including local `librus-mcp` integration.
@@ -274,9 +275,11 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   verification matrix; CI automation is deferred for the local-first increment.
   Foundation progress: local `0.1.0.dev0` builds and checks target 3.13/3.14;
   automated CI and a functional installed-client read are still pending.
-- [ ] Choose one async transport after a small lifecycle/cookie/cancellation
+- [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
+  Selected `aiohttp` using the executable loopback spike. Account-client transport
+  hardening and supported network operations remain pending.
 - [ ] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.
   Construction/import must do no network I/O or implicit environment discovery.
@@ -345,6 +348,12 @@ the proposed records can be mapped to existing MCP outputs without data loss.
 ## P2 - Session, transport, and authentication
 
 Dependencies: P0-P1. Regression requirements: R01-R04, R10, R17.
+
+Scheduler progress: global/per-account active and queue limits, shared rate/burst
+admission, round-robin fairness, service pauses, shared request/deadline budgets,
+and cancellation/close ownership are implemented and tested offline. Wiring all
+authentication and endpoint requests through this boundary is still pending;
+the complete transport/session requirements below are not marked satisfied.
 
 - [ ] Use one authenticated session/cookie jar per configured login, including
   separate student and parent logins for the same student. Confirm expected

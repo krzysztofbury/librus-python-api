@@ -382,6 +382,9 @@ wheels = [
 [[package]]
 name = "librus-python-api"
 source = { editable = "." }
+dependencies = [
+    { name = "pydantic" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -395,6 +398,7 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.12,<3" }]
 
 [package.metadata.requires-dev]
 dev = [

@@ -16,7 +16,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Typing :: Typed",
 ]
-dependencies = []
+dependencies = ["pydantic>=2.12,<3"]
 
 [project.urls]
 Repository = "https://github.com/krzysztofbury/librus-python-api"
@@ -40,7 +40,7 @@ path = "src/librus_python_api/__init__.py"
 packages = ["src/librus_python_api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/tools", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/LICENSE"]
+include = ["/src", "/tests", "/tools", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/DESIGN.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

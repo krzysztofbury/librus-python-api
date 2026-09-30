@@ -33,8 +33,12 @@ See [the implementation roadmap](TODO.md).
 ## Current foundation
 
 - Python 3.13 and 3.14 package skeleton with an MIT license and `py.typed`.
-- Central typed route catalogue in `src/librus_python_api/config.py` and closed
-  error categories. The catalogue currently has no enabled Librus operations.
+- Central typed route catalogue in `src/librus_python_api/config.py`, frozen
+  Pydantic limit configuration, and closed error categories. The catalogue
+  currently has no enabled Librus operations.
+- Shared async scheduler with bounded global/per-account admission, token-bucket
+  rate/burst limits, round-robin fairness, shared request/deadline budgets, and
+  joined cancellation/closure. This is service-local, not a distributed quota.
 - [OpenAPI YAML and endpoint evidence requirements](contracts/README.md), with
   an offline check preventing route/contract drift. Import the YAML into Bruno
   when operations are added; there are no working requests in it yet.
@@ -42,8 +46,10 @@ See [the implementation roadmap](TODO.md).
   scoped duplicate cookies, body limits, deadline, and cancellation checks.
   This is transport-selection evidence, not a supported client or load test.
 
-Authentication, identity, shared traffic scheduling, and the MCP adapter remain
-pending. No live Librus calls were used to validate this foundation.
+Authentication, identity, the account-client transport, and the MCP adapter remain
+pending. Scheduler behavior is tested under a saturated four-account loopback
+HTTP workload; this is not live integration or performance-comparison evidence.
+No live Librus calls were used to validate this foundation.
 
 ## Development principles
 

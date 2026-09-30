@@ -56,8 +56,8 @@ staged diff. Git hooks are local checks; each clone must install them.
 
 The foundation uses `src/librus_python_api/`, Hatchling builds, and a committed
 `uv.lock`. Python 3.13 and 3.14 are the current local verification targets.
-The installed library has no runtime dependencies yet; `aiohttp` is a development
-dependency while its transport lifecycle is evaluated.
+Pydantic provides strict, frozen runtime limit validation. `aiohttp` remains a
+development dependency until the account-client transport is implemented.
 
 ```sh
 uv sync --locked --python 3.14
@@ -73,7 +73,8 @@ uv build --no-sources
 The transport spike starts a disposable HTTP server on loopback. Its routes,
 account names, and login behavior are synthetic and are not Librus fixtures.
 It checks the dependency's behavior without calling any school service. It does
-not qualify service-wide request budgets, retries, live auth, or parser coverage.
+not qualify retries, live auth, or parser coverage. Scheduler tests separately
+exercise service-wide request budgets and saturated four-account HTTP admission.
 
 To repeat the suite on Python 3.13, use a separate environment so the primary
 environment is not replaced:
@@ -98,6 +99,22 @@ the authentication and identity slice exists. No PyPI upload or publishing CI
 is required for the 0.x deliveries. PyPI publication and publishing automation
 start at `1.0.0rc1`; local `librus-mcp` integration can use the exact built wheel
 before that candidate. Production consumer releases must still use PyPI artifacts.
+
+To run the current offline suite against the installed wheel rather than the
+editable source package, export the locked dependencies without the project,
+install them in that separate environment, and run from outside the checkout:
+
+```sh
+uv export --quiet --locked --no-emit-project --format requirements-txt --output-file /tmp/opencode/librus-python-api-wheel-requirements.txt
+uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python --require-hashes -r /tmp/opencode/librus-python-api-wheel-requirements.txt
+cd /tmp/opencode
+PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests
+```
+
+Replace `/path/to/librus-python-api` with the checkout root, never its `src/`
+directory. This makes development tools/fixtures available without replacing
+the installed library. Reinstall the wheel after rebuilding the same dev version;
+check `librus_python_api.__file__` points into the separate environment.
 
 Keep network paths in `config.py` and add the matching wire contract in
 `contracts/upstream.openapi.yaml` for every endpoint. See the

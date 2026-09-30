@@ -5,13 +5,14 @@ is empty until the first independently evidenced network operation is enabled.
 There is intentionally no public arbitrary authenticated URL interface.
 """
 
-import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Literal
+from typing import Annotated, Any, Literal, Self
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from librus_python_api.errors import ErrorKind, LibrusError
 
@@ -70,27 +71,75 @@ class Endpoint:
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType({})
 
 
-@dataclass(frozen=True, slots=True)
-class TransportLimits:
+class _ValidatedConfig(BaseModel):
+    model_config = ConfigDict(
+        frozen=True, strict=True, extra="forbid", hide_input_in_errors=True
+    )
+
+    def __init__(self, **data: Any) -> None:
+        failed = False
+        try:
+            super().__init__(**data)
+        except ValidationError:
+            failed = True
+        # Raise outside the handler so the raw validation error is not chained.
+        if failed:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
+PositiveCount = Annotated[int, Field(gt=0)]
+QueueCount = Annotated[int, Field(ge=0)]
+PositiveFinite = Annotated[float, Field(gt=0, allow_inf_nan=False)]
+
+
+class TransportLimits(_ValidatedConfig):
     """Per-request bounds used by the local transport evaluation.
 
     These do not implement service-wide scheduling or operation budgets. Those
     are required before enabling any supported upstream operation.
     """
 
-    response_max_bytes: int = 4 * 1024 * 1024
-    request_timeout_seconds: float = 30.0
-    connect_timeout_seconds: float = 10.0
+    response_max_bytes: PositiveCount = 4 * 1024 * 1024
+    request_timeout_seconds: PositiveFinite = 30.0
+    connect_timeout_seconds: PositiveFinite = 10.0
 
-    def __post_init__(self) -> None:
-        if type(self.response_max_bytes) is not int or self.response_max_bytes < 1:
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        for value in (self.request_timeout_seconds, self.connect_timeout_seconds):
-            if (
-                type(value) not in (int, float)
-                or not math.isfinite(value)
-                or value <= 0
-            ):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
+    @model_validator(mode="after")
+    def validate_deadlines(self) -> Self:
         if self.connect_timeout_seconds > self.request_timeout_seconds:
-            raise LibrusError(ErrorKind.INVALID_INPUT)
+            raise ValueError("Connect timeout exceeds request timeout")
+        return self
+
+
+class SchedulerLimits(_ValidatedConfig):
+    """Conservative service-local admission bounds, not Librus-approved quotas.
+
+    Queue limits count waiting requests, separately from active requests. Rate
+    tokens count every admitted attempt, including future auth/redirect/retry
+    requests. Parent and student logins each occupy their own account slot.
+    """
+
+    requests_per_second: PositiveFinite = 1.0
+    burst: PositiveCount = 1
+    active_requests: PositiveCount = 2
+    active_requests_per_account: PositiveCount = 1
+    queued_requests: QueueCount = 32
+    queued_requests_per_account: QueueCount = 8
+    accounts: PositiveCount = 16
+
+    @model_validator(mode="after")
+    def validate_account_limits(self) -> Self:
+        if self.active_requests_per_account > self.active_requests:
+            raise ValueError("Account concurrency exceeds global concurrency")
+        if self.queued_requests_per_account > self.queued_requests:
+            raise ValueError("Account queue exceeds global queue")
+        return self
+
+
+class OperationLimits(_ValidatedConfig):
+    """Whole-operation request/deadline bounds, including scheduler queue wait."""
+
+    max_requests: PositiveCount = 32
+    timeout_seconds: PositiveFinite = 120.0
+
+
+DEFAULT_OPERATION_LIMITS = OperationLimits()

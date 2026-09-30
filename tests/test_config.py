@@ -1,8 +1,14 @@
-from dataclasses import FrozenInstanceError
-
 import pytest
+from pydantic import ValidationError
 
-from librus_python_api.config import Endpoint, Evidence, SideEffect, TransportLimits
+from librus_python_api.budget import RequestBudget
+from librus_python_api.config import (
+    Endpoint,
+    Evidence,
+    SchedulerLimits,
+    SideEffect,
+    TransportLimits,
+)
 from librus_python_api.errors import ErrorKind, LibrusError
 
 
@@ -25,8 +31,8 @@ def test_connect_timeout_cannot_exceed_total_deadline() -> None:
 
 def test_limits_are_immutable() -> None:
     limits = TransportLimits()
-    with pytest.raises(FrozenInstanceError):
-        limits.response_max_bytes = 0  # type: ignore[misc]
+    with pytest.raises(ValidationError, match="frozen_instance"):
+        limits.response_max_bytes = 0
 
 
 @pytest.mark.parametrize(
@@ -58,3 +64,44 @@ def test_error_does_not_accept_arbitrary_upstream_messages() -> None:
     error = LibrusError(ErrorKind.PARSE)
     assert str(error) == "parse"
     assert repr(error) == "LibrusError('parse')"
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"requests_per_second": float("nan")},
+        {"burst": True},
+        {"burst": 0},
+        {"active_requests": "2"},
+        {"queued_requests": -1},
+        {"active_requests_per_account": 3},
+        {"queued_requests_per_account": 33},
+        {"unexpected": "synthetic private value"},
+    ],
+)
+def test_scheduler_config_is_strict_and_errors_are_redacted(
+    values: dict[str, object],
+) -> None:
+    with pytest.raises(LibrusError, match="^invalid_input$") as caught:
+        SchedulerLimits(**values)  # type: ignore[arg-type]
+    assert caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"max_requests": True},
+        {"max_requests": 0},
+        {"max_requests": 1.5},
+        {"timeout_seconds": 0},
+        {"timeout_seconds": float("inf")},
+        {"timeout_seconds": 10**400},
+        {"timeout_seconds": "synthetic private value"},
+    ],
+)
+def test_operation_budget_rejects_invalid_or_overflowing_limits(
+    values: dict[str, object],
+) -> None:
+    with pytest.raises(LibrusError, match="^invalid_input$") as caught:
+        RequestBudget(**values)  # type: ignore[arg-type]
+    assert caught.value.__context__ is None
