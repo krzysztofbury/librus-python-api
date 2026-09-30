@@ -274,15 +274,17 @@ class TransportLimits(_ValidatedConfig):
 
 
 class SchedulerLimits(_ValidatedConfig):
-    """Conservative service-local admission bounds, not Librus-approved quotas.
+    """Bounded service-local traffic policy, not Librus-approved quotas.
 
     Queue limits count waiting requests, separately from active requests. Rate
     tokens count every admitted attempt, including future auth/redirect/retry
     requests. Parent and student logins each occupy their own account slot.
+    A shared ten-token burst accommodates sequential cold-login hops; refill at
+    five tokens/second bounds sustained traffic without one-second hop delays.
     """
 
-    requests_per_second: PositiveFinite = 1.0
-    burst: PositiveCount = 1
+    requests_per_second: PositiveFinite = 5.0
+    burst: PositiveCount = 10
     active_requests: PositiveCount = 2
     active_requests_per_account: PositiveCount = 1
     queued_requests: QueueCount = 32

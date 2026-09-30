@@ -112,12 +112,27 @@ identifier, credential, or school value enters repository fixtures.
 After form reuse, the simplified four-login fixture uses 24 cold requests rather
 than 28, retaining three warm requests and one denial. Live comparative observations
 and same-page memory-only replay are documented in BENCHMARKS.md, including the
-slower default-policy cold login and higher total process RSS. General live account
+historically slower cold login and higher total process RSS. General live account
 compatibility and multi-account performance remain pending.
 
-The current suite has 172 portable tests plus four opt-in integration/performance
+The current suite has 174 portable tests plus four opt-in integration/performance
 cases. The installed wheel exercises real MCP stdio and the paired synthetic
 parser measurement; ordinary GitHub CI remains offline.
+
+The revised default policy is five requests/second with a shared ten-token burst.
+The new token-clock regression failed with the previous default, then passed with
+the revised default. Four-account HTTP tests exercise both default and explicit
+policies beyond burst capacity, checking the shared envelope and unchanged peak
+concurrency. Existing 429/503 service tests now use default scheduler settings
+and still prove cross-account cooldown and no replay. Pause/no-resume-burst,
+queue, cancellation, and budget regressions remain in place.
+
+An explicitly authorized rerun exercised the installed development wheel through
+one login and three fresh summary reads per implementation. Outputs matched;
+native cold retrieval was 949 ms versus 973 ms for the baseline, with 0.4 ms
+admission wait instead of the earlier eight-second token delay. BENCHMARKS.md
+retains both samples and documents the distinction between burst qualification,
+offline saturation proof, and still-unqualified upstream sustained capacity.
 
 ## Explicitly pending
 

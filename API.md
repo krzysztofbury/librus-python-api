@@ -95,8 +95,8 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 ## Configuration and injection
 
-- `SchedulerLimits`: one request/second, burst one, two active requests globally,
-  one per account, 32 queued globally/eight per account, 16 accounts, 32 operation
+- `SchedulerLimits`: five requests/second, shared burst ten, two active requests
+  globally, one per account, 32 queued globally/eight per account, 16 accounts, 32 operation
   callers globally/eight per account. These are not Librus-approved quotas.
 - `TransportLimits`: 30-second total request and 10-second connect timeout,
   4 MiB response bodies, ten redirect hops per chain, 128 cookies, 256 KiB parser

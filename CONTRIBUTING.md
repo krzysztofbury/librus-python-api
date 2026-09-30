@@ -11,8 +11,8 @@ independent implementation rather than modifying or redistributing upstream
   tests, documentation, or HTML fixtures unless its provenance and license
   have been reviewed for this MIT-licensed repository.
 - Never commit credentials, cookies, access tokens, school identifiers, or
-  identifiable student, teacher, or message data. Use synthetic fixtures or
-  anonymize real material before it enters the repository.
+  identifiable student, teacher, or message data. Author synthetic fixtures from
+  independently established structural requirements; never commit raw captures.
 - Keep ordinary tests and pull-request CI offline. A separate owner-configured
   daily/manual workflow may use real credentials for bounded login/read checks,
   following [the live CI roadmap](TODO.md#p6-live---daily-credentialed-compatibility-check).
@@ -52,7 +52,47 @@ may contain placeholders only. Automated detection cannot identify all personal
 school data or every password: independently anonymize fixtures and review the
 staged diff. Git hooks are local checks; each clone must install them.
 
-### Package development
+### Evidence and live compatibility
+
+Passing synthetic tests establishes behavior against those fixtures, not that
+the assumed upstream contract exists. Self-review is not independent approval.
+Apply this checklist to each enabled operation family:
+
+1. Label evidence as source-informed, offline-tested, observed live, or still
+   unqualified. Offline development commits are valid checkpoints, not evidence
+   that the integration is live-compatible or ready for a production switch.
+2. Once explicitly authorized, qualify the smallest useful path early, before
+   expanding dependent features: install the built artifact outside the checkout,
+   authenticate, validate identity, and complete one allowed ordinary read with
+   independently checked output. If live access is unavailable, report the gate
+   as pending. Do not infer compatibility from tests, imports, or package builds.
+3. Agree account scope, exact operations, credential submissions, and total HTTP
+   budget before live work. Bound cumulative diagnostic traffic as well as each
+   run. Stop on failures; additional login/capture attempts require authorization
+   within the remaining budget. Do not bypass destination checks, silently fall
+   back to the old client, retry writes, or invoke read-once operations.
+4. Diagnose with allowlisted technical metadata and bounded in-memory replay.
+   Turn the established structural requirement into an original failing offline
+   regression before fixing it. Do not turn private responses into repo fixtures
+   or print live objects, assertion diffs, raw exceptions, or secret-file paths.
+   Credentials and school values must stay out of source, logs, and PR artifacts.
+5. Exercise the complete installed runtime path after the fix, not just its parser
+   or mocked transport. Record version/artifact, scope, request counts, result
+   parity, and the unsupported variants. An empty read is not populated coverage;
+   one successful account does not qualify all roles, layouts, or account types.
+6. Benchmark only completed equivalent operations. Record effective rate, burst,
+   concurrency, freshness, and import/pacing exclusions, separating cold and warm
+   runs and admission wait. Default-behavior comparisons with different traffic
+   policies are not matched-policy sustained-load comparisons. Traced Python
+   allocations are not whole-process RSS. Retain non-wins and historical settings;
+   rerun measurements after policy changes instead of relabeling old numbers.
+
+Keep ordinary CI offline. An authorized smoke complements deterministic offline
+failure/load tests; it does not justify uncontrolled school traffic or prove
+upstream capacity. See REVIEW.md for the failure analysis and TODO.md for pending
+qualification work. No credentialed release gate may silently pass without running.
+
+### Offline CI and package checks
 
 GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to `main`,
 and manual dispatch. Its quality job checks the lockfile, Ruff, formatting, strict

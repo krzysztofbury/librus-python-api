@@ -13,6 +13,9 @@
   regressions. Reuse the authorization form instead of fetching it twice.
 - Load optional Loguru diagnostics only when enabled. Add a paired synthetic
   parser measurement and document live sample benefits and non-wins.
+- Raise the shared traffic defaults to five requests/second and burst ten while
+  retaining concurrency, queues, deadlines, cooldowns, and token accounting for
+  every login hop. These are configurable engineering defaults, not Librus quotas.
 - Individual numeric/descriptive grades, GPA, windows, and other academic slices
   remain pending; summary layouts beyond the narrow live qualification are unverified.
 

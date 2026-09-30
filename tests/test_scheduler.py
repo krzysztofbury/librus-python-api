@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import Awaitable
 from contextlib import AsyncExitStack
 from functools import partial
+from types import SimpleNamespace
 
 import pytest
 from aiohttp import ClientSession, web
@@ -193,7 +194,28 @@ def test_close_joins_canceled_workers_and_rejects_new_work() -> None:
     run(scenario())
 
 
-def test_four_account_http_workload_obeys_combined_rate_and_concurrency() -> None:
+@pytest.mark.parametrize(
+    ("limits", "rate", "burst"),
+    [
+        (None, 5, 10),
+        (
+            SchedulerLimits(
+                requests_per_second=40,
+                burst=2,
+                active_requests=2,
+                active_requests_per_account=1,
+                queued_requests=12,
+                queued_requests_per_account=3,
+            ),
+            40,
+            2,
+        ),
+    ],
+    ids=["default-policy", "explicit-policy"],
+)
+def test_four_account_http_workload_obeys_combined_rate_and_concurrency(
+    limits: SchedulerLimits | None, rate: int, burst: int
+) -> None:
     async def scenario() -> None:
         timestamps: list[float] = []
         active: Counter[str] = Counter()
@@ -222,14 +244,6 @@ def test_four_account_http_workload_obeys_combined_rate_and_concurrency() -> Non
             await site.start()
             url = f"http://127.0.0.1:{runner.addresses[0][1]}/fixture"
             accounts = ("student_a", "parent_a", "student_b", "parent_b")
-            limits = SchedulerLimits(
-                requests_per_second=40,
-                burst=2,
-                active_requests=2,
-                active_requests_per_account=1,
-                queued_requests=12,
-                queued_requests_per_account=3,
-            )
             scheduler = await stack.enter_async_context(
                 RequestScheduler(accounts, limits=limits)
             )
@@ -256,8 +270,55 @@ def test_four_account_http_workload_obeys_combined_rate_and_concurrency() -> Non
             for start in range(len(timestamps)):
                 for end in range(start, len(timestamps)):
                     count = end - start + 1
-                    allowance = 2 + 40 * (timestamps[end] - timestamps[start] + 0.02)
+                    allowance = burst + rate * (
+                        timestamps[end] - timestamps[start] + 0.02
+                    )
                     assert count <= allowance
+
+    run(scenario())
+
+
+def test_default_rate_bucket_is_shared_bounded_and_refills(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Freeze only the scheduler's token clock, not asyncio's deadline clock.
+    now = 0.0
+    monkeypatch.setattr(
+        "librus_python_api.scheduler.time", SimpleNamespace(monotonic=lambda: now)
+    )
+
+    async def scenario() -> None:
+        nonlocal now
+        calls: list[str] = []
+
+        async def action(account: str) -> None:
+            calls.append(account)
+
+        # Zero queues make exhausted-token rejection observable without timing
+        # assertions; rate and burst remain the shipped defaults.
+        limits = SchedulerLimits(queued_requests=0, queued_requests_per_account=0)
+        async with RequestScheduler(("a", "b"), limits=limits) as scheduler:
+            budget = RequestBudget()
+            for index in range(10):
+                account = "a" if index % 2 == 0 else "b"
+                await scheduler.run(account, budget, partial(action, account))
+            assert Counter(calls) == {"a": 5, "b": 5}
+            for instant in (0.0, 0.199):
+                now = instant
+                with pytest.raises(LibrusError, match="^limit$"):
+                    await scheduler.run("b", budget, partial(action, "b"))
+            assert budget.requests_dispatched == 10
+            now = 0.201
+            await scheduler.run("b", budget, partial(action, "b"))
+            assert budget.requests_dispatched == 11
+            # Long idle periods cannot accumulate unlimited burst credit.
+            now = 100.0
+            for _ in range(10):
+                await scheduler.run("a", budget, partial(action, "a"))
+            with pytest.raises(LibrusError, match="^limit$"):
+                await scheduler.run("b", budget, partial(action, "b"))
+            assert len(calls) == budget.requests_dispatched == 21
+            assert scheduler.snapshot().active == scheduler.snapshot().queued == 0
 
     run(scenario())
 

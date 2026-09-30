@@ -69,17 +69,38 @@ I/O before submission, or deliberately suppresses cancellation indefinitely.
 The transport dispatches every enabled login step, redirect, and retry through
 this boundary. Future metadata lookups and page fetches must do the same.
 
-Default policy: one request/second, burst one, two global active requests, one
-active request/account, 32 global queued requests, eight queued requests/account,
-and at most 16 accounts. These are conservative library defaults, not a known
+Default policy: five requests/second, shared burst ten, two global active requests,
+one active request/account, 32 global queued requests, eight queued requests/account,
+and at most 16 accounts. These are engineering defaults, not a known
 Librus-approved traffic allowance. No rate increase is qualified by quiet live
 accounts. Independent services/processes require separate coordination.
+
+No published Librus request-rate quota was found in public documentation searches.
+There is no universal industry-standard numeric allowance for an undocumented
+upstream. The burst accommodates a typical sequential cold-login chain without
+one-second waits between hops; the five-token/second refill limits sustained
+traffic across all accounts together. This allows at most `10 + 5 * elapsed_seconds`
+admissions over an interval, not a hard five-request ceiling in every second.
+Only two requests can be active globally, and only one per account. All login
+hops still consume tokens; nothing bypasses the shared budget.
+
+This follows the general [client-side rate limiting pattern][rate-pattern]:
+combine shared admission, bounded concurrency/queues, and server back-pressure
+rather than blindly retrying rejected work. That guidance does not endorse our
+numeric settings or establish Librus capacity. Existing 429/503 handling pauses
+the shared scheduler for Retry-After or at least the configured cooldown, returns
+the categorized error without replay, and drains queued work without a resume
+burst. Lower limits remain configurable for deployments with stricter requirements.
+
+[rate-pattern]: https://learn.microsoft.com/en-us/azure/architecture/patterns/rate-limiting-pattern
 
 ## Current proof and limits
 
 The tests observe the public scheduler through real loopback HTTP for four
 account keys with three requests each. They check the combined token-bucket
-envelope, global peak two, per-account peak one, and exact request counts. Fast
+envelope under both default and explicit policies, global peak two, per-account
+peak one, and exact request counts. A frozen token-clock test verifies shared
+burst exhaustion, five-token/second refill, and bounded credit after idle time. Fast
 fixture-only rate settings are not recommended live tuning values.
 
 Fault tests cover queue overflow, shared-budget exhaustion, waiting/active

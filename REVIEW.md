@@ -1,9 +1,80 @@
-# 0.1.0 phase review
+# Delivery reviews and retrospective
 
-Review method: the shared pair-programmer/TigerStyle and test-audit checklists,
-applied by the implementing agent. This is not an independent reviewer approval.
-No live Librus request was made. Fixtures and implementation are original and
-source-informed, not copied upstream material.
+The initial phase review below is historical offline evidence. Current live
+qualification and performance evidence are in VERIFICATION.md and BENCHMARKS.md.
+
+## Retrospective: offline confidence before live compatibility
+
+### What failed
+
+The implementing agent built and reviewed several increments before establishing
+that the native installed client could complete the intended credentialed read.
+The first live comparison failed in authentication; offline replay also rejected
+the actual summary page. Fixing redirects then exposed an identity-contract gap.
+Green CI, installed-artifact fixture tests, and repeated self-review had not tested
+those real upstream boundaries. The failure was not a lack of tests in general:
+the fixtures encoded unverified assumptions, so passing them could not validate
+the assumptions themselves. Confidence and delivery framing outpaced evidence.
+
+Confirmed compatibility gaps, not hypothetical explanations:
+
+- Exact PerformLogin/Grant continuation destinations were missing from the native
+  catalogue. Strict destination validation correctly rejected the unsupported flow.
+- The identity wire contract required User.Id, while the observed gateway variant
+  used the explicit Account.UserId reference and a names-only User object.
+- The HTML parser rejected stray closing tags, and summary parsing treated an
+  empty full-width spacer as a malformed subject. Synthetic valid markup omitted
+  both structural conditions.
+- The one-request/second, burst-one default imposed about eight seconds of cold
+  admission wait. Fast fixture policies hid that default-path latency. The numeric
+  limit was provisional, not grounded in a published upstream allowance.
+
+### Process mistakes
+
+- Authorization for live access was necessary and must never be assumed. However,
+  once obtained, the smallest installed-client smoke should have been prioritized
+  before expanding the feature work or treating the integration as usable.
+- Implementing-agent self-review checked code safety and internal contracts, but
+  did not supply independent upstream evidence. More passing tests or another
+  self-review could not close that gap.
+- Performance comparison started before the native workload could complete. Failed
+  and successful workloads have different outputs and cannot establish speedups.
+  Only completed, equivalent results support the later comparative measurements.
+- Successive missing contracts required more credentialed diagnostic attempts.
+  Private in-memory replay and allowlisted structural metadata should be planned
+  up front, with cumulative traffic budgets, to avoid unnecessary relogins.
+
+These were committed development checkpoints, not a PyPI publication or a completed
+0.2.0 production migration. That boundary reduced deployment impact; it does not
+excuse the compatibility blind spots or overconfidence. Historical evidence must
+remain visibly labeled rather than silently promoted after one successful run.
+
+### What helped and what changed
+
+Exact route allowlisting prevented unapproved destinations; explicit parse errors
+prevented fabricated partial output. Original regressions captured the independently
+established redirect, identity-reference, and HTML requirements without committing
+private captures. Bounded replay established summary parity; the installed live
+path then completed. The revised five-request/second, burst-ten policy removed
+artificial cold-login pacing while preserving shared budgets and cooldown handling.
+
+Repository changes from this retro:
+
+- CONTRIBUTING.md now distinguishes offline checkpoints from live qualification,
+  requires an early authorized installed-path smoke, and documents evidence,
+  diagnostic-budget, privacy, and benchmark rules.
+- TODO.md records the narrow completed qualification separately from open account,
+  layout, drift-check, and matched-policy multi-account gates.
+- This retrospective documents confirmed failures and implementing-agent process
+  responsibility. No global skills, harness configuration, or personal notes change.
+
+The new bounded live sample is not a sustained-load test. Full academic coverage,
+production backend migration, and broader compatibility remain pending.
+
+Historical 0.1.0 review method: the shared pair-programmer/TigerStyle and test-audit
+checklists, applied by the implementing agent, not an independent reviewer approval.
+No live Librus request was made during that original review. Fixtures and
+implementation are original and source-informed, not copied upstream material.
 
 ## 0.2.0.dev0 increment self-review
 
@@ -29,6 +100,13 @@ source-informed, not copied upstream material.
 ## Safety
 
 ### Compatibility and measurement follow-up
+
+- TigerStyle #13: Revise the explicit shared defaults to five requests/second,
+  burst ten, without changing active/queue/operation limits or exempting login.
+  A failing-before-fix token-clock regression protects burst/refill/idle-credit
+  behavior; four-account HTTP saturation protects shared admission and unchanged
+  concurrency. Default-policy service tests retain 429/503 cooldown/no-replay proof.
+  Public rate-limiting guidance supports the pattern, not a numeric Librus quota.
 
 - TigerStyle #6: Keep exact origin/path allowlisting for the newly observed login
   routes. User identity may use explicit Account.UserId but never owner ID or name

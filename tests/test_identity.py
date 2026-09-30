@@ -531,6 +531,7 @@ def test_shared_backoff_pauses_other_accounts_without_replaying_failed_read(
             fixture.origin = origin
             async with fixture.service(
                 ("parent", "student"),
+                scheduler_limits=SchedulerLimits(),
                 transport_limits=TransportLimits(cooldown_seconds=0.05),
             ) as service:
                 with pytest.raises(LibrusError) as caught:
