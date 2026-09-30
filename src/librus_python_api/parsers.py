@@ -71,9 +71,16 @@ def parse_identity(body: bytes) -> tuple[Person, Person]:
         raise LibrusError(ErrorKind.PARSE)
     assert envelope is not None
     account, user = envelope.Me.Account, envelope.Me.User
+    # Gateway variants omit User.Id but supply its explicit Account.UserId
+    # reference. Account.Id remains the login owner, never the represented user.
+    student_id = user.Id if user.Id is not None else account.UserId
+    if student_id is None or (
+        user.Id is not None and account.UserId is not None and user.Id != account.UserId
+    ):
+        raise LibrusError(ErrorKind.PARSE)
     return (
         Person(account.Id, account.FirstName, account.LastName),
-        Person(user.Id, user.FirstName, user.LastName),
+        Person(student_id, user.FirstName, user.LastName),
     )
 
 
@@ -96,15 +103,21 @@ def parse_login(body: bytes) -> str:
 def parse_html_document(body: bytes) -> html.HtmlElement:
     failed = False
     document: html.HtmlElement | None = None
+    parser = html.HTMLParser(no_network=True, recover=True, huge_tree=False)
     try:
         text = body.decode("utf-8")
         document = html.document_fromstring(
             text,
-            parser=html.HTMLParser(no_network=True, recover=False, huge_tree=False),
+            parser=parser,
         )
     except (UnicodeError, etree.LxmlError, ValueError):
         failed = True
-    if failed:
+    # Browser HTML commonly contains stray closing tags. Accept only this
+    # observed repair category; semantic tables, spans, IDs, and bounds still
+    # validate independently. Do not blanket-ignore arbitrary parser errors.
+    if failed or any(
+        error.type_name != "ERR_TAG_NAME_MISMATCH" for error in parser.error_log
+    ):
         raise LibrusError(ErrorKind.PARSE)
     assert document is not None
     count = 0

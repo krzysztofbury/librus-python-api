@@ -102,7 +102,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/loguj/portalRodzina",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "login_authorization",
@@ -110,7 +110,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -119,7 +119,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -128,7 +128,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization/2FA",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -138,6 +138,24 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.SYNTHETIC_ONLY,
+            ),
+            Endpoint(
+                "login_perform",
+                "GET",
+                "/OAuth/Authorization/PerformLogin",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "api",
+            ),
+            Endpoint(
+                "login_grant",
+                "GET",
+                "/OAuth/Authorization/Grant",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "api",
             ),
             Endpoint(
                 "login_landing",
@@ -161,7 +179,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/gateway/api/2.0/Me",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "student_information",
@@ -177,7 +195,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/przegladaj_oceny/uczen",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
         )
     }

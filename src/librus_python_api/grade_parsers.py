@@ -174,6 +174,10 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
             if _outside_nested_tables(row):
                 raise LibrusError(ErrorKind.PARSE)
             continue
+        # An empty full-width layout spacer is not an unassigned subject. Keep
+        # this exception narrow: content or a different width remains malformed.
+        if len(cells) == 1 and _span(cells[0]) == width and not _text(cells[0]):
+            continue
         # Expanded inline detail labels are not subjects. Recognize this narrow
         # source-informed variant, never discard arbitrary malformed subject rows.
         if len(cells) > 1 and _text(cells[1]) == GRADE_INLINE_DETAIL_LABEL:

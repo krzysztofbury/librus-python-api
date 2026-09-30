@@ -1,4 +1,4 @@
-"""Independent, bounded async Librus client. Live compatibility is unverified."""
+"""Independent bounded async client. General live compatibility is unqualified."""
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (

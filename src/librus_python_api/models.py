@@ -145,10 +145,31 @@ class _PersonWire(BaseModel):
         return value
 
 
+class _AccountWire(_PersonWire):
+    UserId: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+
+    @field_validator("UserId", mode="before")
+    @classmethod
+    def normalize_user_id(cls, value: Any) -> Any:
+        return cls.normalize_id(value)
+
+
+class _UserWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Id: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+    FirstName: Annotated[str | None, Field(max_length=256)] = None
+    LastName: Annotated[str | None, Field(max_length=256)] = None
+
+    @field_validator("Id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> Any:
+        return _PersonWire.normalize_id(value)
+
+
 class _MeWire(BaseModel):
     model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Account: _PersonWire
-    User: _PersonWire
+    Account: _AccountWire
+    User: _UserWire
 
 
 class _EnvelopeWire(BaseModel):

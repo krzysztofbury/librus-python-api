@@ -64,6 +64,71 @@ def test_rendered_summary_boundaries_preserve_words_and_grade_symbols(
     assert item.annual.raw == expected
 
 
+def test_browser_html_end_tag_repair_keeps_summary_semantics() -> None:
+    # Independently authored mismatched tags, not a live response excerpt.
+    body = summary_html().replace("<body>", "<body><div>Display noise</em></div>")
+    (item,) = parse_final_grades(body.encode())
+    assert item.subject == "Fixture Language"
+    assert item.annual.raw == "4+"
+
+
+def test_html_repair_does_not_ignore_duplicate_ids() -> None:
+    body = summary_html().replace(
+        "<body>", '<body><span id="duplicate">a</span><span id="duplicate">b</span>'
+    )
+    with pytest.raises(ParseError):
+        parse_final_grades(body.encode())
+
+
+@pytest.mark.parametrize(
+    "spacer",
+    [
+        '<tr><td colspan="7"></td></tr>',
+        '<tr><td colspan="7">Unexpected content</td></tr>',
+    ],
+)
+def test_only_empty_full_width_spacer_is_not_a_subject(spacer: str) -> None:
+    body = summary_html().replace("</tbody>", spacer + "</tbody>")
+    if "Unexpected" in spacer:
+        with pytest.raises(ParseError):
+            parse_final_grades(body.encode())
+    else:
+        (item,) = parse_final_grades(body.encode())
+        assert item.annual.raw == "4+"
+
+
+@pytest.mark.parametrize("portal_without_redirect", [False, True])
+def test_login_grant_chain_and_form_reuse_are_bounded_wire_behaviour(
+    portal_without_redirect: bool,
+) -> None:
+    async def scenario() -> None:
+        fixture = GradeFixture()
+        fixture.grant_chain = True
+        fixture.identity_mode = "account_reference"
+        fixture.portal_without_redirect = portal_without_redirect
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").final_grades()
+                assert result.identity.owner.id == "student"
+                assert result.identity.student.id == "student-shared"
+                assert result.items[0].annual.raw == "4+"
+                assert fixture.logins == {"student": 1}
+                assert [path for path, _ in fixture.calls] == [
+                    "/loguj/portalRodzina",
+                    "/OAuth/Authorization",
+                    "/OAuth/Authorization",  # The only POST, not another GET.
+                    "/OAuth/Authorization/2FA",
+                    "/OAuth/Authorization/PerformLogin",
+                    "/OAuth/Authorization/Grant",
+                    "/loguj",
+                    "/gateway/api/2.0/Me",
+                    "/przegladaj_oceny/uczen",
+                ]
+
+    asyncio.run(scenario())
+
+
 def test_reordered_header_and_body_columns_stay_aligned() -> None:
     markup = (
         summary_html()
@@ -247,14 +312,14 @@ def test_four_independent_summary_reads_coalesce_and_cache_under_one_scheduler()
                     assert cached is result
                 assert fixture.logins == dict.fromkeys(aliases, 1)
                 assert (
-                    len(fixture.calls) == service.snapshot().requests_dispatched == 28
+                    len(fixture.calls) == service.snapshot().requests_dispatched == 24
                 )
                 assert len(fixture.connections) == 4
                 assert {event.operation for event in events} == {"final_grades"}
                 assert "student-a" not in repr(events)
                 fresh = await service.account(aliases[0]).final_grades()
                 assert fresh is not results[0]
-                assert len(fixture.calls) == 29
+                assert len(fixture.calls) == 25
 
     asyncio.run(scenario())
 
@@ -269,19 +334,19 @@ def test_summary_session_recovery_invalidates_other_cached_account_results() -> 
                 previous = await client.final_grades()
                 profile = await client.student_information()
                 fixture.expire_grades["student"] = 1
-                budget = RequestBudget(max_requests=8)
+                budget = RequestBudget(max_requests=7)
                 recovered = await client.final_grades(budget=budget)
                 assert (
                     recovered.observation.session_generation
                     == previous.observation.session_generation + 1
                 )
-                assert budget.requests_dispatched == 8
+                assert budget.requests_dispatched == 7
                 assert fixture.logins == {"student": 2}
                 assert await client.final_grades(max_age_seconds=60) is recovered
                 assert (
                     await client.student_information(max_age_seconds=60) is not profile
                 )
-                assert len(fixture.calls) == 17
+                assert len(fixture.calls) == 15
 
     asyncio.run(scenario())
 
@@ -308,7 +373,7 @@ def test_summary_denial_cooldown_does_not_block_profile_or_another_login() -> No
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("requests", [6, 7])
+@pytest.mark.parametrize("requests", [5, 6])
 def test_summary_dispatch_uses_the_original_whole_operation_budget(
     requests: int,
 ) -> None:
@@ -318,7 +383,7 @@ def test_summary_dispatch_uses_the_original_whole_operation_budget(
             fixture.origin = origin
             async with fixture.service() as service:
                 budget = RequestBudget(max_requests=requests)
-                if requests == 6:
+                if requests == 5:
                     with pytest.raises(LimitError):
                         await service.account("student").final_grades(budget=budget)
                     assert not fixture.grades_started.is_set()

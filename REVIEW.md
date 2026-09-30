@@ -28,6 +28,20 @@ source-informed, not copied upstream material.
 
 ## Safety
 
+### Compatibility and measurement follow-up
+
+- TigerStyle #6: Keep exact origin/path allowlisting for the newly observed login
+  routes. User identity may use explicit Account.UserId but never owner ID or name
+  matching. Conflicting references and booleans remain parse failures.
+- TigerStyle #12: Accept only stray closing-tag repairs and a narrowly identified
+  empty spacer; preserve strict semantic width/subject/table checks. Original
+  failing regressions precede the fixes. No school capture is committed.
+- TigerStyle #14: Eliminate a redundant authorization GET; keep connection reuse
+  and coalescing. Optional logging initialization is deferred until enabled.
+- Measurement honesty: report traffic policy wait separately; retain slower cold
+  latency/higher RSS alongside faster warm reads, and distinguish traced Python
+  allocations from total RSS. This remains implementing-agent self-review.
+
 - TigerStyle #12: Full error handling. Repeated caller cancellation could interrupt
   scheduler worker cleanup, and a repeatedly canceled closer could return early.
   Both failures were reproduced in scheduler tests before the fix. Owned work is

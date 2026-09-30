@@ -6,8 +6,9 @@ info:
     name: MIT
   description: |
     Unofficial, independently authored, source-informed integration contract.
-    Not an API supplied or guaranteed by Librus. Current evidence is synthetic
-    offline HTTP/parser verification, not independently observed live responses.
+    Not an API supplied or guaranteed by Librus. Evidence combines original
+    offline HTTP/parser verification and narrowly scoped authorized login,
+    identity, and final-summary observations, not general account compatibility.
     Raw HTML is not a JSON domain record. Unknown login destinations are rejected
     rather than silently followed. Authentication can change last_login.
     Default requests target loopback; live requests require separate authorization.
@@ -23,6 +24,8 @@ paths:
       description: |
         Source-informed raw HTML route, not an official API or a live-verified
         contract. One GET fetches the summary without changing grade filters.
+        Allows only the observed stray closing-tag HTML repair category and an
+        empty full-width spacer row. All semantic validations remain required.
         Requires a unique decorated/stretch table with a titled annual-grade
         header in thead. The semantic header row omits the body expander and
         subject cells; header colspans occupy body columns. Recognized titles
@@ -42,14 +45,15 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: true
-      x-evidence: source_informed
+      x-evidence: independently_observed
       x-evidence-note: |
         Route research from librus-apix 1.5.2 URL definitions; summary column and
         account-variant requirements from the existing librus-mcp contract.
         Implementation and loopback wire fixtures are independently authored,
         not copied source, tests, or captures. Populated, unassigned, absent-column,
-        spanning-behaviour, and malformed cases are verified offline only.
-        No live Librus call or compatibility observation was performed.
+        spanning-behaviour, and malformed cases are verified offline. A bounded
+        authorized observation established stray closing tags and empty spacer
+        rows; no personal values or live response captures are included here.
       responses:
         '200':
           $ref: '#/components/responses/Html'
@@ -66,8 +70,8 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Source-informed portal route; independently authored redirect fixture. No live reproduction.
+      x-evidence: independently_observed
+      x-evidence-note: Authorized bounded portal redirect observation and an original loopback fixture; account variants remain unqualified.
       responses:
         '302':
           description: Authorization redirect with account-scoped cookies
@@ -85,8 +89,8 @@ paths:
       x-upstream-origin: https://api.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Source-informed form/cookie sequence; synthetic cookie-scope fixtures. Not independently observed.
+      x-evidence: independently_observed
+      x-evidence-note: Authorized form/cookie sequence observation and original cookie-scope fixtures; reuse the form reached through the portal instead of fetching it twice.
       parameters:
         - $ref: '#/components/parameters/ClientId'
         - in: query
@@ -113,8 +117,8 @@ paths:
       x-upstream-origin: https://api.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Source-informed form and goTo field; error/challenge conditions qualified offline only.
+      x-evidence: independently_observed
+      x-evidence-note: Authorized status/goTo observation with one credential submission per run; error/challenge conditions remain qualified offline only.
       parameters:
         - $ref: '#/components/parameters/ClientId'
       requestBody:
@@ -153,8 +157,8 @@ paths:
       x-upstream-origin: https://api.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Research-described continuation; offline redirect and unsupported-challenge proof only.
+      x-evidence: independently_observed
+      x-evidence-note: Authorized non-interactive continuation observation; original redirect/challenge fixtures. No claim of interactive 2FA support.
       parameters:
         - $ref: '#/components/parameters/ClientId'
       responses:
@@ -165,6 +169,7 @@ paths:
         default:
           $ref: '#/components/responses/Failure'
   /loguj:
+    # Synthetic callback remains supported independently of the observed chain.
     get:
       operationId: login_callback
       tags: [Authentication]
@@ -185,6 +190,50 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /OAuth/Authorization/PerformLogin:
+    get:
+      operationId: login_perform
+      tags: [Authentication]
+      summary: Follow the exact non-interactive login continuation route
+      x-origin: api
+      x-upstream-origin: https://api.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: |
+        An authorized bounded observation established 2FA to PerformLogin to Grant
+        redirects. Original loopback fixtures verify this chain. No credentials,
+        cookies, account information, or response captures are included.
+        Only follow when explicitly returned; do not bootstrap or retry this GET.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /OAuth/Authorization/Grant:
+    get:
+      operationId: login_grant
+      tags: [Authentication]
+      summary: Follow the exact consent grant returned during login
+      x-origin: api
+      x-upstream-origin: https://api.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: |
+        Authorized bounded observation established Grant returning to the portal.
+        The independently authored fixture uses a synthetic terminal callback.
+        This is authentication state, not a retry-safe school read. Never follow
+        arbitrary OAuth-prefix paths or submit interactive consent/2FA actions.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
         '302':
           $ref: '#/components/responses/Redirect'
         default:
@@ -231,8 +280,18 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: true
-      x-evidence: source_informed
-      x-evidence-note: Source-informed Me/Account/User distinction; synthetic populated, malformed, and parent/student variants. No live reproduction.
+      x-evidence: independently_observed
+      description: |
+        Account.Id identifies the login owner. The represented User.Id can be
+        omitted when Account.UserId supplies its explicit reference. At least one
+        represented-user ID is required; both, when present, must agree. Numeric
+        IDs normalize to strings; booleans and unsupported IDs fail. Never infer
+        the represented-user ID from Account.Id or names.
+      x-evidence-note: |
+        Source-informed Me/Account/User distinction; original malformed and
+        parent/student fixtures. Bounded authorized observation established the
+        Account.UserId reference variant with names-only User. Offline fixtures
+        verify missing/conflicting references without storing any school values.
       security: [{SessionCookie: []}]
       responses:
         '200':
@@ -248,9 +307,24 @@ paths:
                     required: [Account, User]
                     properties:
                       Account:
-                        $ref: '#/components/schemas/Person'
+                        allOf:
+                          - $ref: '#/components/schemas/Person'
+                          - type: object
+                            properties:
+                              UserId:
+                                oneOf:
+                                  - {type: integer, minimum: 0}
+                                  - {type: string, nullable: true, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+                                description: Numeric wire IDs are also normalized at the parser boundary
                       User:
-                        $ref: '#/components/schemas/Person'
+                        type: object
+                        properties:
+                          Id:
+                            oneOf:
+                              - {type: integer, minimum: 0}
+                              - {type: string, nullable: true, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+                          FirstName: {type: string, nullable: true, maxLength: 256}
+                          LastName: {type: string, nullable: true, maxLength: 256}
         default:
           $ref: '#/components/responses/Failure'
   /informacja:

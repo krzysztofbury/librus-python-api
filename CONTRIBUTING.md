@@ -108,7 +108,7 @@ All requests remain offline. Hardware-sensitive measurements and cross-repositor
 integration are opt-in, not silently skipped release gates:
 
 ```sh
-uv run --locked python -m pytest tests/performance -m performance
+uv run --locked python -m pytest tests/performance/test_parser_resources.py -m performance
 ```
 
 The performance test preserves the maximum-body memory/heartbeat checks outside
@@ -173,6 +173,16 @@ replaces operator credentials with synthetic accounts and permits localhost
 destinations only. Expected scoped denials are redacted non-successes. No live
 school requests or production notification/filesystem state are used. Selecting
 integration without a valid adapter checkout is an actionable test failure.
+
+The paired summary parser measurement requires the same consumer dependency and
+checkout setup. It uses new synthetic markup, never live responses:
+
+```sh
+PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests/performance -m performance --mcp-checkout=/path/to/librus-mcp -o junit_family=xunit1 --junitxml=/tmp/opencode/librus-performance.xml
+```
+
+See BENCHMARKS.md for the distinction between traced parser allocations, total
+process RSS, upstream traffic, and limiter latency.
 
 Also install the built `dist/*.tar.gz` in a separate environment and
 run the same public-boundary suite to qualify the sdist build path. Record hashes

@@ -5,7 +5,8 @@ local-first development stage: an async account service supports bounded login,
 typed identity, and student-information reads against offline fixture servers.
 The `0.2.0.dev0` increment also reads typed final-grade summaries. Numeric grades,
 GPA, date windows, and the remaining 0.2.0 academic scope are not implemented yet.
-Live compatibility is not yet verified and nothing has been published to PyPI.
+Bounded login/identity/final-summary live qualification has passed for a narrow
+observed variant. General compatibility is unverified; nothing is published to PyPI.
 
 The first intended consumer is
 [librus-mcp](https://github.com/krzysztofbury/librus-mcp). This repository will
@@ -58,12 +59,14 @@ See [the implementation roadmap](TODO.md).
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
 and deterministic cleanup. Inputs/configuration, immutable results, specific
-exceptions, and opt-in Loguru diagnostics are typed. No live Librus calls were used.
+exceptions, and opt-in Loguru diagnostics are typed. Ordinary tests remain offline;
+bounded owner-authorized live qualification is documented separately.
 The local `0.1.0` delivery is qualified on Linux/Python 3.13 and 3.14, including
 the installed wheel and a real four-login MCP stdio adapter experiment.
 See [API usage and policies](API.md), [verification evidence](VERIFICATION.md),
 and the [phase review](REVIEW.md). This does not enable production backend
-migration, credentialed CI, PyPI, or live compatibility claims.
+migration, credentialed CI, PyPI, or general live compatibility claims.
+See [the comparison](BENCHMARKS.md) for measured performance benefits and non-wins.
 
 ## Local installation
 

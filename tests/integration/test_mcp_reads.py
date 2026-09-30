@@ -63,7 +63,7 @@ async def exercise_native_tools(
         for result in results[index * 3 : index * 3 + 3]:
             assert_result(result, alias)
     cold = len(fixture.calls)
-    assert cold == 28
+    assert cold == 24
     assert fixture.logins == dict.fromkeys(ALIASES, 1)
     warm_results = await asyncio.gather(
         *(session.call_tool(tool_name, {"student_alias": alias}) for alias in ALIASES)

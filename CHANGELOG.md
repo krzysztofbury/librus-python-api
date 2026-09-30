@@ -8,8 +8,13 @@
   wire/isolation/cache/recovery fixtures and an opt-in real MCP stdio adapter.
 - Existing lifecycle, budgets, diagnostics, and public identity/profile contracts
   are preserved. This is not a completed 0.2.0 release or PyPI publication.
+- Qualify exact PerformLogin/Grant continuations, explicit Account.UserId gateway
+  references, and narrowly repaired browser HTML/spacer rows with original
+  regressions. Reuse the authorization form instead of fetching it twice.
+- Load optional Loguru diagnostics only when enabled. Add a paired synthetic
+  parser measurement and document live sample benefits and non-wins.
 - Individual numeric/descriptive grades, GPA, windows, and other academic slices
-  remain pending; summary layout/live-account compatibility is unverified.
+  remain pending; summary layouts beyond the narrow live qualification are unverified.
 
 ## 0.1.0 - Local-first account and identity service
 

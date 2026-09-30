@@ -43,6 +43,9 @@ their scope/date rules need their own contract/evidence increment.
   short/long rows, duplicate labels, and ambiguous tables fail explicitly.
 - Nested expanded-detail wrappers and the narrow inline `Ocena` label variant
   do not become subjects. Unexpected content in a nested subject row is rejected.
+- An empty single-cell, full-width spacer is ignored; nonempty or incorrectly
+  spanned rows still fail. Shared HTML parsing accepts only the observed stray
+  closing-tag repair category, not arbitrary recoverable parser errors.
 - A valid all-unassigned page retains its subjects. No independently established
   no-subject marker is available, so missing subject rows fail instead of yielding
   a fabricated empty success. No live call, fallback source, or POST is involved.
@@ -64,4 +67,6 @@ The opt-in `tests/integration/test_mcp_reads.py` workload is parameterized for
 identity and final summaries. It owns real MCP stdio serialization, legacy optional
 column mapping, four independent logins for the same represented student, and
 one scoped denial. Ordinary GitHub CI remains independent of the consumer checkout.
-All fixtures are synthetic; live layout/account compatibility remains unverified.
+All committed fixtures are synthetic. A bounded authorized summary observation
+and in-memory parity check qualified a narrow layout, not all accounts. See
+BENCHMARKS.md for measured gains, non-wins, and methodological limits.

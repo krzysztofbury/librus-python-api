@@ -15,7 +15,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def mcp_checkout(pytestconfig: pytest.Config) -> Path:
     checkout: Path | None = pytestconfig.getoption("mcp_checkout")
     if checkout is None:
-        raise pytest.UsageError("Integration tests require --mcp-checkout=PATH")
+        raise pytest.UsageError("Consumer measurements require --mcp-checkout=PATH")
     checkout = checkout.resolve()
     if not all(
         (checkout / f"src/{name}.py").is_file()

@@ -2,7 +2,8 @@
 
 The 0.1.0 delivery implements login, gateway identity, and HTML student
 information. The `0.2.0.dev0` increment adds final-grade summaries, not a completed
-academic release. Live compatibility is not independently verified.
+academic release. Bounded login/identity/final-summary live qualification has
+passed for a narrow observed variant; general account compatibility is unverified.
 Reading school data requires separate authorization.
 Authentication can change the upstream last-login timestamp.
 
@@ -46,6 +47,10 @@ class, register number, tutor, school, lucky number, and profile observation.
 IDs are bounded strings. Optional person names can be `None`; required profile
 fields cannot silently disappear. Observations include the login alias, aware UTC
 time, source operation, and session generation. Reprs omit personal fields.
+
+Gateway User records may omit Id and supply the explicit Account.UserId reference.
+The owner remains Account.Id; missing or conflicting represented-user references
+fail instead of being inferred from names or owner identity.
 
 `LuckyNumber` explicitly distinguishes available from unavailable. Its `day` is
 `None` where the HTML marker supplies no evidenced civil date. Neither a missing
@@ -111,8 +116,9 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents all nine enabled wire
-operations from the 0.1.0 foundation plus the final-summary GET, including raw
+[OpenAPI YAML](contracts/upstream.openapi.yaml) documents twelve enabled wire
+operations: the foundation, two exact login continuations, and the summary GET.
+These include raw
 HTML, forms, origins, side effects, and evidence gaps.
 
 ## Final-grade summaries
@@ -174,8 +180,8 @@ the service; the production CLI/dependency selection remains unchanged. Missing
 lucky-number data fails explicitly until a legacy unavailable marker is evidenced.
 No native failure is replayed through the legacy backend.
 
-Live callback destinations, account variants, profile/summary layouts and
-encodings remain unverified. Individual grades, windows, GPA, other academic reads,
+Other callback/account variants, profile layouts, summary variants and encodings
+remain unverified. Individual grades, windows, GPA, other academic reads,
 and messaging/event operations,
 daily credentialed CI, PyPI, macOS/Windows qualification, and production backend
 migration are not part of this completed Linux local-first delivery.

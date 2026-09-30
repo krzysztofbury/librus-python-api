@@ -100,6 +100,25 @@ original and source-informed; they do not establish live layout compatibility.
 See `contracts/grades.md` for scope and provenance. The consumer backend stays
 explicitly opt-in with no legacy fallback or production dependency change.
 
+## Current compatibility/performance increment
+
+The development wheel's bounded authorized login, identity, and final-summary
+path now completes, with consumer-mapped summary parity. This uncovered exact
+PerformLogin/Grant continuations, the explicit Account.UserId reference variant,
+stray closing tags, and an empty full-width spacer. Original offline regressions
+protect each variant and corresponding unsupported states. No live response,
+identifier, credential, or school value enters repository fixtures.
+
+After form reuse, the simplified four-login fixture uses 24 cold requests rather
+than 28, retaining three warm requests and one denial. Live comparative observations
+and same-page memory-only replay are documented in BENCHMARKS.md, including the
+slower default-policy cold login and higher total process RSS. General live account
+compatibility and multi-account performance remain pending.
+
+The current suite has 172 portable tests plus four opt-in integration/performance
+cases. The installed wheel exercises real MCP stdio and the paired synthetic
+parser measurement; ordinary GitHub CI remains offline.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

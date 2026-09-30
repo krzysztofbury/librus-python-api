@@ -519,9 +519,19 @@ class AccountClient:
         self._invalidate()
         try:
             response = await self._transport.request("login_portal", budget)
-            await self._redirects(response, budget)
-            response = await self._transport.request("login_authorization", budget)
-            await self._redirects(response, budget)
+            response = await self._redirects(response, budget)
+            authorization = ENDPOINTS["login_authorization"]
+            form_url = (
+                self._service._connection.origin(authorization) + authorization.path
+            )
+            current_url = (
+                urlsplit(response.url)._replace(query="", fragment="").geturl()
+            )
+            # A portal redirect already established API-side cookies. Fetch the
+            # form only when that hop did not land on its exact approved route.
+            if current_url != form_url:
+                response = await self._transport.request("login_authorization", budget)
+                await self._redirects(response, budget)
             response = await self._transport.request(
                 "login_submit",
                 budget,
