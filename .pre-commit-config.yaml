@@ -1,0 +1,54 @@
+minimum_pre_commit_version: '4.0.0'
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: forbid-private-files
+        name: Block local credentials, sessions, and raw captures
+        language: fail
+        entry: Keep credentials, session exports, private keys, and raw captures outside Git.
+        files: >-
+          (?ix)(^|/)(?:
+          \.env(?!\.example$)(?:\.[^/]*)?|
+          (?:secrets|credentials)(?:[._-][^/]*)?\.json|
+          cookies?(?:[._-][^/]*)?\.(?:json|txt|sqlite3?)|
+          sessions?(?:[._-][^/]*)?\.(?:json|pickle|pkl|sqlite3?)|
+          id_(?:rsa|dsa|ecdsa|ed25519)|
+          [^/]+\.(?:pem|key|p12|pfx)
+          )$|(^|/)(?:private|raw-captures|live-artifacts)/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b # v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: check-symlinks
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: no-commit-to-branch
+        args: [--branch, main, --branch, master]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # v8.30.1
+    hooks:
+      - id: gitleaks
+        alias: gitleaks-staged
+      - id: gitleaks
+        alias: gitleaks-worktree
+        name: Detect secrets in working files (including untracked files)
+        entry: gitleaks dir --redact --verbose .
+        stages: [manual]
+        always_run: true
+      - id: gitleaks
+        alias: gitleaks-history
+        name: Detect secrets in Git history
+        entry: gitleaks git --redact --verbose
+        stages: [manual]
+        always_run: true

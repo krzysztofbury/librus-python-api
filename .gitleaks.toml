@@ -1,0 +1,28 @@
+title = "Librus repository secret detection"
+
+[extend]
+useDefault = true
+
+# Passwords need not resemble API tokens or have high entropy.
+[[rules]]
+id = "quoted-password"
+description = "Literal password assignment, including punctuation and short values"
+regex = '''(?i)\b(?:[a-z0-9_]*_)?(?:password|passwd|pwd)["']?[ \t]*[:=][ \t]*["']([^"'\r\n]+)["']'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[[rules.allowlists]]
+description = "Explicit documentation placeholders only"
+regexes = ['''^(?:<[^>]+>|\$\{[A-Z_][A-Z0-9_]*\}|CHANGEME)$''']
+
+[[rules]]
+id = "unquoted-password"
+description = "Unquoted password in environment or YAML configuration"
+path = '''(?i)(?:\.env(?:\.[^/]*)?|\.(?:ya?ml|cfg|ini|conf|toml))$'''
+regex = '''(?im)^[ \t]*(?:[a-z0-9_]*_)?(?:password|passwd|pwd)[ \t]*[:=][ \t]*([^\s"'#][^\s#]*)'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[[rules.allowlists]]
+description = "Explicit documentation placeholders only"
+regexes = ['''^(?:<[^>]+>|\$\{[A-Z_][A-Z0-9_]*\}|CHANGEME)$''']
