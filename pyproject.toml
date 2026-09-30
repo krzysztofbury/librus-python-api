@@ -32,6 +32,8 @@ dev = [
   "ruff>=0.15,<0.16",
   "types-pyyaml>=6,<7",
   "types-lxml>=2026.2.16,<2027",
+  "pre-commit>=4.6,<5",
+  "pip-audit>=2.10,<3",
 ]
 
 [tool.hatch.version]

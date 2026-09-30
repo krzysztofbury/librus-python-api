@@ -54,6 +54,38 @@ staged diff. Git hooks are local checks; each clone must install them.
 
 ### Package development
 
+GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to `main`,
+and manual dispatch. Its quality job checks the lockfile, Ruff, formatting, strict
+mypy, repository hooks (including workflow lint), complete-history secret scanning,
+and known vulnerabilities in locked runtime and development dependencies.
+Python 3.13/3.14 Linux jobs run the portable suite from source, then rebuild and
+repeat it against wheel and sdist installations in separate environments outside
+the checkout. An import-location guard prevents accidental editable-source testing.
+Distributions, checksums, and JUnit reports are retained for seven days as GitHub
+artifacts, not uploaded to PyPI. Actions are SHA-pinned with read-only permissions
+and checkout credentials are not persisted. Weekly Dependabot updates cover Python
+dependencies and action pins; updates still require review and CI.
+
+These are GitHub-hosted checks, not local-only tests. Dependency installation and
+auditing use external services; Librus requests use synthetic loopback fixtures.
+There are no school credentials, live requests, publishing steps, or implicit
+neighboring checkouts. Performance and consumer integration remain opt-in. A
+separate live workflow requires owner-configured accounts, operations, and budgets.
+GitHub branch protection and required checks are repository settings, not enabled
+by adding this workflow.
+
+To reproduce the quality/security commands after `uv sync --locked`:
+
+```sh
+uv lock --check
+uv run --locked pre-commit run --all-files --show-diff-on-failure
+uv run --locked pre-commit run gitleaks-history --hook-stage manual --all-files
+uv export --quiet --locked --no-emit-project --format requirements-txt --output-file /tmp/opencode/librus-audit-requirements.txt
+uv run --locked pip-audit --strict --disable-pip --require-hashes -r /tmp/opencode/librus-audit-requirements.txt
+```
+
+Only GitHub CI skips `no-commit-to-branch`; local commits retain that guard.
+
 The foundation uses `src/librus_python_api/`, Hatchling builds, and a committed
 `uv.lock`. Python 3.13 and 3.14 are the current local verification targets.
 Pydantic provides strict, frozen runtime validation. `aiohttp` implements the

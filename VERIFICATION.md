@@ -68,10 +68,13 @@ test; the retired experiment's duplicate-cookie case is in the real transport te
   evidenced. Third-party flow requirements are not live qualification.
 - Interactive CAPTCHA/2FA, multi-child switching, and unavailable lucky-number
   legacy marker parity. No fabricated civil date or unavailable string is returned.
-- macOS/Windows installed-artifact/platform qualification and automated CI.
+- macOS/Windows installed-artifact/platform qualification.
 - Owner-configured bounded daily credentialed CI, PyPI publication beginning at
   1.0.0rc1, complete consumer migration, and a production backend default switch.
 - All academic, messaging, attachments, send, and read-once event operation slices.
 
 The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
-Draft PRs are unmerged; no package or consumer release has been published.
+Library PR #1 is merged. The consumer adapter remains a draft; no package or
+consumer release has been published. GitHub CI is defined in
+`.github/workflows/ci.yml`; its remote run results are separate from the local
+0.1.0 evidence above. Credentialed compatibility and publishing remain deferred.
