@@ -176,6 +176,11 @@ def test_tenacity_safe_recovery_is_one_reauthentication_with_original_budget(
                         )
                 assert budget.requests_dispatched == len(fixture.calls) == 14
                 assert fixture.logins == {"student": 2}
+                if expires == 2:
+                    before = len(fixture.calls)
+                    with pytest.raises(SessionExpiredError):
+                        await service.account("student").student_information()
+                    assert len(fixture.calls) == before
 
     asyncio.run(scenario())
 

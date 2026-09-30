@@ -51,7 +51,22 @@ The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
 and deterministic cleanup. Inputs/configuration, immutable results, specific
 exceptions, and opt-in Loguru diagnostics are typed. No live Librus calls were used.
-Installed-artifact and MCP adapter qualification are the remaining local gates.
+The local `0.1.0` delivery is qualified on Linux/Python 3.13 and 3.14, including
+the installed wheel and a real four-login MCP stdio adapter experiment.
+See [API usage and policies](API.md), [verification evidence](VERIFICATION.md),
+and the [phase review](REVIEW.md). This does not enable production backend
+migration, credentialed CI, PyPI, or live compatibility claims.
+
+## Local installation
+
+```sh
+uv build --no-sources
+uv pip install dist/librus_python_api-0.1.0-py3-none-any.whl
+```
+
+The supported public entry point is `LibrusService`. Supply credentials explicitly,
+reuse one service across accounts/tools, and close it with an async context manager.
+Only `identity()` and `student_information()` are enabled in this release.
 
 ## Development principles
 

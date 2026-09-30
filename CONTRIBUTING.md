@@ -68,6 +68,7 @@ uv run --locked mypy
 uv run --locked python -m pytest
 uv run --locked python tools/check_contracts.py
 uv run --locked python tools/transport_spike.py
+uv run --locked python -m tools.parser_probe
 uv build --no-sources
 ```
 
@@ -89,14 +90,14 @@ Verify the wheel outside the checkout before handing off packaging changes:
 
 ```sh
 uv venv /tmp/opencode/librus-python-api-wheel --python 3.14
-uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/librus_python_api-0.1.0.dev0-py3-none-any.whl
+uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/librus_python_api-0.1.0-py3-none-any.whl
 cd /tmp/opencode
-/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; from librus_python_api.config import ENDPOINTS; assert version("librus-python-api") == "0.1.0.dev0"; assert files("librus_python_api").joinpath("py.typed").is_file(); assert not ENDPOINTS'
+/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; from librus_python_api.config import ENDPOINTS; assert version("librus-python-api") == "0.1.0"; assert files("librus_python_api").joinpath("py.typed").is_file(); assert len(ENDPOINTS) == 9'
 ```
 
 Use a fresh environment path for subsequent runs. This import/configuration
-smoke check is not an installed-client E2E read; that gate remains pending until
-the authentication and identity slice exists. No PyPI upload or publishing CI
+smoke check alone is not an installed-client E2E read. The full offline suite and
+consumer probe below exercise that gate. No PyPI upload or publishing CI
 is required for the 0.x deliveries. PyPI publication and publishing automation
 start at `1.0.0rc1`; local `librus-mcp` integration can use the exact built wheel
 before that candidate. Production consumer releases must still use PyPI artifacts.
@@ -116,6 +117,28 @@ Replace `/path/to/librus-python-api` with the checkout root, never its `src/`
 directory. This makes development tools/fixtures available without replacing
 the installed library. Reinstall the wheel after rebuilding the same dev version;
 check `librus_python_api.__file__` points into the separate environment.
+
+For the real MCP stdio identity experiment, install the consumer adapter branch
+(`feat/native-identity-adapter`, draft PR #38) into that same environment. This is
+a local experiment, not a production dependency change. Then run outside the
+library checkout:
+
+```sh
+uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python /path/to/librus-mcp
+cd /tmp/opencode
+PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python /path/to/librus-python-api/tools/mcp_identity_probe.py /path/to/librus-mcp
+```
+
+The probe uses original synthetic HTTP fixtures, four independent logins, real
+consumer field mapping, and MCP stdio. Its subprocess configuration explicitly
+replaces operator credentials with synthetic accounts and permits localhost
+destinations only. Expected scoped denials are redacted non-successes. No live
+school requests or production notification/filesystem state are used.
+
+Also install `dist/librus_python_api-0.1.0.tar.gz` in a separate environment and
+run the same public-boundary suite to qualify the sdist build path. Record hashes
+with `sha256sum` and review installed metadata for MIT, `py.typed`, Python support,
+and runtime dependencies. See VERIFICATION.md for the actual local results.
 
 Keep network paths in `config.py` and add the matching wire contract in
 `contracts/upstream.openapi.yaml` for every endpoint. See the

@@ -341,7 +341,10 @@ class AccountClient:
                     try:
                         result = await self._retrieve(operation, budget)
                     except LibrusError as error:
-                        if error.kind == ErrorKind.ACCESS_DENIED:
+                        if error.kind in (
+                            ErrorKind.ACCESS_DENIED,
+                            ErrorKind.SESSION_EXPIRED,
+                        ):
                             self._cooldowns[operation] = (
                                 time.monotonic()
                                 + self._service._transport_limits.cooldown_seconds,

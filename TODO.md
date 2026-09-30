@@ -18,16 +18,18 @@ Research date: 2026-09-29. The local `docs/ECOSYSTEM_REVIEW.md`
 compares all seven requested packages and records regression requirements
 R01-R17 with current consumer source/test owners. Research, repository
 documentation, commit checks, and a local package foundation exist today.
-Functional network operations and release milestones below are pending.
+The local-first 0.1.0 identity delivery is complete. Later operation families,
+live qualification, publishing, and full consumer cutover below remain pending.
 
-Current increment: `0.1.0.dev0` packaging, typed route/error configuration,
+Current delivery: `0.1.0` packaging, typed route/error configuration,
 OpenAPI catalogue checks, a loopback-only async transport evaluation, and shared
 request admission/budgets verified with a saturated four-account HTTP workload.
 The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
 are implemented. The public service, coalesced safe reads, account-scoped freshness,
 authentication, typed identity/profile, bounded Tenacity recovery, and redacted
 Loguru diagnostics are implemented and tested offline. Installed-artifact and
-MCP adapter qualification are the remaining local 0.1.0 gates.
+real MCP stdio adapter qualification are complete on Linux. See VERIFICATION.md
+for measurements, exact proof commands, and explicit live/platform limitations.
 
 **Local-first scope adjustment:** develop and verify `0.x` using local wheel/
 sdist builds and offline runtime tests, including local `librus-mcp` integration.
@@ -87,24 +89,24 @@ API. Release candidates use Python-compatible versions such as `1.0.0rc1`.
 First useful release: MCP can use public async methods to authenticate and read
 identity through independent login-scoped clients under one shared scheduler.
 
-- [ ] Group packaging, provenance, transport selection, public lifecycle, typed
+- [x] Group packaging, provenance, transport selection, public lifecycle, typed
   identity/errors/references, and consumer contract inventory into the foundation.
   Design the domain conventions now; implement later endpoint records with their
   endpoint release instead of shipping unused model-only versions.
-- [ ] Deliver account isolation, session reuse, coalesced authentication, scoped
+- [x] Deliver account isolation, session reuse, coalesced authentication, scoped
   cookies, destination validation, safe recovery, and redacted errors together.
-- [ ] Enforce shared rate/burst/concurrency/queue limits and bounded attempts,
+- [x] Enforce shared rate/burst/concurrency/queue limits and bounded attempts,
   bodies, deadlines, parsing, and cancellation from the first network operation.
   Introduce safe-read coalescing and account-scoped cache infrastructure here;
   domain-specific metadata caches follow in 0.2.0.
-- [ ] Complete identity retrieval and the public-service/MCP adapter experiment,
+- [x] Complete identity retrieval and the public-service/MCP adapter experiment,
   including the four-independent-login fixture-server workload from P6. Capture
   initial request-count and lifecycle measurements before widening coverage.
-- [ ] Build wheel/sdist and verify a clean local installation through a real
+- [x] Build wheel/sdist and verify a clean local installation through a real
   fixture-server identity read. Publishing automation and PyPI installation
   evidence are deferred to P7 at `1.0.0rc1`; a bare skeleton is not a functional
   milestone. Exercise the consumer adapter with the exact local built artifact.
-- [ ] Document remaining live authentication/identity evidence gaps. P6-live is
+- [x] Document remaining live authentication/identity evidence gaps. P6-live is
   enabled separately after owner setup; it is not a local-first release gate.
   A later academic check must not be claimed from identity verification alone.
 
@@ -115,7 +117,8 @@ are review boundaries within one release, not five versions.
 Local delivery gate: usable typed identity API, enforced combined traffic bounds
 and login isolation, installed-wheel offline E2E proof, and explicit live
 verification status. Daily live CI/PyPI gates remain deferred and incomplete.
-Existing MCP production backend migration remains in progress.
+Local gates are satisfied on Linux/Python 3.13 and 3.14. The opt-in adapter is
+consumer draft PR #38; default production backend migration remains pending.
 
 ### 0.2.0 - Academic and school-information coverage
 
@@ -277,13 +280,13 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   test supported Python versions; Python 3.14 compatibility is mandatory for
   the consumer. Claim older-version support only if exercised in the declared
   verification matrix; CI automation is deferred for the local-first increment.
-  Foundation progress: local `0.1.0.dev0` builds and checks target 3.13/3.14;
-  automated CI and a functional installed-client read are still pending.
+  Local 0.1.0 progress: builds, checks, and installed-client/adapter reads are
+  verified on Linux/3.13/3.14. Automated CI and other platforms remain pending.
 - [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
-  Selected `aiohttp` using the executable loopback spike. Account-client transport
-  hardening and supported network operations remain pending.
+  Selected `aiohttp` using the executable loopback spike. The 0.1.0 account
+  transport and login/identity network paths are implemented and tested offline.
 - [ ] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.
   Construction/import must do no network I/O or implicit environment discovery.
@@ -299,7 +302,8 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
   provenance and live gaps. The initial empty contract/checker is implemented;
-  populated endpoint contracts remain pending with their operation slices.
+   nine login/identity wire contracts are populated. Later contracts accompany
+   their own operation slices.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -355,9 +359,10 @@ Dependencies: P0-P1. Regression requirements: R01-R04, R10, R17.
 
 Scheduler progress: global/per-account active and queue limits, shared rate/burst
 admission, round-robin fairness, service pauses, shared request/deadline budgets,
-and cancellation/close ownership are implemented and tested offline. Wiring all
-authentication and endpoint requests through this boundary is still pending;
-the complete transport/session requirements below are not marked satisfied.
+and cancellation/close ownership are implemented and tested offline. Every enabled
+0.1.0 authentication/identity request passes through this boundary. Remaining
+messaging/page/capability requirements below are extended with later releases;
+their broad checkboxes are not blanket claims from the identity slice.
 
 - [ ] Use one authenticated session/cookie jar per configured login, including
   separate student and parent logins for the same student. Confirm expected

@@ -23,6 +23,8 @@ source-informed, not copied upstream material.
   with at most two safe-read attempts and the original shared budget. Login POST,
   connection ambiguity, denials, maintenance, and throttles are not replayed.
   Backpressure stays at the single shared scheduler, not independent retry sleeps.
+  Repeated expiry after the single recovery attempt enters an operation cooldown;
+  its next-call regression failed before the fix, preventing repeated login pressure.
 - TigerStyle #4: Paired assertions. Login success requires a scope-applicable
   session cookie plus parsed identity; configured owner/student expectations and
   identity consistency are checked independently of alias/cache identity.

@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "librus-python-api"
 dynamic = ["version"]
-description = "Independent async Librus Synergia client foundations"
+description = "Independent bounded async Librus Synergia account and identity client"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
-  "Development Status :: 1 - Planning",
+  "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Typing :: Typed",
@@ -41,7 +41,7 @@ path = "src/librus_python_api/__init__.py"
 packages = ["src/librus_python_api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/tests", "/tools", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/DESIGN.md", "/LICENSE"]
+include = ["/src", "/tests", "/tools", "/contracts", "/pyproject.toml", "/uv.lock", "/README.md", "/CONTRIBUTING.md", "/TODO.md", "/SECURITY.md", "/AGENTS.md", "/DESIGN.md", "/API.md", "/CHANGELOG.md", "/REVIEW.md", "/VERIFICATION.md", "/LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

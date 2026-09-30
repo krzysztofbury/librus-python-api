@@ -21,6 +21,7 @@ are evidence-labelled; source-informed routes are not live observations.
 | lxml | Bounded semantic HTML identity parsing | BSD-3-Clause |
 | Tenacity | Explicit two-attempt recovery for proven session expiry only | Apache-2.0 |
 | Loguru | Opt-in allowlisted structured diagnostic sink, no global setup | MIT |
+| yarl | Typed URL construction and origin checks | Apache-2.0 |
 
 Pydantic configuration does not read environment variables. Validation errors
 are translated to a closed library category without attaching their raw input
@@ -28,12 +29,12 @@ or validation exception. Domain records remain independent of MCP wire schemas.
 Runtime dependency distribution metadata is checked when building/installing.
 
 FastAPI is not needed: this library is an HTTP client, not an application server.
-Logging is not implicitly configured. Future diagnostics must be opt-in,
+Logging is not implicitly configured. Diagnostics are opt-in,
 bounded, and redacted before reaching any logging implementation.
 
 ## Shared scheduling
 
-Use one `RequestScheduler` for the entire future service, not one per account
+Use one `RequestScheduler` for the entire service, not one per account
 or tool call. Each configured login has an independent account key even when
 two logins represent the same student. Keys are validated before admission state
 can be created. Unknown accounts cannot grow queues or maps.
@@ -60,8 +61,8 @@ The scheduler's callback is an internal transport integration boundary, not a
 public authenticated URL escape hatch. Callbacks must honor cancellation; this
 does not protect against arbitrary Python code that bypasses admission, starts
 I/O before submission, or deliberately suppresses cancellation indefinitely.
-The future transport must dispatch every login step, redirect, retry, metadata
-lookup, and page fetch through this same boundary.
+The transport dispatches every enabled login step, redirect, and retry through
+this boundary. Future metadata lookups and page fetches must do the same.
 
 Default policy: one request/second, burst one, two global active requests, one
 active request/account, 32 global queued requests, eight queued requests/account,
@@ -78,8 +79,9 @@ fixture-only rate settings are not recommended live tuning values.
 
 Fault tests cover queue overflow, shared-budget exhaustion, waiting/active
 deadlines, cancellation near rate admission, paused resumption, close/rejection,
-and cross-event-loop budget rejection. These prove scheduler behavior, not
-authentication, populated Librus parsing, or a speedup over the existing client.
+and cross-event-loop budget rejection. The public identity and installed-MCP
+workloads add offline authentication/parser/integration proof. None claim populated
+live Librus parsing or a speedup over the existing client.
 
 ## Authentication research direction
 
