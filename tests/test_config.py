@@ -1,8 +1,11 @@
+import ssl
+
 import pytest
 from pydantic import ValidationError
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
+    ConnectionSettings,
     Endpoint,
     Evidence,
     SchedulerLimits,
@@ -85,6 +88,33 @@ def test_scheduler_config_is_strict_and_errors_are_redacted(
     with pytest.raises(LibrusError, match="^invalid_input$") as caught:
         SchedulerLimits(**values)  # type: ignore[arg-type]
     assert caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://synergia.librus.pl",
+        "https://example.invalid",
+        "https://synergia.librus.pl:444",
+        "https://user:secret@synergia.librus.pl",
+        "https://synergia.librus.pl/path",
+        "https://api.librus.pl",
+    ],
+)
+def test_origin_settings_cannot_expand_authenticated_destination_scope(
+    url: str,
+) -> None:
+    with pytest.raises(LibrusError, match="^invalid_input$") as caught:
+        ConnectionSettings(synergia_origin=url)
+    assert caught.value.__context__ is None
+
+
+def test_insecure_tls_context_is_rejected() -> None:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    with pytest.raises(LibrusError, match="^invalid_input$"):
+        ConnectionSettings(ssl_context=context)
 
 
 @pytest.mark.parametrize(

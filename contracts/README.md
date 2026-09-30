@@ -4,9 +4,11 @@
 HTML scraping routes. It is not the Python domain API or the MCP tool schema,
 and it is not an official Librus specification.
 
-The initial catalogue is deliberately empty. Authentication and identity are
-pending; importing this file cannot produce working login/profile requests yet.
-Do not infer an endpoint schema from a similarly named third-party operation.
+The catalogue covers the bounded cookie-login flow, gateway identity, and HTML
+student-information read. Source-informed routes and synthetic callback/header
+variants are labelled separately; none are claimed live-verified. Unknown
+redirect routes fail closed. Do not infer an endpoint schema from a similarly
+named third-party operation.
 
 ## Adding an endpoint
 
@@ -22,6 +24,7 @@ Ship these together in the same change:
    operation. Record independently established requirements, fixture provenance,
    and unresolved live/schema gaps. A GET can have side effects. Do not label
    an endpoint independently observed based on a third-party report.
+   `x-origin` and `x-upstream-origin` must match the central route catalogue.
 4. Independently authored populated, empty, and malformed wire fixtures exercised
    through the actual parser/transport path. Explain how the wire response maps
    to the Python record without presenting synthetic evidence as live proof.
@@ -47,14 +50,15 @@ It does not prove that a description/schema matches today's live Librus.
 
 In Bruno, choose **Import > OpenAPI**, then select `upstream.openapi.yaml`.
 Bruno supports OpenAPI 3.x YAML; see its [import documentation][bruno-import].
-The default server is deliberately loopback-only. Once endpoints exist, use a
+The default server is deliberately loopback-only. Use a
 separate local environment for authorized manual validation. Never bulk-run
 login, mark-read, read-once, or send operations. Importing a contract is not
 authorization to call live Librus.
 
 Keep generated collections and local secrets outside this checkout. Do not
-commit real responses or cookie jars. A runnable authenticated collection and
-its account-specific setup will accompany the authentication slice, not this
-empty foundation catalogue.
+commit real responses or cookie jars. Credentials have no committed examples or
+defaults. API-side and Synergia-side origins differ on live Librus. Override
+origins separately using each operation's `x-upstream-origin`; never bulk-run
+the collection. Only explicitly authorized accounts and operations may be tested.
 
 [bruno-import]: https://docs.usebruno.com/open-api/importOAS

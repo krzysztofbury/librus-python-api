@@ -7,15 +7,17 @@ clients provide behavioral references, not source/tests/fixtures to transplant.
 All current HTTP fixtures are independently authored synthetic examples.
 
 The installed package currently provides configuration, errors, request budgets,
-and admission scheduling. It does not yet provide authenticated Librus reads.
-The endpoint catalogue and OpenAPI paths therefore remain empty.
+admission scheduling, and a scope-preserving native transport. It does not yet
+provide the authenticated account-service API. Fixed routes and OpenAPI paths
+are evidence-labelled; source-informed routes are not live observations.
 
 ## Dependencies
 
 | Dependency | Role | License |
 | --- | --- | --- |
 | Pydantic 2 | Strict, frozen configuration with runtime validation | MIT |
-| aiohttp | Selected native async HTTP stack; currently used only by development fixtures/spike | Apache-2.0 AND MIT |
+| aiohttp | Native async account-isolated HTTP transport | Apache-2.0 AND MIT |
+| lxml | Selected for bounded semantic HTML parsing in the next identity phase | BSD-3-Clause |
 
 Pydantic configuration does not read environment variables. Validation errors
 are translated to a closed library category without attaching their raw input

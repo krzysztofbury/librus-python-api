@@ -20,6 +20,8 @@ def fixture_contract() -> dict[str, Any]:
                     "x-side-effect": "none",
                     "x-retry-safe": True,
                     "x-evidence": "synthetic_only",
+                    "x-origin": "synergia",
+                    "x-upstream-origin": "https://synergia.librus.pl",
                     "x-evidence-note": "Synthetic fixture, not Librus data.",
                     "responses": {
                         "200": {

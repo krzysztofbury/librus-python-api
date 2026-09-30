@@ -23,7 +23,9 @@ Functional network operations and release milestones below are pending.
 Current increment: `0.1.0.dev0` packaging, typed route/error configuration,
 OpenAPI catalogue checks, a loopback-only async transport evaluation, and shared
 request admission/budgets verified with a saturated four-account HTTP workload.
-This is not authentication, identity coverage, or the complete account service.
+The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
+are implemented. Authentication, identity coverage, and the complete public
+account service are the next phase.
 
 **Local-first scope adjustment:** develop and verify `0.x` using local wheel/
 sdist builds and offline runtime tests, including local `librus-mcp` integration.

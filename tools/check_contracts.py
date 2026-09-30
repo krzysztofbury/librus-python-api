@@ -8,7 +8,7 @@ import yaml
 from openapi_spec_validator import OpenAPIV30SpecValidator
 
 from librus_python_api import __version__
-from librus_python_api.config import ENDPOINTS, Endpoint
+from librus_python_api.config import ENDPOINTS, UPSTREAM_ORIGINS, Endpoint
 
 SPEC_PATH = Path(__file__).resolve().parents[1] / "contracts/upstream.openapi.yaml"
 HTTP_METHODS = frozenset(
@@ -67,6 +67,8 @@ def check_contract(spec: dict[str, Any], endpoints: Mapping[str, Endpoint]) -> N
             "x-side-effect": endpoint.side_effect.value,
             "x-retry-safe": endpoint.retry_safe,
             "x-evidence": endpoint.evidence.value,
+            "x-origin": endpoint.origin,
+            "x-upstream-origin": UPSTREAM_ORIGINS[endpoint.origin],
         }
         for key, value in required.items():
             if type(operation.get(key)) is not type(value) or operation[key] != value:

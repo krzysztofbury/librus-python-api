@@ -35,19 +35,21 @@ See [the implementation roadmap](TODO.md).
 - Python 3.13 and 3.14 package skeleton with an MIT license and `py.typed`.
 - Central typed route catalogue in `src/librus_python_api/config.py`, frozen
   Pydantic limit configuration, and closed error categories. The catalogue
-  currently has no enabled Librus operations.
+  records fixed, evidence-labelled login, identity, and HTML profile routes.
 - Shared async scheduler with bounded global/per-account admission, token-bucket
   rate/burst limits, round-robin fairness, shared request/deadline budgets, and
   joined cancellation/closure. This is service-local, not a distributed quota.
 - [OpenAPI YAML and endpoint evidence requirements](contracts/README.md), with
   an offline check preventing route/contract drift. Import the YAML into Bruno
-  when operations are added; there are no working requests in it yet.
+  for explicit manual validation; its default destination is loopback.
 - Loopback-only `aiohttp` evaluation with four independent synthetic sessions,
   scoped duplicate cookies, body limits, deadline, and cancellation checks.
   This is transport-selection evidence, not a supported client or load test.
 
 Authentication, identity, the account-client transport, and the MCP adapter remain
-pending. Scheduler behavior is tested under a saturated four-account loopback
+pending at the public account-service boundary. The native transport is implemented
+and tested offline; the complete login/identity slice follows. Scheduler behavior
+is tested under a saturated four-account loopback
 HTTP workload; this is not live integration or performance-comparison evidence.
 No live Librus calls were used to validate this foundation.
 
