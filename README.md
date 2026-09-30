@@ -46,6 +46,9 @@ See [the implementation roadmap](TODO.md).
 - Real transport/service tests with isolated synthetic logins, same-name scoped
   cookies, body/deadline bounds, and joined cancellation. Optional parser-resource
   and consumer stdio tests live alongside the portable offline suite.
+- GitHub-hosted CI for Python 3.13/3.14 on Linux: quality/security checks and the
+  portable suite against source, installed wheel, and installed sdist. Build
+  artifacts are retained for inspection, not published to PyPI.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,

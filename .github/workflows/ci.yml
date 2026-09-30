@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  quality:
+    name: Quality and security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.7"
+          checksum: 788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Verify lock and install dependencies
+        run: |
+          uv python install 3.14
+          uv lock --check
+          uv sync --locked --python 3.14
+
+      - name: Lint, format, and type-check
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+          uv run --locked mypy
+
+      - name: Run repository hooks
+        env:
+          # GitHub checks main and detached PR refs, unlike local commits.
+          SKIP: no-commit-to-branch
+        run: uv run --locked pre-commit run --all-files --show-diff-on-failure
+
+      - name: Scan complete Git history for secrets
+        run: uv run --locked pre-commit run gitleaks-history --hook-stage manual --all-files
+
+      - name: Audit locked Python dependencies
+        run: |
+          uv export --quiet --locked --no-emit-project --format requirements-txt \
+            --output-file "$RUNNER_TEMP/audit-requirements.txt"
+          uv run --locked pip-audit --strict --disable-pip --require-hashes \
+            --requirement "$RUNNER_TEMP/audit-requirements.txt"
+
+  test:
+    name: Tests and installed artifacts (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.7"
+          checksum: 788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Verify lock and install dependencies
+        run: |
+          uv python install "$PYTHON_VERSION"
+          uv lock --check
+          uv sync --locked --python "$PYTHON_VERSION"
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+
+      - name: Run portable suite against source
+        run: uv run --locked python -m pytest --junitxml=reports/source.xml
+
+      - name: Build wheel and source distribution
+        run: |
+          uv build --no-sources
+          sha256sum dist/* > reports/distributions.sha256
+          uv export --quiet --locked --no-emit-project --format requirements-txt \
+            --output-file "$RUNNER_TEMP/test-requirements.txt"
+
+      - name: Test installed wheel and source distribution
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: |
+          for format in wheel sdist; do
+            if [[ "$format" == wheel ]]; then
+              artifacts=("$GITHUB_WORKSPACE"/dist/*.whl)
+            else
+              artifacts=("$GITHUB_WORKSPACE"/dist/*.tar.gz)
+            fi
+            [[ ${#artifacts[@]} == 1 && -f "${artifacts[0]}" ]]
+            export ARTIFACT_ENV="$RUNNER_TEMP/$format-venv"
+            uv venv "$ARTIFACT_ENV" --python "$PYTHON_VERSION"
+            python="$ARTIFACT_ENV/bin/python"
+            uv pip install --python "$python" --require-hashes \
+              --requirements "$RUNNER_TEMP/test-requirements.txt"
+            uv pip install --python "$python" --no-deps "${artifacts[0]}"
+            uv pip check --python "$python"
+            (
+              cd "$RUNNER_TEMP"
+              export PYTHONPATH="$GITHUB_WORKSPACE"
+              "$python" - <<'PY'
+          import os
+          from importlib.metadata import distribution
+          from importlib.resources import files
+          from pathlib import Path
+
+          import librus_python_api
+
+          location = Path(librus_python_api.__file__).resolve()
+          assert location.is_relative_to(Path(os.environ["ARTIFACT_ENV"]).resolve()), location
+          metadata = distribution("librus-python-api")
+          assert metadata.version == librus_python_api.__version__
+          assert metadata.metadata["License-Expression"] == "MIT"
+          assert metadata.metadata["Requires-Python"] == ">=3.13"
+          assert files("librus_python_api").joinpath("py.typed").is_file()
+          license_files = [item for item in metadata.files or () if item.name == "LICENSE"]
+          assert license_files and all(metadata.locate_file(item).is_file() for item in license_files)
+          print(f"Testing installed {metadata.version} from {location}")
+          PY
+              "$python" -m pytest "$GITHUB_WORKSPACE/tests" \
+                --junitxml="$GITHUB_WORKSPACE/reports/$format.xml"
+            )
+          done
+
+      - name: Retain distributions and test reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verification-python-${{ matrix.python-version }}
+          path: |
+            dist/
+            reports/
+          retention-days: 7
+          if-no-files-found: error

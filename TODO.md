@@ -279,9 +279,10 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   bundled license, `py.typed`, and a single package-version source. Select and
   test supported Python versions; Python 3.14 compatibility is mandatory for
   the consumer. Claim older-version support only if exercised in the declared
-  verification matrix; CI automation is deferred for the local-first increment.
+  verification matrix.
   Local 0.1.0 progress: builds, checks, and installed-client/adapter reads are
-  verified on Linux/3.13/3.14. Automated CI and other platforms remain pending.
+  verified on Linux/3.13/3.14. GitHub-hosted CI also verifies this matrix; other
+  platforms remain pending. PyPI ownership is still a separate release gate.
 - [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
@@ -311,9 +312,11 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Use ownership-map A01-A08 to design clean library contracts before they
   become public. Track extraction of each existing consumer responsibility
   against that map; avoid building a second copy in MCP's 2.0 work.
-- [ ] Establish development tooling and CI: locked setup, Ruff, strict typing,
+- [x] Establish development tooling and CI: locked setup, Ruff, strict typing,
   offline tests, package build, and installed-wheel checks. Document real
-  commands in CONTRIBUTING once the tools exist.
+  commands in CONTRIBUTING once the tools exist. GitHub CI additionally qualifies
+  installed sdists, workflow syntax, complete-history secrets, and locked
+  runtime/development dependency audits. Publishing and credentialed CI are separate.
 
 Exit: an installable independent skeleton, reviewed contracts, and runnable
 offline checks. No published claim of functional Librus support yet.

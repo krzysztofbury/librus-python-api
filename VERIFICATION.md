@@ -60,6 +60,21 @@ These checksums and the 122-test counts above describe the initial qualified
 behavioral proof with 121 default tests plus one performance and one integration
 test; the retired experiment's duplicate-cookie case is in the real transport test.
 
+## GitHub-hosted CI
+
+[CI run 36721820811](https://github.com/krzysztofbury/librus-python-api/actions/runs/36721820811)
+passed on 2026-09-30 for commit `95261910b7c7582cceb6155d42f5fea6523730fc`
+in [PR #2](https://github.com/krzysztofbury/librus-python-api/pull/2).
+All three Ubuntu 24.04 jobs passed: quality/security and Python 3.13/3.14.
+Each Python job passed 121 portable tests against source, installed wheel, and
+installed sdist. Logs confirm imports from separate site-packages directories.
+Metadata/license/py.typed and dependency consistency checks passed, and both
+distribution/report artifacts were uploaded. The quality job passed workflow
+lint, repository hooks, full-history secrets, and the locked runtime/development
+vulnerability audit. No live Librus requests or publishing occurred. These are
+PR execution results, not evidence that the workflow has merged onto `main`.
+The hardware-sensitive and cross-repository tests remain explicitly opt-in.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and
@@ -68,10 +83,13 @@ test; the retired experiment's duplicate-cookie case is in the real transport te
   evidenced. Third-party flow requirements are not live qualification.
 - Interactive CAPTCHA/2FA, multi-child switching, and unavailable lucky-number
   legacy marker parity. No fabricated civil date or unavailable string is returned.
-- macOS/Windows installed-artifact/platform qualification and automated CI.
+- macOS/Windows installed-artifact/platform qualification.
 - Owner-configured bounded daily credentialed CI, PyPI publication beginning at
   1.0.0rc1, complete consumer migration, and a production backend default switch.
 - All academic, messaging, attachments, send, and read-once event operation slices.
 
 The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
-Draft PRs are unmerged; no package or consumer release has been published.
+Library PR #1 is merged. The consumer adapter remains a draft; no package or
+consumer release has been published. GitHub CI is defined in
+`.github/workflows/ci.yml`; its remote run results are separate from the local
+0.1.0 evidence above. Credentialed compatibility and publishing remain deferred.
