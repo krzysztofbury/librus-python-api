@@ -24,8 +24,10 @@ Current increment: `0.1.0.dev0` packaging, typed route/error configuration,
 OpenAPI catalogue checks, a loopback-only async transport evaluation, and shared
 request admission/budgets verified with a saturated four-account HTTP workload.
 The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
-are implemented. Authentication, identity coverage, and the complete public
-account service are the next phase.
+are implemented. The public service, coalesced safe reads, account-scoped freshness,
+authentication, typed identity/profile, bounded Tenacity recovery, and redacted
+Loguru diagnostics are implemented and tested offline. Installed-artifact and
+MCP adapter qualification are the remaining local 0.1.0 gates.
 
 **Local-first scope adjustment:** develop and verify `0.x` using local wheel/
 sdist builds and offline runtime tests, including local `librus-mcp` integration.

@@ -66,7 +66,7 @@ def test_error_does_not_accept_arbitrary_upstream_messages() -> None:
         LibrusError("untrusted fixture response")  # type: ignore[arg-type]
     error = LibrusError(ErrorKind.PARSE)
     assert str(error) == "parse"
-    assert repr(error) == "LibrusError('parse')"
+    assert repr(error) == "ParseError('parse')"
 
 
 @pytest.mark.parametrize(

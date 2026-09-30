@@ -26,6 +26,7 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.models import LoginSubmission
 from librus_python_api.scheduler import RequestScheduler
 
 
@@ -50,7 +51,7 @@ class AccountTransport(Protocol):
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: Mapping[str, str] | None = None,
+        form: LoginSubmission | None = None,
     ) -> TransportResponse: ...
 
     async def follow(
@@ -117,7 +118,7 @@ class AiohttpTransport:
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: Mapping[str, str] | None = None,
+        form: LoginSubmission | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
@@ -171,17 +172,15 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: Mapping[str, str] | None,
+        form: LoginSubmission | None,
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if (form is not None) != (endpoint.method == "POST"):
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if form is not None and (
-            set(form) != {"action", "login", "pass"}
-            or form.get("action") != "login"
-            or not 1 <= len(form["login"]) <= 256
-            or not 1 <= len(form["pass"]) <= 1024
+            not 1 <= len(form.login.get_secret_value()) <= 256
+            or not 1 <= len(form.password.get_secret_value()) <= 1024
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
         kind: ErrorKind | None = None
@@ -207,7 +206,7 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: Mapping[str, str] | None,
+        form: LoginSubmission | None,
     ) -> TransportResponse:
         session = self._get_session()
         proxy = self._connection.proxy_url
@@ -221,7 +220,13 @@ class AiohttpTransport:
         async with session.request(
             endpoint.method,
             url,
-            data=form,
+            data={
+                "action": "login",
+                "login": form.login.get_secret_value(),
+                "pass": form.password.get_secret_value(),
+            }
+            if form is not None
+            else None,
             headers=headers,
             allow_redirects=False,
             proxy=proxy.get_secret_value() if proxy is not None else None,
@@ -256,7 +261,8 @@ class AiohttpTransport:
                         instant = parsedate_to_datetime(value)
                         seconds = (instant - datetime.now(UTC)).total_seconds()
                     if math.isfinite(seconds) and seconds >= 0:
-                        pause = max(pause, seconds)
+                        # Avoid platform timer overflow from untrusted headers.
+                        pause = max(pause, min(seconds, 24 * 60 * 60))
             except (ValueError, TypeError, OverflowError):
                 pass
             self._scheduler.pause_for(pause)

@@ -1,8 +1,9 @@
 # librus-python-api
 
 An independent Python library for accessing Librus Synergia. The project is in
-the foundation stage: a local development package can be built and installed,
-but no functional Librus client or supported network API has been released.
+local-first development stage: an async account service supports bounded login,
+typed identity, and student-information reads against offline fixture servers.
+Live compatibility is not yet verified and nothing has been published to PyPI.
 
 The first intended consumer is
 [librus-mcp](https://github.com/krzysztofbury/librus-mcp). This repository will
@@ -30,7 +31,7 @@ automation are deferred until `1.0.0rc1`. A dedicated daily
 credentialed compatibility check remains planned, not configured or running.
 See [the implementation roadmap](TODO.md).
 
-## Current foundation
+## Current implementation
 
 - Python 3.13 and 3.14 package skeleton with an MIT license and `py.typed`.
 - Central typed route catalogue in `src/librus_python_api/config.py`, frozen
@@ -46,12 +47,11 @@ See [the implementation roadmap](TODO.md).
   scoped duplicate cookies, body limits, deadline, and cancellation checks.
   This is transport-selection evidence, not a supported client or load test.
 
-Authentication, identity, the account-client transport, and the MCP adapter remain
-pending at the public account-service boundary. The native transport is implemented
-and tested offline; the complete login/identity slice follows. Scheduler behavior
-is tested under a saturated four-account loopback
-HTTP workload; this is not live integration or performance-comparison evidence.
-No live Librus calls were used to validate this foundation.
+The public `LibrusService` owns isolated account clients, coalesced safe reads,
+account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
+and deterministic cleanup. Inputs/configuration, immutable results, specific
+exceptions, and opt-in Loguru diagnostics are typed. No live Librus calls were used.
+Installed-artifact and MCP adapter qualification are the remaining local gates.
 
 ## Development principles
 

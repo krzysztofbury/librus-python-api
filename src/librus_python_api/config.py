@@ -268,6 +268,41 @@ class OperationLimits(_ValidatedConfig):
     max_response_bytes: PositiveCount = 4 * 1024 * 1024
 
 
+class AccountCredentials(_ValidatedConfig):
+    """Explicit login secrets and optional independent identity expectations."""
+
+    login: SecretStr = Field(repr=False)
+    password: SecretStr = Field(repr=False)
+    expected_owner_id: str | None = Field(default=None, repr=False)
+    expected_student_id: str | None = Field(default=None, repr=False)
+
+    def __init__(
+        self,
+        *,
+        login: str | SecretStr,
+        password: str | SecretStr,
+        expected_owner_id: str | None = None,
+        expected_student_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            login=login,
+            password=password,
+            expected_owner_id=expected_owner_id,
+            expected_student_id=expected_student_id,
+        )
+
+    @model_validator(mode="after")
+    def validate_account(self) -> Self:
+        if not 1 <= len(self.login.get_secret_value()) <= 256:
+            raise ValueError("Invalid login length")
+        if not 1 <= len(self.password.get_secret_value()) <= 1024:
+            raise ValueError("Invalid password length")
+        for value in (self.expected_owner_id, self.expected_student_id):
+            if value is not None and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", value):
+                raise ValueError("Invalid expected identity")
+        return self
+
+
 DEFAULT_OPERATION_LIMITS = OperationLimits()
 
 

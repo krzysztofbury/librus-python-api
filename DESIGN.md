@@ -8,7 +8,8 @@ All current HTTP fixtures are independently authored synthetic examples.
 
 The installed package currently provides configuration, errors, request budgets,
 admission scheduling, and a scope-preserving native transport. It does not yet
-provide the authenticated account-service API. Fixed routes and OpenAPI paths
+provide live compatibility evidence. The account-service API is implemented and
+tested offline. Fixed routes and OpenAPI paths
 are evidence-labelled; source-informed routes are not live observations.
 
 ## Dependencies
@@ -17,7 +18,9 @@ are evidence-labelled; source-informed routes are not live observations.
 | --- | --- | --- |
 | Pydantic 2 | Strict, frozen configuration with runtime validation | MIT |
 | aiohttp | Native async account-isolated HTTP transport | Apache-2.0 AND MIT |
-| lxml | Selected for bounded semantic HTML parsing in the next identity phase | BSD-3-Clause |
+| lxml | Bounded semantic HTML identity parsing | BSD-3-Clause |
+| Tenacity | Explicit two-attempt recovery for proven session expiry only | Apache-2.0 |
+| Loguru | Opt-in allowlisted structured diagnostic sink, no global setup | MIT |
 
 Pydantic configuration does not read environment variables. Validation errors
 are translated to a closed library category without attaching their raw input

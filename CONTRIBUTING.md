@@ -57,7 +57,8 @@ staged diff. Git hooks are local checks; each clone must install them.
 The foundation uses `src/librus_python_api/`, Hatchling builds, and a committed
 `uv.lock`. Python 3.13 and 3.14 are the current local verification targets.
 Pydantic provides strict, frozen runtime validation. `aiohttp` implements the
-native transport. `lxml` is selected for the upcoming bounded HTML parser.
+native transport. `lxml` parses bounded semantic HTML in joined workers. Tenacity
+owns the explicit safe-read recovery policy; Loguru diagnostics are opt-in.
 
 ```sh
 uv sync --locked --python 3.14

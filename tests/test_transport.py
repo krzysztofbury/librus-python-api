@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack
 
 import pytest
 from aiohttp import web
+from pydantic import SecretStr
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
@@ -12,6 +13,7 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.models import LoginSubmission
 from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.transport import AiohttpTransport
 from tests.http_support import serve
@@ -53,11 +55,9 @@ def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> N
                 await transport.request(
                     "login_submit",
                     RequestBudget(),
-                    form={
-                        "action": "login",
-                        "login": key,
-                        "pass": f"fixture-only-{key}",
-                    },
+                    form=LoginSubmission(
+                        SecretStr(key), SecretStr(f"fixture-only-{key}")
+                    ),
                 )
             results = await asyncio.gather(
                 *(item.request("identity", RequestBudget()) for item in transports)
