@@ -10,21 +10,26 @@ from librus_python_api.config import (
 )
 from librus_python_api.models import (
     Availability,
+    FinalGrades,
+    GradeSummaryValue,
     Identity,
     LuckyNumber,
     Observation,
     Person,
     StudentInformation,
+    SubjectGradeSummary,
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.1.0"
+__version__ = "0.2.0.dev0"
 
 __all__ = [
     "AccountClient",
     "AccountCredentials",
     "Availability",
     "ConnectionSettings",
+    "FinalGrades",
+    "GradeSummaryValue",
     "Identity",
     "LibrusService",
     "LuckyNumber",
@@ -34,5 +39,6 @@ __all__ = [
     "RequestBudget",
     "SchedulerLimits",
     "StudentInformation",
+    "SubjectGradeSummary",
     "TransportLimits",
 ]

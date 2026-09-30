@@ -128,9 +128,9 @@ Verify the wheel outside the checkout before handing off packaging changes:
 
 ```sh
 uv venv /tmp/opencode/librus-python-api-wheel --python 3.14
-uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/librus_python_api-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/*.whl
 cd /tmp/opencode
-/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; from librus_python_api.config import ENDPOINTS; assert version("librus-python-api") == "0.1.0"; assert files("librus_python_api").joinpath("py.typed").is_file(); assert len(ENDPOINTS) == 9'
+/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; import librus_python_api as api; assert version("librus-python-api") == api.__version__; assert files("librus_python_api").joinpath("py.typed").is_file()'
 ```
 
 Use a fresh environment path for subsequent runs. This import/configuration
@@ -156,7 +156,7 @@ directory. This makes test fixtures available without replacing
 the installed library. Reinstall the wheel after rebuilding the same local version;
 check `librus_python_api.__file__` points into the separate environment.
 
-For the real MCP stdio identity experiment, install the consumer adapter branch
+For the real MCP stdio identity/final-summary experiment, install the consumer adapter branch
 (`feat/native-identity-adapter`, draft PR #38) into that same environment. This is
 a local experiment, not a production dependency change. Then run outside the
 library checkout:
@@ -174,7 +174,7 @@ destinations only. Expected scoped denials are redacted non-successes. No live
 school requests or production notification/filesystem state are used. Selecting
 integration without a valid adapter checkout is an actionable test failure.
 
-Also install `dist/librus_python_api-0.1.0.tar.gz` in a separate environment and
+Also install the built `dist/*.tar.gz` in a separate environment and
 run the same public-boundary suite to qualify the sdist build path. Record hashes
 with `sha256sum` and review installed metadata for MIT, `py.typed`, Python support,
 and runtime dependencies. See VERIFICATION.md for the actual local results.

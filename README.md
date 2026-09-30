@@ -3,6 +3,8 @@
 An independent Python library for accessing Librus Synergia. The project is in
 local-first development stage: an async account service supports bounded login,
 typed identity, and student-information reads against offline fixture servers.
+The `0.2.0.dev0` increment also reads typed final-grade summaries. Numeric grades,
+GPA, date windows, and the remaining 0.2.0 academic scope are not implemented yet.
 Live compatibility is not yet verified and nothing has been published to PyPI.
 
 The first intended consumer is
@@ -49,6 +51,9 @@ See [the implementation roadmap](TODO.md).
 - GitHub-hosted CI for Python 3.13/3.14 on Linux: quality/security checks and the
   portable suite against source, installed wheel, and installed sdist. Build
   artifacts are retained for inspection, not published to PyPI.
+- [Final-grade summaries](contracts/grades.md) with explicit column availability,
+  preserved school values, bounded semantic HTML parsing, and shared account
+  lifecycle/budgets. The matching MCP adapter remains an opt-in experiment.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -64,12 +69,13 @@ migration, credentialed CI, PyPI, or live compatibility claims.
 
 ```sh
 uv build --no-sources
-uv pip install dist/librus_python_api-0.1.0-py3-none-any.whl
+uv pip install dist/*.whl
 ```
 
 The supported public entry point is `LibrusService`. Supply credentials explicitly,
 reuse one service across accounts/tools, and close it with an async context manager.
-Only `identity()` and `student_information()` are enabled in this release.
+Enabled development reads are `identity()`, `student_information()`, and
+`final_grades()`. The version is a development marker, not a published release.
 
 ## Development principles
 

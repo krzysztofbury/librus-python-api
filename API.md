@@ -1,8 +1,9 @@
-# 0.1.0 public API
+# Public API: 0.2.0 development
 
-This local-first release implements login, gateway identity, and HTML student
-information. Offline synthetic verification is complete; live compatibility is
-not independently verified. Reading school data requires separate authorization.
+The 0.1.0 delivery implements login, gateway identity, and HTML student
+information. The `0.2.0.dev0` increment adds final-grade summaries, not a completed
+academic release. Live compatibility is not independently verified.
+Reading school data requires separate authorization.
 Authentication can change the upstream last-login timestamp.
 
 ## Ownership and typed results
@@ -54,7 +55,7 @@ explicitly rather than accidentally exposing all identity/provenance fields.
 
 ## Budgets, freshness, and coalescing
 
-Both account methods accept `budget: RequestBudget | None` and
+All account reads accept `budget: RequestBudget | None` and
 `max_age_seconds: float = 0.0`. A shared budget spans all selected account calls:
 
 ```python
@@ -78,7 +79,7 @@ inflated bytes; identity-encoded bodies are charged once. Limits stop new work
 with `LimitError`; no partial identity record is fabricated.
 
 Fresh reads are the default. An explicit age from zero through 3600 seconds allows
-reuse of at most two cached results per account. Session invalidation clears both.
+reuse of at most three cached results per account. Session invalidation clears all.
 TTL is checked against monotonic elapsed time at every read; older values are
 replaced on the next fetch. Cache hits still respect deadlines and cooldowns.
 Identical in-flight default-budget reads share work. Explicit-budget reads share
@@ -111,7 +112,27 @@ waiting for an account's session lock. Session-changing operations are serialize
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
 [OpenAPI YAML](contracts/upstream.openapi.yaml) documents all nine enabled wire
-operations, including raw HTML, forms, origins, side effects, and evidence gaps.
+operations from the 0.1.0 foundation plus the final-summary GET, including raw
+HTML, forms, origins, side effects, and evidence gaps.
+
+## Final-grade summaries
+
+`await account.final_grades(budget=budget, max_age_seconds=0)` returns immutable
+`FinalGrades(identity, items, observation)`. Each `SubjectGradeSummary` has
+`subject`, `midterm`, `predicted_annual`, and `annual`. Each value is a
+`GradeSummaryValue(availability, raw)`:
+
+- `AVAILABLE` preserves rendered text, including empty strings, `-`, grade
+  symbols, and descriptive labels. It does not assert that a grade is assigned.
+- `UNAVAILABLE` means the optional column is absent and has `raw=None`.
+
+The annual column is required. Missing/ambiguous tables or malformed subjects
+are parse errors, not partial collections. Bounds are 128 subjects, 64 expanded
+columns, and 1024 characters per value, in addition to the shared parser/budget
+bounds. The read makes one GET after authentication; it does not change grade
+filters or fetch individual-grade details. It reuses the same session, cache,
+coalescing, and bounded expiry-recovery policies as identity/profile reads.
+See [the grade summary contract/provenance](contracts/grades.md).
 
 ## Exceptions, retries, and diagnostics
 
@@ -153,7 +174,8 @@ the service; the production CLI/dependency selection remains unchanged. Missing
 lucky-number data fails explicitly until a legacy unavailable marker is evidenced.
 No native failure is replayed through the legacy backend.
 
-Live callback destinations, account variants, profile layouts/labels/encoding,
-and populated coverage remain unverified. Academic/messaging/event operations,
+Live callback destinations, account variants, profile/summary layouts and
+encodings remain unverified. Individual grades, windows, GPA, other academic reads,
+and messaging/event operations,
 daily credentialed CI, PyPI, macOS/Windows qualification, and production backend
 migration are not part of this completed Linux local-first delivery.

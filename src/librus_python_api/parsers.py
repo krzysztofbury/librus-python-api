@@ -93,7 +93,7 @@ def parse_login(body: bytes) -> str:
     return location
 
 
-def _document(body: bytes) -> html.HtmlElement:
+def parse_html_document(body: bytes) -> html.HtmlElement:
     failed = False
     document: html.HtmlElement | None = None
     try:
@@ -119,7 +119,7 @@ def _document(body: bytes) -> html.HtmlElement:
 
 
 def parse_profile(body: bytes) -> ProfileFields:
-    document = _document(body)
+    document = parse_html_document(body)
     required = {"name", "class_name", "register_number", "tutor", "school"}
     candidates: list[dict[str, str]] = []
     for table in document.iter("table"):

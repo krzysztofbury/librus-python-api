@@ -122,6 +122,12 @@ consumer draft PR #38; default production backend migration remains pending.
 
 ### 0.2.0 - Academic and school-information coverage
 
+Development has started as `0.2.0.dev0`. The first increment implements
+`final_grades()` and an opt-in MCP adapter, with original offline fixtures and
+explicit missing-column versus unassigned-value semantics. See
+`contracts/grades.md`. Individual grades, GPA, date windows, other academic reads,
+live qualification, and the full 0.2.0 release gate remain pending.
+
 Depends on 0.1.0. Deliver the ordinary reads needed for school summaries as one
 coherent feature set with shared parsing, pagination, and metadata policies.
 

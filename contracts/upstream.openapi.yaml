@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.1.0
+  version: 0.2.0.dev0
   license:
     name: MIT
   description: |
@@ -15,6 +15,48 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /przegladaj_oceny/uczen:
+    get:
+      operationId: final_grades
+      tags: [Grades]
+      summary: Read the school-provided midterm and annual grade summary
+      description: |
+        Source-informed raw HTML route, not an official API or a live-verified
+        contract. One GET fetches the summary without changing grade filters.
+        Requires a unique decorated/stretch table with a titled annual-grade
+        header in thead. The semantic header row omits the body expander and
+        subject cells; header colspans occupy body columns. Recognized titles
+        are Ocena śródroczna z pierwszego okresu,
+        Przewidywana ocena roczna, and Ocena roczna. BR suffixes in titles are
+        ignored. Missing optional columns differ from available unassigned '-'
+        or empty values. Subject values and school-provided grade strings remain
+        raw text; there is no inferred grade/date/subject ID or numeric conversion.
+        Only the behaviour subject Zachowanie permits body colspans. Unsupported
+        rowspans, ambiguous summaries, malformed rows, duplicate subjects/tables,
+        missing annual headers, and unrecognized empty pages fail explicitly.
+        Bounds: 128 subjects, 64 expanded body columns, 1024 characters/value;
+        common transport, parser, request/byte/deadline bounds also apply.
+        One expiry recovery is permitted under the original operation budget;
+        other failures do not trigger retries or a different data source.
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: |
+        Route research from librus-apix 1.5.2 URL definitions; summary column and
+        account-variant requirements from the existing librus-mcp contract.
+        Implementation and loopback wire fixtures are independently authored,
+        not copied source, tests, or captures. Populated, unassigned, absent-column,
+        spanning-behaviour, and malformed cases are verified offline only.
+        No live Librus call or compatibility observation was performed.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
   /loguj/portalRodzina:
     get:
       operationId: login_portal

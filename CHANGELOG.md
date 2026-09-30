@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0.dev0 - Academic coverage in development
+
+- First increment: typed final-grade summaries through one bounded HTML GET,
+  with school-provided strings and explicit optional-column availability.
+- New original semantic-header, merged-behaviour, unassigned, malformed, bound,
+  wire/isolation/cache/recovery fixtures and an opt-in real MCP stdio adapter.
+- Existing lifecycle, budgets, diagnostics, and public identity/profile contracts
+  are preserved. This is not a completed 0.2.0 release or PyPI publication.
+- Individual numeric/descriptive grades, GPA, windows, and other academic slices
+  remain pending; summary layout/live-account compatibility is unverified.
+
 ## 0.1.0 - Local-first account and identity service
 
 - Native async account-isolated transport with scoped cookies, fixed destinations,

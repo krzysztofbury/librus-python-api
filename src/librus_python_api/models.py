@@ -14,6 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from librus_python_api.exceptions import ErrorKind
 
+type OperationName = Literal["identity", "student_information", "final_grades"]
+
 
 @dataclass(frozen=True, slots=True)
 class TransportResponse:
@@ -32,7 +34,7 @@ class SchedulerSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class DiagnosticEvent:
-    operation: Literal["identity", "student_information"]
+    operation: OperationName
     outcome: ErrorKind | Literal["ok", "cancelled"]
     elapsed_seconds: float
     budget_requests_dispatched: int
@@ -88,6 +90,34 @@ class StudentInformation:
     tutor: str = field(repr=False)
     school: str = field(repr=False)
     lucky_number: LuckyNumber
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class GradeSummaryValue:
+    """Column presence, separate from its raw school-provided value.
+
+    Unavailable columns have raw=None. Available columns preserve empty strings,
+    unassigned markers such as '-', symbols, and descriptive values without
+    inventing numeric conversions or dates.
+    """
+
+    availability: Availability
+    raw: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectGradeSummary:
+    subject: str = field(repr=False)
+    midterm: GradeSummaryValue
+    predicted_annual: GradeSummaryValue
+    annual: GradeSummaryValue
+
+
+@dataclass(frozen=True, slots=True)
+class FinalGrades:
+    identity: Identity
+    items: tuple[SubjectGradeSummary, ...] = field(repr=False)
     observation: Observation
 
 

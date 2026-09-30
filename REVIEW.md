@@ -5,6 +5,27 @@ applied by the implementing agent. This is not an independent reviewer approval.
 No live Librus request was made. Fixtures and implementation are original and
 source-informed, not copied upstream material.
 
+## 0.2.0.dev0 increment self-review
+
+- Safety, TigerStyle #2 and #6: One catalogue-bound summary GET uses the existing
+  operation budget and parser pool. Subject/column/value limits and exact expanded
+  row widths prevent partial success. Absent columns differ from available empty
+  or unassigned values; duplicates, unsupported spans, and ambiguous layouts fail.
+- Safety, TigerStyle #12: Existing typed errors/recovery/cooldowns are reused.
+  The native consumer adapter never falls back to legacy HTTP. Original tests
+  reproduced BR/paragraph word concatenation before the rendering fix and retain
+  inline symbol composition. Observations/results/diagnostics omit personal reprs.
+- Performance, TigerStyle #14: One page is parsed once per coalesced flight, with
+  bounded account/session cache reuse and no per-subject metadata/detail traffic.
+  Four-login stdio measurements remain 28 cold and three warm requests. No live
+  performance improvement is claimed.
+- DX, TigerStyle #16: Shared summary records are in models.py, labels/routes/bounds
+  in config.py, and behaviour in grade_parsers.py/service.py. The package is marked
+  0.2.0.dev0, not released as complete academic coverage. Research provenance and
+  parser/consumer test ownership are documented in contracts/grades.md.
+- Remaining: numeric/descriptive grade collections, GPA, scope/date windows,
+  other academic reads, and independently observed summary/account layouts.
+
 ## Safety
 
 - TigerStyle #12: Full error handling. Repeated caller cancellation could interrupt

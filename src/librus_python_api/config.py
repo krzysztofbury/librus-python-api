@@ -91,7 +91,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.1 (independent client)"
+USER_AGENT = "librus-python-api/0.2 (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
@@ -171,6 +171,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.SOURCE_INFORMED,
             ),
+            Endpoint(
+                "final_grades",
+                "GET",
+                "/przegladaj_oceny/uczen",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
         )
     }
 )
@@ -186,6 +194,22 @@ PROFILE_LABELS = MappingProxyType(
         "Szkoła": "school",
     }
 )
+
+# HTML summary headers omit the two leading body cells: expander and subject.
+# These labels/layout rules are source-informed requirements, not live evidence.
+GRADE_SUMMARY_HEADERS = MappingProxyType(
+    {
+        "Ocena śródroczna z pierwszego okresu": "midterm",
+        "Przewidywana ocena roczna": "predicted_annual",
+        "Ocena roczna": "annual",
+    }
+)
+GRADE_BODY_PREFIX_COLUMNS = 2
+GRADE_MAX_COLUMNS = 64
+GRADE_MAX_SUBJECTS = 128
+GRADE_MAX_VALUE_LENGTH = 1024
+GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
+GRADE_INLINE_DETAIL_LABEL = "Ocena"
 
 
 class _ValidatedConfig(BaseModel):

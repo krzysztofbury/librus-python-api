@@ -75,6 +75,31 @@ vulnerability audit. No live Librus requests or publishing occurred. These are
 PR execution results, not evidence that the workflow has merged onto `main`.
 The hardware-sensitive and cross-repository tests remain explicitly opt-in.
 
+## 0.2.0.dev0 final-summary increment
+
+The first academic increment is a development build, not a completed 0.2.0
+release. On Linux/Python 3.13 and 3.14, 159 portable tests pass, including 38 new
+final-summary cases. The exact built wheel passes all 162 tests when the opt-in
+parser-resource and two real MCP stdio workloads are selected. A separately
+installed sdist passes the 159-test portable suite on Python 3.13. The consumer
+adapter checkout passes 573 tests; its Ruff/formatting and Bandit checks pass.
+Library Ruff/formatting, strict mypy, and ten-operation OpenAPI parity pass.
+
+The final-summary stdio workload keeps 24 default tools and exercises four login
+contexts representing one student, three callers/context, one denial, optional
+columns, and a two-subject result. It preserves one text block per summary and
+the legacy structured result wrapper. Cold reads cost 28 requests, warm reads
+three, with four reused connections and one login/context, under the shared
+25 requests/second fixture budget. No school service or production state is used.
+
+These tests own the new summary boundary. Common transport/cancellation/recovery
+tests remain in place without being duplicated wholesale for another endpoint.
+Tests also reproduced and fixed loss of word boundaries at HTML BR/paragraph
+elements while preserving inline grade symbols. The implementation/fixtures are
+original and source-informed; they do not establish live layout compatibility.
+See `contracts/grades.md` for scope and provenance. The consumer backend stays
+explicitly opt-in with no legacy fallback or production dependency change.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and
@@ -86,7 +111,8 @@ The hardware-sensitive and cross-repository tests remain explicitly opt-in.
 - macOS/Windows installed-artifact/platform qualification.
 - Owner-configured bounded daily credentialed CI, PyPI publication beginning at
   1.0.0rc1, complete consumer migration, and a production backend default switch.
-- All academic, messaging, attachments, send, and read-once event operation slices.
+- Individual grades/GPA/windows and other remaining academic, messaging,
+  attachments, send, and read-once event operation slices.
 
 The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
 Library PR #1 is merged. The consumer adapter remains a draft; no package or

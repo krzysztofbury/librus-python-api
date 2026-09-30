@@ -29,12 +29,15 @@ from librus_python_api.config import (
 )
 from librus_python_api.diagnostics import DiagnosticSink
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     DiagnosticEvent,
+    FinalGrades,
     Identity,
     LoginSubmission,
     Observation,
+    OperationName,
     SchedulerSnapshot,
     StudentInformation,
     TransportResponse,
@@ -48,12 +51,12 @@ from librus_python_api.transport import (
     TransportFactory,
 )
 
-OperationName = Literal["identity", "student_information"]
+type _ReadResult = Identity | StudentInformation | FinalGrades
 
 
 @dataclass(slots=True)
 class _Flight:
-    task: asyncio.Task[Identity | StudentInformation]
+    task: asyncio.Task[_ReadResult]
     waiters: int = 0
 
 
@@ -92,7 +95,7 @@ class LibrusService:
         }
         self._parsers = ParserPool(self._transport_limits.parse_max_bytes)
         self._transports: list[AccountTransport] = []
-        self._tasks: set[asyncio.Task[Identity | StudentInformation]] = set()
+        self._tasks: set[asyncio.Task[_ReadResult]] = set()
         self._operations = 0
         self._loop: asyncio.AbstractEventLoop | None = None
         self._closed = False
@@ -207,7 +210,7 @@ class AccountClient:
         self._operations = 0
         self._generation = 0
         self._identity: Identity | None = None
-        self._cache: dict[str, tuple[float, Identity | StudentInformation]] = {}
+        self._cache: dict[str, tuple[float, _ReadResult]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
 
     @property
@@ -235,12 +238,22 @@ class AccountClient:
             await self._read("student_information", budget, max_age_seconds),
         )
 
+    async def final_grades(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> FinalGrades:
+        return cast(
+            FinalGrades, await self._read("final_grades", budget, max_age_seconds)
+        )
+
     async def _read(
         self,
         operation: OperationName,
         budget: RequestBudget | None,
         max_age: float,
-    ) -> Identity | StudentInformation:
+    ) -> _ReadResult:
         service = self._service
         service._bind()
         if (
@@ -293,7 +306,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-    ) -> Identity | StudentInformation:
+    ) -> _ReadResult:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         try:
@@ -326,7 +339,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-    ) -> Identity | StudentInformation:
+    ) -> _ReadResult:
         timed_out = False
         try:
             async with asyncio.timeout(budget.remaining_seconds()):
@@ -374,7 +387,7 @@ class AccountClient:
         self,
         operation: OperationName,
         budget: RequestBudget,
-    ) -> Identity | StudentInformation:
+    ) -> _ReadResult:
         authenticated_now = self._identity is None
         # Initial login is outside retries: a failed credential submission must
         # never be replayed by a generic retry policy.
@@ -405,20 +418,26 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         authenticated_now: bool,
-    ) -> Identity | StudentInformation:
+    ) -> _ReadResult:
         assert self._identity is not None
         if operation == "identity":
             if authenticated_now:
                 return self._identity
             self._identity = await self._fetch_identity(budget)
             return self._identity
-        response = await self._transport.request("student_information", budget)
+        response = await self._transport.request(operation, budget)
         self._validate_read_response(response)
         if (
             response.headers.get("content-type", "").partition(";")[0].strip().lower()
             != "text/html"
         ):
             raise LibrusError(ErrorKind.PARSE)
+        if operation == "final_grades":
+            items = await self._service._parsers.run(
+                parse_final_grades, response.body, budget
+            )
+            return FinalGrades(self._identity, items, self._observation(operation))
+        assert operation == "student_information"
         fields = await self._service._parsers.run(parse_profile, response.body, budget)
         return StudentInformation(
             self._identity,
