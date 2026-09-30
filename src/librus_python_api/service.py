@@ -154,7 +154,8 @@ class LibrusService:
     async def _finish_close(self) -> None:
         tasks = tuple(self._tasks)
         for task in tasks:
-            task.cancel()
+            if not task.cancelling():
+                task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         await self._scheduler.aclose()
         try:
@@ -279,7 +280,7 @@ class AccountClient:
                 # Remove before joining so new callers never inherit cancellation.
                 if self._flights.get(key) is flight:
                     del self._flights[key]
-                if not flight.task.done():
+                if not flight.task.done() and not flight.task.cancelling():
                     flight.task.cancel()
                 await join_owned(flight.task)
             service._operations -= 1
@@ -292,10 +293,6 @@ class AccountClient:
         max_age: float,
     ) -> Identity | StudentInformation:
         started = time.monotonic()
-        requests_before, bytes_before = (
-            budget.requests_dispatched,
-            budget.response_bytes,
-        )
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         try:
             return await self._perform(operation, budget, max_age)
@@ -312,8 +309,8 @@ class AccountClient:
                     operation,
                     outcome,
                     time.monotonic() - started,
-                    budget.requests_dispatched - requests_before,
-                    budget.response_bytes - bytes_before,
+                    budget.requests_dispatched,
+                    budget.response_bytes,
                 )
                 # Diagnostics must never replace an operation result or expose
                 # errors from caller-supplied sinks.
@@ -412,6 +409,11 @@ class AccountClient:
             return self._identity
         response = await self._transport.request("student_information", budget)
         self._validate_read_response(response)
+        if (
+            response.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "text/html"
+        ):
+            raise LibrusError(ErrorKind.PARSE)
         fields = await self._service._parsers.run(parse_profile, response.body, budget)
         return StudentInformation(
             self._identity,
@@ -462,7 +464,10 @@ class AccountClient:
     async def _fetch_identity(self, budget: RequestBudget) -> Identity:
         response = await self._transport.request("identity", budget)
         self._validate_read_response(response)
-        if "application/json" not in response.headers.get("content-type", ""):
+        if (
+            response.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
             raise LibrusError(ErrorKind.PARSE)
         owner, student = await self._service._parsers.run(
             parse_identity, response.body, budget
@@ -500,7 +505,13 @@ class AccountClient:
                     self._credentials.login, self._credentials.password
                 ),
             )
-            if "application/json" not in response.headers.get("content-type", ""):
+            if (
+                response.headers.get("content-type", "")
+                .partition(";")[0]
+                .strip()
+                .lower()
+                != "application/json"
+            ):
                 raise LibrusError(ErrorKind.ACCOUNT_ACTION_REQUIRED)
             location = await self._service._parsers.run(
                 parse_login, response.body, budget

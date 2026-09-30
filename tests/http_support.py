@@ -1,6 +1,7 @@
 """Original synthetic loopback fixtures; not captured Librus responses."""
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -38,12 +39,14 @@ class SchoolFixture:
     def __init__(self) -> None:
         self.origin = ""
         self.calls: list[tuple[str, str]] = []
+        self.dispatch_times: list[float] = []
         self.logins: dict[str, int] = {}
         self.profile_status: dict[str, int] = {}
         self.identity_status: dict[str, int] = {}
         self.expire_profile: dict[str, int] = {}
         self.challenge = False
         self.malformed_identity = False
+        self.identity_mode = "json"
         self.cookie_missing = False
         self.redirect_loop = False
         self.connections: set[int] = set()
@@ -63,6 +66,7 @@ class SchoolFixture:
     def record(self, request: web.Request) -> str:
         login = request.cookies.get("oauth_token", "")
         self.calls.append((request.path, login))
+        self.dispatch_times.append(time.monotonic())
         self.connections.add(id(request.transport))
         return login
 
@@ -114,6 +118,18 @@ class SchoolFixture:
             return web.Response(status=401)
         if login in self.identity_status:
             return web.Response(status=self.identity_status[login])
+        if self.identity_mode == "html":
+            return web.Response(
+                text="<html>unexpected page</html>", content_type="text/html"
+            )
+        if self.identity_mode in ("login_redirect", "foreign_redirect"):
+            location = (
+                "/loguj"
+                if self.identity_mode == "login_redirect"
+                else "https://example.invalid/steal"
+            )
+            self.identity_mode = "json"
+            return web.Response(status=302, headers={"Location": location})
         if self.malformed_identity:
             return web.json_response({"Me": {"Account": {"Id": login}}})
         return web.json_response(

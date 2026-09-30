@@ -13,8 +13,8 @@ class DiagnosticEvent:
     operation: Literal["identity", "student_information"]
     outcome: ErrorKind | Literal["ok", "cancelled"]
     elapsed_seconds: float
-    requests_dispatched: int
-    response_bytes: int
+    budget_requests_dispatched: int
+    budget_response_bytes: int
 
 
 class DiagnosticSink(Protocol):
@@ -32,6 +32,6 @@ def loguru_sink(event: DiagnosticEvent) -> None:
         operation=event.operation,
         outcome=event.outcome,
         elapsed_seconds=event.elapsed_seconds,
-        requests_dispatched=event.requests_dispatched,
-        response_bytes=event.response_bytes,
+        budget_requests_dispatched=event.budget_requests_dispatched,
+        budget_response_bytes=event.budget_response_bytes,
     ).info("Librus operation completed")

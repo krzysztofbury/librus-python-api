@@ -81,7 +81,7 @@ def test_four_login_profile_reads_coalesce_reuse_and_never_merge_by_student() ->
                 assert fixture.logins[aliases[0]] == 1
                 assert service.snapshot().active == service.snapshot().queued == 0
                 assert len(events) == 6
-                assert sum(event.requests_dispatched for event in events) == 29
+                assert sum(event.budget_requests_dispatched for event in events) == 29
                 assert "student-a" not in repr(events)
             with pytest.raises(ClosedError):
                 await service.account("student-a").identity()
@@ -368,8 +368,8 @@ def test_loguru_sink_emits_allowlisted_structured_fields() -> None:
         "operation": "identity",
         "outcome": "ok",
         "elapsed_seconds": 0.25,
-        "requests_dispatched": 7,
-        "response_bytes": 100,
+        "budget_requests_dispatched": 7,
+        "budget_response_bytes": 100,
     }
 
 
@@ -477,5 +477,55 @@ def test_parse_pool_bounds_bytes_and_joins_actual_thread_on_cancellation() -> No
         finally:
             release.set()
             pool.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("status", [429, 503])
+def test_shared_backoff_pauses_other_accounts_without_replaying_failed_read(
+    status: int,
+) -> None:
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        fixture.profile_status["parent"] = status
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service(
+                ("parent", "student"),
+                transport_limits=TransportLimits(cooldown_seconds=0.05),
+            ) as service:
+                with pytest.raises(LibrusError) as caught:
+                    await service.account("parent").student_information()
+                assert caught.value.kind in (ErrorKind.THROTTLED, ErrorKind.MAINTENANCE)
+                before = len(fixture.calls)
+                task = asyncio.create_task(service.account("student").identity())
+                await asyncio.sleep(0.015)
+                assert len(fixture.calls) == before
+                assert (await task).owner.id == "student"
+                assert sum(path == "/informacja" for path, _ in fixture.calls) == 1
+                assert fixture.logins == {"parent": 1, "student": 1}
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mode", ["html", "login_redirect", "foreign_redirect"])
+def test_only_proven_session_expiry_can_trigger_credential_recovery(mode: str) -> None:
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.identity()
+                fixture.identity_mode = mode
+                if mode == "login_redirect":
+                    result = await client.identity()
+                    assert result.observation.session_generation == 2
+                    assert fixture.logins == {"student": 2}
+                else:
+                    expected = ParseError if mode == "html" else AccessDeniedError
+                    with pytest.raises(expected):
+                        await client.identity()
+                    assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())

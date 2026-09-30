@@ -12,6 +12,7 @@ from typing import Any, Self
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import SchedulerLimits
 from librus_python_api.errors import ErrorKind, LibrusError
+from librus_python_api.lifecycle import join_owned
 
 
 @dataclass(slots=True)
@@ -101,10 +102,13 @@ class RequestScheduler:
                 worker = asyncio.ensure_future(action())
                 self._workers.add(worker)
                 try:
-                    result = await worker
+                    result = await asyncio.shield(worker)
                     budget.remaining_seconds()
                     return result
                 except asyncio.CancelledError:
+                    if not isinstance(worker, asyncio.Task) or not worker.cancelling():
+                        worker.cancel()
+                    await join_owned(worker)
                     if self._closed:
                         raise LibrusError(ErrorKind.CLOSED) from None
                     raise
@@ -259,13 +263,14 @@ class RequestScheduler:
         try:
             await asyncio.shield(self._close_task)
         except asyncio.CancelledError:
-            await asyncio.shield(self._close_task)
+            await join_owned(self._close_task)
             raise
 
     async def _finish_close(self) -> None:
         workers = tuple(self._workers)
         for worker in workers:
-            worker.cancel()
+            if not isinstance(worker, asyncio.Task) or not worker.cancelling():
+                worker.cancel()
         await asyncio.gather(*workers, return_exceptions=True)
 
     async def __aenter__(self) -> Self:

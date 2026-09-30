@@ -437,6 +437,8 @@ def test_canceling_closer_does_not_interrupt_active_worker_cleanup() -> None:
         await cleanup_started.wait()
         closer.cancel()
         await asyncio.sleep(0)
+        closer.cancel()
+        await asyncio.sleep(0)
         assert not closer.done()
         cleanup_release.set()
         with pytest.raises(asyncio.CancelledError):
@@ -445,5 +447,42 @@ def test_canceling_closer_does_not_interrupt_active_worker_cleanup() -> None:
             await active
         assert cleaned.is_set()
         assert scheduler.snapshot().active == 0
+
+    run(scenario())
+
+
+def test_repeated_cancellation_cannot_release_active_slot_before_cleanup() -> None:
+    async def scenario() -> None:
+        started, cleanup_started, release, cleaned = (
+            asyncio.Event(),
+            asyncio.Event(),
+            asyncio.Event(),
+            asyncio.Event(),
+        )
+
+        async def action() -> None:
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cleanup_started.set()
+                await release.wait()
+                cleaned.set()
+
+        async with RequestScheduler(("a",), limits=fast_limits()) as scheduler:
+            caller = asyncio.create_task(scheduler.run("a", RequestBudget(), action))
+            await started.wait()
+            try:
+                caller.cancel()
+                await cleanup_started.wait()
+                caller.cancel()
+                await asyncio.sleep(0)
+                assert not caller.done()
+                assert scheduler.snapshot().active == 1
+            finally:
+                release.set()
+                await asyncio.gather(caller, return_exceptions=True)
+            assert cleaned.is_set()
+            assert scheduler.snapshot().active == 0
 
     run(scenario())
