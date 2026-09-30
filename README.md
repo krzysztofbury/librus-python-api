@@ -1,7 +1,8 @@
 # librus-python-api
 
 An independent Python library for accessing Librus Synergia. The project is in
-the planning stage: no installable package or supported API has been released.
+the foundation stage: a local development package can be built and installed,
+but no functional Librus client or supported network API has been released.
 
 The first intended consumer is
 [librus-mcp](https://github.com/krzysztofbury/librus-mcp). This repository will
@@ -23,10 +24,26 @@ refer to the same student; their permissions and data may differ. MCP chooses
 which accounts to query and combines the results. The library owns bounded
 retrieval, not summary generation or automatic cross-account merging.
 
-Verification has two tracks: offline end-to-end tests for every change and a
-dedicated daily CI check that signs in with real credentials and performs a
-small set of allowed reads. See [the implementation roadmap](TODO.md).
-These are planned capabilities, not released APIs.
+The `0.x` deliveries are local-first. Verify built artifacts and the integration
+offline, including local `librus-mcp` adapter tests. PyPI publication and publishing
+automation are deferred until `1.0.0rc1`. A dedicated daily
+credentialed compatibility check remains planned, not configured or running.
+See [the implementation roadmap](TODO.md).
+
+## Current foundation
+
+- Python 3.13 and 3.14 package skeleton with an MIT license and `py.typed`.
+- Central typed route catalogue in `src/librus_python_api/config.py` and closed
+  error categories. The catalogue currently has no enabled Librus operations.
+- [OpenAPI YAML and endpoint evidence requirements](contracts/README.md), with
+  an offline check preventing route/contract drift. Import the YAML into Bruno
+  when operations are added; there are no working requests in it yet.
+- Loopback-only `aiohttp` evaluation with four independent synthetic sessions,
+  scoped duplicate cookies, body limits, deadline, and cancellation checks.
+  This is transport-selection evidence, not a supported client or load test.
+
+Authentication, identity, shared traffic scheduling, and the MCP adapter remain
+pending. No live Librus calls were used to validate this foundation.
 
 ## Development principles
 
@@ -42,9 +59,8 @@ These are planned capabilities, not released APIs.
   Credentialed live checks belong only in the explicitly configured daily/manual
   workflow, never in pull-request tests or load tests against Librus.
 
-The initial API, supported Python versions, packaging, and test commands will
-be documented when implementation begins. See [TODO.md](TODO.md) for planned
-work and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for runnable local setup, validation, and
+build commands, and [TODO.md](TODO.md) for the remaining implementation work.
 
 The roadmap covers typed contracts, async transport, JSON/HTML coverage, PyPI
 releases, and a backward-compatible migration of `librus-mcp`. It also separates

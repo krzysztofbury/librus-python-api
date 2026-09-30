@@ -54,10 +54,55 @@ staged diff. Git hooks are local checks; each clone must install them.
 
 ### Package development
 
-The package layout and development commands are not established yet. Add
-reproducible setup, lint, test, and build instructions here alongside the first
-implementation. Until then, keep changes focused, document observable
-behavior, and explain safety and compatibility implications in pull requests.
+The foundation uses `src/librus_python_api/`, Hatchling builds, and a committed
+`uv.lock`. Python 3.13 and 3.14 are the current local verification targets.
+The installed library has no runtime dependencies yet; `aiohttp` is a development
+dependency while its transport lifecycle is evaluated.
+
+```sh
+uv sync --locked --python 3.14
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy
+uv run --locked python -m pytest
+uv run --locked python tools/check_contracts.py
+uv run --locked python tools/transport_spike.py
+uv build --no-sources
+```
+
+The transport spike starts a disposable HTTP server on loopback. Its routes,
+account names, and login behavior are synthetic and are not Librus fixtures.
+It checks the dependency's behavior without calling any school service. It does
+not qualify service-wide request budgets, retries, live auth, or parser coverage.
+
+To repeat the suite on Python 3.13, use a separate environment so the primary
+environment is not replaced:
+
+```sh
+UV_PROJECT_ENVIRONMENT=/tmp/opencode/librus-python-api-py313 uv sync --locked --python 3.13
+UV_PROJECT_ENVIRONMENT=/tmp/opencode/librus-python-api-py313 uv run --locked python -m pytest
+```
+
+Verify the wheel outside the checkout before handing off packaging changes:
+
+```sh
+uv venv /tmp/opencode/librus-python-api-wheel --python 3.14
+uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/librus_python_api-0.1.0.dev0-py3-none-any.whl
+cd /tmp/opencode
+/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; from librus_python_api.config import ENDPOINTS; assert version("librus-python-api") == "0.1.0.dev0"; assert files("librus_python_api").joinpath("py.typed").is_file(); assert not ENDPOINTS'
+```
+
+Use a fresh environment path for subsequent runs. This import/configuration
+smoke check is not an installed-client E2E read; that gate remains pending until
+the authentication and identity slice exists. No PyPI upload or publishing CI
+is required for the 0.x deliveries. PyPI publication and publishing automation
+start at `1.0.0rc1`; local `librus-mcp` integration can use the exact built wheel
+before that candidate. Production consumer releases must still use PyPI artifacts.
+
+Keep network paths in `config.py` and add the matching wire contract in
+`contracts/upstream.openapi.yaml` for every endpoint. See the
+[contract authoring and Bruno guide](contracts/README.md). Reuse existing
+clients' concepts and documented flows, not their implementation or fixtures.
 
 Use a branch for your change and open a pull request against `main`. Include
 the checks you ran and any behavior that could not be verified without live

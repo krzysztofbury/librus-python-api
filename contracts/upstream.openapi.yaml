@@ -1,0 +1,16 @@
+openapi: 3.0.3
+info:
+  title: Librus upstream integration contract
+  version: 0.1.0.dev0
+  license:
+    name: MIT
+  description: |
+    Independently authored documentation for an unofficial integration.
+    This is not an API supplied or guaranteed by Librus.
+    No network operations are implemented in this foundation increment.
+    Paths will be added alongside implementation and offline wire evidence.
+    An empty catalogue is not proof of authentication or live compatibility.
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local fixture server placeholder, not a live Librus destination
+paths: {}

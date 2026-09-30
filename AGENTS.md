@@ -25,5 +25,15 @@ client. Follow any workspace-level agent rules as well as these project rules.
   parse errors over silent partial output. Do not retry non-idempotent writes.
 - Keep public library contracts independent of MCP-specific response models
   and notification persistence. Coordinate consumer changes with `librus-mcp`.
+- Keep all upstream routes in `src/librus_python_api/config.py`. Do not embed
+  scraping paths in parsers or client methods. Ship each enabled route with its
+  matching OpenAPI operation in `contracts/upstream.openapi.yaml`, including
+  side effects, retry policy, evidence, and offline wire-level verification.
+- Reuse established concepts and flows from existing clients as design
+  references, with original implementation and fixtures. Source-informed
+  requirements are not independently observed live behavior.
+- The 0.x deliveries are local-first. PyPI publication and publishing automation
+  are deferred until 1.0.0rc1. Verify built artifacts locally, including consumer
+  integration, without implying they have been published.
 - Do not claim a package, API, test command, or release workflow exists until
   it has been implemented and exercised.
