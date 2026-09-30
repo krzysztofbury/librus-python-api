@@ -5,11 +5,16 @@ HTML scraping routes. It is not the Python domain API or the MCP tool schema,
 and it is not an official Librus specification.
 
 The catalogue covers the bounded cookie-login flow, gateway identity, HTML
-student-information and [final-grade summary](grades.md) reads. Source-informed
+student-information and [grade reads](grades.md), including fixed-form
+all/week/last-login view POSTs. Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
 redirect routes fail closed. Do not infer an endpoint schema from a similarly
 named third-party operation.
+
+0.2.0 is grades-only. Other academic reads move to 0.3.0, messaging to 0.4.0.
+Observed grade-view forms and unqualified populated layouts are distinguished in
+grades.md; an exercised route is not proof of every response variant.
 
 ## Adding an endpoint
 
@@ -24,7 +29,9 @@ Ship these together in the same change:
 3. `x-side-effect`, `x-retry-safe`, `x-evidence`, and `x-evidence-note` on the
    operation. Record independently established requirements, fixture provenance,
    and unresolved live/schema gaps. A GET can have side effects. Do not label
-   an endpoint independently observed based on a third-party report.
+    an endpoint independently observed based on a third-party report.
+    Selecting a view is also a side effect (`select_view`): never automatically
+    replay that POST just because it does not modify school records.
    `x-origin` and `x-upstream-origin` must match the central route catalogue.
 4. Independently authored populated, empty, and malformed wire fixtures exercised
    through the actual parser/transport path. Explain how the wire response maps

@@ -76,6 +76,34 @@ checklists, applied by the implementing agent, not an independent reviewer appro
 No live Librus request was made during that original review. Fixtures and
 implementation are original and source-informed, not copied upstream material.
 
+## Inline-grade checkpoint review
+
+This is implementing-agent review, not independent approval. The current scope
+is numeric/current grades, inline descriptive markers, raw school averages, and
+inclusive windows, with grade-family gaps explicitly open in contracts/grades.md.
+Unmodified librus-apix is the business baseline, not only a speed comparison.
+
+- Safety: the new catalogue-bound POST selects a view and is not retry-safe.
+  Credential form submission is rejected on this route; failure/expiry never
+  automatically replays the view or credentials. All calls retain common budgets,
+  default shared admission, isolated sessions/caches, and joined cancellation.
+  Unknown metadata stays unknown, absent averages stay unavailable, and unsupported
+  layouts fail instead of silently dropping data. No raw school capture is committed.
+- Evidence: source discovery was deliberately distinguished from installed runtime
+  qualification. In-memory replay exposed date weekday suffixes, HTML comments, and
+  the empty-cell marker; original failing regressions preceded fixes. The later
+  installed public grade path completed under separately approved caps and matched
+  common numeric fields against unmodified apix. Empty descriptive/average samples
+  cannot qualify populated variants or establish full business parity.
+- Performance: inline metadata avoids per-grade requests. Four independent logins
+  share default-policy scheduling, but not sessions or cached records. Window reads
+  reuse the same collection, not an unbounded per-range cache. The small sequential
+  live sample showed lower warm CPU/latency and reused connections, but higher RSS.
+  Sustained upstream capacity and full-family equivalent performance remain open.
+- Delivery: consumer PR #38 stays closed and its source remains read-only. Migration
+  is a separate task; no production backend, dependency pin, package publication,
+  or remote library delivery was changed by this checkpoint.
+
 ## 0.2.0.dev0 increment self-review
 
 - Safety, TigerStyle #2 and #6: One catalogue-bound summary GET uses the existing
@@ -185,3 +213,37 @@ implementation are original and source-informed, not copied upstream material.
   fabricated civil date; unavailable data fails the consumer mapping explicitly.
 - macOS/Windows, daily credentialed CI, PyPI, production backend migration, and
   broader endpoint coverage remain separate qualification work.
+
+## 0.2.0 grades-only closure self-review
+
+This is implementing-agent self-review, not independent approval. The release scope
+is grades only; attendance and the remaining school reads move to 0.3.0 and messaging
+to 0.4.0. Public contract/provenance and the apix business matrix are in contracts/grades.md.
+
+- Safety: view selection is a strict enum and a fixed centrally configured form,
+  never credential input or a scraped URL. All views remain `select_view` operations
+  and never automatically replay after expiry or ambiguous failure. Shared traffic,
+  body/metadata/record/subject limits, account isolation, and cancellation remain intact.
+- Safety: undated descriptive semester text is a separate summary, not an invented
+  dated grade. Publications preserve only explicit semesters, date/teacher/paragraphs;
+  multiple blocks are retained. Unknown dated layouts fail. Numeric/descriptive
+  families can share a subject without duplicate averages; same-family duplicates fail.
+- Performance: no per-grade detail requests; each view has its own bounded cache and
+  coalescing key. Date windows always use all-view data. Original loopback tests protect
+  distinct selections, cache hits, and summary exclusion from dated windows.
+- DX: immutable shared types distinguish current, period/annual, predicted marks,
+  publications, undated summaries, unknown metadata, and unavailable averages.
+  Contracts remain library-owned, independent of MCP schemas and notification state.
+- Evidence: the approved four-context workload stopped on the first native failure,
+  rather than hiding it with retries. Remaining authorized paths completed after
+  original failing-before-fix regressions for undated text and overlapping subject
+  families. Memory-only installed-parser replay passed the failed context; its full
+  runtime qualification remains pending. Unpopulated variants are not called passed.
+- Measurement honesty: retain native cold-latency and RSS non-wins, failed-context
+  exclusion, last-login state differences, and sparse sequential sampling limits.
+  Light traffic is not sustained-capacity qualification. Private responses were
+  discarded and no consumer files, pins, defaults, commits, or PRs were changed.
+
+Retrospective lesson: inspect populated and undated business variants early, compare
+completed workloads and explicit projections, and preserve missing-state semantics
+instead of widening a parser until every unknown page looks like empty success.

@@ -71,8 +71,9 @@ operations enabled in that release, then extend them with later capabilities.
 | Target | Related work delivered together | Detailed scope |
 | --- | --- | --- |
 | `0.1.0` | Locally installable secure async account service, authentication, identity, and offline proof | P0; core P1/P2; P3 identity; initial P6; local artifact subset of P7; identity adapter experiment from P8 |
-| `0.2.0` | Academic and school-information reads with economical pagination and metadata reuse | Remaining academic P1/P3; P4 notes evidence decision; corresponding P6/P6-live and P8 adapter slices |
-| `0.3.0` | Messaging, attachment streaming, and notification primitives with explicit side effects | Remaining message P1/P3; P4 content/attachments; P5; corresponding P6 and P8 adapter slices |
+| `0.2.0` | Grades, school averages, final summaries, upstream views, and date windows | Grade subset of P1/P3; corresponding P6 and local artifacts; business baseline and explicit qualification limits |
+| `0.3.0` | Remaining academic and school-information reads | Attendance, timetable, agenda/homework, announcements, completed lessons; P4 notes evidence decision; corresponding P6 |
+| `0.4.0` | Messaging, attachment streaming, and notification primitives with explicit side effects | Remaining message P1/P3; P4 content/attachments; P5; corresponding P6; consumer migration separately authorized |
 | `1.0.0rc1` | Complete MCP replacement candidate and representative qualification | Full P6; migration-ready P7; P8 implementation, installed-artifact proof, and rollback rehearsal |
 | `1.0.0` | Stable library contract and coordinated backward-compatible MCP backend cutover | Final P7/P8 release gates and supported API documentation |
 | MCP `2.0.0` | Consumer-facing contract, packaging, configuration, and resource changes | P9 and ownership-map A01-A18; separate consumer version line |
@@ -117,23 +118,40 @@ are review boundaries within one release, not five versions.
 Local delivery gate: usable typed identity API, enforced combined traffic bounds
 and login isolation, installed-wheel offline E2E proof, and explicit live
 verification status. Daily live CI/PyPI gates remain deferred and incomplete.
-Local gates are satisfied on Linux/Python 3.13 and 3.14. The opt-in adapter is
-consumer draft PR #38; default production backend migration remains pending.
+Local gates are satisfied on Linux/Python 3.13 and 3.14. Consumer experiment PR #38
+was closed without merging; its retained branch is optional local test material.
+Default production backend migration remains a separate task.
 
-### 0.2.0 - Academic and school-information coverage
+### 0.2.0 - Grade coverage
 
-Development has started as `0.2.0.dev0`. The first increment implements
-`final_grades()` and an opt-in MCP adapter, with original offline fixtures and
-explicit missing-column versus unassigned-value semantics. See
-`contracts/grades.md`. A narrow installed-artifact login/identity/summary path has
-passed authorized live qualification, with equivalent consumer-mapped summaries.
-Individual grades, GPA, date windows, other academic reads, broader account/layout
-qualification, and the full 0.2.0 release gate remain pending.
+Release scope was narrowed to grades by the owner. Attendance and every other
+school-read family move to 0.3.0; communication moves to 0.4.0. This is not a
+claim that postponed features have been implemented. Grade completion means
+the declared business contracts, original offline failures/variants, installed
+artifacts, and explicit live qualification status, not every possible school layout.
+
+The local-first version is `0.2.0`, with `final_grades()`, `grades()`, and
+`grades_window()`. It includes all/week/last-login views, descriptive-only rows,
+multiple publications, dated period/annual/predicted-annual records, and separate
+undated descriptive summaries. Missing metadata stays unknown. See contracts/grades.md
+for declared compatibility and VERIFICATION.md for actual execution evidence.
+The bounded four-context comparison used 94 of 128 allowed requests. Three contexts
+completed installed comparisons; the second had an initial native parser failure
+followed by successful installed-parser replay without new native traffic. Populated
+dated descriptions/publications/corrections/averages and a second-context full
+runtime rerun remain explicitly unqualified. Other school reads are outside 0.2.0.
 
 #### Compatibility lessons and remaining gates
 
 See REVIEW.md for the retrospective and CONTRIBUTING.md for the evidence checklist.
 Offline commits and green CI must not be promoted into live compatibility claims.
+
+The long-term consumer remains librus-mcp, but its migration is a separate task.
+This repository owns the library implementation and qualification; consumer code,
+dependency pins, backend defaults, commits, and PRs must not change without explicit
+authorization for that project. Read-only consumer references and local integration
+experiments are permitted. The earlier consumer adapter experiment was closed
+without merging; it is not a prerequisite or deliverable for this grade slice.
 
 - [x] Diagnose the initial native live failures and protect exact login continuations,
   explicit represented-user ID references, stray closing tags, and empty summary
@@ -157,38 +175,53 @@ Offline commits and green CI must not be promoted into live compatibility claims
   Any local credentialed harness must use a cumulative approved diagnostic budget,
   retain private replay only in memory, and never publish school captures.
 
-Depends on 0.1.0. Deliver the ordinary reads needed for school summaries as one
-coherent feature set with shared parsing, pagination, and metadata policies.
+Depends on 0.1.0. Deliver grade reads as one coherent feature set with shared
+parsing, metadata preservation, upstream views, and bounded collection caching.
 
-- [ ] Implement grades/windows/final grades, attendance/windows/details/frequency,
-  timetable, agenda/details, homework/details, announcements, and completed
-  lessons, including their domain types and account-variant capability records.
-- [ ] Complete bounded continuation, source/reference mapping, scope/date rules,
-  explicit frequency units, unknown attendance types, and populated/empty/error
-  evidence for these families. Preserve MCP's existing representations through
-  adapters rather than adopting those representations as library models.
-- [ ] Add bounded metadata lookup/caching, session invalidation, and measured
+- [x] Implement declared grade-family business flows against librus-apix with
+  original fixtures. Explicitly document intentional differences and unqualified
+  populated variants; numeric parity is not full-family live qualification.
+- [x] Complete grades/windows/final grades, typed school averages, descriptive
+  entries/publications, upstream all/week/last-login views, and dated period marks.
+- [x] Add bounded inline metadata reuse/caching, session invalidation, and measured
   warm/cold request reduction under the common scheduler. Record performance
-  and completeness evidence for the four-login workload.
-- [ ] Exercise each academic adapter slice through MCP while preserving the
-  legacy tool contract. Keep backend selection explicit during development;
-  do not release a partially migrated consumer as the final replacement.
-- [ ] Extend daily CI with a small bounded grade or timetable check. Retain its
-  fixed total budget rather than adding every new endpoint to the daily job.
-- [ ] Record the behaviour-note capability decision. Add supported parsing only
-  if independently sourced populated evidence exists; otherwise retain explicit
-  experimental/unavailable status and the default-off consumer gate.
+  and completeness limits for the four-login workload; no per-grade lookup traffic.
+- [x] Build/install wheel and sdist and exercise offline HTTP runtime paths on
+  Python 3.13/3.14. Maintain no-replay, cancellation, isolation, and bounds proof.
 
-Suggested commit groups: shared parser/page contracts; grades; attendance/cache;
-calendar/homework; announcements/completed lessons; adapter and release evidence.
+Academic adapter implementation, MCP qualification, and consumer release belong
+to the separately authorized migration task, not implicit library development.
+Daily credentialed CI remains separately owner-configured, not silently enabled
+or a prerequisite for a local-first grade release. PyPI and consumer migration
+remain separate gates.
 
-Release gate: academic coverage and adapter parity for enabled operations, with
+Suggested commit groups: grade contracts/models; views/parser business gaps;
+offline and installed qualification; library release evidence.
+
+Release gate: grade coverage and documented consumer-contract compatibility, with
 measured request budgets and no fabricated success for missing capabilities.
-The behaviour-note evidence gap cannot be marked solved by this release.
+Local gates are satisfied for the documented Linux scope. Remote delivery status
+is separate from these local checks. No PyPI publication or consumer switch occurred.
 
-### 0.3.0 - Communication and notification safety
+### 0.3.0 - Remaining academic and school-information coverage
 
-Depends on 0.2.0. Group messaging subsystem work with the operations whose
+Depends on 0.2.0. All of these families are postponed, not part of grade delivery:
+
+- [ ] Attendance/windows/details/frequency, including explicit units and unknown types.
+- [ ] Timetable, agenda/details, homework/details, announcements, and completed lessons.
+- [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
+  original populated/empty/error fixtures, and installed-artifact proof per family.
+- [ ] Apply the apix business compatibility gate and separately authorized live
+  qualification to each enabled family; do not expand routine drift traffic.
+- [ ] Record the behaviour-note capability decision. Implement only with
+  independently sourced populated evidence; otherwise retain explicit limitations.
+
+Consumer migration remains a separately authorized task, not an implicit adapter
+deliverable in this release.
+
+### 0.4.0 - Communication and notification safety
+
+Depends on 0.3.0. Group messaging subsystem work with the operations whose
 security and delivery semantics depend on it.
 
 - [ ] Deliver received/sent message lists, bounded pagination, recipient discovery,
@@ -203,7 +236,7 @@ security and delivery semantics depend on it.
   do not widen daily CI to sends, mark-read content, or event consumption.
 - [ ] Complete the corresponding library and consumer regression evidence and
   expose only public supported APIs to the adapter. Keep experimental notes
-  governed by the evidence decision made in 0.2.0.
+  governed by the evidence decision made in 0.3.0.
 
 Suggested commit groups: messaging session/lists; content/streams; checkpoint/
 notification adapters; send/confirmation integration; failure-path qualification.
@@ -215,7 +248,7 @@ the next milestone.
 
 ### 1.0.0rc1 - Complete replacement qualification
 
-Depends on 0.3.0. This is the integration/hardening release, not an additional
+Depends on 0.4.0. This is the integration/hardening release, not an additional
 endpoint tranche. Further candidates (`rc2`, etc.) address qualification findings.
 
 - [ ] Finish P8 across every required consumer operation and remove `librus-apix`

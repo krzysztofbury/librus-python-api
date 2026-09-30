@@ -1,8 +1,8 @@
-# Public API: 0.2.0 development
+# Public API: 0.2.0 grades
 
 The 0.1.0 delivery implements login, gateway identity, and HTML student
-information. The `0.2.0.dev0` increment adds final-grade summaries, not a completed
-academic release. Bounded login/identity/final-summary live qualification has
+information. The 0.2.0 scope is grades, averages, final summaries, views, and
+windows. Other academic and school reads move to 0.3.0. Bounded live qualification has
 passed for a narrow observed variant; general account compatibility is unverified.
 Reading school data requires separate authorization.
 Authentication can change the upstream last-login timestamp.
@@ -84,7 +84,8 @@ inflated bytes; identity-encoded bodies are charged once. Limits stop new work
 with `LimitError`; no partial identity record is fabricated.
 
 Fresh reads are the default. An explicit age from zero through 3600 seconds allows
-reuse of at most three cached results per account. Session invalidation clears all.
+reuse of at most six cached results per account (identity, profile, final summaries,
+and three grade views). Session invalidation clears all.
 TTL is checked against monotonic elapsed time at every read; older values are
 replaced on the next fetch. Cache hits still respect deadlines and cooldowns.
 Identical in-flight default-budget reads share work. Explicit-budget reads share
@@ -116,8 +117,8 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents twelve enabled wire
-operations: the foundation, two exact login continuations, and the summary GET.
+[OpenAPI YAML](contracts/upstream.openapi.yaml) documents thirteen enabled wire
+operations, including the summary GET and explicit grade-view POST.
 These include raw
 HTML, forms, origins, side effects, and evidence gaps.
 
@@ -139,6 +140,55 @@ bounds. The read makes one GET after authentication; it does not change grade
 filters or fetch individual-grade details. It reuses the same session, cache,
 coalescing, and bounded expiry-recovery policies as identity/profile reads.
 See [the grade summary contract/provenance](contracts/grades.md).
+
+## Individual grades, school averages, and date windows
+
+`await account.grades(view=GradeView.ALL)` returns immutable
+`Grades(identity, records, observation, view)`. `GradeView` is a strict enum with
+`ALL`, `WEEK`, and `LAST_LOGIN`. The last two are upstream selections, not locally
+computed dates or an inferred login timestamp. Each view has a separate cache and
+coalescing key; sessions and the scheduler remain shared within the account/service.
+`GradeRecords` contains tuples `numeric`, `descriptive`, `descriptive_summaries`,
+and `averages`:
+
+- `NumericGrade`: subject, raw symbol, civil `day`, semester (1/2), optional
+  count/weight/category/teacher/comment, inert upstream href, and preserved
+  tooltip metadata. `GradeKind` distinguishes current, period, annual, and their
+  explicit predicted kinds;
+  annual marks have semester zero. Only explicitly dated marks become records.
+  Grade symbols are not converted to numbers. Missing count
+  and weight are `None`, not false/zero. Explicit integer weights include zero.
+- `DescriptiveGrade`: subject, raw text, civil day, semester, optional teacher/
+  comment, metadata, kind, and an optional inert href. Descriptive-only rows and
+  linkless/nested entries are supported under their bounded row contract. Script
+  links are removed. Publication blocks preserve paragraphs, teacher, and civil
+  date; their kind is `PUBLICATION`. Multiple blocks are retained. Semester is
+  `None` if the title does not explicitly establish a period, never guessed as one.
+- `DescriptiveGradeSummary`: subject, semester (1/2), and undated plain text.
+  These summaries are preserved separately and never included in date windows.
+  A subject may have both numeric and descriptive families without duplicate averages.
+- `SchoolAverage`: subject, semester (1/2, or 0 for annual), and a
+  `GradeSummaryValue`. School text, empty strings, and unassigned markers are
+  preserved. Absent columns are unavailable; no average is calculated locally.
+
+Each fresh read sends one fixed-form POST selecting the requested view. This changes
+the view filter, not school records. It is never automatically replayed, even on
+proven expiry. Expiry clears session/cache state and applies the usual cooldown;
+a later explicit call may authenticate again. A cache hit makes no POST.
+Inline metadata needs no per-grade detail traffic and has the collection's
+account/session-scoped freshness. Hrefs are data only, never approved destinations.
+
+`await account.grades_window(start, end, max_age_seconds=60)` always uses `ALL`, validates plain
+`datetime.date` inputs before I/O and filters that same collection. Both endpoints
+are inclusive, with at most 366 civil days. It returns `GradeWindow` with numeric
+and descriptive tuples and the original collection observation; averages are
+not dated rows. There is no per-window cache or extra request. Ordering follows
+the upstream subject/semester/entry order, not a global chronological sort.
+
+Unknown dated-grade layouts and malformed publications fail rather than silently
+returning a partial collection. Source-informed fixture support is not populated
+live qualification. Actual account/layout coverage is recorded in `contracts/grades.md`
+and VERIFICATION.md for observed versus offline-only coverage.
 
 ## Exceptions, retries, and diagnostics
 

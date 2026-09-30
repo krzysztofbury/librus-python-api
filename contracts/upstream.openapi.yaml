@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.2.0.dev0
+  version: 0.2.0
   license:
     name: MIT
   description: |
@@ -16,51 +16,6 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
-  /przegladaj_oceny/uczen:
-    get:
-      operationId: final_grades
-      tags: [Grades]
-      summary: Read the school-provided midterm and annual grade summary
-      description: |
-        Source-informed raw HTML route, not an official API or a live-verified
-        contract. One GET fetches the summary without changing grade filters.
-        Allows only the observed stray closing-tag HTML repair category and an
-        empty full-width spacer row. All semantic validations remain required.
-        Requires a unique decorated/stretch table with a titled annual-grade
-        header in thead. The semantic header row omits the body expander and
-        subject cells; header colspans occupy body columns. Recognized titles
-        are Ocena śródroczna z pierwszego okresu,
-        Przewidywana ocena roczna, and Ocena roczna. BR suffixes in titles are
-        ignored. Missing optional columns differ from available unassigned '-'
-        or empty values. Subject values and school-provided grade strings remain
-        raw text; there is no inferred grade/date/subject ID or numeric conversion.
-        Only the behaviour subject Zachowanie permits body colspans. Unsupported
-        rowspans, ambiguous summaries, malformed rows, duplicate subjects/tables,
-        missing annual headers, and unrecognized empty pages fail explicitly.
-        Bounds: 128 subjects, 64 expanded body columns, 1024 characters/value;
-        common transport, parser, request/byte/deadline bounds also apply.
-        One expiry recovery is permitted under the original operation budget;
-        other failures do not trigger retries or a different data source.
-      x-origin: synergia
-      x-upstream-origin: https://synergia.librus.pl
-      x-side-effect: none
-      x-retry-safe: true
-      x-evidence: independently_observed
-      x-evidence-note: |
-        Route research from librus-apix 1.5.2 URL definitions; summary column and
-        account-variant requirements from the existing librus-mcp contract.
-        Implementation and loopback wire fixtures are independently authored,
-        not copied source, tests, or captures. Populated, unassigned, absent-column,
-        spanning-behaviour, and malformed cases are verified offline. A bounded
-        authorized observation established stray closing tags and empty spacer
-        rows; no personal values or live response captures are included here.
-      responses:
-        '200':
-          $ref: '#/components/responses/Html'
-        '302':
-          $ref: '#/components/responses/Redirect'
-        default:
-          $ref: '#/components/responses/Failure'
   /loguj/portalRodzina:
     get:
       operationId: login_portal
@@ -325,6 +280,112 @@ paths:
                               - {type: string, nullable: true, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
                           FirstName: {type: string, nullable: true, maxLength: 256}
                           LastName: {type: string, nullable: true, maxLength: 256}
+        default:
+          $ref: '#/components/responses/Failure'
+  /przegladaj_oceny/uczen:
+    get:
+      operationId: final_grades
+      tags: [Grades]
+      summary: Read the school-provided midterm and annual grade summary
+      description: |
+        One GET fetches the summary without changing grade filters. Allows only
+        observed stray closing-tag HTML repair and an empty full-width spacer.
+        Requires a unique decorated/stretch table with a titled annual-grade
+        header in thead. The semantic header omits body expander and subject
+        cells; header colspans occupy body columns. Recognized titles are
+        Ocena śródroczna z pierwszego okresu, Przewidywana ocena roczna, and
+        Ocena roczna. BR suffixes in titles are ignored. Missing optional columns
+        differ from available unassigned '-' or empty values. School-provided
+        strings remain raw text, with no inferred grade/date/subject ID.
+        Only Zachowanie permits body colspans. Unsupported rowspans, ambiguous
+        summaries, malformed rows, duplicate subjects/tables, missing annual
+        headers, and unrecognized empty pages fail explicitly.
+        Bounds: 128 subjects, 64 expanded columns, 1024 characters/value, plus
+        common transport/parser/request/byte/deadline limits. One expiry recovery
+        is permitted under the original budget; other failures are not retried.
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: |
+        Route research from librus-apix URL definitions and consumer summary
+        requirements. Implementation and offline fixtures are original, not
+        copied source or captures. Bounded authorized observations established
+        stray closing tags and empty spacer rows; broader accounts unqualified.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+    post:
+      operationId: grades
+      tags: [Grades]
+      summary: Select a grade view and read the resulting HTML collection
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: |
+        View-selection field is source-informed, not copied implementation.
+        Authorized bounded GET and POST observations established dated tooltip
+        metadata, weekday display suffixes, semester columns, and the all-view
+        response. All/week/last-login form fields were independently exercised in
+        bounded installed comparisons. Dated descriptive/publication layouts
+        remain source-informed. Populated descriptive
+        and average variants are not qualified by an empty live sample.
+      description: |
+        Changes the selected grade view, not school records. Send only the fixed
+        view field. Never replay this POST automatically, including after
+        session expiry, redirects, timeout, throttle, or ambiguous failure.
+        Offline wire fixtures validate the form and non-replay contract only.
+        Numeric tables require the final-summary alignment contract and two
+        current-grade headers (Oceny bieżące) for displayed semesters 1 and 2.
+        Inline grade-box anchors carry raw numeric/symbolic grades; direct
+        linkless span.ocena markers carry descriptive grades with parent metadata.
+        Tooltip Data is a civil ISO date, optionally with a standard abbreviated
+        weekday suffix. Missing count/weight stays unknown, not false/zero.
+        All, week, and last-login views are upstream filters, not local arithmetic
+        over dates. Each view has its own account/session cache and in-flight key.
+        Authentication changes last-login state; never infer the previous timestamp.
+        Dated period/annual and predicted cells retain metadata and explicit kind.
+        Descriptive-only rows use the scoped expander/subject/two-semester contract.
+        Publication blocks preserve their date/teacher/paragraphs; absent semester
+        stays unknown, not an invented first period. Multiple publications are kept.
+        Plain undated descriptive semester text is a separate typed summary, not
+        an invented dated grade. Numeric/descriptive subject families can overlap.
+        School averages preserve text and explicit column availability; they are
+        not computed. Expanded detail mirrors are not counted twice. Unknown
+        current markup, malformed/duplicate metadata, invalid dates, and unsupported
+        layouts fail instead of producing partial output.
+        Limits: 2048 entries, 8192 tooltip/href characters, 32 tooltip fields, plus
+        common subject/column/value/tree/transport/parser/operation bounds.
+        Date-window filtering uses the same complete supported collection and
+        creates no extra upstream operation or per-window cache.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              maxProperties: 1
+              oneOf:
+                - required: [zmiany_logowanie_wszystkie]
+                - required: [zmiany_logowanie_tydzien]
+                - required: [zmiany_logowanie]
+              properties:
+                zmiany_logowanie_wszystkie: {type: string, enum: ['1']}
+                zmiany_logowanie_tydzien: {type: string, enum: ['1']}
+                zmiany_logowanie: {type: string, enum: ['1']}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
         default:
           $ref: '#/components/responses/Failure'
   /informacja:
