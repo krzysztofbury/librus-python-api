@@ -7,7 +7,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--mcp-checkout",
         type=Path,
-        help="Consumer adapter checkout for opt-in offline integration tests",
+        help="Consumer native-adapter checkout for opt-in offline integration tests",
     )
 
 
@@ -15,8 +15,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def mcp_checkout(pytestconfig: pytest.Config) -> Path:
     checkout: Path | None = pytestconfig.getoption("mcp_checkout")
     if checkout is None:
-        raise pytest.UsageError("Integration tests require --mcp-checkout=PATH")
+        raise pytest.UsageError("Consumer measurements require --mcp-checkout=PATH")
     checkout = checkout.resolve()
-    if not (checkout / "src/native_identity.py").is_file():
-        raise pytest.UsageError("The checkout must contain the native identity adapter")
+    if not all(
+        (checkout / f"src/{name}.py").is_file()
+        for name in ("native_identity", "native_grades")
+    ):
+        raise pytest.UsageError(
+            "The checkout must contain the native identity and final-grade adapters"
+        )
     return checkout

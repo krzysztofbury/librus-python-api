@@ -122,6 +122,41 @@ consumer draft PR #38; default production backend migration remains pending.
 
 ### 0.2.0 - Academic and school-information coverage
 
+Development has started as `0.2.0.dev0`. The first increment implements
+`final_grades()` and an opt-in MCP adapter, with original offline fixtures and
+explicit missing-column versus unassigned-value semantics. See
+`contracts/grades.md`. A narrow installed-artifact login/identity/summary path has
+passed authorized live qualification, with equivalent consumer-mapped summaries.
+Individual grades, GPA, date windows, other academic reads, broader account/layout
+qualification, and the full 0.2.0 release gate remain pending.
+
+#### Compatibility lessons and remaining gates
+
+See REVIEW.md for the retrospective and CONTRIBUTING.md for the evidence checklist.
+Offline commits and green CI must not be promoted into live compatibility claims.
+
+- [x] Diagnose the initial native live failures and protect exact login continuations,
+  explicit represented-user ID references, stray closing tags, and empty summary
+  spacers with independently authored offline regressions.
+- [x] Complete the installed-artifact bounded login/identity/summary path with
+  output parity, without changing the production consumer backend.
+- [x] Replace the provisional one-request/second policy with five requests/second
+  and shared burst ten. Verify default-policy four-account admission and cooldowns
+  offline, then rerun the bounded live comparison. Preserve old benchmark settings
+  and non-wins in BENCHMARKS.md; do not infer upstream capacity from light traffic.
+- [ ] Apply an early authorized installed-path smoke to each new operation family
+  before marking it live-qualified. Record missing access as pending, not passed.
+- [ ] Establish a bounded account-role/layout coverage matrix with populated,
+  empty, missing-column, and unsupported-state evidence. Do not extrapolate from
+  one account; do not expand credential scope without explicit authorization.
+- [ ] Compare the native service against the optimized consumer with identical
+  freshness and traffic policies on representative offline multi-account workloads.
+  Investigate higher fixed RSS separately from lower parser allocation pressure.
+- [ ] Implement the owner-configured P6-live drift check with offline-proven report
+  redaction and explicit non-success for missing credentials or unexecuted checks.
+  Any local credentialed harness must use a cumulative approved diagnostic budget,
+  retain private replay only in memory, and never publish school captures.
+
 Depends on 0.1.0. Deliver the ordinary reads needed for school summaries as one
 coherent feature set with shared parsing, pagination, and metadata policies.
 

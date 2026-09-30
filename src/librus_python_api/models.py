@@ -14,6 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from librus_python_api.exceptions import ErrorKind
 
+type OperationName = Literal["identity", "student_information", "final_grades"]
+
 
 @dataclass(frozen=True, slots=True)
 class TransportResponse:
@@ -32,7 +34,7 @@ class SchedulerSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class DiagnosticEvent:
-    operation: Literal["identity", "student_information"]
+    operation: OperationName
     outcome: ErrorKind | Literal["ok", "cancelled"]
     elapsed_seconds: float
     budget_requests_dispatched: int
@@ -92,6 +94,34 @@ class StudentInformation:
 
 
 @dataclass(frozen=True, slots=True)
+class GradeSummaryValue:
+    """Column presence, separate from its raw school-provided value.
+
+    Unavailable columns have raw=None. Available columns preserve empty strings,
+    unassigned markers such as '-', symbols, and descriptive values without
+    inventing numeric conversions or dates.
+    """
+
+    availability: Availability
+    raw: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectGradeSummary:
+    subject: str = field(repr=False)
+    midterm: GradeSummaryValue
+    predicted_annual: GradeSummaryValue
+    annual: GradeSummaryValue
+
+
+@dataclass(frozen=True, slots=True)
+class FinalGrades:
+    identity: Identity
+    items: tuple[SubjectGradeSummary, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
 class ProfileFields:
     name: str = field(repr=False)
     class_name: str = field(repr=False)
@@ -115,10 +145,31 @@ class _PersonWire(BaseModel):
         return value
 
 
+class _AccountWire(_PersonWire):
+    UserId: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+
+    @field_validator("UserId", mode="before")
+    @classmethod
+    def normalize_user_id(cls, value: Any) -> Any:
+        return cls.normalize_id(value)
+
+
+class _UserWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Id: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+    FirstName: Annotated[str | None, Field(max_length=256)] = None
+    LastName: Annotated[str | None, Field(max_length=256)] = None
+
+    @field_validator("Id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> Any:
+        return _PersonWire.normalize_id(value)
+
+
 class _MeWire(BaseModel):
     model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Account: _PersonWire
-    User: _PersonWire
+    Account: _AccountWire
+    User: _UserWire
 
 
 class _EnvelopeWire(BaseModel):

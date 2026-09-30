@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0.dev0 - Academic coverage in development
+
+- First increment: typed final-grade summaries through one bounded HTML GET,
+  with school-provided strings and explicit optional-column availability.
+- New original semantic-header, merged-behaviour, unassigned, malformed, bound,
+  wire/isolation/cache/recovery fixtures and an opt-in real MCP stdio adapter.
+- Existing lifecycle, budgets, diagnostics, and public identity/profile contracts
+  are preserved. This is not a completed 0.2.0 release or PyPI publication.
+- Qualify exact PerformLogin/Grant continuations, explicit Account.UserId gateway
+  references, and narrowly repaired browser HTML/spacer rows with original
+  regressions. Reuse the authorization form instead of fetching it twice.
+- Load optional Loguru diagnostics only when enabled. Add a paired synthetic
+  parser measurement and document live sample benefits and non-wins.
+- Raise the shared traffic defaults to five requests/second and burst ten while
+  retaining concurrency, queues, deadlines, cooldowns, and token accounting for
+  every login hop. These are configurable engineering defaults, not Librus quotas.
+- Individual numeric/descriptive grades, GPA, windows, and other academic slices
+  remain pending; summary layouts beyond the narrow live qualification are unverified.
+
 ## 0.1.0 - Local-first account and identity service
 
 - Native async account-isolated transport with scoped cookies, fixed destinations,

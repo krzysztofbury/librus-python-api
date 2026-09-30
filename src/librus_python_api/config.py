@@ -91,7 +91,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.1 (independent client)"
+USER_AGENT = "librus-python-api/0.2 (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
@@ -102,7 +102,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/loguj/portalRodzina",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "login_authorization",
@@ -110,7 +110,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -119,7 +119,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -128,7 +128,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/OAuth/Authorization/2FA",
                 SideEffect.AUTHENTICATION,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "api",
             ),
             Endpoint(
@@ -138,6 +138,24 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.SYNTHETIC_ONLY,
+            ),
+            Endpoint(
+                "login_perform",
+                "GET",
+                "/OAuth/Authorization/PerformLogin",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "api",
+            ),
+            Endpoint(
+                "login_grant",
+                "GET",
+                "/OAuth/Authorization/Grant",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "api",
             ),
             Endpoint(
                 "login_landing",
@@ -161,7 +179,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/gateway/api/2.0/Me",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "student_information",
@@ -170,6 +188,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 SideEffect.NONE,
                 True,
                 Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "final_grades",
+                "GET",
+                "/przegladaj_oceny/uczen",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
         )
     }
@@ -186,6 +212,22 @@ PROFILE_LABELS = MappingProxyType(
         "Szkoła": "school",
     }
 )
+
+# HTML summary headers omit the two leading body cells: expander and subject.
+# These labels/layout rules are source-informed requirements, not live evidence.
+GRADE_SUMMARY_HEADERS = MappingProxyType(
+    {
+        "Ocena śródroczna z pierwszego okresu": "midterm",
+        "Przewidywana ocena roczna": "predicted_annual",
+        "Ocena roczna": "annual",
+    }
+)
+GRADE_BODY_PREFIX_COLUMNS = 2
+GRADE_MAX_COLUMNS = 64
+GRADE_MAX_SUBJECTS = 128
+GRADE_MAX_VALUE_LENGTH = 1024
+GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
+GRADE_INLINE_DETAIL_LABEL = "Ocena"
 
 
 class _ValidatedConfig(BaseModel):
@@ -232,15 +274,17 @@ class TransportLimits(_ValidatedConfig):
 
 
 class SchedulerLimits(_ValidatedConfig):
-    """Conservative service-local admission bounds, not Librus-approved quotas.
+    """Bounded service-local traffic policy, not Librus-approved quotas.
 
     Queue limits count waiting requests, separately from active requests. Rate
     tokens count every admitted attempt, including future auth/redirect/retry
     requests. Parent and student logins each occupy their own account slot.
+    A shared ten-token burst accommodates sequential cold-login hops; refill at
+    five tokens/second bounds sustained traffic without one-second hop delays.
     """
 
-    requests_per_second: PositiveFinite = 1.0
-    burst: PositiveCount = 1
+    requests_per_second: PositiveFinite = 5.0
+    burst: PositiveCount = 10
     active_requests: PositiveCount = 2
     active_requests_per_account: PositiveCount = 1
     queued_requests: QueueCount = 32

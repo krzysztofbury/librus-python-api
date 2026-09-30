@@ -1,4 +1,5 @@
 import asyncio
+import json
 from dataclasses import FrozenInstanceError
 
 import pytest
@@ -30,6 +31,38 @@ from librus_python_api.models import DiagnosticEvent
 from librus_python_api.parsers import parse_identity, parse_profile
 from librus_python_api.service import LibrusService
 from tests.http_support import FIXTURE_SECRET, SchoolFixture, profile_html, serve
+
+
+@pytest.mark.parametrize(
+    ("user_id", "account_user_id", "valid"),
+    [
+        (None, 43, True),
+        (43, 43, True),
+        (43, 44, False),
+        (None, None, False),
+        (None, True, False),
+    ],
+)
+def test_gateway_user_reference_is_explicit_and_consistent(
+    user_id: int | None,
+    account_user_id: int | None,
+    valid: bool,
+) -> None:
+    account: dict[str, object] = {"Id": 17, "FirstName": "Fixture Owner"}
+    user: dict[str, object] = {"FirstName": "Fixture Student"}
+    if account_user_id is not None:
+        account["UserId"] = account_user_id
+    if user_id is not None:
+        user["Id"] = user_id
+    body = json.dumps({"Me": {"Account": account, "User": user}}).encode()
+    if valid:
+        owner, student = parse_identity(body)
+        assert owner.id == "17"
+        assert student.id == "43"
+        assert student.first_name == "Fixture Student"
+    else:
+        with pytest.raises(ParseError):
+            parse_identity(body)
 
 
 def test_four_login_profile_reads_coalesce_reuse_and_never_merge_by_student() -> None:
@@ -66,23 +99,23 @@ def test_four_login_profile_reads_coalesce_reuse_and_never_merge_by_student() ->
                     with pytest.raises(FrozenInstanceError):
                         result.school = "modified"  # type: ignore[misc]
                 assert fixture.logins == dict.fromkeys(aliases, 1)
-                # 6 login/verification requests and 1 profile request per login.
+                # 5 login/verification requests and 1 profile request per login.
                 assert (
-                    len(fixture.calls) == service.snapshot().requests_dispatched == 28
+                    len(fixture.calls) == service.snapshot().requests_dispatched == 24
                 )
                 assert len(fixture.connections) == 4
                 cached = await service.account(aliases[0]).student_information(
                     max_age_seconds=60
                 )
                 assert cached is results[0]
-                assert len(fixture.calls) == 28
+                assert len(fixture.calls) == 24
                 fresh = await service.account(aliases[0]).student_information()
                 assert fresh is not cached
-                assert len(fixture.calls) == 29
+                assert len(fixture.calls) == 25
                 assert fixture.logins[aliases[0]] == 1
                 assert service.snapshot().active == service.snapshot().queued == 0
                 assert len(events) == 6
-                assert sum(event.budget_requests_dispatched for event in events) == 29
+                assert sum(event.budget_requests_dispatched for event in events) == 25
                 assert "student-a" not in repr(events)
             with pytest.raises(ClosedError):
                 await service.account("student-a").identity()
@@ -164,7 +197,7 @@ def test_tenacity_safe_recovery_is_one_reauthentication_with_original_budget(
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with fixture.service() as service:
-                budget = RequestBudget(max_requests=14)
+                budget = RequestBudget(max_requests=12)
                 if expires == 1:
                     result = await service.account("student").student_information(
                         budget=budget
@@ -175,7 +208,7 @@ def test_tenacity_safe_recovery_is_one_reauthentication_with_original_budget(
                         await service.account("student").student_information(
                             budget=budget
                         )
-                assert budget.requests_dispatched == len(fixture.calls) == 14
+                assert budget.requests_dispatched == len(fixture.calls) == 12
                 assert fixture.logins == {"student": 2}
                 if expires == 2:
                     before = len(fixture.calls)
@@ -193,10 +226,10 @@ def test_budget_exhaustion_stops_before_reauthentication_dispatch() -> None:
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with fixture.service() as service:
-                budget = RequestBudget(max_requests=7)
+                budget = RequestBudget(max_requests=6)
                 with pytest.raises(LimitError):
                     await service.account("student").student_information(budget=budget)
-                assert budget.requests_dispatched == len(fixture.calls) == 7
+                assert budget.requests_dispatched == len(fixture.calls) == 6
                 assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
@@ -392,7 +425,7 @@ def test_explicit_budgets_share_only_by_object_identity() -> None:
                     client.student_information(budget=shared),
                 )
                 assert a is b
-                assert shared.requests_dispatched == 7
+                assert shared.requests_dispatched == 6
                 independent = (RequestBudget(), RequestBudget())
                 a, b = await asyncio.gather(
                     *(
@@ -402,7 +435,7 @@ def test_explicit_budgets_share_only_by_object_identity() -> None:
                 )
                 assert a is not b
                 assert [budget.requests_dispatched for budget in independent] == [1, 1]
-                assert len(fixture.calls) == 9
+                assert len(fixture.calls) == 8
 
     asyncio.run(scenario())
 
@@ -498,6 +531,7 @@ def test_shared_backoff_pauses_other_accounts_without_replaying_failed_read(
             fixture.origin = origin
             async with fixture.service(
                 ("parent", "student"),
+                scheduler_limits=SchedulerLimits(),
                 transport_limits=TransportLimits(cooldown_seconds=0.05),
             ) as service:
                 with pytest.raises(LibrusError) as caught:

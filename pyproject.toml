@@ -67,5 +67,5 @@ files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
 # Optional integration checkout, not part of this library's import namespace.
-module = ["src.librus_client", "src.native_identity", "src.server"]
+module = ["src.librus_client", "src.native_identity", "src.native_grades", "src.server"]
 ignore_missing_imports = true

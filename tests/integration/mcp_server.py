@@ -1,4 +1,4 @@
-"""Minimal consumer subprocess launcher for the native identity integration test."""
+"""Minimal consumer subprocess launcher for native read integration tests."""
 
 import argparse
 import asyncio
@@ -25,6 +25,7 @@ async def serve(consumer: Path, origin: str) -> None:
         raise ValueError("Integration tests permit localhost fixture destinations only")
     sys.path.insert(0, str(consumer))
     from src.librus_client import LibrusManager
+    from src.native_grades import NativeFinalGradesBackend
     from src.native_identity import NativeIdentityBackend
     from src.server import mcp, register_optional_tools
 
@@ -37,11 +38,13 @@ async def serve(consumer: Path, origin: str) -> None:
         scheduler_limits=SchedulerLimits(requests_per_second=RATE, burst=BURST),
     ) as service:
         LibrusManager.set_identity_backend(NativeIdentityBackend(service))
+        LibrusManager.set_final_grades_backend(NativeFinalGradesBackend(service))
         try:
             register_optional_tools()
             await mcp.run_stdio_async()
         finally:
             LibrusManager.set_identity_backend(None)
+            LibrusManager.set_final_grades_backend(None)
 
 
 if __name__ == "__main__":

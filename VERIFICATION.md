@@ -75,6 +75,65 @@ vulnerability audit. No live Librus requests or publishing occurred. These are
 PR execution results, not evidence that the workflow has merged onto `main`.
 The hardware-sensitive and cross-repository tests remain explicitly opt-in.
 
+## 0.2.0.dev0 final-summary increment
+
+The first academic increment is a development build, not a completed 0.2.0
+release. On Linux/Python 3.13 and 3.14, 159 portable tests pass, including 38 new
+final-summary cases. The exact built wheel passes all 162 tests when the opt-in
+parser-resource and two real MCP stdio workloads are selected. A separately
+installed sdist passes the 159-test portable suite on Python 3.13. The consumer
+adapter checkout passes 573 tests; its Ruff/formatting and Bandit checks pass.
+Library Ruff/formatting, strict mypy, and ten-operation OpenAPI parity pass.
+
+The final-summary stdio workload keeps 24 default tools and exercises four login
+contexts representing one student, three callers/context, one denial, optional
+columns, and a two-subject result. It preserves one text block per summary and
+the legacy structured result wrapper. Cold reads cost 28 requests, warm reads
+three, with four reused connections and one login/context, under the shared
+25 requests/second fixture budget. No school service or production state is used.
+
+These tests own the new summary boundary. Common transport/cancellation/recovery
+tests remain in place without being duplicated wholesale for another endpoint.
+Tests also reproduced and fixed loss of word boundaries at HTML BR/paragraph
+elements while preserving inline grade symbols. The implementation/fixtures are
+original and source-informed; they do not establish live layout compatibility.
+See `contracts/grades.md` for scope and provenance. The consumer backend stays
+explicitly opt-in with no legacy fallback or production dependency change.
+
+## Current compatibility/performance increment
+
+The development wheel's bounded authorized login, identity, and final-summary
+path now completes, with consumer-mapped summary parity. This uncovered exact
+PerformLogin/Grant continuations, the explicit Account.UserId reference variant,
+stray closing tags, and an empty full-width spacer. Original offline regressions
+protect each variant and corresponding unsupported states. No live response,
+identifier, credential, or school value enters repository fixtures.
+
+After form reuse, the simplified four-login fixture uses 24 cold requests rather
+than 28, retaining three warm requests and one denial. Live comparative observations
+and same-page memory-only replay are documented in BENCHMARKS.md, including the
+historically slower cold login and higher total process RSS. General live account
+compatibility and multi-account performance remain pending.
+
+The current suite has 174 portable tests plus four opt-in integration/performance
+cases. The installed wheel exercises real MCP stdio and the paired synthetic
+parser measurement; ordinary GitHub CI remains offline.
+
+The revised default policy is five requests/second with a shared ten-token burst.
+The new token-clock regression failed with the previous default, then passed with
+the revised default. Four-account HTTP tests exercise both default and explicit
+policies beyond burst capacity, checking the shared envelope and unchanged peak
+concurrency. Existing 429/503 service tests now use default scheduler settings
+and still prove cross-account cooldown and no replay. Pause/no-resume-burst,
+queue, cancellation, and budget regressions remain in place.
+
+An explicitly authorized rerun exercised the installed development wheel through
+one login and three fresh summary reads per implementation. Outputs matched;
+native cold retrieval was 949 ms versus 973 ms for the baseline, with 0.4 ms
+admission wait instead of the earlier eight-second token delay. BENCHMARKS.md
+retains both samples and documents the distinction between burst qualification,
+offline saturation proof, and still-unqualified upstream sustained capacity.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and
@@ -86,7 +145,8 @@ The hardware-sensitive and cross-repository tests remain explicitly opt-in.
 - macOS/Windows installed-artifact/platform qualification.
 - Owner-configured bounded daily credentialed CI, PyPI publication beginning at
   1.0.0rc1, complete consumer migration, and a production backend default switch.
-- All academic, messaging, attachments, send, and read-once event operation slices.
+- Individual grades/GPA/windows and other remaining academic, messaging,
+  attachments, send, and read-once event operation slices.
 
 The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
 Library PR #1 is merged. The consumer adapter remains a draft; no package or

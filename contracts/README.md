@@ -4,8 +4,9 @@
 HTML scraping routes. It is not the Python domain API or the MCP tool schema,
 and it is not an official Librus specification.
 
-The catalogue covers the bounded cookie-login flow, gateway identity, and HTML
-student-information read. Source-informed routes and synthetic callback/header
+The catalogue covers the bounded cookie-login flow, gateway identity, HTML
+student-information and [final-grade summary](grades.md) reads. Source-informed
+routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
 redirect routes fail closed. Do not infer an endpoint schema from a similarly
 named third-party operation.

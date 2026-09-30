@@ -132,22 +132,23 @@ class SchoolFixture:
             return web.Response(status=302, headers={"Location": location})
         if self.malformed_identity:
             return web.json_response({"Me": {"Account": {"Id": login}}})
-        return web.json_response(
-            {
-                "Me": {
-                    "Account": {
-                        "Id": login,
-                        "FirstName": "Synthetic",
-                        "LastName": "Owner",
-                    },
-                    "User": {
-                        "Id": "student-shared",
-                        "FirstName": "Fixture",
-                        "LastName": "Student",
-                    },
-                }
+        payload = {
+            "Me": {
+                "Account": {
+                    "Id": login,
+                    "FirstName": "Synthetic",
+                    "LastName": "Owner",
+                },
+                "User": {
+                    "Id": "student-shared",
+                    "FirstName": "Fixture",
+                    "LastName": "Student",
+                },
             }
-        )
+        }
+        if self.identity_mode == "account_reference":
+            payload["Me"]["Account"]["UserId"] = payload["Me"]["User"].pop("Id")
+        return web.json_response(payload)
 
     async def profile(self, request: web.Request) -> web.Response:
         login = self.record(request)

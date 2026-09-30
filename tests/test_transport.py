@@ -166,6 +166,8 @@ def test_cumulative_body_budget_stops_dispatch_after_exhaustion() -> None:
         "/informacja",
         "http://user:secret@localhost/loguj",
         "/loguj#fragment",
+        "/OAuth/Authorization/Unrecognized",
+        "/OAuth/Authorization/PerformLogin/extra",
     ],
 )
 def test_redirects_cannot_dispatch_foreign_or_non_authentication_requests(
