@@ -27,12 +27,12 @@ def _text(element: html.HtmlElement) -> str:
     # Render block/line boundaries, but keep inline grade symbols together.
     # The shared document parser has already bounded this tree's nodes/depth.
     parts: list[str] = []
-    for event, node in etree.iterwalk(element, events=("start", "end")):
+    for event, node in etree.iterwalk(element, events=("start", "end", "comment")):
         if node.tag in ("br", "p", "div", "li"):
             parts.append(" ")
-        if event == "start" and node.text:
+        if event == "start" and isinstance(node.tag, str) and node.text:
             parts.append(node.text)
-        if event == "end" and node is not element and node.tail:
+        if event in ("end", "comment") and node is not element and node.tail:
             parts.append(node.tail)
     value = " ".join("".join(parts).split())
     if len(value) > GRADE_MAX_VALUE_LENGTH:
@@ -160,10 +160,9 @@ def _summary(
     )
 
 
-def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
-    table, fields, width = _locate(parse_html_document(body))
-    items: list[SubjectGradeSummary] = []
-    subjects: set[str] = set()
+def _subject_rows(
+    table: html.HtmlElement, width: int
+) -> Iterator[list[html.HtmlElement]]:
     for row in _rows(table):
         if next(row.iterancestors("thead"), None) is not None:
             continue
@@ -182,6 +181,14 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
         # source-informed variant, never discard arbitrary malformed subject rows.
         if len(cells) > 1 and _text(cells[1]) == GRADE_INLINE_DETAIL_LABEL:
             continue
+        yield cells
+
+
+def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
+    table, fields, width = _locate(parse_html_document(body))
+    items: list[SubjectGradeSummary] = []
+    subjects: set[str] = set()
+    for cells in _subject_rows(table, width):
         item = _summary(cells, fields, width)
         if item.subject in subjects:
             raise LibrusError(ErrorKind.PARSE)

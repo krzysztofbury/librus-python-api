@@ -92,6 +92,20 @@ failure/load tests; it does not justify uncontrolled school traffic or prove
 upstream capacity. See REVIEW.md for the failure analysis and TODO.md for pending
 qualification work. No credentialed release gate may silently pass without running.
 
+### Business compatibility gate
+
+For each feature family, treat the current librus-apix behavior as the business
+baseline, not as a source of code or copied fixtures. Review its public operation,
+current consumer expectations, and known edge flows before considering the family
+complete. Keep an explicit comparison in the family contract covering populated/
+empty results, scope and date semantics, grouping, corrections, descriptive data,
+missing values, filters, and side effects. Record every difference as an intentional
+library-contract choice, a consumer mapping responsibility, or an unresolved gap.
+Missing apix endpoints do not limit the library roadmap. Baseline defaults or bugs
+must not force fabricated data into the new domain model. Fixture parity and
+partial field parity cannot qualify unexercised business variants; performance
+claims must state the exact common outputs compared and any excluded differences.
+
 ### Offline CI and package checks
 
 GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to `main`,
@@ -197,8 +211,9 @@ the installed library. Reinstall the wheel after rebuilding the same local versi
 check `librus_python_api.__file__` points into the separate environment.
 
 For the real MCP stdio identity/final-summary experiment, install the consumer adapter branch
-(`feat/native-identity-adapter`, draft PR #38) into that same environment. This is
-a local experiment, not a production dependency change. Then run outside the
+(`feat/native-identity-adapter`, closed unmerged PR #38) into that same environment. This is
+a retained local experiment, not a library-delivery prerequisite or authorization
+to modify the consumer. Its migration remains a separate task. Run outside the
 library checkout:
 
 ```sh

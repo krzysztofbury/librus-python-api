@@ -16,6 +16,7 @@ from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     AUTH_COOKIES,
     ENDPOINTS,
+    GRADE_VIEW_FIELDS,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
@@ -24,7 +25,12 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import LoginSubmission, TransportResponse
+from librus_python_api.models import (
+    GradeView,
+    GradeViewSelection,
+    LoginSubmission,
+    TransportResponse,
+)
 from librus_python_api.scheduler import RequestScheduler
 
 
@@ -41,7 +47,7 @@ class AccountTransport(Protocol):
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission | None = None,
+        form: LoginSubmission | GradeViewSelection | None = None,
     ) -> TransportResponse: ...
 
     async def follow(
@@ -108,7 +114,7 @@ class AiohttpTransport:
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission | None = None,
+        form: LoginSubmission | GradeViewSelection | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
@@ -162,13 +168,22 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | None,
+        form: LoginSubmission | GradeViewSelection | None,
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
-        if (form is not None) != (endpoint.method == "POST"):
+        if endpoint.operation_id == "login_submit":
+            if not isinstance(form, LoginSubmission):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+        elif endpoint.operation_id == "grades":
+            if form is not None and (
+                not isinstance(form, GradeViewSelection)
+                or not isinstance(form.view, GradeView)
+            ):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+        elif form is not None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        if form is not None and (
+        if isinstance(form, LoginSubmission) and (
             not 1 <= len(form.login.get_secret_value()) <= 256
             or not 1 <= len(form.password.get_secret_value()) <= 1024
         ):
@@ -196,27 +211,31 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | None,
+        form: LoginSubmission | GradeViewSelection | None,
     ) -> TransportResponse:
         session = self._get_session()
         proxy = self._connection.proxy_url
         headers = None
-        if form is not None:
+        if isinstance(form, LoginSubmission):
             headers = {
                 "Origin": self._connection.api_origin,
                 "Referer": str(URL(self._url(endpoint)).with_query(OAUTH_QUERY)),
                 "X-Requested-With": "XMLHttpRequest",
             }
-        async with session.request(
-            endpoint.method,
-            url,
-            data={
+        payload = None
+        if isinstance(form, LoginSubmission):
+            payload = {
                 "action": "login",
                 "login": form.login.get_secret_value(),
                 "pass": form.password.get_secret_value(),
             }
-            if form is not None
-            else None,
+        elif endpoint.operation_id == "grades":
+            view = form.view if isinstance(form, GradeViewSelection) else GradeView.ALL
+            payload = {GRADE_VIEW_FIELDS[view.value]: "1"}
+        async with session.request(
+            endpoint.method,
+            url,
+            data=payload,
             headers=headers,
             allow_redirects=False,
             proxy=proxy.get_secret_value() if proxy is not None else None,

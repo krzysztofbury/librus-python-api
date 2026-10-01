@@ -14,7 +14,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from librus_python_api.exceptions import ErrorKind
 
-type OperationName = Literal["identity", "student_information", "final_grades"]
+type OperationName = Literal[
+    "identity", "student_information", "final_grades", "grades"
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +47,26 @@ class DiagnosticEvent:
 class LoginSubmission:
     login: SecretStr = field(repr=False)
     password: SecretStr = field(repr=False)
+
+
+class GradeView(StrEnum):
+    ALL = "all"
+    WEEK = "week"
+    LAST_LOGIN = "last_login"
+
+
+@dataclass(frozen=True, slots=True)
+class GradeViewSelection:
+    view: GradeView
+
+
+class GradeKind(StrEnum):
+    CURRENT = "current"
+    PERIOD = "period"
+    PREDICTED_PERIOD = "predicted_period"
+    ANNUAL = "annual"
+    PREDICTED_ANNUAL = "predicted_annual"
+    PUBLICATION = "publication"
 
 
 class Availability(StrEnum):
@@ -118,6 +140,87 @@ class SubjectGradeSummary:
 class FinalGrades:
     identity: Identity
     items: tuple[SubjectGradeSummary, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class NumericGrade:
+    """A school grade symbol, not an invented numeric conversion.
+
+    Missing count/weight metadata is unknown, not False or zero. Links are inert
+    upstream strings, never an authorized transport destination.
+    """
+
+    subject: str = field(repr=False)
+    raw: str = field(repr=False)
+    day: date = field(repr=False)
+    semester: Literal[0, 1, 2]
+    counts_toward_average: bool | None = field(repr=False)
+    weight: int | None = field(repr=False)
+    category: str | None = field(repr=False)
+    teacher: str | None = field(repr=False)
+    comment: str | None = field(repr=False)
+    href: str | None = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+    kind: GradeKind = GradeKind.CURRENT
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptiveGrade:
+    subject: str = field(repr=False)
+    raw: str = field(repr=False)
+    day: date = field(repr=False)
+    semester: Literal[0, 1, 2] | None
+    teacher: str | None = field(repr=False)
+    comment: str | None = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+    kind: GradeKind = GradeKind.CURRENT
+    href: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolAverage:
+    """School-provided text only; semester zero means the annual column."""
+
+    subject: str = field(repr=False)
+    semester: Literal[0, 1, 2]
+    value: GradeSummaryValue
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptiveGradeSummary:
+    """Undated semester text, never eligible for a dated grade window."""
+
+    subject: str = field(repr=False)
+    semester: Literal[1, 2]
+    raw: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class GradeRecords:
+    numeric: tuple[NumericGrade, ...] = field(repr=False)
+    descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
+    averages: tuple[SchoolAverage, ...] = field(repr=False)
+    descriptive_summaries: tuple[DescriptiveGradeSummary, ...] = field(
+        default=(), repr=False
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class Grades:
+    identity: Identity
+    records: GradeRecords
+    observation: Observation
+    view: GradeView = GradeView.ALL
+
+
+@dataclass(frozen=True, slots=True)
+class GradeWindow:
+    identity: Identity
+    start: date
+    end: date
+    numeric: tuple[NumericGrade, ...] = field(repr=False)
+    descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
     observation: Observation
 
 
