@@ -357,6 +357,67 @@ BENCHMARKS.md records the successful pair, non-wins, incomplete baseline connect
 instrumentation, and policy/sample limits. No PyPI publication, live CI, consumer
 modification, or merge of the attendance PR is implied.
 
+## Timetable increment: offline proof and installed runtime
+
+2026-10-01, Linux/Python 3.13/3.14. Explicit Monday-week selection now returns typed
+identity-bearing timetable days/periods, distinct lessons, complete raw change
+metadata, local clocks and optional reported recess pairs. The nineteenth wire
+operation and fixed form share the normal budgets, isolated lifecycle and
+non-replayed selection behavior. Consumer strings/default-week policy remain
+outside the library. No consumer code or credentials/captures were committed.
+
+346 portable tests pass on source Python 3.13/3.14, separately installed wheel
+Python 3.14, and separately installed sdist Python 3.13; four opt-in consumer/
+performance cases remain deselected. The increment adds 41 original timetable
+cases. Installed import-location, version, license, requirements, typing marker
+and dependency consistency checks pass. Ruff, format, strict mypy, lock and
+nineteen-operation contract checks, hooks, worktree/history secret scans, dependency
+audit and diff checks pass locally. No known locked-dependency vulnerabilities
+were reported, not a security guarantee. Hosted CI status is separate evidence.
+
+Original fixtures establish named date/time attributes, exactly seven unique
+civil dates per row, period ordering, blanks, grouped lessons, notices, optional
+metadata, recess association, format/tree/content limits and fail-closed layouts.
+Loopback HTTP proves different week keys, four-login isolation/coalescing, cache
+reuse, request/form/credential guards, original budget exhaustion, expiry/denial/
+throttle/maintenance non-replay and cancellation cleanup. Tests also prove the
+specific repeated timetableEntryBox ID exception does not allow unrelated
+duplicate IDs. Strict HTML parsing otherwise remains unchanged.
+
+Discovery used one approved context and two ordinary timetable weeks, 11 requests.
+Three stopped installed-native attempts used 10 requests each. The first diagnosis
+only captured tags/attribute names, not period-number semantics. A speculative
+numeric-only fix still rejected the mirrored prefix. A focused baseline run used
+11 requests, established two numeric prefix cells, and completed both weeks.
+Original failing-before-fix cases then protected matching mirror values and
+reported recess clocks whose end is not later than their start. Recess values are
+not a validated duration; do not reject all timetable data over that assumption.
+
+The final installed native and unmodified apix 1.5.3 each completed both populated
+weeks, 11 requests/client. Native cached-week reuse dispatched no additional POST.
+The final pair cost 22 requests; cumulative qualification used 74 of the explicitly
+revised 96-request cap, including stopped runs and superseded baseline diagnosis.
+Each approved login was submitted once; failing runs stopped before further reads.
+Only authentication/identity and the two ordinary timetable weeks were allowed.
+No read-once schedule operations, messages, other accounts, or automatic replays.
+
+The explicit legacy projection matched date, start/end, weekday, period number,
+next recess, subject and change notices in both weeks. Both weeks were populated;
+only the current week had notices, without replacement-tooltip metadata. Combined
+teacher/classroom text differed in 29 periods per week. The comparison therefore
+did not pass full field parity. Native rendered-boundary/whitespace normalization
+and baseline subject-hyphen splitting differ by design, but the retained evidence
+does not classify the particular live differences. Do not label them whitespace-
+only, corrected metadata, or resolved until separately demonstrated.
+
+Private captures/records remained in memory/process pipes/restricted local IPC
+and were discarded. The memory helper closed. A failed/superseded attempt is not
+part of a successful timing sample; parser support alone is not installed proof.
+BENCHMARKS.md records the final completed retrieval pair and its parity limit.
+Wider profiles/layouts, groups, replacement tooltip metadata, wholly empty weeks,
+locale/encoding and sustained capacity remain unqualified. No consumer migration,
+PyPI publication, live CI or merge is implied by this development increment.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

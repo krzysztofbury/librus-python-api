@@ -603,6 +603,61 @@ paths:
                       Id: {$ref: '#/components/schemas/NumericIdentifier'}
                       Name: {type: string, minLength: 1, maxLength: 1024}
         default: {$ref: '#/components/responses/Failure'}
+  /przegladaj_plan_lekcji:
+    post:
+      operationId: timetable
+      tags: [Timetable]
+      summary: Select an explicit Monday-through-Sunday timetable week
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Original fixtures from reviewed apix/consumer requirements and bounded two-week discovery on one context; populated installed comparison is recorded separately in VERIFICATION.md.
+      description: |
+        Fixed week-selection form only. A plain civil date must be a Monday with
+        a representable Sunday. Selecting the view is not replayed after errors,
+        expiry, cancellation or connection ambiguity. Account sessions, caches,
+        coalescing keys and original shared request/deadline/body budgets apply.
+        Raw HTML is not normalized domain JSON; unknown layouts must not silently
+        become empty weeks. Timetable reads do not consume recent schedule events.
+        Recognize exactly one decorated plan-lekcji table. Period rows are line1;
+        recess rows are line0 following periods. Each period has one or two
+        matching numeric TD center markers and seven timetableEntryBox cells with data-date,
+        data-time_from and data-time_to attributes read by name, not attribute order.
+        Dates must cover each requested civil weekday exactly once; times are
+        local HH:MM values; lesson start must precede end and periods are chronological.
+        Recess clocks are preserved as reported, including zero/inverted pairs;
+        they are not a computed duration, inferred gap, or ordering constraint.
+        At most 32 periods, 16 lesson blocks and 16 change notices per slot.
+        Seven days and empty slots remain explicit. Each div.text lesson contains
+        one bold subject and optional hyphen-prefixed combined teacher/classroom;
+        multiple lesson blocks remain distinct. Center plan-lekcji-info notices
+        retain raw labels and optional ordered tooltip label/value metadata,
+        including unknown labels, rather than inferring cancellation/replacement.
+        Rendered strings are bounded to 1024 characters; metadata is bounded to
+        32 fields and 8192 raw characters. Missing grids, malformed/duplicate
+        weekdays, unsafe repairs, nested tables, and unconsumed content fail.
+        The repeated timetableEntryBox ID is permitted only in this parser; all
+        other duplicate-ID parser errors remain rejected. No scripts, notice links,
+        extra detail requests, or implicit school-timezone/default-week inference.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tydzien]
+              properties:
+                tydzien:
+                  type: string
+                  pattern: '^\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}$'
+                  description: Monday and its Sunday, joined by one underscore
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /informacja:
     get:
       operationId: student_information

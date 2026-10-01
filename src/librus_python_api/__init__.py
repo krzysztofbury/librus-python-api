@@ -41,6 +41,12 @@ from librus_python_api.models import (
     SubjectFrequencies,
     SubjectFrequency,
     SubjectGradeSummary,
+    Timetable,
+    TimetableChange,
+    TimetableDay,
+    TimetableInterval,
+    TimetableLesson,
+    TimetablePeriod,
 )
 from librus_python_api.service import AccountClient, LibrusService
 
@@ -60,6 +66,12 @@ __all__ = [
     "GatewayAttendanceRecord",
     "SubjectFrequency",
     "SubjectFrequencies",
+    "Timetable",
+    "TimetableChange",
+    "TimetableDay",
+    "TimetableInterval",
+    "TimetableLesson",
+    "TimetablePeriod",
     "AttendanceRecord",
     "AttendanceRecords",
     "AttendanceView",

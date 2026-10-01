@@ -305,3 +305,32 @@ Do not turn source-informed semantic labels into observed-upstream claims.
 This remains implementing-agent self-review, not independent approval. Future
 layout diagnostics should capture sufficient nonprivate structural evidence
 before closing a failed session, without retaining captures or broadening traffic.
+
+## Timetable increment self-review and retrospective
+
+- Native week selection now has actual public typed results, centralized form/
+  route/OpenAPI and public consumer-independent contracts. Seven days/blank slots,
+  ordered grouped lessons and unclassified notices are preserved explicitly.
+- Timetable HTML repeats one slot ID. Allow only that exact parser error for
+  timetable input; keep default parsing strict and validate dates/slots separately.
+- Initial discovery recorded attributes/tags but insufficient period-number
+  semantics. The one-center and numeric-only assumptions both failed installed
+  smoke. A bounded baseline diagnostic established mirrored numeric cells; the
+  original regression permits equal mirrors and rejects contradictions.
+- A positive-duration recess invariant was not a real upstream requirement.
+  Preserve reported recess clocks, including zero/inverted pairs, rather than
+  rejecting a valid timetable or inventing an overnight/positive duration.
+- A completed runtime is not business parity. The final pair reads both populated
+  weeks but teacher/classroom projection still differs. Retaining only field counts
+  was privacy-safe but insufficient to classify the differences. Next diagnostics
+  should compute safe semantic categories in memory before discarding records.
+- Repeated failures required fresh scoped authorization and wasted login traffic.
+  Improve discovery completeness rather than proposing speculative fixes and
+  spending the remaining budget on another fresh login. Every failed run stopped;
+  no automatic replay or independent-account expansion occurred.
+- Long quiet intervals are not productive progress. Report concrete implementation,
+  test results and blockers promptly; do not imply a build or background work exists
+  when the trace shows only exploration. The observed session delay was not diagnosed.
+
+This is implementing-agent self-review, not independent approval. Teacher/classroom
+compatibility is an explicit open gate, not a hidden normalization success claim.

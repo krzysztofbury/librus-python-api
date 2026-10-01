@@ -234,3 +234,41 @@ sample per operation, not general throughput/capacity or full-year resolution
 qualification. Sequential logins change last-login state; empty equality cannot
 qualify populated historical-login behavior. Wider roles/layouts and custom types
 remain unqualified. No consumer backend or dependency was changed.
+
+## Timetable: completed runtime with unresolved field parity
+
+2026-10-01, Linux/Python 3.14. Installed native 0.3.0.dev0 and unmodified apix 1.5.3
+each completed the same two ordinary weeks on one approved context. The explicit
+legacy projection matched subject/date/time/weekday/number/recess/change fields,
+but combined teacher/classroom differed in 29 periods per week. These are completed
+retrieval workloads, not successful full-field parity or interchangeable consumer
+output. The remaining difference is not proven to be whitespace-only.
+
+| Retrieval | Native wall / CPU (ms) | apix wall / CPU (ms) | Requests native / apix |
+| --- | --- | --- | --- |
+| Current week, cold including authentication | 1327.60 / 22.30 | 1369.73 / 52.90 | 10 / 10 |
+| Adjacent week, warm session | 546.37 / 6.77 | 830.64 / 22.27 | 1 / 1 |
+
+The final pair used 11 requests per client, 22 combined. Native explicit reuse of
+the first cached week made no additional request. Cumulative discovery/diagnosis
+cost 74 of the revised 96-request authorization, including three stopped native
+attempts, one discovery and a superseded complete baseline. Failed/superseded
+attempts are not included in the final pair's timing or called successful parity.
+
+Native observed two new connections and nine reuse events. Baseline observed four
+synchronous connection creations; reuse events were not directly instrumented,
+not measured zero. This timetable baseline uses synchronous requests only, unlike
+the auxiliary aiohttp attendance metadata path. Peak RSS/HWM after the adjacent
+week was 64108 KiB native versus 49216 KiB apix: native memory remains a non-win.
+Decoded retrieved body bytes were 71737/71076 cold and 55857/55857 warm. Cold bytes
+include different authentication/identity flows, not a timetable-byte advantage.
+No parser-allocation peak or sustained-load measurement was made.
+
+Imports were excluded; retrieval/authentication/admission and redacted structural
+instrumentation were included. Native included the shared default scheduler and
+extra in-memory shape diagnosis; baseline business/parser code stayed unchanged.
+Both external safety guards used five requests/second, burst ten, finite deadlines
+and one credential submission per approved run. Guard wait was zero in this pair;
+native scheduler wait was not separately measured. One sequential sample per week
+cannot establish general latency/throughput gains or alternative-layout coverage.
+Private records were discarded and no consumer default/dependency changed.

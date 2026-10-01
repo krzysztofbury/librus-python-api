@@ -25,6 +25,7 @@ from librus_python_api.config import (
     Endpoint,
     SideEffect,
     TransportLimits,
+    timetable_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
@@ -33,6 +34,7 @@ from librus_python_api.models import (
     GradeView,
     GradeViewSelection,
     LoginSubmission,
+    TimetableSelection,
     TransportResponse,
 )
 from librus_python_api.scheduler import RequestScheduler
@@ -54,6 +56,7 @@ class AccountTransport(Protocol):
         form: LoginSubmission
         | GradeViewSelection
         | AttendanceViewSelection
+        | TimetableSelection
         | None = None,
         reference_id: str | None = None,
     ) -> TransportResponse: ...
@@ -125,6 +128,7 @@ class AiohttpTransport:
         form: LoginSubmission
         | GradeViewSelection
         | AttendanceViewSelection
+        | TimetableSelection
         | None = None,
         reference_id: str | None = None,
     ) -> TransportResponse:
@@ -188,7 +192,11 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | GradeViewSelection | AttendanceViewSelection | None,
+        form: LoginSubmission
+        | GradeViewSelection
+        | AttendanceViewSelection
+        | TimetableSelection
+        | None,
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
@@ -207,6 +215,10 @@ class AiohttpTransport:
                 or not isinstance(form.view, AttendanceView)
             ):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
+        elif endpoint.operation_id == "timetable":
+            if not isinstance(form, TimetableSelection):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            timetable_form(form.monday)
         elif form is not None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if isinstance(form, LoginSubmission) and (
@@ -237,7 +249,11 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | GradeViewSelection | AttendanceViewSelection | None,
+        form: LoginSubmission
+        | GradeViewSelection
+        | AttendanceViewSelection
+        | TimetableSelection
+        | None,
     ) -> TransportResponse:
         session = self._get_session()
         proxy = self._connection.proxy_url
@@ -266,6 +282,8 @@ class AiohttpTransport:
             )
             key, value = ATTENDANCE_VIEW_FORMS[attendance_view.value]
             payload = {key: value}
+        elif isinstance(form, TimetableSelection):
+            payload = timetable_form(form.monday)
         async with session.request(
             endpoint.method,
             url,

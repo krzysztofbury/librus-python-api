@@ -4,7 +4,9 @@ The 0.1.0 delivery implements login, gateway identity, and HTML student
 information. The 0.2.0 scope is grades, averages, final summaries, views, and
 windows. The first 0.3 development increment adds attendance collections, upstream
 views, date windows, detail fields/notes, gateway records, and overall/subject
-frequency, not complete school-read coverage. Bounded attendance qualification
+frequency, plus explicit timetable weeks, not complete school-read coverage.
+Two-week installed timetable retrieval completed, but the teacher/classroom
+projection has an unresolved baseline difference. Bounded attendance qualification
 has completed on one context; populated last-login and broader layouts remain
 unqualified. Bounded grade live qualification has
 passed for a narrow observed variant; general account compatibility is unverified.
@@ -129,7 +131,7 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents eighteen enabled wire
+[OpenAPI YAML](contracts/upstream.openapi.yaml) documents nineteen enabled wire
 operations, including the summary GET and explicit grade/attendance-view POSTs.
 These include raw
 HTML, forms, origins, side effects, and evidence gaps.
@@ -263,6 +265,51 @@ empty coverage only. The comparison applied declared legacy defaults and
 zero-denominator markers without changing native domain results. See
 [the business/provenance matrix](contracts/attendance.md) for intentional baseline
 differences, consumer mapping responsibilities, bounds, and remaining gates.
+
+## Timetable weeks
+
+`await account.timetable(monday, max_age_seconds=0, budget=None)` requires a plain
+`datetime.date` Monday with a representable Sunday. It returns immutable
+`Timetable(identity, monday, days, observation)`. No current-week, locale weekday,
+or timezone is inferred: the consumer owns default-week selection and rendering.
+
+There are seven `TimetableDay` values with explicit civil dates. Each includes
+ordered `TimetablePeriod` values with numeric period, typed local `interval`,
+distinct `TimetableLesson` entries, ordered `TimetableChange` notices, and optional
+`next_recess`. Empty slots are retained; a valid all-empty grid is not a missing
+grid. Missing/ambiguous grids and unconsumed content fail, not partial success.
+
+Lessons preserve the bold subject and optional combined teacher/classroom text,
+normalizing rendered word boundaries/whitespace, not guessing teacher or room
+identities. Grouped lessons remain separate rather than joining with slashes.
+Notices preserve labels and optional complete ordered tooltip metadata, including
+unknown keys. No cancellation/substitution status is inferred from notice text;
+no scripts or notice links execute and no detail requests are made.
+
+`TimetableInterval` contains local `datetime.time` starts/ends. Lesson intervals
+are ordered and periods cannot overlap. A next-recess clock pair is preserved
+as reported, including equal or inverted clocks; it does not promise a positive
+duration or constrain the next lesson. These are civil clocks, not UTC instants.
+
+The exact `tydzien` Monday-through-Sunday form and route are centralized. Selection
+is a `select_view` POST and never automatically replayed, including session expiry.
+Cache/coalescing keys include Monday and login/session identity. The existing
+64-entry result cache, explicit freshness, shared traffic budgets, admission and
+joined cancellation apply. Inputs/forms validate before dispatch or credentials.
+
+Parser bounds: 32 periods, seven unique dates per row, 16 lessons and 16 notices
+per slot, 1024 rendered characters per field, 32 tooltip fields and 8192 raw
+tooltip characters, plus common tree/body limits. Named date/time attributes are
+read independent of insertion order. One/two equal numeric prefix markers are
+permitted; conflicting numbers fail. Only the exact repeated timetableEntryBox
+ID parser error is allowed for this parser; unrelated duplicate IDs still fail.
+
+One installed native/apix pair completed both populated weeks with equal date,
+time, number, recess, subject, weekday and change-notice projections. Combined
+teacher/classroom text differed in 29 periods per week. The retained redacted
+evidence does not establish whether every difference is intended normalization
+or a parser defect. Do not claim full parity or switch a consumer until classified
+and qualified. See [the contract](contracts/timetable.md) and VERIFICATION.md.
 
 ## Exceptions, retries, and diagnostics
 

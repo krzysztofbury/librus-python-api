@@ -100,7 +100,9 @@ def parse_login(body: bytes) -> str:
     return location
 
 
-def parse_html_document(body: bytes) -> html.HtmlElement:
+def parse_html_document(
+    body: bytes, *, repeatable_id: str | None = None
+) -> html.HtmlElement:
     failed = False
     document: html.HtmlElement | None = None
     parser = html.HTMLParser(no_network=True, recover=True, huge_tree=False)
@@ -116,7 +118,13 @@ def parse_html_document(body: bytes) -> html.HtmlElement:
     # observed repair category; semantic tables, spans, IDs, and bounds still
     # validate independently. Do not blanket-ignore arbitrary parser errors.
     if failed or any(
-        error.type_name != "ERR_TAG_NAME_MISMATCH" for error in parser.error_log
+        error.type_name != "ERR_TAG_NAME_MISMATCH"
+        and not (
+            repeatable_id is not None
+            and error.type_name == "DTD_ID_REDEFINED"
+            and error.message == f"ID {repeatable_id} already defined"
+        )
+        for error in parser.error_log
     ):
         raise LibrusError(ErrorKind.PARSE)
     assert document is not None

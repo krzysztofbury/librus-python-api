@@ -9,7 +9,10 @@ publications, and inclusive date windows. 0.2.0 is grades-only; attendance and t
 remaining school reads belong to 0.3.0. The current `0.3.0.dev0` increment adds
 attendance collections, upstream views, date windows, details, and explicit overall/
 subject ratios. One bounded installed comparison completed; broader roles/layouts
-and populated last-login remain unqualified. Qualification and delivery status
+and populated last-login remain unqualified. Explicit timetable weeks are now
+implemented and complete two-week installed retrieval on one profile; an observed
+teacher/classroom text difference prevents a full baseline-parity claim.
+Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
 observed variant. General compatibility is unverified; nothing is published to PyPI.
@@ -68,6 +71,10 @@ See [the implementation roadmap](TODO.md).
   metadata, numeric details/notes, isolated views, cached windows, gateway records,
   bounded metadata reuse, and explicit ratio policies.
   This is a development increment, not completed 0.3.0 school-read coverage.
+- [Timetable weeks](contracts/timetable.md) with explicit civil dates, seven days,
+  distinct lesson entries, raw change notices, reported recess clocks, isolated
+  week caches, and selection POST non-replay. Two-week runtime qualification
+  completed; exact teacher/classroom compatibility remains unresolved.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -93,7 +100,7 @@ reuse one service across accounts/tools, and close it with an async context mana
 Enabled development reads are `identity()`, `student_information()`,
 `final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
 `attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
-`attendance_frequency()`, and `subject_frequency()`.
+`attendance_frequency()`, `subject_frequency()`, and explicit-week `timetable()`.
 Version 0.3.0.dev0 is a local-only development build,
 not a published PyPI release.
 

@@ -221,6 +221,11 @@ This is not completed 0.3.0 coverage.
 - [ ] Broader attendance role/layout qualification, populated last-login, custom
   type metadata semantics, and full-year subject-resolution qualification.
 - [ ] Timetable, agenda/details, homework/details, announcements, and completed lessons.
+- [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
+  centralized non-replayed forms, nineteen-operation wire catalogue, original
+  offline fixtures, and installed two-week runtime retrieval on one context.
+- [ ] Classify and resolve the observed timetable teacher/classroom projection
+  differences; obtain populated group/replacement-tooltip and broader role proof.
 - [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
   original populated/empty/error fixtures, and installed-artifact proof per family.
 - [ ] Apply the apix business compatibility gate and separately authorized live
