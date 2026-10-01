@@ -357,6 +357,112 @@ BENCHMARKS.md records the successful pair, non-wins, incomplete baseline connect
 instrumentation, and policy/sample limits. No PyPI publication, live CI, consumer
 modification, or merge of the attendance PR is implied.
 
+## Timetable increment: offline proof and installed runtime
+
+2026-10-01, Linux/Python 3.13/3.14. Explicit Monday-week selection now returns typed
+identity-bearing timetable days/periods, distinct lessons, complete raw change
+metadata, local clocks and optional reported recess pairs. The nineteenth wire
+operation and fixed form share the normal budgets, isolated lifecycle and
+non-replayed selection behavior. Consumer strings/default-week policy remain
+outside the library. No consumer code or credentials/captures were committed.
+
+349 portable tests pass on source Python 3.13/3.14, separately installed wheel
+Python 3.14, and separately installed sdist Python 3.13; four opt-in consumer/
+performance cases remain deselected. The increment adds 44 original timetable
+cases. Installed import-location, version, license, requirements, typing marker
+and dependency consistency checks pass. Ruff, format, strict mypy, lock and
+nineteen-operation contract checks, hooks, worktree/history secret scans, dependency
+audit and diff checks pass locally. No known locked-dependency vulnerabilities
+were reported, not a security guarantee. Hosted CI status is separate evidence.
+
+Original fixtures establish named date/time attributes, exactly seven unique
+civil dates per row, period ordering, blanks, grouped lessons, notices, optional
+metadata, recess association, format/tree/content limits and fail-closed layouts.
+Loopback HTTP proves different week keys, four-login isolation/coalescing, cache
+reuse, request/form/credential guards, original budget exhaustion, expiry/denial/
+throttle/maintenance non-replay and cancellation cleanup. Tests also prove the
+specific repeated timetableEntryBox ID exception does not allow unrelated
+duplicate IDs. Strict HTML parsing otherwise remains unchanged.
+
+Discovery used one approved context and two ordinary timetable weeks, 11 requests.
+Three stopped installed-native attempts used 10 requests each. The first diagnosis
+only captured tags/attribute names, not period-number semantics. A speculative
+numeric-only fix still rejected the mirrored prefix. A focused baseline run used
+11 requests, established two numeric prefix cells, and completed both weeks.
+Original failing-before-fix cases then protected matching mirror values and
+reported recess clocks whose end is not later than their start. Recess values are
+not a validated duration; do not reject all timetable data over that assumption.
+
+The final installed native and unmodified apix 1.5.3 each completed both populated
+weeks, 11 requests/client. Native cached-week reuse dispatched no additional POST.
+The final pair cost 22 requests; cumulative qualification used 74 of the explicitly
+revised 96-request cap, including stopped runs and superseded baseline diagnosis.
+Each approved login was submitted once; failing runs stopped before further reads.
+Only authentication/identity and the two ordinary timetable weeks were allowed.
+No read-once schedule operations, messages, other accounts, or automatic replays.
+
+The explicit legacy projection matched date, start/end, weekday, period number,
+next recess, subject and change notices in both weeks. Both weeks were populated;
+only the current week had notices, without replacement-tooltip metadata. Combined
+teacher/classroom text differed in 29 periods per week. The comparison therefore
+did not pass full field parity. Native rendered-boundary/whitespace normalization
+and baseline subject-hyphen splitting differ by design, but that first retained
+evidence did not classify the particular live differences. The follow-up below
+resolves native correctness without claiming exact baseline-string parity.
+
+Private captures/records remained in memory/process pipes/restricted local IPC
+and were discarded. The memory helper closed. A failed/superseded attempt is not
+part of a successful timing sample; parser support alone is not installed proof.
+BENCHMARKS.md records the final completed retrieval pair and its parity limit.
+Wider profiles/layouts, groups, replacement tooltip metadata, wholly empty weeks,
+locale/encoding and sustained capacity remain unqualified. No consumer migration,
+PyPI publication, live CI or merge is implied by this development increment.
+
+### Teacher/classroom follow-up: same-response browser validation
+
+Two separately authorized installed-native runs each retrieved both populated
+weeks and reused the cached current week, 11 requests per run and 22 of the fresh
+40-request cap total. Each run submitted credentials once; no automatic replay,
+baseline login, interactive browser login, or broader endpoint/account access.
+Both parsers consumed identical response bytes, not separately fetched pages.
+Unmodified apix 1.5.3 parsed them through an offline fixed-response client; its
+two week-selection calls per run caused no HTTP requests. Each page was also
+rendered in Chromium 152 with page JavaScript disabled and external requests
+blocked. Only markup and inline styles were available, not the complete live
+stylesheet/script environment. No screenshots, pages or private values were saved.
+
+In both runs and both weeks, native subjects and teacher/classroom values matched
+normalized browser text in every one of 91 slots per week. Native/apix differed
+in 29 teacher/classroom strings per week: 28 differed only in whitespace, and one
+apix string disagreed with rendered teacher/classroom text. Native agreed with
+the browser in that slot as well. All other projected fields matched on the same
+response. Empty slots are included in the 91; there were 29 populated lesson
+blocks per week. Thus the prior unresolved native-correctness gate is resolved:
+retain correct native rendered text, not a byte-for-byte baseline discrepancy.
+
+The external diagnostic initially tried to identify the one baseline disagreement
+as subject-hyphen contamination; its exact-pattern check did not establish that
+cause. Its conservative category-based qualification flag remained false, despite
+all native/browser text matching. The evidence supports an incorrect baseline
+string, not that precise transformation. Do not claim a specific live hyphen bug.
+Independent synthetic replay does demonstrate a separate baseline defect: hyphens
+inside bold subjects can leak subject text into teacher/classroom extraction.
+Native removes the complete subject prefix, so it does not reproduce this defect.
+
+Three new original parser-boundary cases exercise line breaks/newlines, nonbreaking
+spaces and subject/teacher/room hyphens against explicit expected strings. They
+already pass on the existing native parser; there was no native bug to fix and no
+production code or test-only seam was added. Chromium also agrees with native on
+original whitespace and subject-hyphen synthetic cases where apix disagrees.
+The change corrects the compatibility criterion and documents observed intentional
+departures; it does not pretend a passing-before-change native test was a fixed
+native regression. Broader roles/layouts and consumer migration remain separate.
+
+Only redacted semantic counts were retained. Private pages/results stayed in
+memory and were discarded when each process/browser closed. Total timetable
+investigation traffic, including the earlier 74-request work, is 96 requests;
+this fresh scope's 22/40 accounting is separate from that earlier authorization.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

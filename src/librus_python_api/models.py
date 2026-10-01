@@ -6,7 +6,7 @@ consumer's responsibility. Domain result reprs omit personal data, including ali
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
@@ -23,6 +23,7 @@ type OperationName = Literal[
     "attendance_detail",
     "gateway_attendance",
     "subject_frequency",
+    "timetable",
 ]
 
 
@@ -78,6 +79,11 @@ class AttendanceViewSelection:
     view: AttendanceView
 
 
+@dataclass(frozen=True, slots=True)
+class TimetableSelection:
+    monday: date = field(repr=False)
+
+
 type ReadView = GradeView | AttendanceView
 
 
@@ -92,7 +98,9 @@ class AttendanceDateSelection:
     end: date | None
 
 
-type ReadSelection = ReadView | DetailReference | AttendanceDateSelection
+type ReadSelection = (
+    ReadView | DetailReference | AttendanceDateSelection | TimetableSelection
+)
 
 
 class GradeKind(StrEnum):
@@ -128,6 +136,47 @@ class Observation:
 class Identity:
     owner: Person
     student: Person
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class TimetableInterval:
+    starts_at: time
+    ends_at: time
+
+
+@dataclass(frozen=True, slots=True)
+class TimetableLesson:
+    subject: str = field(repr=False)
+    teacher_and_classroom: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class TimetableChange:
+    label: str = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class TimetablePeriod:
+    number: int
+    interval: TimetableInterval
+    lessons: tuple[TimetableLesson, ...] = field(repr=False)
+    changes: tuple[TimetableChange, ...] = field(repr=False)
+    next_recess: TimetableInterval | None
+
+
+@dataclass(frozen=True, slots=True)
+class TimetableDay:
+    day: date = field(repr=False)
+    periods: tuple[TimetablePeriod, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Timetable:
+    identity: Identity
+    monday: date = field(repr=False)
+    days: tuple[TimetableDay, ...] = field(repr=False)
     observation: Observation
 
 

@@ -9,6 +9,7 @@ import re
 import ssl
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date, timedelta
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Annotated, Any, Literal, Self
@@ -246,6 +247,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "timetable",
+                "POST",
+                "/przegladaj_plan_lekcji",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -349,6 +358,23 @@ ATTENDANCE_DETAIL_MAX_FIELDS = 32
 ATTENDANCE_METADATA_CACHE_SIZE = 256
 ATTENDANCE_RESULT_CACHE_SIZE = 64
 ATTENDANCE_METADATA_TTL_SECONDS = 3600
+TIMETABLE_MAX_PERIODS = 32
+TIMETABLE_MAX_LESSONS_PER_SLOT = 16
+TIMETABLE_MAX_CHANGES_PER_SLOT = 16
+TIMETABLE_WEEK_FIELD = "tydzien"
+TIMETABLE_DATE_ATTRIBUTE = "data-date"
+TIMETABLE_START_ATTRIBUTE = "data-time_from"
+TIMETABLE_END_ATTRIBUTE = "data-time_to"
+
+
+def timetable_form(monday: date) -> dict[str, str]:
+    """Central fixed week-selection wire form; no arbitrary date/form input."""
+    if type(monday) is not date or monday.weekday() != 0 or monday > date(9999, 12, 25):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    sunday = monday + timedelta(days=6)
+    return {TIMETABLE_WEEK_FIELD: f"{monday.isoformat()}_{sunday.isoformat()}"}
+
+
 # Source-informed stable type-ID policy, never inferred from names or symbols.
 ATTENDANCE_TYPE_KINDS = MappingProxyType(
     {

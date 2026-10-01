@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.3.0.dev0 - Attendance reads increment
+## 0.3.0.dev0 - School reads development
+
+- Add explicit timetable weeks with immutable days/periods, distinct lessons,
+  raw change notices/metadata, local clock values and separately reported recess
+  pairs. Reuse bounded account/week caches, shared budgets, and POST non-replay.
+- Ship the nineteenth centralized OpenAPI operation and original timetable tests.
+  Permit only the timetable-specific repeated slot ID repair. Protect matching
+  mirrored number markers and zero/inverted reported recesses with regressions.
+- Complete installed timetable retrieval for two populated weeks and cached reuse
+  on one context. Dates/times/numbers/recesses/subjects/notices match apix's legacy
+  projection. Subsequent same-response Chromium diagnosis confirms native
+  teacher/classroom values in all slots; 28 differences per week are whitespace
+  and one baseline string does not match rendered text. Preserve correct native
+  output rather than emulate apix; exact-string parity is not claimed.
+- Add original regression cases for multiline/nonbreaking-space lesson rendering
+  and hyphens inside subject, teacher and room text. No production parser change
+  was required to resolve the teacher/classroom correctness gate.
 
 - Add immutable attendance records, strict all/week/last-login views, and inclusive
   civil-date windows over the account's all-view collection cache.

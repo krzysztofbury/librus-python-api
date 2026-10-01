@@ -39,6 +39,7 @@ from librus_python_api.config import (
     OperationLimits,
     SchedulerLimits,
     TransportLimits,
+    timetable_form,
 )
 from librus_python_api.diagnostics import DiagnosticSink
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
@@ -71,11 +72,14 @@ from librus_python_api.models import (
     StudentInformation,
     SubjectFrequencies,
     SubjectFrequency,
+    Timetable,
+    TimetableSelection,
     TransportResponse,
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
 from librus_python_api.scheduler import RequestScheduler
+from librus_python_api.timetable import parse_timetable
 from librus_python_api.transport import (
     AccountTransport,
     AiohttpTransport,
@@ -91,6 +95,7 @@ type _ReadResult = (
     | AttendanceDetail
     | GatewayAttendance
     | SubjectFrequencies
+    | Timetable
 )
 
 
@@ -374,6 +379,22 @@ class AccountClient:
             result.observation,
         )
 
+    async def timetable(
+        self,
+        monday: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Timetable:
+        """Select an explicit school civil week; never replay its selection POST."""
+        timetable_form(monday)
+        return cast(
+            Timetable,
+            await self._read(
+                "timetable", budget, max_age_seconds, TimetableSelection(monday)
+            ),
+        )
+
     async def attendance_detail(
         self,
         detail_id: str,
@@ -651,13 +672,18 @@ class AccountClient:
         if operation == "subject_frequency":
             assert isinstance(view, AttendanceDateSelection)
             return await self._subject_frequencies(budget, view)
-        selection: GradeViewSelection | AttendanceViewSelection | None = None
+        selection: (
+            GradeViewSelection | AttendanceViewSelection | TimetableSelection | None
+        ) = None
         if operation == "grades":
             assert isinstance(view, GradeView)
             selection = GradeViewSelection(view)
         elif operation == "attendance":
             assert isinstance(view, AttendanceView)
             selection = AttendanceViewSelection(view)
+        elif operation == "timetable":
+            assert isinstance(view, TimetableSelection)
+            selection = view
         reference = view.identifier if isinstance(view, DetailReference) else None
         response = await self._transport.request(
             operation, budget, form=selection, reference_id=reference
@@ -689,6 +715,14 @@ class AccountClient:
     ) -> _ReadResult:
         assert self._identity is not None
         self._require_content_type(response, "text/html")
+        if operation == "timetable":
+            assert isinstance(view, TimetableSelection)
+            days = await self._service._parsers.run(
+                lambda body: parse_timetable(body, view.monday), response.body, budget
+            )
+            return Timetable(
+                self._identity, view.monday, days, self._observation(operation)
+            )
         if operation == "attendance_detail":
             assert isinstance(view, DetailReference)
             detail_content = await self._service._parsers.run(

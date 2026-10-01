@@ -6,7 +6,8 @@ and it is not an official Librus specification.
 
 The catalogue covers the bounded cookie-login flow, gateway identity, HTML
 student-information and [grade reads](grades.md), including fixed-form
-all/week/last-login view POSTs, plus [attendance collections](attendance.md).
+all/week/last-login view POSTs, plus [attendance reads](attendance.md) and
+[explicit timetable weeks](timetable.md).
 Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
@@ -19,6 +20,10 @@ grades.md; an exercised route is not proof of every response variant.
 The 0.3.0.dev0 attendance routes include explicit details and gateway metadata
 for frequency. Narrow installed evidence covers one context; source-informed and
 offline-only alternatives remain distinct from populated qualification.
+Timetable installed retrieval completed on one profile/two weeks, with exact
+teacher/classroom text validated against the same markup in network-disabled
+Chromium. Intentional departures from incorrect/unnormalized baseline strings
+are explicit; observed routes do not imply universal domain parity.
 
 ## Adding an endpoint
 
