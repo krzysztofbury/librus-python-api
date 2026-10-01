@@ -6,7 +6,10 @@ typed identity, and student-information reads against offline fixture servers.
 The local-first `0.2.0` delivery adds final summaries, inline numeric/descriptive grades,
 raw school averages, explicit upstream views, dated period marks, descriptive
 publications, and inclusive date windows. 0.2.0 is grades-only; attendance and the
-remaining school reads are planned for 0.3.0. Qualification and delivery status
+remaining school reads belong to 0.3.0. The current `0.3.0.dev0` increment adds
+attendance collections, upstream views, date windows, details, and explicit overall/
+subject ratios. One bounded installed comparison completed; broader roles/layouts
+and populated last-login remain unqualified. Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
 observed variant. General compatibility is unverified; nothing is published to PyPI.
@@ -61,6 +64,10 @@ See [the implementation roadmap](TODO.md).
   automatic replay; windows reuse its collection cache. Business compatibility
   against apix is tracked separately from numeric parity and performance.
   The consumer migration remains a separate task; its adapter experiment is closed.
+- [Attendance reads](contracts/attendance.md) with explicit semesters, unknown
+  metadata, numeric details/notes, isolated views, cached windows, gateway records,
+  bounded metadata reuse, and explicit ratio policies.
+  This is a development increment, not completed 0.3.0 school-read coverage.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -84,8 +91,11 @@ uv pip install dist/*.whl
 The supported public entry point is `LibrusService`. Supply credentials explicitly,
 reuse one service across accounts/tools, and close it with an async context manager.
 Enabled development reads are `identity()`, `student_information()`,
-`final_grades()`, `grades()`, and `grades_window()`. Version 0.2.0 is a local-only
-delivery, not a published PyPI release.
+`final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
+`attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
+`attendance_frequency()`, and `subject_frequency()`.
+Version 0.3.0.dev0 is a local-only development build,
+not a published PyPI release.
 
 ## Development principles
 

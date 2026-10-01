@@ -9,10 +9,22 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.models import (
+    Attendance,
+    AttendanceDetail,
+    AttendanceDetailContent,
+    AttendanceFrequency,
+    AttendanceKind,
+    AttendanceRecord,
+    AttendanceRecords,
+    AttendanceView,
+    AttendanceWindow,
     Availability,
     DescriptiveGrade,
     DescriptiveGradeSummary,
     FinalGrades,
+    FrequencyMeasure,
+    GatewayAttendance,
+    GatewayAttendanceRecord,
     GradeKind,
     GradeRecords,
     Grades,
@@ -26,16 +38,32 @@ from librus_python_api.models import (
     Person,
     SchoolAverage,
     StudentInformation,
+    SubjectFrequencies,
+    SubjectFrequency,
     SubjectGradeSummary,
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.2.0"
+__version__ = "0.3.0.dev0"
 
 __all__ = [
     "AccountClient",
     "AccountCredentials",
     "Availability",
+    "Attendance",
+    "AttendanceDetail",
+    "AttendanceDetailContent",
+    "AttendanceKind",
+    "AttendanceFrequency",
+    "FrequencyMeasure",
+    "GatewayAttendance",
+    "GatewayAttendanceRecord",
+    "SubjectFrequency",
+    "SubjectFrequencies",
+    "AttendanceRecord",
+    "AttendanceRecords",
+    "AttendanceView",
+    "AttendanceWindow",
     "ConnectionSettings",
     "DescriptiveGrade",
     "DescriptiveGradeSummary",

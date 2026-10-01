@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0.dev0 - Attendance reads increment
+
+- Add immutable attendance records, strict all/week/last-login views, and inclusive
+  civil-date windows over the account's all-view collection cache.
+- Preserve unknown metadata and raw custom types, use explicit 1/2 semester labels,
+  and expose only inert validated numeric detail identifiers.
+- Add original parser and real loopback HTTP regressions for completeness, fixed
+  forms, isolation/coalescing, budgets, non-replay, and cancellation.
+- Ship the centralized POST and matching evidence-labelled OpenAPI contract.
+  Details/notes, gateway records, overall/semester and subject ratio policies now
+  accompany bounded account-scoped metadata reuse. Other 0.3 families remain pending.
+- Protect numeric semester headings, full-width detail content, and strict JSON
+  boolean-semester rejection with original regressions. Preserve ancillary rows
+  as separate notes rather than guessing captions or silently dropping text.
+- Complete one installed native/apix attendance pair under explicit authorization;
+  populated collections/detail/frequency match the declared legacy projection.
+  Empty last-login and zero-denominator mapping are not populated/full-domain parity.
+  No PyPI publication or consumer migration is included.
+
 ## 0.2.0 - Local-first grade coverage
 
 - First increment: typed final-grade summaries through one bounded HTML GET,

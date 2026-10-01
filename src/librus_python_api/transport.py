@@ -1,6 +1,7 @@
 """Account-isolated aiohttp transport and explicit injection contract."""
 
 import math
+import re
 import zlib
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -14,6 +15,7 @@ from yarl import URL
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
+    ATTENDANCE_VIEW_FORMS,
     AUTH_COOKIES,
     ENDPOINTS,
     GRADE_VIEW_FIELDS,
@@ -26,6 +28,8 @@ from librus_python_api.config import (
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
+    AttendanceView,
+    AttendanceViewSelection,
     GradeView,
     GradeViewSelection,
     LoginSubmission,
@@ -47,7 +51,11 @@ class AccountTransport(Protocol):
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission | GradeViewSelection | None = None,
+        form: LoginSubmission
+        | GradeViewSelection
+        | AttendanceViewSelection
+        | None = None,
+        reference_id: str | None = None,
     ) -> TransportResponse: ...
 
     async def follow(
@@ -114,12 +122,24 @@ class AiohttpTransport:
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission | GradeViewSelection | None = None,
+        form: LoginSubmission
+        | GradeViewSelection
+        | AttendanceViewSelection
+        | None = None,
+        reference_id: str | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         url = self._url(endpoint)
+        if "{id}" in endpoint.path:
+            if type(reference_id) is not str or not re.fullmatch(
+                r"[0-9]{1,64}", reference_id
+            ):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            url = url.replace("{id}", reference_id)
+        elif reference_id is not None:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
         return await self._request(endpoint, url, budget, form)
@@ -168,7 +188,7 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | GradeViewSelection | None,
+        form: LoginSubmission | GradeViewSelection | AttendanceViewSelection | None,
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
@@ -179,6 +199,12 @@ class AiohttpTransport:
             if form is not None and (
                 not isinstance(form, GradeViewSelection)
                 or not isinstance(form.view, GradeView)
+            ):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+        elif endpoint.operation_id == "attendance":
+            if form is not None and (
+                not isinstance(form, AttendanceViewSelection)
+                or not isinstance(form.view, AttendanceView)
             ):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
         elif form is not None:
@@ -211,7 +237,7 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission | GradeViewSelection | None,
+        form: LoginSubmission | GradeViewSelection | AttendanceViewSelection | None,
     ) -> TransportResponse:
         session = self._get_session()
         proxy = self._connection.proxy_url
@@ -232,6 +258,14 @@ class AiohttpTransport:
         elif endpoint.operation_id == "grades":
             view = form.view if isinstance(form, GradeViewSelection) else GradeView.ALL
             payload = {GRADE_VIEW_FIELDS[view.value]: "1"}
+        elif endpoint.operation_id == "attendance":
+            attendance_view = (
+                form.view
+                if isinstance(form, AttendanceViewSelection)
+                else AttendanceView.ALL
+            )
+            key, value = ATTENDANCE_VIEW_FORMS[attendance_view.value]
+            payload = {key: value}
         async with session.request(
             endpoint.method,
             url,

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "librus-python-api"
 dynamic = ["version"]
-description = "Independent bounded async Librus Synergia account, identity, and grades client"
+description = "Independent bounded async Librus Synergia account, grades, and attendance client"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"

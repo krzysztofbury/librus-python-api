@@ -1,8 +1,12 @@
-# Public API: 0.2.0 grades
+# Public API: 0.3.0.dev0 attendance increment
 
 The 0.1.0 delivery implements login, gateway identity, and HTML student
 information. The 0.2.0 scope is grades, averages, final summaries, views, and
-windows. Other academic and school reads move to 0.3.0. Bounded live qualification has
+windows. The first 0.3 development increment adds attendance collections, upstream
+views, date windows, detail fields/notes, gateway records, and overall/subject
+frequency, not complete school-read coverage. Bounded attendance qualification
+has completed on one context; populated last-login and broader layouts remain
+unqualified. Bounded grade live qualification has
 passed for a narrow observed variant; general account compatibility is unverified.
 Reading school data requires separate authorization.
 Authentication can change the upstream last-login timestamp.
@@ -90,8 +94,10 @@ inflated bytes; identity-encoded bodies are charged once. Limits stop new work
 with `LimitError`; no partial identity record is fabricated.
 
 Fresh reads are the default. An explicit age from zero through 3600 seconds allows
-reuse of at most six cached results per account (identity, profile, final summaries,
-and three grade views). Session invalidation clears all.
+reuse through a bounded 64-entry account result cache (fixed collections, numeric
+details, and subject-frequency selections). HTML date windows add no cache entry.
+Session invalidation clears results and the separate 256-entry lesson/subject
+metadata cache.
 TTL is checked against monotonic elapsed time at every read; older values are
 replaced on the next fetch. Cache hits still respect deadlines and cooldowns.
 Identical in-flight default-budget reads share work. Explicit-budget reads share
@@ -123,8 +129,8 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents thirteen enabled wire
-operations, including the summary GET and explicit grade-view POST.
+[OpenAPI YAML](contracts/upstream.openapi.yaml) documents eighteen enabled wire
+operations, including the summary GET and explicit grade/attendance-view POSTs.
 These include raw
 HTML, forms, origins, side effects, and evidence gaps.
 
@@ -196,6 +202,68 @@ returning a partial collection. Source-informed fixture support is not populated
 live qualification. Actual account/layout coverage is recorded in `contracts/grades.md`
 and VERIFICATION.md for observed versus offline-only coverage.
 
+## Attendance collections and windows
+
+`await account.attendance(view=AttendanceView.ALL)` returns immutable
+`Attendance(identity, items, semesters, observation, view)`. The enum permits
+`ALL`, `WEEK`, and `LAST_LOGIN`, using fixed upstream forms distinct from grade
+forms. Each view has an independent account/session cache and coalescing key.
+One fresh read makes one non-replayed selection POST after authentication;
+an explicitly permitted cache hit makes no POST.
+
+Each `AttendanceRecord` preserves the raw `symbol`, civil `day`, explicitly
+labelled semester (1/2), optional raw `attendance_type`, `teacher`, integer
+`period`, boolean `excursion`, `topic`, `subject`, inert numeric `detail_id`,
+and tooltip `metadata`. Missing fields remain `None`, not false/zero. Unknown
+types are retained without fabricated presence classifications. `semesters`
+lists the displayed explicit sections in upstream order, including empty ones.
+Reversed sections and a single second-semester section do not change their meaning.
+
+`await account.attendance_window(start, end, max_age_seconds=60)` validates plain
+`datetime.date` inputs and at most 366 inclusive civil days before I/O, then
+filters the ALL collection. `AttendanceWindow` retains identity and the original
+observation with ordered matching items. It adds no window cache or detail traffic.
+Invalid/ambiguous layouts fail instead of returning partial or invented empty data.
+
+`await account.attendance_detail(detail_id)` accepts a bounded numeric string,
+never a URL. `AttendanceDetail` contains identity, ID, ordered label/value `fields`,
+separate full-width `notes`, and observation. Word boundaries and empty values are
+preserved; labels have trailing colons removed. Malformed fields fail, not partial
+maps. Bounds: 32 fields/notes and 1024 characters per rendered value.
+
+`await account.gateway_attendance()` returns `GatewayAttendance` with typed records:
+optional record ID, civil date, semester 1/2, raw type ID, strict `AttendanceKind`,
+lesson ID, and optional period. Unknown IDs stay `UNKNOWN`. This separate JSON
+source, not HTML symbols or labels, supplies frequency calculations.
+
+`await account.attendance_frequency()` returns `AttendanceFrequency` with first/
+second-semester and overall `FrequencyMeasure` values. Its explicit `overall`
+policy counts present, late, and excursion over all records. Measures expose
+attended/total/excluded/unknown counts and an unrounded `ratio` in 0..1. Unknown
+types or zero denominator yield `ratio=None`, intentionally different from apix's
+zero-denominator full-attendance marker.
+
+`await account.subject_frequency(start=None, end=None)` returns `SubjectFrequencies`
+with ordered, ID-bearing items. Civil-date bounds filter records before metadata
+resolution; two supplied bounds permit at most 366 inclusive days. Its `subject`
+policy counts present/late over present/late/absence/excused/exemption, excludes
+known other kinds, and never invents a ratio for unknown types or zero denominator.
+Consumers convert ratios to percentages and round explicitly. Distinct subject
+IDs are never merged by name.
+
+Numeric lesson/subject lookups use the same isolated session and shared scheduler,
+with response-ID matching, deduplication, and a 256-entry metadata cache with a
+one-hour TTL. Session changes invalidate it. Fresh records are still fetched when
+metadata is warm. Workloads permit at most 256 unique lessons/subjects; original
+request/deadline budgets can reject a large selection without partial success.
+
+Installed qualification completed populated collections, detail fields, overall
+frequency, and one-day subject frequency on one context. Last-login equality was
+empty coverage only. The comparison applied declared legacy defaults and
+zero-denominator markers without changing native domain results. See
+[the business/provenance matrix](contracts/attendance.md) for intentional baseline
+differences, consumer mapping responsibilities, bounds, and remaining gates.
+
 ## Exceptions, retries, and diagnostics
 
 Catch specific classes from `librus_python_api.exceptions`, or their `LibrusError`
@@ -237,7 +305,7 @@ lucky-number data fails explicitly until a legacy unavailable marker is evidence
 No native failure is replayed through the legacy backend.
 
 Other callback/account variants, profile layouts, summary variants and encodings
-remain unverified. Individual grades, windows, GPA, other academic reads,
-and messaging/event operations,
+remain unverified. Populated grade variants, broader attendance compatibility,
+GPA, remaining academic reads, and messaging/event operations,
 daily credentialed CI, PyPI, macOS/Windows qualification, and production backend
 migration are not part of this completed Linux local-first delivery.

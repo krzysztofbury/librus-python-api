@@ -205,9 +205,21 @@ is separate from these local checks. No PyPI publication or consumer switch occu
 
 ### 0.3.0 - Remaining academic and school-information coverage
 
-Depends on 0.2.0. All of these families are postponed, not part of grade delivery:
+Depends on 0.2.0. These families are not part of grade delivery. The current
+`0.3.0.dev0` increment implements offline-tested attendance collections, strict
+upstream views, cached civil-date windows, details/notes, gateway records, and
+overall/per-subject ratios with bounded metadata reuse. See contracts/attendance.md
+for business differences, provenance, and narrow live qualification. A completed
+installed native/apix pair qualified populated collections/detail/frequency on one
+context; populated last-login, custom types, and wider roles remain pending.
+This is not completed 0.3.0 coverage.
 
-- [ ] Attendance/windows/details/frequency, including explicit units and unknown types.
+- [x] Attendance collection/views/windows with explicit semesters, unknown raw
+  metadata, inert detail IDs, account isolation, fixed forms, and non-replayed POSTs.
+- [x] Attendance/windows/details/frequency contracts, with explicit ratio units,
+  preserved unknown types, bounded metadata reuse, and installed proof.
+- [ ] Broader attendance role/layout qualification, populated last-login, custom
+  type metadata semantics, and full-year subject-resolution qualification.
 - [ ] Timetable, agenda/details, homework/details, announcements, and completed lessons.
 - [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
   original populated/empty/error fixtures, and installed-artifact proof per family.
