@@ -16,8 +16,9 @@ named third-party operation.
 0.2.0 is grades-only. Other academic reads move to 0.3.0, messaging to 0.4.0.
 Observed grade-view forms and unqualified populated layouts are distinguished in
 grades.md; an exercised route is not proof of every response variant.
-The 0.3.0.dev0 attendance POST is source-informed/offline-tested only. Detail
-reference recognition enables no detail or frequency route.
+The 0.3.0.dev0 attendance routes include explicit details and gateway metadata
+for frequency. Narrow installed evidence covers one context; source-informed and
+offline-only alternatives remain distinct from populated qualification.
 
 ## Adding an endpoint
 

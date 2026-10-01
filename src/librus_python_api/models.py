@@ -15,7 +15,14 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from librus_python_api.exceptions import ErrorKind
 
 type OperationName = Literal[
-    "identity", "student_information", "final_grades", "grades", "attendance"
+    "identity",
+    "student_information",
+    "final_grades",
+    "grades",
+    "attendance",
+    "attendance_detail",
+    "gateway_attendance",
+    "subject_frequency",
 ]
 
 
@@ -72,6 +79,20 @@ class AttendanceViewSelection:
 
 
 type ReadView = GradeView | AttendanceView
+
+
+@dataclass(frozen=True, slots=True)
+class DetailReference:
+    identifier: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceDateSelection:
+    start: date | None
+    end: date | None
+
+
+type ReadSelection = ReadView | DetailReference | AttendanceDateSelection
 
 
 class GradeKind(StrEnum):
@@ -275,6 +296,141 @@ class AttendanceWindow:
     end: date
     items: tuple[AttendanceRecord, ...] = field(repr=False)
     observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceDetailContent:
+    fields: tuple[tuple[str, str], ...] = field(repr=False)
+    notes: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceDetail:
+    identity: Identity
+    detail_id: str = field(repr=False)
+    fields: tuple[tuple[str, str], ...] = field(repr=False)
+    notes: tuple[str, ...] = field(repr=False)
+    observation: Observation
+
+
+class AttendanceKind(StrEnum):
+    ABSENCE = "absence"
+    LATE = "late"
+    EXCUSED = "excused"
+    EXEMPTION = "exemption"
+    PRESENT = "present"
+    EXCURSION = "excursion"
+    CONTEST = "contest"
+    TRAINING = "training"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class GatewayAttendanceRecord:
+    identifier: str | None = field(repr=False)
+    day: date = field(repr=False)
+    semester: Literal[1, 2]
+    type_id: str = field(repr=False)
+    kind: AttendanceKind
+    lesson_id: str = field(repr=False)
+    period: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class GatewayAttendance:
+    identity: Identity
+    items: tuple[GatewayAttendanceRecord, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class FrequencyMeasure:
+    attended_count: int
+    total_count: int
+    excluded_count: int
+    unknown_count: int
+    ratio: float | None
+    policy: Literal["overall", "subject"]
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceFrequency:
+    identity: Identity
+    first_semester: FrequencyMeasure
+    second_semester: FrequencyMeasure
+    overall: FrequencyMeasure
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectFrequency:
+    subject_id: str = field(repr=False)
+    subject: str = field(repr=False)
+    frequency: FrequencyMeasure
+
+
+@dataclass(frozen=True, slots=True)
+class SubjectFrequencies:
+    identity: Identity
+    items: tuple[SubjectFrequency, ...] = field(repr=False)
+    start: date | None
+    end: date | None
+    observation: Observation
+
+
+class _NumericReferenceWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Id: Annotated[str, Field(pattern=r"^[0-9]{1,64}$")]
+
+    @field_validator("Id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> Any:
+        return str(value) if type(value) is int and 0 <= value < 10**64 else value
+
+
+class _AttendanceWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Id: Annotated[str | None, Field(pattern=r"^[0-9]{1,64}$")] = None
+    Date: Annotated[str, Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")]
+    Semester: Literal[1, 2]
+    Type: _NumericReferenceWire
+    Lesson: _NumericReferenceWire
+    LessonNo: Annotated[int | None, Field(ge=0, le=99)] = None
+
+    @field_validator("Semester", mode="before")
+    @classmethod
+    def reject_boolean_semester(cls, value: Any) -> Any:
+        if type(value) is not int:
+            raise ValueError("Invalid semester type")
+        return value
+
+    @field_validator("Id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> Any:
+        return _NumericReferenceWire.normalize_id(value)
+
+
+class _AttendanceEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Attendances: Annotated[list[_AttendanceWire], Field(max_length=2048)]
+
+
+class _LessonWire(_NumericReferenceWire):
+    Subject: _NumericReferenceWire
+
+
+class _LessonEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Lesson: _LessonWire
+
+
+class _SubjectWire(_NumericReferenceWire):
+    Name: Annotated[str, Field(min_length=1, max_length=1024)]
+
+
+class _SubjectEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Subject: _SubjectWire
 
 
 @dataclass(frozen=True, slots=True)

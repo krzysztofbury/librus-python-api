@@ -397,13 +397,15 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: select_view
       x-retry-safe: false
-      x-evidence: source_informed
+      x-evidence: independently_observed
       x-evidence-note: |
         Route, view fields, tooltip labels, grid/section concepts and detail-link
         requirements reviewed against installed librus-apix 1.5.3 and the existing
         consumer contracts. No implementation, fixture or capture was copied.
-        Original semantic section-label fixtures are synthetic. No live attendance
-        observation or complete account/layout qualification is claimed.
+        Original semantic section-label fixtures are synthetic. Bounded installed
+        validation observed all/week/last-login forms and the numeric Okres 1 label
+        on one context. Last-login was empty; broader roles/layouts and populated
+        second-semester qualification remain pending. See VERIFICATION.md.
       description: |
         Changes the upstream selected view, not attendance records. Never replay
         this POST automatically, including after expiry or ambiguous failure.
@@ -411,7 +413,7 @@ paths:
         field names. These differ from the grade-view forms.
         Requires one center/big/decorated grid with explicit semester headings.
         Supported case-insensitive labels are I okres, II okres, pierwszy okres,
-        drugi okres, I semestr and II semestr. Semester is 1 or 2, never inferred
+        drugi okres, I semestr, II semestr, Okres 1 and Okres 2. Semester is 1 or 2, never inferred
         from section position or zero-based baseline values. Duplicate/unknown
         headings and records before a heading fail. Empty recognized grids can
         return no entries; unrecognized empty pages fail.
@@ -425,15 +427,15 @@ paths:
         Approved-shaped numeric onclick detail identifiers are inert data only;
         recognized window calls allow one to four literal string/integer arguments
         after the URL, never expressions or control/whitespace characters in URLs.
-        this increment enables no detail or gateway/metadata retrieval operation.
+        detail retrieval is a separate explicit numeric-reference operation.
         Foreign/malformed/script references never authorize transport destinations.
         Bounds: 2048 entries, 8192 metadata/script characters, 32 metadata chunks,
         1024 rendered characters/value, common HTML node/depth/byte bounds and
         shared rate/concurrency/queue/request/deadline limits. Each upstream view
         has its own account/session cache and coalescing key. Date windows use
         all-view civil dates inclusively, at most 366 days, with no per-window cache.
-        No gateway frequency, locally inferred last-login date or denominator
-        calculation is part of this operation.
+        Gateway frequency uses a separate collection, not HTML symbol inference.
+        No locally inferred last-login date is part of this operation.
       security: [{SessionCookie: []}]
       requestBody:
         required: true
@@ -457,6 +459,150 @@ paths:
           $ref: '#/components/responses/Html'
         default:
           $ref: '#/components/responses/Failure'
+  /przegladaj_nb/szczegoly/{id}:
+    get:
+      operationId: attendance_detail
+      tags: [Attendance]
+      summary: Read a numeric attendance detail reference
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original detail fixtures plus observed full-width ancillary rows; installed populated detail fields match the baseline on one context. Broader variants remain pending.
+      description: |
+        One container-background DIV and one detail table with line0/line1 rows,
+        each containing one TH label and one TD value. Required nonempty unique
+        labels; block word boundaries and empty values preserved. Full-width TD
+        colspan=2 rows following fields are preserved separately as notes, never
+        silently omitted or assigned invented labels. At most 32 fields/notes
+        and 1024 characters per label/value. Malformed/ambiguous rows fail rather
+        than being skipped. Numeric IDs only; no URL/path/query input. Read-only,
+        with bounded safe expiry recovery, original budgets and isolated caches.
+      parameters: [{$ref: '#/components/parameters/NumericId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Attendances:
+    get:
+      operationId: gateway_attendance
+      tags: [Attendance]
+      summary: Read gateway attendance records for explicit ratio calculations
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original gateway fixtures. Installed overall and one-day populated subject-frequency comparison completed on one context; custom types and broader variants remain offline-only.
+      description: |
+        Required Attendances collection, at most 2048 records. Dates are ISO civil
+        dates; semesters are explicit 1/2; type/lesson references are numeric IDs.
+        Optional record Id and LessonNo remain absent when not supplied. Duplicate
+        supplied record IDs, malformed references/dates and missing envelopes fail.
+        Known source-informed type IDs map to absence/late/excused/exemption/present/
+        excursion/contest/training; unmapped IDs are retained as unknown.
+        Overall/semester ratio counts present, late and excursion over all records.
+        Per-subject ratio counts present and late over present/late/absence/excused/
+        exemption; known other kinds are excluded. Ratios are 0..1, unrounded, not
+        percentages. Unknown types or zero denominator yield no ratio with explicit
+        counts, not an invented 100 percent. Subject windows are local inclusive
+        filters before bounded deduplicated lesson/subject resolution. Fresh records
+        are not replaced by metadata cache hits. Safe reads share account lifecycle,
+        global traffic limits, deadlines, request/body budgets and cancellation.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway attendance envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Attendances]
+                properties:
+                  Attendances:
+                    type: array
+                    maxItems: 2048
+                    items:
+                      type: object
+                      required: [Date, Semester, Type, Lesson]
+                      properties:
+                        Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                        Date: {type: string, format: date}
+                        Semester: {type: integer, enum: [1, 2]}
+                        Type: {$ref: '#/components/schemas/NumericReference'}
+                        Lesson: {$ref: '#/components/schemas/NumericReference'}
+                        LessonNo: {type: integer, minimum: 0, maximum: 99, nullable: true}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Lessons/{id}:
+    get:
+      operationId: attendance_lesson
+      tags: [Attendance]
+      summary: Resolve one unique attendance lesson to a subject reference
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original numeric reference fixtures; installed populated one-day subject resolution independently observed under shared budgets. Complete role/layout coverage is not claimed.
+      description: |
+        Response Lesson.Id must match the requested numeric ID; Subject.Id is a
+        required numeric reference. No arbitrary URL method or cross-login metadata.
+        At most 256 unique lessons per selected frequency workload; lesson and
+        subject metadata share a 256-entry account/session cache, one-hour TTL.
+        Deduplication, finite request budgets and the common scheduler bound traffic.
+      parameters: [{$ref: '#/components/parameters/NumericId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway lesson envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Lesson]
+                properties:
+                  Lesson:
+                    type: object
+                    required: [Id, Subject]
+                    properties:
+                      Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                      Subject: {$ref: '#/components/schemas/NumericReference'}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Subjects/{id}:
+    get:
+      operationId: attendance_subject
+      tags: [Attendance]
+      summary: Resolve a numeric subject reference to its school-provided name
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original subject fixtures; installed populated one-day resolution independently observed under shared budgets. Custom types and wider roles remain unqualified.
+      description: |
+        Response Subject.Id must match the requested numeric ID; Name must be a
+        nonblank string of at most 1024 characters. Distinct subject IDs are never
+        merged by name. Metadata cache policy matches attendance_lesson; expiry,
+        identity changes and cancellation remain owned by the account service.
+      parameters: [{$ref: '#/components/parameters/NumericId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway subject envelope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Subject]
+                properties:
+                  Subject:
+                    type: object
+                    required: [Id, Name]
+                    properties:
+                      Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                      Name: {type: string, minLength: 1, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
   /informacja:
     get:
       operationId: student_information
@@ -489,12 +635,26 @@ components:
       name: oauth_token
       description: Scope-preserving jar may also hold DZIENNIKSID, SDZIENNIKSID, and API DeviceCookie.
   parameters:
+    NumericId:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 64, pattern: '^[0-9]+$'}
     ClientId:
       in: query
       name: client_id
       required: true
       schema: {type: string, enum: ['46'], default: '46'}
   schemas:
+    NumericIdentifier:
+      oneOf:
+        - {type: integer, minimum: 0}
+        - {type: string, minLength: 1, maxLength: 64, pattern: '^[0-9]+$'}
+    NumericReference:
+      type: object
+      required: [Id]
+      properties:
+        Id: {$ref: '#/components/schemas/NumericIdentifier'}
     Person:
       type: object
       required: [Id]

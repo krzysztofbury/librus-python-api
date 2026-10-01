@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from lxml import html
 
 from librus_python_api.config import (
+    ATTENDANCE_DETAIL_MAX_FIELDS,
     ATTENDANCE_DETAIL_PATH_PREFIX,
     ATTENDANCE_EMPTY_MARKERS,
     ATTENDANCE_MAX_RECORDS,
@@ -18,7 +19,11 @@ from librus_python_api.config import (
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.grade_parsers import _cells, _rows, _text
 from librus_python_api.grade_records import _day, _metadata
-from librus_python_api.models import AttendanceRecord, AttendanceRecords
+from librus_python_api.models import (
+    AttendanceDetailContent,
+    AttendanceRecord,
+    AttendanceRecords,
+)
 from librus_python_api.parsers import parse_html_document
 
 
@@ -159,3 +164,55 @@ def parse_attendance(body: bytes) -> AttendanceRecords:
     if not semesters:
         raise LibrusError(ErrorKind.PARSE)
     return AttendanceRecords(tuple(items), tuple(semesters))
+
+
+def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
+    document = parse_html_document(body)
+    containers = [
+        node
+        for node in document.iter("div")
+        if "container-background" in node.get("class", "").split()
+    ]
+    if len(containers) != 1:
+        raise LibrusError(ErrorKind.PARSE)
+    fields: dict[str, str] = {}
+    notes: list[str] = []
+    tables: set[html.HtmlElement] = set()
+    for row in containers[0].iter("tr"):
+        if not {"line0", "line1"}.intersection(row.get("class", "").split()):
+            continue
+        cells = _cells(row)
+        table = next(row.iterancestors("table"), None)
+        if table is None:
+            raise LibrusError(ErrorKind.PARSE)
+        tables.add(table)
+        if (
+            fields
+            and len(cells) == 1
+            and cells[0].tag == "td"
+            and cells[0].get("colspan") == "2"
+            and cells[0].get("rowspan", "1") == "1"
+        ):
+            notes.append(_text(cells[0]))
+            if len(fields) + len(notes) > ATTENDANCE_DETAIL_MAX_FIELDS:
+                raise LibrusError(ErrorKind.LIMIT)
+            continue
+        if (
+            len(cells) != 2
+            or cells[0].tag != "th"
+            or cells[1].tag != "td"
+            or any(
+                c.get("rowspan", "1") != "1" or c.get("colspan", "1") != "1"
+                for c in cells
+            )
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        label = _text(cells[0]).rstrip(":")
+        if not label or label in fields:
+            raise LibrusError(ErrorKind.PARSE)
+        fields[label] = _text(cells[1])
+        if len(fields) + len(notes) > ATTENDANCE_DETAIL_MAX_FIELDS:
+            raise LibrusError(ErrorKind.LIMIT)
+    if not fields or len(tables) != 1:
+        raise LibrusError(ErrorKind.PARSE)
+    return AttendanceDetailContent(tuple(fields.items()), tuple(notes))

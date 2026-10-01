@@ -250,6 +250,8 @@ instead of widening a parser until every unknown page looks like empty success.
 
 ## 0.3.0.dev0 attendance checkpoint self-review
 
+Historical collection-only checkpoint; detail/frequency follow-up is recorded below.
+
 Implementing-agent self-review only, not independent approval. The increment
 implements collections/views/windows and an explicit business matrix, not
 attendance details/frequency or completed 0.3 coverage.
@@ -276,3 +278,30 @@ attendance details/frequency or completed 0.3 coverage.
 Retrospective lesson: validate references before URL normalization, and pair each
 parser completeness claim with an original failing unsupported-layout example.
 Do not turn source-informed semantic labels into observed-upstream claims.
+
+## Attendance detail/frequency qualification retrospective
+
+- The declared missing APIs now have actual public reads and matching centralized
+  contracts. Frequency names carry explicit ratio units and separate policies;
+  custom types and absent denominators cannot silently become full attendance.
+- Numeric references and metadata IDs validate on both request and response.
+  Result and metadata caches are bounded, login-scoped, TTL-limited, and cleared
+  on invalidation; record freshness is separate from reference reuse.
+- Early installed smoke revealed a numeric period label missed by synthetic
+  fixtures. An original failing regression protected it before the parser fix.
+- The first detail fix guessed a close-control caption from incomplete structural
+  evidence and still failed live. Preserve full-width ancillary text explicitly
+  as notes rather than guessing its contents or treating it as unlabeled fields.
+- Stop on failure, retain cumulative request accounting across authorized diagnostic
+  scopes, and do not call parser replay a completed installed runtime. Final runtime
+  qualification completed only after the notes model was installed and exercised.
+- A completed known-field/ratio projection is not full-domain equivalence: retain
+  native optional states/notes, declared zero-denominator differences, empty
+  last-login qualification, and one-day subject-resolution limits in the matrix.
+- Connection counts must state instrumentation scope. The baseline's synchronous
+  requests were counted, but its auxiliary aiohttp connection creation was not;
+  do not promote that lower bound into an exact connection-reuse comparison.
+
+This remains implementing-agent self-review, not independent approval. Future
+layout diagnostics should capture sufficient nonprivate structural evidence
+before closing a failed session, without retaining captures or broadening traffic.

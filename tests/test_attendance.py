@@ -55,6 +55,19 @@ def test_one_displayed_second_semester_is_not_invented_as_first() -> None:
     assert result.items[0].semester == 2
 
 
+def test_numeric_period_headings_with_full_width_cells_preserve_semesters() -> None:
+    body = attendance_html(second=attendance_box(day="2027-02-03"), reverse=True)
+    body = body.replace(
+        'class="bolded center">I okres', 'class="bolded center" colspan="7">Okres 1'
+    )
+    body = body.replace(
+        'class="center bolded">II okres', 'class="center bolded" colspan="7">Okres 2'
+    )
+    result = parse_attendance(body.encode())
+    assert result.semesters == (2, 1)
+    assert [row.semester for row in result.items] == [2, 1]
+
+
 def test_empty_is_only_success_with_a_valid_semester_grid() -> None:
     result = parse_attendance(attendance_html(first="", second="-").encode())
     assert result.items == ()

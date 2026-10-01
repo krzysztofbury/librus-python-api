@@ -2,6 +2,7 @@
 
 import asyncio
 import math
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -17,10 +18,19 @@ from tenacity import (
     wait_none,
 )
 
-from librus_python_api.attendance import parse_attendance
+from librus_python_api.attendance import parse_attendance, parse_attendance_detail
+from librus_python_api.attendance_frequency import (
+    parse_gateway_attendance,
+    parse_lesson_subject,
+    parse_subject_name,
+    summarize_frequency,
+)
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     ATTENDANCE_MAX_WINDOW_DAYS,
+    ATTENDANCE_METADATA_CACHE_SIZE,
+    ATTENDANCE_METADATA_TTL_SECONDS,
+    ATTENDANCE_RESULT_CACHE_SIZE,
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
     SESSION_COOKIE,
@@ -37,11 +47,17 @@ from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     Attendance,
+    AttendanceDateSelection,
+    AttendanceDetail,
+    AttendanceFrequency,
     AttendanceView,
     AttendanceViewSelection,
     AttendanceWindow,
+    DetailReference,
     DiagnosticEvent,
     FinalGrades,
+    GatewayAttendance,
+    GatewayAttendanceRecord,
     Grades,
     GradeView,
     GradeViewSelection,
@@ -50,9 +66,11 @@ from librus_python_api.models import (
     LoginSubmission,
     Observation,
     OperationName,
-    ReadView,
+    ReadSelection,
     SchedulerSnapshot,
     StudentInformation,
+    SubjectFrequencies,
+    SubjectFrequency,
     TransportResponse,
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
@@ -64,7 +82,16 @@ from librus_python_api.transport import (
     TransportFactory,
 )
 
-type _ReadResult = Identity | StudentInformation | FinalGrades | Grades | Attendance
+type _ReadResult = (
+    Identity
+    | StudentInformation
+    | FinalGrades
+    | Grades
+    | Attendance
+    | AttendanceDetail
+    | GatewayAttendance
+    | SubjectFrequencies
+)
 
 
 @dataclass(slots=True)
@@ -218,14 +245,15 @@ class AccountClient:
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
         self._flights: dict[
-            tuple[OperationName, ReadView, float, RequestBudget | None], _Flight
+            tuple[OperationName, ReadSelection, float, RequestBudget | None], _Flight
         ] = {}
         self._operations = 0
         self._generation = 0
         self._identity: Identity | None = None
         self._cache: dict[
-            tuple[OperationName, ReadView], tuple[float, _ReadResult]
+            tuple[OperationName, ReadSelection], tuple[float, _ReadResult]
         ] = {}
+        self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
 
     @property
@@ -346,12 +374,86 @@ class AccountClient:
             result.observation,
         )
 
+    async def attendance_detail(
+        self,
+        detail_id: str,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> AttendanceDetail:
+        if type(detail_id) is not str or not re.fullmatch(r"[0-9]{1,64}", detail_id):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        return cast(
+            AttendanceDetail,
+            await self._read(
+                "attendance_detail", budget, max_age_seconds, DetailReference(detail_id)
+            ),
+        )
+
+    async def gateway_attendance(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> GatewayAttendance:
+        return cast(
+            GatewayAttendance,
+            await self._read("gateway_attendance", budget, max_age_seconds),
+        )
+
+    async def attendance_frequency(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> AttendanceFrequency:
+        rows = await self.gateway_attendance(
+            budget=budget, max_age_seconds=max_age_seconds
+        )
+        return AttendanceFrequency(
+            rows.identity,
+            summarize_frequency(
+                tuple(r for r in rows.items if r.semester == 1), subject_policy=False
+            ),
+            summarize_frequency(
+                tuple(r for r in rows.items if r.semester == 2), subject_policy=False
+            ),
+            summarize_frequency(rows.items, subject_policy=False),
+            rows.observation,
+        )
+
+    async def subject_frequency(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SubjectFrequencies:
+        if any(
+            value is not None and type(value) is not date for value in (start, end)
+        ) or (
+            start is not None
+            and end is not None
+            and not 0 <= (end - start).days < ATTENDANCE_MAX_WINDOW_DAYS
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        return cast(
+            SubjectFrequencies,
+            await self._read(
+                "subject_frequency",
+                budget,
+                max_age_seconds,
+                AttendanceDateSelection(start, end),
+            ),
+        )
+
     async def _read(
         self,
         operation: OperationName,
         budget: RequestBudget | None,
         max_age: float,
-        view: ReadView = GradeView.ALL,
+        view: ReadSelection = GradeView.ALL,
     ) -> _ReadResult:
         service = self._service
         service._bind()
@@ -405,7 +507,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-        view: ReadView,
+        view: ReadSelection,
     ) -> _ReadResult:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
@@ -439,7 +541,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-        view: ReadView,
+        view: ReadSelection,
     ) -> _ReadResult:
         timed_out = False
         try:
@@ -469,6 +571,8 @@ class AccountClient:
                             )
                         raise
                     self._cache[cache_key] = (time.monotonic(), result)
+                    if len(self._cache) > ATTENDANCE_RESULT_CACHE_SIZE:
+                        del self._cache[next(iter(self._cache))]
                     return result
         except TimeoutError:
             timed_out = True
@@ -483,20 +587,24 @@ class AccountClient:
     def _invalidate(self) -> None:
         self._identity = None
         self._cache.clear()
+        self._metadata.clear()
         self._transport.clear_auth()
 
     async def _retrieve(
         self,
         operation: OperationName,
         budget: RequestBudget,
-        view: ReadView,
+        view: ReadSelection,
     ) -> _ReadResult:
         authenticated_now = self._identity is None
         # Initial login is outside retries: a failed credential submission must
         # never be replayed by a generic retry policy.
         if authenticated_now:
             await self._authenticate(budget)
-        if not ENDPOINTS[operation].retry_safe:
+        endpoint = (
+            "gateway_attendance" if operation == "subject_frequency" else operation
+        )
+        if not ENDPOINTS[endpoint].retry_safe:
             # A view-changing POST is never replayed, even for proven expiry.
             # Clear stale state so a later explicitly requested operation can
             # authenticate anew, but do not submit credentials in this attempt.
@@ -532,7 +640,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         authenticated_now: bool,
-        view: ReadView,
+        view: ReadSelection,
     ) -> _ReadResult:
         assert self._identity is not None
         if operation == "identity":
@@ -540,6 +648,9 @@ class AccountClient:
                 return self._identity
             self._identity = await self._fetch_identity(budget)
             return self._identity
+        if operation == "subject_frequency":
+            assert isinstance(view, AttendanceDateSelection)
+            return await self._subject_frequencies(budget, view)
         selection: GradeViewSelection | AttendanceViewSelection | None = None
         if operation == "grades":
             assert isinstance(view, GradeView)
@@ -547,13 +658,49 @@ class AccountClient:
         elif operation == "attendance":
             assert isinstance(view, AttendanceView)
             selection = AttendanceViewSelection(view)
-        response = await self._transport.request(operation, budget, form=selection)
+        reference = view.identifier if isinstance(view, DetailReference) else None
+        response = await self._transport.request(
+            operation, budget, form=selection, reference_id=reference
+        )
         self._validate_read_response(response)
+        if operation == "gateway_attendance":
+            self._require_content_type(response, "application/json")
+            items = await self._service._parsers.run(
+                parse_gateway_attendance, response.body, budget
+            )
+            return GatewayAttendance(
+                self._identity, items, self._observation(operation)
+            )
+        return await self._read_html_result(operation, response, budget, view)
+
+    def _require_content_type(self, response: TransportResponse, expected: str) -> None:
         if (
             response.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != "text/html"
+            != expected
         ):
             raise LibrusError(ErrorKind.PARSE)
+
+    async def _read_html_result(
+        self,
+        operation: OperationName,
+        response: TransportResponse,
+        budget: RequestBudget,
+        view: ReadSelection,
+    ) -> _ReadResult:
+        assert self._identity is not None
+        self._require_content_type(response, "text/html")
+        if operation == "attendance_detail":
+            assert isinstance(view, DetailReference)
+            detail_content = await self._service._parsers.run(
+                parse_attendance_detail, response.body, budget
+            )
+            return AttendanceDetail(
+                self._identity,
+                view.identifier,
+                detail_content.fields,
+                detail_content.notes,
+                self._observation(operation),
+            )
         if operation == "final_grades":
             items = await self._service._parsers.run(
                 parse_final_grades, response.body, budget
@@ -591,6 +738,77 @@ class AccountClient:
             fields.school,
             fields.lucky_number,
             self._observation("student_information"),
+        )
+
+    async def _metadata_value(
+        self, operation: str, identifier: str, budget: RequestBudget
+    ) -> str:
+        key = operation, identifier
+        cached = self._metadata.get(key)
+        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
+            return cached[1]
+        response = await self._transport.request(
+            operation, budget, reference_id=identifier
+        )
+        self._validate_read_response(response)
+        self._require_content_type(response, "application/json")
+        parser = (
+            parse_lesson_subject
+            if operation == "attendance_lesson"
+            else parse_subject_name
+        )
+        value = await self._service._parsers.run(
+            lambda body: parser(body, identifier), response.body, budget
+        )
+        self._metadata[key] = time.monotonic(), value
+        if len(self._metadata) > ATTENDANCE_METADATA_CACHE_SIZE:
+            del self._metadata[next(iter(self._metadata))]
+        return value
+
+    async def _subject_frequencies(
+        self,
+        budget: RequestBudget,
+        selection: AttendanceDateSelection,
+    ) -> SubjectFrequencies:
+        assert self._identity is not None
+        response = await self._transport.request("gateway_attendance", budget)
+        self._validate_read_response(response)
+        self._require_content_type(response, "application/json")
+        collection = await self._service._parsers.run(
+            parse_gateway_attendance, response.body, budget
+        )
+        observed = self._observation("gateway_attendance")
+        rows = tuple(
+            r
+            for r in collection
+            if (selection.start is None or r.day >= selection.start)
+            and (selection.end is None or r.day <= selection.end)
+        )
+        lessons = dict.fromkeys(row.lesson_id for row in rows)
+        if len(lessons) > ATTENDANCE_METADATA_CACHE_SIZE:
+            raise LibrusError(ErrorKind.LIMIT)
+        subjects: dict[str, list[GatewayAttendanceRecord]] = {}
+        lesson_subjects: dict[str, str] = {}
+        for identifier in lessons:
+            lesson_subjects[identifier] = await self._metadata_value(
+                "attendance_lesson", identifier, budget
+            )
+        for row in rows:
+            subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
+        if len(subjects) > ATTENDANCE_METADATA_CACHE_SIZE:
+            raise LibrusError(ErrorKind.LIMIT)
+        items: list[SubjectFrequency] = []
+        for identifier, records in subjects.items():
+            name = await self._metadata_value("attendance_subject", identifier, budget)
+            items.append(
+                SubjectFrequency(
+                    identifier,
+                    name,
+                    summarize_frequency(tuple(records), subject_policy=True),
+                )
+            )
+        return SubjectFrequencies(
+            self._identity, tuple(items), selection.start, selection.end, observed
         )
 
     def _observation(self, source: str) -> Observation:

@@ -1,6 +1,7 @@
 """Account-isolated aiohttp transport and explicit injection contract."""
 
 import math
+import re
 import zlib
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -54,6 +55,7 @@ class AccountTransport(Protocol):
         | GradeViewSelection
         | AttendanceViewSelection
         | None = None,
+        reference_id: str | None = None,
     ) -> TransportResponse: ...
 
     async def follow(
@@ -124,11 +126,20 @@ class AiohttpTransport:
         | GradeViewSelection
         | AttendanceViewSelection
         | None = None,
+        reference_id: str | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         url = self._url(endpoint)
+        if "{id}" in endpoint.path:
+            if type(reference_id) is not str or not re.fullmatch(
+                r"[0-9]{1,64}", reference_id
+            ):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            url = url.replace("{id}", reference_id)
+        elif reference_id is not None:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
         return await self._request(endpoint, url, budget, form)

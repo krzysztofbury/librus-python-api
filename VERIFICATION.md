@@ -240,6 +240,8 @@ Built distributions are local version 0.2.0, not published packages.
 
 ## 0.3.0.dev0 attendance collection increment
 
+Historical first checkpoint; superseded by the detail/frequency qualification below.
+
 2026-10-01, Linux. This development increment enables attendance collections,
 strict upstream views, and cached civil-date windows. Detail/frequency and the
 remaining 0.3 school-read families are not implemented. The route, forms, and
@@ -292,6 +294,68 @@ refresh and Markdown formatting before reconsideration. The repository currently
 configures the pip ecosystem; GitHub now documents a dedicated uv ecosystem.
 Review switching that configuration separately so future updates maintain uv.lock,
 then qualify the generated PR instead of assuming the configuration fixes it.
+
+## 0.3.0.dev0 detail/frequency and installed attendance qualification
+
+2026-10-01, Linux. `attendance_detail()`, `gateway_attendance()`,
+`attendance_frequency()`, and `subject_frequency()` now implement the documented
+detail and ratio contracts. Raw type IDs remain available; standard classification
+is source-informed, never inferred from HTML labels. Unknown types and zero
+denominators make the ratio unavailable with explicit counts. Subject results use
+numeric lesson/subject references, account-scoped bounded metadata, and shared
+traffic/deadline/request budgets. Consumers own percentage/rounding and legacy
+zero-denominator mapping. See contracts/attendance.md.
+
+305 portable tests pass on source Python 3.13/3.14, the separately installed wheel
+on Python 3.14, and separately installed sdist on Python 3.13. The four optional
+consumer/performance cases remain deselected. Installed runs start outside the
+checkout with import-location guards; metadata/license/typing and dependency
+consistency pass. Ruff, formatting, strict mypy, eighteen-operation contracts,
+lock checks, repository hooks, redacted secret scans, dependency audit, and diff
+checks pass. No known locked-dependency vulnerabilities were reported at this
+check, not a security guarantee.
+
+The original offline suite protects separate overall/
+subject denominators, unknown and zero states, strict JSON/dates/references,
+duplicate IDs, metadata response-ID matching, real HTTP details/gateway/resolution,
+login isolation, session/TTL invalidation, cache capacity and budget exhaustion.
+The boolean-semester case failed before an explicit validator because strict
+Pydantic Literal validation still accepted True as 1. Existing shared transport/
+scheduler and collection cancellation/non-replay proof remains in place.
+
+Bounded installed checks used one approved context only. Three stopped native
+attempts cost 10, 13, and 13 requests. Original regressions then protected numeric
+`Okres 1/2` headings and full-width detail text. A guessed close-button-only
+exception still failed: the correct contract preserves ancillary text as separate
+notes rather than guessing captions or omitting non-field content. No school
+capture or identifiable fixture was incorporated.
+
+Two authorized baseline runs completed at 29 requests each; the final installed
+native run completed at 25. The successful final pair therefore used 54 requests.
+Total qualification/diagnostics used 119 of the explicitly revised cumulative
+160-request ceiling. Each fresh client run was capped at 32 requests, credentials
+were submitted once per run, and every failed run stopped rather than replaying
+login/view requests. Baseline token refresh and asynchronous metadata calls were
+included in the guard counts. No read-once, send, other-account, or consumer call
+was allowed.
+
+All/week populated attendance and populated detail fields matched the declared
+legacy projection. Last-login matched but was empty, not populated qualification.
+Overall frequency and populated per-subject frequency for one observed civil day
+matched. The comparison converted native ratios to legacy rounded percentages,
+used legacy optional defaults only in the projection, and mapped one observed
+zero-denominator unavailable semester to the baseline's full-attendance marker.
+Native domain results retained unknown/unavailable states and detail notes.
+Sequential authentication changes historical-login state, so filter equality is
+not proof of identical historical state. Full-year subject resolution, custom
+types, second-semester populated layouts, and wider roles remain unqualified.
+
+Private comparison records crossed only process pipes/local restricted memory IPC.
+The helper was closed and discarded them after comparison; only redacted metrics
+remain. The full updated installed runtime, not parser replay alone, completed.
+BENCHMARKS.md records the successful pair, non-wins, incomplete baseline connection
+instrumentation, and policy/sample limits. No PyPI publication, live CI, consumer
+modification, or merge of the attendance PR is implied.
 
 ## Explicitly pending
 

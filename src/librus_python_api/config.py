@@ -212,7 +212,39 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/przegladaj_nb/uczen",
                 SideEffect.SELECT_VIEW,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "attendance_detail",
+                "GET",
+                "/przegladaj_nb/szczegoly/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "gateway_attendance",
+                "GET",
+                "/gateway/api/2.0/Attendances",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "attendance_lesson",
+                "GET",
+                "/gateway/api/2.0/Lessons/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "attendance_subject",
+                "GET",
+                "/gateway/api/2.0/Subjects/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
         )
     }
@@ -304,13 +336,32 @@ ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
         "drugi okres": 2,
         "i semestr": 1,
         "ii semestr": 2,
+        "okres 1": 1,
+        "okres 2": 2,
     }
 )
 ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
 ATTENDANCE_MAX_RECORDS = 2048
 ATTENDANCE_MAX_WINDOW_DAYS = 366
-# Reference recognition only. Detail retrieval is not enabled by this increment.
+# Collection recognition and detail retrieval share this central path family.
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
+ATTENDANCE_DETAIL_MAX_FIELDS = 32
+ATTENDANCE_METADATA_CACHE_SIZE = 256
+ATTENDANCE_RESULT_CACHE_SIZE = 64
+ATTENDANCE_METADATA_TTL_SECONDS = 3600
+# Source-informed stable type-ID policy, never inferred from names or symbols.
+ATTENDANCE_TYPE_KINDS = MappingProxyType(
+    {
+        "1": "absence",
+        "2": "late",
+        "3": "excused",
+        "4": "exemption",
+        "100": "present",
+        "1266": "excursion",
+        "2022": "contest",
+        "2829": "training",
+    }
+)
 
 
 class _ValidatedConfig(BaseModel):

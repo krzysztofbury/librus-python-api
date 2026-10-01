@@ -186,3 +186,51 @@ context's memory-only apix response bodies passed all views with common numeric
 parity and final-summary parsing. Twenty all-view parses averaged 3.46 ms CPU,
 with 168 KiB peak traced allocations. This was zero extra upstream traffic and
 is not a successful full-runtime rerun. Tracing excludes native allocations.
+
+## Attendance: completed installed comparison
+
+2026-10-01, Linux/Python 3.14. One approved context, installed native 0.3.0.dev0
+and unmodified apix 1.5.3. The final pair completed all/week/last-login attendance,
+one populated detail, overall frequency, and per-subject frequency for the same
+one-day selection. Known-field/ratio projection matched; last-login was empty.
+Native unavailable zero-denominator ratios were explicitly projected to legacy
+full-attendance markers for comparison only. Notes and unknown optional values
+remain native domain additions/differences, not full-record parity.
+
+| Operation | Native wall / CPU (ms) | apix wall / CPU (ms) | Requests native / apix |
+| --- | --- | --- | --- |
+| All, cold including authentication | 1007.58 / 20.43 | 992.60 / 39.55 | 10 / 10 |
+| Week, warm session | 89.01 / 3.32 | 152.26 / 11.02 | 1 / 1 |
+| Last-login, empty | 77.03 / 2.76 | 121.67 / 13.88 | 1 / 1 |
+| Populated detail | 37.57 / 2.19 | 81.45 / 10.90 | 1 / 1 |
+| Overall frequency | 61.19 / 3.80 | 218.06 / 15.59 | 1 / 2 |
+| One-day subject frequency | 668.39 / 13.15 | 1227.26 / 32.54 | 11 / 14 |
+
+The final pair used 25 native/29 apix requests, 54 combined. Cumulative authorized
+diagnostics used 119 of the revised 160-request ceiling, including three stopped
+native attempts and an earlier complete baseline run. Those failed/superseded
+attempts are excluded from timing comparisons, not silently called successful.
+Private data remained in pipes/restricted local memory IPC and was discarded.
+
+Native cold latency and whole-process RSS remain non-wins. Peak RSS/HWM after
+subject retrieval was 64624 KiB native versus 60916 KiB apix. Native observed two
+new connections and 23 reuse events. Ten baseline synchronous connection creations
+were observed, but its auxiliary aiohttp metadata connections/reuse were not
+instrumented: that is a lower bound, not an exact comparable connection total.
+Response-byte counts and parser-allocation peaks were not measured for this pair.
+
+Both runs had external safety guards capped at five requests/second, burst ten,
+32 requests and one credential submission. Native also used its real default
+shared scheduler; baseline business functions and their auxiliary async metadata
+workflow were unchanged. Baseline subject timing includes 811.33 ms of external
+guard wait; native guard wait was zero because native scheduling/latency already
+paced dispatch. Native scheduler wait was not separately measured here. This is
+not a clean unguarded client-speed ratio or matched-concurrency sustained benchmark.
+
+Imports and two-second between-view pacing were excluded; authentication and
+admission were included in retrieval timings. Extra baseline token refresh and
+metadata requests are real completed-workload differences. This is one sequential
+sample per operation, not general throughput/capacity or full-year resolution
+qualification. Sequential logins change last-login state; empty equality cannot
+qualify populated historical-login behavior. Wider roles/layouts and custom types
+remain unqualified. No consumer backend or dependency was changed.
