@@ -16,7 +16,9 @@ behavior, with private worker and queue state beside their implementation.
 
 ```python
 from librus_python_api import (
-    AccountCredentials, LibrusService, StudentInformation,
+    AccountCredentials,
+    LibrusService,
+    StudentInformation,
 )
 
 
@@ -68,12 +70,16 @@ import asyncio
 from librus_python_api import LibrusService, RequestBudget, StudentInformation
 
 
-async def profiles(service: LibrusService, aliases: tuple[str, ...]) -> list[StudentInformation]:
+async def profiles(
+    service: LibrusService, aliases: tuple[str, ...]
+) -> list[StudentInformation]:
     budget = RequestBudget(max_requests=32, timeout_seconds=120.0)
-    return await asyncio.gather(*(
-        service.account(alias).student_information(budget=budget)
-        for alias in aliases
-    ))
+    return await asyncio.gather(
+        *(
+            service.account(alias).student_information(budget=budget)
+            for alias in aliases
+        )
+    )
 ```
 
 Defaults: 32 requests, 120 seconds from budget construction including queue wait,
