@@ -52,6 +52,25 @@ may contain placeholders only. Automated detection cannot identify all personal
 school data or every password: independently anonymize fixtures and review the
 staged diff. Git hooks are local checks; each clone must install them.
 
+### Optional offline apix comparison
+
+Use an external, separately provenance-reviewed apix 1.5.3 installation. Do not
+copy its source or fixtures into this MIT repository, install it as a runtime
+dependency, or turn these synthetic comparisons into live qualification claims.
+
+```sh
+LIBRUS_APIX_SITE_PACKAGES=/path/to/external/site-packages \
+  uv run --locked pytest tests/integration/test_school_reads_apix.py -m integration
+```
+
+The tests feed original synthetic responses to unmodified business functions,
+verify installed source hashes, block non-loopback sockets/DNS, and exercise native
+public collection/detail reads on loopback. They require no real credentials and
+make no school requests. Default pytest deselects them; absent external configuration
+skips an explicitly selected comparison. Common-field parity, native additions,
+baseline defects and integrity-policy differences are separately asserted. Current
+results and limitations are in contracts/school-reads.md and VERIFICATION.md.
+
 ### Evidence and live compatibility
 
 Passing synthetic tests establishes behavior against those fixtures, not that

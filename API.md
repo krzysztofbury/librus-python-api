@@ -5,7 +5,9 @@ information. The 0.2.0 scope is grades, averages, final summaries, views, and
 windows. The first 0.3 development increment adds attendance collections, upstream
 views, date windows, detail fields/notes, gateway records, and overall/subject
 frequency, plus explicit timetable weeks and announcements, not complete
-school-read coverage. Announcements have one populated installed comparison
+school-read coverage. Ordinary agenda/homework and their details are implemented,
+with partial installed agenda qualification and no populated homework live proof.
+Announcements have one populated installed comparison
 against same-response apix replay and Chromium text validation.
 Two-week installed timetable retrieval and Chromium text validation completed.
 Native teacher/classroom text matches rendered markup rather than reproducing
@@ -355,6 +357,57 @@ agree on all seven notices after whitespace normalization. Empty variants,
 reordered labels, richer content and broader roles have only offline proof or
 remain unqualified. Consumer legacy `description`/date string mapping is separate.
 See [the contract](contracts/announcements.md) and VERIFICATION.md.
+
+## Ordinary agenda and homework
+
+`await account.agenda(year, month)` requires explicit integers (2001..2100, 1..12)
+and returns `Agenda(identity, year, month, days, observation)`. Every civil day is
+retained, including empty days. Events preserve full multiline `text`, `title`,
+explicit span `subject` or `None`, recognized `lesson_number`/`at_time` or `None`,
+complete ordered `metadata_text`, label/value `metadata`, unlabelled
+`metadata_notes` and an optional account-bound `SchoolReference`.
+
+`await account.homework(start, end)` requires ordered plain `datetime.date` values
+with at most 371 inclusive civil days. No current-date default is inferred. It
+returns `Homework(identity, start, end, items, observation)` through one fixed
+all-subject/all-status selection. Each `HomeworkItem` contains lesson, teacher,
+subject, category, assigned/due `SchoolDateTime`, extra rendered columns and an
+optional reference. Raw strings accompany typed civil values; blank/`-` stays
+unavailable. No timezone, status or due-date ordering is guessed.
+
+`agenda_detail(reference)` and `homework_detail(reference)` accept the matching
+`SchoolReference` from that account, not arbitrary URLs or prefix/suffix strings.
+They return `SchoolDetail(identity, reference, title, fields, notes, observation)`
+with complete multiline values, original labels including colons, empty fields,
+optional heading and ancillary notes. Unknown labels remain available.
+
+```python
+from librus_python_api import AccountClient, SchoolDetail
+
+
+async def first_event_detail(account: AccountClient) -> SchoolDetail | None:
+    agenda = await account.agenda(2026, 10)
+    for day in agenda.days:
+        for event in day.events:
+            if event.reference is not None:
+                return await account.agenda_detail(event.reference)
+    return None
+```
+
+All four APIs accept `budget` and `max_age_seconds`. Cache keys include selection/
+reference and login context; there is no implicit detail fan-out. Selection POSTs
+never replay. Detail GETs retain single proven-expiry recovery within the original
+budget. References are inert typed data, not globally shared IDs or access tokens.
+Wrong-account/kind and nonnumeric references fail before authentication/dispatch.
+Recent/read-once events, submissions, downloads, consumer serialization and durable
+notification storage are excluded.
+
+Bounds and partial installed qualification are recorded in
+[the contract](contracts/school-reads.md). Populated homework, installed detail/
+homework live paths and a complete current-build live-family rerun remain pending.
+Original synthetic comparisons against external apix exercise all four APIs on
+installed artifacts, including populated homework/details. They establish offline
+business compatibility and classified departures, not live layout qualification.
 
 ## Exceptions, retries, and diagnostics
 

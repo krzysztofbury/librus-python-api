@@ -25,6 +25,10 @@ type OperationName = Literal[
     "subject_frequency",
     "timetable",
     "announcements",
+    "agenda",
+    "agenda_detail",
+    "homework",
+    "homework_detail",
 ]
 
 
@@ -85,6 +89,36 @@ class TimetableSelection:
     monday: date = field(repr=False)
 
 
+@dataclass(frozen=True, slots=True)
+class AgendaSelection:
+    year: int
+    month: int
+
+
+@dataclass(frozen=True, slots=True)
+class HomeworkSelection:
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolReference:
+    kind: Literal["agenda", "homework"]
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+type RequestForm = (
+    LoginSubmission
+    | GradeViewSelection
+    | AttendanceViewSelection
+    | TimetableSelection
+    | AgendaSelection
+    | HomeworkSelection
+    | None
+)
+
+
 type ReadView = GradeView | AttendanceView
 
 
@@ -100,7 +134,13 @@ class AttendanceDateSelection:
 
 
 type ReadSelection = (
-    ReadView | DetailReference | AttendanceDateSelection | TimetableSelection
+    ReadView
+    | DetailReference
+    | AttendanceDateSelection
+    | TimetableSelection
+    | AgendaSelection
+    | HomeworkSelection
+    | SchoolReference
 )
 
 
@@ -196,6 +236,74 @@ class Announcement:
 class Announcements:
     identity: Identity
     items: tuple[Announcement, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class AgendaEvent:
+    day: date = field(repr=False)
+    title: str = field(repr=False)
+    subject: str | None = field(repr=False)
+    text: str = field(repr=False)
+    lesson_number: int | None
+    at_time: time | None
+    metadata_text: str = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+    metadata_notes: tuple[str, ...] = field(repr=False)
+    reference: SchoolReference | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AgendaDay:
+    day: date = field(repr=False)
+    events: tuple[AgendaEvent, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Agenda:
+    identity: Identity
+    year: int
+    month: int
+    days: tuple[AgendaDay, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolDateTime:
+    day: date | None = field(repr=False)
+    clock: time | None = field(repr=False)
+    raw_day: str = field(repr=False)
+    raw_clock: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class HomeworkItem:
+    lesson: str = field(repr=False)
+    teacher: str = field(repr=False)
+    subject: str = field(repr=False)
+    category: str = field(repr=False)
+    assigned: SchoolDateTime = field(repr=False)
+    due: SchoolDateTime = field(repr=False)
+    extra_cells: tuple[str, ...] = field(repr=False)
+    reference: SchoolReference | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Homework:
+    identity: Identity
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    items: tuple[HomeworkItem, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolDetail:
+    identity: Identity
+    reference: SchoolReference = field(repr=False)
+    title: str | None = field(repr=False)
+    fields: tuple[tuple[str, str], ...] = field(repr=False)
+    notes: tuple[str, ...] = field(repr=False)
     observation: Observation
 
 

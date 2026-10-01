@@ -288,3 +288,24 @@ parser semantics, not live transport latency: no separate apix HTTP workload,
 matched-network timing, allocation/RSS sample or sustained capacity claim exists.
 Do not present the avoided baseline login/read as a measured library speedup.
 Private responses were discarded after semantic classification.
+
+## Agenda/homework: incomplete runtime, no comparative benchmark
+
+The authorized discovery and partial installed runs total 45 requests under a
+48-request cumulative ceiling. Each of four runs submitted credentials once;
+failed comparison helpers stopped before further reads. One discovery completed
+both ordinary months, two agenda details and an empty homework window. The final
+installed run verified one current month against same-response Chromium and
+reused its cache with zero extra requests, then stopped during previous-month
+baseline classification. Installed details/homework were not reached.
+
+No matched baseline network workload, timing/CPU/allocation/RSS sample or sustained
+capacity measurement was collected. Offline apix/Chromium replay is semantic
+comparison, not a speedup. Failed/incomplete paths are not performance wins or
+completed-family runtime qualification. See VERIFICATION.md for exact accounting.
+
+The later synthetic comparison executes all four public APIs on installed
+artifacts and validates common fields against unmodified apix using identical
+loopback response bytes. Thirty-four differential cases and fourteen independent
+Chromium text checks are compatibility evidence, not live network timing, process
+RSS or sustained-load measurements. They add zero school requests.

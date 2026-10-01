@@ -263,6 +263,38 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "agenda",
+                "POST",
+                "/terminarz/",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "agenda_detail",
+                "GET",
+                "/terminarz/szczegoly/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "homework",
+                "POST",
+                "/moje_zadania",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "homework_detail",
+                "GET",
+                "/moje_zadania/podglad/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
         )
     }
 )
@@ -394,6 +426,43 @@ TIMETABLE_WEEK_FIELD = "tydzien"
 TIMETABLE_DATE_ATTRIBUTE = "data-date"
 TIMETABLE_START_ATTRIBUTE = "data-time_from"
 TIMETABLE_END_ATTRIBUTE = "data-time_to"
+
+SCHOOL_MAX_ITEMS = 2048
+SCHOOL_MAX_CONTENT_LENGTH = 65536
+SCHOOL_MAX_TOTAL_TEXT_LENGTH = 262144
+SCHOOL_MAX_DETAIL_FIELDS = 64
+SCHOOL_MAX_FIELD_LENGTH = 1024
+SCHOOL_MAX_TOOLTIP_LENGTH = 8192
+SCHOOL_MAX_TOOLTIP_FIELDS = 32
+HOMEWORK_MAX_COLUMNS = 32
+HOMEWORK_MAX_WINDOW_DAYS = 371
+AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
+HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
+
+
+def agenda_form(year: int, month: int) -> dict[str, str]:
+    if (
+        type(year) is not int
+        or type(month) is not int
+        or not (2001 <= year <= 2100 and 1 <= month <= 12)
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {"rok": str(year), "miesiac": f"{month:02d}"}
+
+
+def homework_form(start: date, end: date) -> dict[str, str]:
+    if (
+        type(start) is not date
+        or type(end) is not date
+        or not (0 <= (end - start).days < HOMEWORK_MAX_WINDOW_DAYS)
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {
+        "dataOd": start.isoformat(),
+        "dataDo": end.isoformat(),
+        "przedmiot": "-1",
+        "status": "-1",
+    }
 
 
 def timetable_form(monday: date) -> dict[str, str]:
