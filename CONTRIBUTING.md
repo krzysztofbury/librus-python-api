@@ -118,7 +118,8 @@ the checkout. An import-location guard prevents accidental editable-source testi
 Distributions, checksums, and JUnit reports are retained for seven days as GitHub
 artifacts, not uploaded to PyPI. Actions are SHA-pinned with read-only permissions
 and checkout credentials are not persisted. Weekly Dependabot updates cover Python
-dependencies and action pins; updates still require review and CI.
+dependencies through the uv ecosystem (manifest and lockfile) and action pins;
+updates still require review and CI.
 
 These are GitHub-hosted checks, not local-only tests. Dependency installation and
 auditing use external services; Librus requests use synthetic loopback fixtures.
