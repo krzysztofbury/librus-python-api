@@ -17,8 +17,10 @@ from tenacity import (
     wait_none,
 )
 
+from librus_python_api.attendance import parse_attendance
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
+    ATTENDANCE_MAX_WINDOW_DAYS,
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
     SESSION_COOKIE,
@@ -34,6 +36,10 @@ from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
+    Attendance,
+    AttendanceView,
+    AttendanceViewSelection,
+    AttendanceWindow,
     DiagnosticEvent,
     FinalGrades,
     Grades,
@@ -44,6 +50,7 @@ from librus_python_api.models import (
     LoginSubmission,
     Observation,
     OperationName,
+    ReadView,
     SchedulerSnapshot,
     StudentInformation,
     TransportResponse,
@@ -57,7 +64,7 @@ from librus_python_api.transport import (
     TransportFactory,
 )
 
-type _ReadResult = Identity | StudentInformation | FinalGrades | Grades
+type _ReadResult = Identity | StudentInformation | FinalGrades | Grades | Attendance
 
 
 @dataclass(slots=True)
@@ -211,13 +218,13 @@ class AccountClient:
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
         self._flights: dict[
-            tuple[OperationName, GradeView, float, RequestBudget | None], _Flight
+            tuple[OperationName, ReadView, float, RequestBudget | None], _Flight
         ] = {}
         self._operations = 0
         self._generation = 0
         self._identity: Identity | None = None
         self._cache: dict[
-            tuple[OperationName, GradeView], tuple[float, _ReadResult]
+            tuple[OperationName, ReadView], tuple[float, _ReadResult]
         ] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
 
@@ -301,12 +308,50 @@ class AccountClient:
             result.observation,
         )
 
+    async def attendance(
+        self,
+        *,
+        view: AttendanceView = AttendanceView.ALL,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Attendance:
+        """Read a fixed upstream attendance view without replaying its POST."""
+        if not isinstance(view, AttendanceView):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        return cast(
+            Attendance, await self._read("attendance", budget, max_age_seconds, view)
+        )
+
+    async def attendance_window(
+        self,
+        start: date,
+        end: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> AttendanceWindow:
+        """Inclusive civil-date selection over the cached all-view collection."""
+        if (
+            type(start) is not date
+            or type(end) is not date
+            or not 0 <= (end - start).days < ATTENDANCE_MAX_WINDOW_DAYS
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        result = await self.attendance(budget=budget, max_age_seconds=max_age_seconds)
+        return AttendanceWindow(
+            result.identity,
+            start,
+            end,
+            tuple(row for row in result.items if start <= row.day <= end),
+            result.observation,
+        )
+
     async def _read(
         self,
         operation: OperationName,
         budget: RequestBudget | None,
         max_age: float,
-        view: GradeView = GradeView.ALL,
+        view: ReadView = GradeView.ALL,
     ) -> _ReadResult:
         service = self._service
         service._bind()
@@ -360,7 +405,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-        view: GradeView,
+        view: ReadView,
     ) -> _ReadResult:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
@@ -394,7 +439,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
-        view: GradeView,
+        view: ReadView,
     ) -> _ReadResult:
         timed_out = False
         try:
@@ -444,7 +489,7 @@ class AccountClient:
         self,
         operation: OperationName,
         budget: RequestBudget,
-        view: GradeView,
+        view: ReadView,
     ) -> _ReadResult:
         authenticated_now = self._identity is None
         # Initial login is outside retries: a failed credential submission must
@@ -487,7 +532,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         authenticated_now: bool,
-        view: GradeView,
+        view: ReadView,
     ) -> _ReadResult:
         assert self._identity is not None
         if operation == "identity":
@@ -495,11 +540,14 @@ class AccountClient:
                 return self._identity
             self._identity = await self._fetch_identity(budget)
             return self._identity
-        response = await self._transport.request(
-            operation,
-            budget,
-            form=GradeViewSelection(view) if operation == "grades" else None,
-        )
+        selection: GradeViewSelection | AttendanceViewSelection | None = None
+        if operation == "grades":
+            assert isinstance(view, GradeView)
+            selection = GradeViewSelection(view)
+        elif operation == "attendance":
+            assert isinstance(view, AttendanceView)
+            selection = AttendanceViewSelection(view)
+        response = await self._transport.request(operation, budget, form=selection)
         self._validate_read_response(response)
         if (
             response.headers.get("content-type", "").partition(";")[0].strip().lower()
@@ -515,7 +563,23 @@ class AccountClient:
             records = await self._service._parsers.run(
                 parse_grade_records, response.body, budget
             )
-            return Grades(self._identity, records, self._observation(operation), view)
+            return Grades(
+                self._identity,
+                records,
+                self._observation(operation),
+                cast(GradeView, view),
+            )
+        if operation == "attendance":
+            attendance = await self._service._parsers.run(
+                parse_attendance, response.body, budget
+            )
+            return Attendance(
+                self._identity,
+                attendance.items,
+                attendance.semesters,
+                self._observation(operation),
+                cast(AttendanceView, view),
+            )
         assert operation == "student_information"
         fields = await self._service._parsers.run(parse_profile, response.body, budget)
         return StudentInformation(

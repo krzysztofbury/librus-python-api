@@ -9,6 +9,11 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.models import (
+    Attendance,
+    AttendanceRecord,
+    AttendanceRecords,
+    AttendanceView,
+    AttendanceWindow,
     Availability,
     DescriptiveGrade,
     DescriptiveGradeSummary,
@@ -30,12 +35,17 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.2.0"
+__version__ = "0.3.0.dev0"
 
 __all__ = [
     "AccountClient",
     "AccountCredentials",
     "Availability",
+    "Attendance",
+    "AttendanceRecord",
+    "AttendanceRecords",
+    "AttendanceView",
+    "AttendanceWindow",
     "ConnectionSettings",
     "DescriptiveGrade",
     "DescriptiveGradeSummary",

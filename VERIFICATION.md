@@ -238,6 +238,61 @@ thirteen-operation contracts, repository hooks, and `git diff --check` pass.
 Redacted worktree secret scanning also passed, including untracked grade files.
 Built distributions are local version 0.2.0, not published packages.
 
+## 0.3.0.dev0 attendance collection increment
+
+2026-10-01, Linux. This development increment enables attendance collections,
+strict upstream views, and cached civil-date windows. Detail/frequency and the
+remaining 0.3 school-read families are not implemented. The route, forms, and
+tooltip concepts are source-informed; semantic semester labels and all fixtures
+are independently authored synthetic requirements, not observed live captures.
+No live Librus request, consumer edit, PyPI publication, or merge occurred.
+
+- 276 portable tests pass on source Python 3.13/3.14, separately installed wheel
+  Python 3.14, and separately installed sdist Python 3.13. The four optional
+  consumer/performance cases remain deselected. Installed suites run outside
+  the checkout with an import-location guard; metadata confirms 0.3.0.dev0,
+  MIT, Python >=3.13, six runtime dependencies, license files, and py.typed.
+- Forty attendance cases exercise original populated/empty/malformed parsers,
+  explicit reversed/single-second-semester grouping, raw custom types, unknown
+  optional metadata, BR/bold tooltips, value/collection bounds, and inert references.
+  Distinct view responses protect form-to-selection mapping; date windows include
+  an excluded record and an empty selection, not only an all-record self-comparison.
+- Actual loopback HTTP exercises login, fixed attendance forms, three-view cache
+  reuse, four independent coalesced login contexts, request exhaustion, last-waiter
+  cancellation, and no replay after 401/login redirect/403/429/503. Existing
+  scheduler/transport suites continue to verify saturated shared budgets, cleanup,
+  cooldowns, and destination guards rather than duplicating every lower-level test.
+- Original regressions failed before guards for dated entries outside the grid,
+  nested-table double counting, control-character URL normalization, nonliteral
+  script arguments, and oversized plain tooltip values. They pass after the fixes.
+- Ruff, formatting, strict mypy, lock consistency, fourteen-operation OpenAPI
+  parity, repository hooks, redacted worktree/history secret scans, dependency
+  consistency, and diff checks pass. The locked runtime/development dependency
+  audit reports no known vulnerabilities at this check, not a security guarantee.
+
+Reproduce with the portable/source and installed-artifact commands in
+CONTRIBUTING.md. See contracts/attendance.md for the business matrix, intentional
+semester/missing-value differences, and unresolved detail/type/frequency gates.
+Installed attendance live smoke, populated role/layout qualification, and a
+completed equivalent apix comparison remain pending fresh bounded authorization.
+No attendance speedup or upstream sustained-capacity claim is made.
+
+### Separate Dependabot review
+
+PR #3 updates mypy/OpenAPI-validator/Ruff constraints but not uv.lock, so hosted
+CI fails at lock validation before lint or tests. Read-only review plus an isolated
+local worktree experiment refreshed its lock: mypy 2.3.1, openapi-spec-validator
+0.9.0, and Ruff 0.16.9. Its existing 174 portable tests pass on Python 3.13/3.14;
+lint and strict mypy pass. Ruff's new Markdown formatting flags API.md Python
+examples; after local formatting, its format check passes too. These checks
+describe the bot branch's older feature set, not the attendance increment.
+
+No fix was pushed to the bot branch and PR #3 was not merged. It needs both lock
+refresh and Markdown formatting before reconsideration. The repository currently
+configures the pip ecosystem; GitHub now documents a dedicated uv ecosystem.
+Review switching that configuration separately so future updates maintain uv.lock,
+then qualify the generated PR instead of assuming the configuration fixes it.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

@@ -205,8 +205,14 @@ is separate from these local checks. No PyPI publication or consumer switch occu
 
 ### 0.3.0 - Remaining academic and school-information coverage
 
-Depends on 0.2.0. All of these families are postponed, not part of grade delivery:
+Depends on 0.2.0. These families are not part of grade delivery. The current
+`0.3.0.dev0` increment implements offline-tested attendance collections, strict
+upstream views, and cached civil-date windows. See contracts/attendance.md for
+business differences, original fixture provenance, and pending live qualification.
+This is not completed attendance or 0.3.0 coverage.
 
+- [x] Attendance collection/views/windows with explicit semesters, unknown raw
+  metadata, inert detail IDs, account isolation, fixed forms, and non-replayed POSTs.
 - [ ] Attendance/windows/details/frequency, including explicit units and unknown types.
 - [ ] Timetable, agenda/details, homework/details, announcements, and completed lessons.
 - [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,

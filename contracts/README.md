@@ -6,7 +6,8 @@ and it is not an official Librus specification.
 
 The catalogue covers the bounded cookie-login flow, gateway identity, HTML
 student-information and [grade reads](grades.md), including fixed-form
-all/week/last-login view POSTs. Source-informed
+all/week/last-login view POSTs, plus [attendance collections](attendance.md).
+Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
 redirect routes fail closed. Do not infer an endpoint schema from a similarly
@@ -15,6 +16,8 @@ named third-party operation.
 0.2.0 is grades-only. Other academic reads move to 0.3.0, messaging to 0.4.0.
 Observed grade-view forms and unqualified populated layouts are distinguished in
 grades.md; an exercised route is not proof of every response variant.
+The 0.3.0.dev0 attendance POST is source-informed/offline-tested only. Detail
+reference recognition enables no detail or frequency route.
 
 ## Adding an endpoint
 

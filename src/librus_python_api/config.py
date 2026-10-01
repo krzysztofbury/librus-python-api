@@ -92,7 +92,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.2 (independent client)"
+USER_AGENT = "librus-python-api/0.3 (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
@@ -206,6 +206,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "attendance",
+                "POST",
+                "/przegladaj_nb/uczen",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
         )
     }
 )
@@ -280,6 +288,29 @@ GRADE_PUBLICATION_PERIOD_LABELS = MappingProxyType(
         "II okres": 2,
     }
 )
+
+ATTENDANCE_VIEW_FORMS = MappingProxyType(
+    {
+        "all": ("zmiany_logowanie_wszystkie", ""),
+        "week": ("zmiany_logowanie_tydzien", "zmiany_logowanie_tydzien"),
+        "last_login": ("zmiany_logowanie", "zmiany_logowanie"),
+    }
+)
+ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
+    {
+        "i okres": 1,
+        "ii okres": 2,
+        "pierwszy okres": 1,
+        "drugi okres": 2,
+        "i semestr": 1,
+        "ii semestr": 2,
+    }
+)
+ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
+ATTENDANCE_MAX_RECORDS = 2048
+ATTENDANCE_MAX_WINDOW_DAYS = 366
+# Reference recognition only. Detail retrieval is not enabled by this increment.
+ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 
 
 class _ValidatedConfig(BaseModel):

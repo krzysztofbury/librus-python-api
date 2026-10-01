@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.2.0
+  version: 0.3.0.dev0
   license:
     name: MIT
   description: |
@@ -383,6 +383,75 @@ paths:
                 zmiany_logowanie_wszystkie: {type: string, enum: ['1']}
                 zmiany_logowanie_tydzien: {type: string, enum: ['1']}
                 zmiany_logowanie: {type: string, enum: ['1']}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+  /przegladaj_nb/uczen:
+    post:
+      operationId: attendance
+      tags: [Attendance]
+      summary: Select an attendance view and read the HTML collection
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: |
+        Route, view fields, tooltip labels, grid/section concepts and detail-link
+        requirements reviewed against installed librus-apix 1.5.3 and the existing
+        consumer contracts. No implementation, fixture or capture was copied.
+        Original semantic section-label fixtures are synthetic. No live attendance
+        observation or complete account/layout qualification is claimed.
+      description: |
+        Changes the upstream selected view, not attendance records. Never replay
+        this POST automatically, including after expiry or ambiguous failure.
+        All-view uses an empty field value; week/last-login values equal their
+        field names. These differ from the grade-view forms.
+        Requires one center/big/decorated grid with explicit semester headings.
+        Supported case-insensitive labels are I okres, II okres, pierwszy okres,
+        drugi okres, I semestr and II semestr. Semester is 1 or 2, never inferred
+        from section position or zero-based baseline values. Duplicate/unknown
+        headings and records before a heading fail. Empty recognized grids can
+        return no entries; unrecognized empty pages fail.
+        Center-cell anchors supply inline Data civil dates and optional Rodzaj,
+        Nauczyciel, Godzina lekcyjna, Czy wycieczka, Temat zajęć and Lekcja metadata.
+        BR/newline or complete bold label/value blocks delimit fields. Duplicate
+        fields, invalid dates/periods/booleans, untitled anchors and unknown nonempty
+        center cells fail instead of partial success. Unknown raw attendance types
+        are preserved, not assigned invented presence/absence classifications.
+        Optional values stay unknown rather than false/zero/empty defaults.
+        Approved-shaped numeric onclick detail identifiers are inert data only;
+        recognized window calls allow one to four literal string/integer arguments
+        after the URL, never expressions or control/whitespace characters in URLs.
+        this increment enables no detail or gateway/metadata retrieval operation.
+        Foreign/malformed/script references never authorize transport destinations.
+        Bounds: 2048 entries, 8192 metadata/script characters, 32 metadata chunks,
+        1024 rendered characters/value, common HTML node/depth/byte bounds and
+        shared rate/concurrency/queue/request/deadline limits. Each upstream view
+        has its own account/session cache and coalescing key. Date windows use
+        all-view civil dates inclusively, at most 366 days, with no per-window cache.
+        No gateway frequency, locally inferred last-login date or denominator
+        calculation is part of this operation.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              maxProperties: 1
+              oneOf:
+                - required: [zmiany_logowanie_wszystkie]
+                - required: [zmiany_logowanie_tydzien]
+                - required: [zmiany_logowanie]
+              properties:
+                zmiany_logowanie_wszystkie: {type: string, enum: ['']}
+                zmiany_logowanie_tydzien: {type: string, enum: [zmiany_logowanie_tydzien]}
+                zmiany_logowanie: {type: string, enum: [zmiany_logowanie]}
       responses:
         '200':
           $ref: '#/components/responses/Html'

@@ -247,3 +247,32 @@ to 0.4.0. Public contract/provenance and the apix business matrix are in contrac
 Retrospective lesson: inspect populated and undated business variants early, compare
 completed workloads and explicit projections, and preserve missing-state semantics
 instead of widening a parser until every unknown page looks like empty success.
+
+## 0.3.0.dev0 attendance checkpoint self-review
+
+Implementing-agent self-review only, not independent approval. The increment
+implements collections/views/windows and an explicit business matrix, not
+attendance details/frequency or completed 0.3 coverage.
+
+- Reuse account/session/cache/admission ownership; keep grade and attendance view
+  forms separately typed and centrally configured. The selection POST is never
+  replayed after expiry. Consumer serialization and frequency units stay separate.
+- Explicit semester labels prevent positional reversal from fabricating a first
+  semester when only the second is displayed. Unknown metadata/types stay raw or
+  absent; no zero/false/presence/frequency defaults are invented.
+- Original failing regressions exposed partial output outside the recognized grid,
+  nested double counting, URL parser control-character normalization, nonliteral
+  script calls, and plain tooltip value-bound gaps. Recognized detail references
+  remain inert numeric data, not approved transport targets or executable scripts.
+- Wire tests use distinct view data and windows with both included and excluded
+  records. A fixture returning the same records for every selection would not
+  independently protect form mapping or date filtering.
+- Installed wheel/sdist runtime checks, not source imports alone, protect the
+  public account path. Offline qualification does not establish live layouts.
+- Dependabot's lock failure precedes all code checks. A local regenerated lock
+  revealed a separate formatter change, so neither manifest widening nor green
+  tests alone is a complete upgrade acceptance gate. Keep bot fixes separate.
+
+Retrospective lesson: validate references before URL normalization, and pair each
+parser completeness claim with an original failing unsupported-layout example.
+Do not turn source-informed semantic labels into observed-upstream claims.

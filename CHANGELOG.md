@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0.dev0 - Attendance collection increment
+
+- Add immutable attendance records, strict all/week/last-login views, and inclusive
+  civil-date windows over the account's all-view collection cache.
+- Preserve unknown metadata and raw custom types, use explicit 1/2 semester labels,
+  and expose only inert validated numeric detail identifiers.
+- Add original parser and real loopback HTTP regressions for completeness, fixed
+  forms, isolation/coalescing, budgets, non-replay, and cancellation.
+- Ship the centralized POST and matching evidence-labelled OpenAPI contract.
+  Attendance details/frequency and other 0.3 families remain pending. Attendance
+  live qualification requires fresh bounded authorization; no PyPI publication
+  or consumer migration is included.
+
 ## 0.2.0 - Local-first grade coverage
 
 - First increment: typed final-grade summaries through one bounded HTML GET,

@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from librus_python_api.exceptions import ErrorKind
 
 type OperationName = Literal[
-    "identity", "student_information", "final_grades", "grades"
+    "identity", "student_information", "final_grades", "grades", "attendance"
 ]
 
 
@@ -58,6 +58,20 @@ class GradeView(StrEnum):
 @dataclass(frozen=True, slots=True)
 class GradeViewSelection:
     view: GradeView
+
+
+class AttendanceView(StrEnum):
+    ALL = "all"
+    WEEK = "week"
+    LAST_LOGIN = "last_login"
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceViewSelection:
+    view: AttendanceView
+
+
+type ReadView = GradeView | AttendanceView
 
 
 class GradeKind(StrEnum):
@@ -221,6 +235,45 @@ class GradeWindow:
     end: date
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceRecord:
+    symbol: str = field(repr=False)
+    day: date = field(repr=False)
+    semester: Literal[1, 2]
+    attendance_type: str | None = field(repr=False)
+    teacher: str | None = field(repr=False)
+    period: int | None = field(repr=False)
+    excursion: bool | None = field(repr=False)
+    topic: str | None = field(repr=False)
+    subject: str | None = field(repr=False)
+    detail_id: str | None = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceRecords:
+    items: tuple[AttendanceRecord, ...] = field(repr=False)
+    semesters: tuple[Literal[1, 2], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Attendance:
+    identity: Identity
+    items: tuple[AttendanceRecord, ...] = field(repr=False)
+    semesters: tuple[Literal[1, 2], ...]
+    observation: Observation
+    view: AttendanceView = AttendanceView.ALL
+
+
+@dataclass(frozen=True, slots=True)
+class AttendanceWindow:
+    identity: Identity
+    start: date
+    end: date
+    items: tuple[AttendanceRecord, ...] = field(repr=False)
     observation: Observation
 
 
