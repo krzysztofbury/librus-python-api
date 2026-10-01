@@ -484,7 +484,7 @@ def parse_grade_records(body: bytes) -> GradeRecords:
             collection.averages.extend(
                 SchoolAverage(
                     subject,
-                    cast(Literal[0, 1, 2], period),
+                    period,
                     GradeSummaryValue(Availability.UNAVAILABLE, None),
                 )
                 for period in (1, 2, 0)
