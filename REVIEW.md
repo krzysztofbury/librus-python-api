@@ -347,3 +347,25 @@ Classify normalization separately from factual disagreement, and do not change
 correct domain values solely to satisfy a baseline equality check. Browser checks
 here used captured markup/inline styles with scripts and networking disabled;
 they are not a full styled/interactive school UI qualification.
+
+## Announcements increment self-review
+
+- Apply the same-response classification rule now recorded in CONTRIBUTING.md.
+  Apix is a reference, not a correctness oracle; independently check rendered
+  text before reproducing a baseline parsing assumption.
+- Discovery established semantic author/date/body rows and no announcement IDs.
+  Full text exceeds grade field lengths; provide separate body/collection limits
+  instead of truncating or reusing the 1024-character grade renderer.
+- Preserve plaintext line/inline boundaries and explicit ISO civil dates. Do not
+  infer publication instants/timezones, rich HTML, attachment/link content or IDs.
+- Content references are stable within the configured alias and canonical fields,
+  not upstream resource IDs. Identical copies remain present with shared references;
+  reference equality cannot replace login-scoped permissions or notification state.
+- Original parser and exact GET loopback cases exercise integrity, missing/empty
+  distinction, bounds, references, isolated/coalesced/fresh reads, bounded expiry
+  recovery, non-caching failures, shared budgets, form guards and joined cleanup.
+- Both authorized runs complete without failed/replayed logins. Installed native,
+  offline reference replay and Chromium agree on populated same-page semantics.
+  Differences are whitespace-only, classified in memory before private disposal.
+- Empty/aliased/reordered/richer layouts remain offline-only or unqualified;
+  this is not complete 0.3, independent approval, consumer migration or publication.

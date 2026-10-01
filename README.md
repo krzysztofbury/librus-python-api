@@ -13,6 +13,10 @@ and populated last-login remain unqualified. Explicit timetable weeks are now
 implemented and complete two-week installed retrieval on one profile. Chromium
 validation confirms native teacher/classroom text; differences from apix are
 whitespace normalization and one baseline string inconsistent with rendered text.
+Announcement reads now preserve full bounded plain text, author, civil date and
+account-scoped content references; one populated installed read agrees with
+same-response apix and Chromium semantics. Wider announcement layouts remain
+unqualified.
 Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
@@ -77,6 +81,10 @@ See [the implementation roadmap](TODO.md).
   week caches, and selection POST non-replay. Two-week runtime qualification
   completed; browser-validated teacher/classroom differences are documented
   intentional departures from exact apix strings, not a native correctness gap.
+- [Announcements](contracts/announcements.md) with full multiline plain text,
+  authors, raw/typed civil dates and explicitly content-addressed account references.
+  Ordinary GETs reuse shared budgets and isolated sessions/caches; no mark-read,
+  link traversal or event consumption is enabled.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -102,7 +110,8 @@ reuse one service across accounts/tools, and close it with an async context mana
 Enabled development reads are `identity()`, `student_information()`,
 `final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
 `attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
-`attendance_frequency()`, `subject_frequency()`, and explicit-week `timetable()`.
+`attendance_frequency()`, `subject_frequency()`, explicit-week `timetable()`, and
+`announcements()`.
 Version 0.3.0.dev0 is a local-only development build,
 not a published PyPI release.
 

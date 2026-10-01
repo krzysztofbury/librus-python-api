@@ -255,6 +255,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "announcements",
+                "GET",
+                "/ogloszenia",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -358,6 +366,27 @@ ATTENDANCE_DETAIL_MAX_FIELDS = 32
 ATTENDANCE_METADATA_CACHE_SIZE = 256
 ATTENDANCE_RESULT_CACHE_SIZE = 64
 ATTENDANCE_METADATA_TTL_SECONDS = 3600
+
+ANNOUNCEMENT_MAX_ITEMS = 256
+ANNOUNCEMENT_MAX_FIELD_LENGTH = 1024
+ANNOUNCEMENT_MAX_CONTENT_LENGTH = 65536
+ANNOUNCEMENT_MAX_TOTAL_TEXT_LENGTH = 262144
+ANNOUNCEMENT_TABLE_CLASSES = frozenset(
+    {"decorated", "big", "center", "printable", "margin-top"}
+)
+ANNOUNCEMENT_LABELS = MappingProxyType(
+    {
+        "dodał": "author",
+        "autor": "author",
+        "data publikacji": "date_text",
+        "data": "date_text",
+        "treść": "content",
+    }
+)
+ANNOUNCEMENT_EMPTY_CLASSES = frozenset(
+    {"container", "border-red", "resizeable", "center"}
+)
+ANNOUNCEMENT_EMPTY_MARKERS = frozenset({"brak ogłoszeń", "nie ma ogłoszeń"})
 TIMETABLE_MAX_PERIODS = 32
 TIMETABLE_MAX_LESSONS_PER_SLOT = 16
 TIMETABLE_MAX_CHANGES_PER_SLOT = 16

@@ -18,6 +18,7 @@ from tenacity import (
     wait_none,
 )
 
+from librus_python_api.announcements import parse_announcements
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
 from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
@@ -47,6 +48,7 @@ from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
+    Announcements,
     Attendance,
     AttendanceDateSelection,
     AttendanceDetail,
@@ -96,6 +98,7 @@ type _ReadResult = (
     | GatewayAttendance
     | SubjectFrequencies
     | Timetable
+    | Announcements
 )
 
 
@@ -377,6 +380,14 @@ class AccountClient:
             end,
             tuple(row for row in result.items if start <= row.day <= end),
             result.observation,
+        )
+
+    async def announcements(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> Announcements:
+        """Read ordinary announcements, with full bounded text and inert references."""
+        return cast(
+            Announcements, await self._read("announcements", budget, max_age_seconds)
         )
 
     async def timetable(
@@ -706,6 +717,15 @@ class AccountClient:
         ):
             raise LibrusError(ErrorKind.PARSE)
 
+    async def _announcement_result(
+        self, body: bytes, budget: RequestBudget
+    ) -> Announcements:
+        assert self._identity is not None
+        items = await self._service._parsers.run(
+            lambda payload: parse_announcements(payload, self._alias), body, budget
+        )
+        return Announcements(self._identity, items, self._observation("announcements"))
+
     async def _read_html_result(
         self,
         operation: OperationName,
@@ -715,6 +735,8 @@ class AccountClient:
     ) -> _ReadResult:
         assert self._identity is not None
         self._require_content_type(response, "text/html")
+        if operation == "announcements":
+            return await self._announcement_result(response.body, budget)
         if operation == "timetable":
             assert isinstance(view, TimetableSelection)
             days = await self._service._parsers.run(

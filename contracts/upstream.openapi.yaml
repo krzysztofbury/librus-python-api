@@ -658,6 +658,54 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /ogloszenia:
+    get:
+      operationId: announcements
+      tags: [Announcements]
+      summary: Read the ordinary school announcements page
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: One bounded populated structure discovery on an approved context, plus original semantic/wire fixtures; installed qualification and wider-profile limits are tracked in VERIFICATION.md.
+      description: |
+        Fixed ordinary HTML collection read, with no mark-read, event consumption,
+        notice-link traversal, scripts or attachment requests. Account-isolated
+        sessions/cache/coalescing and shared request/deadline/body/parser budgets
+        apply. Only proven session expiry permits one safe-read recovery within
+        the original budget. Empty pages require a recognized explicit marker;
+        missing or malformed collection markup must not become successful emptiness.
+        The native contract retains full bounded plain text, author, title,
+        reported date text, and stable account-scoped content references rather
+        than inventing an upstream ID or timezone. Recognize decorated big center
+        printable margin-top tables, one THEAD title cell spanning one/two columns,
+        and three line0/line1 TH/TD fields by labels Dodał/Autor, Data publikacji/Data,
+        and Treść, independent of row order. Duplicate/missing/unknown fields and
+        nonempty unparsed rows fail. A blank footer is allowed; nested tables,
+        active content, malformed dates and unsafe HTML repairs are rejected.
+        Keep page order and duplicate items. Date text must be a valid ISO civil
+        date; retain both raw text and its typed date, never an inferred timezone.
+        Full plain content preserves rendered paragraph/list/BR boundaries while
+        normalizing source whitespace and inline word joins. Never truncate text.
+        Limits are 256 items, 1024 title/author/date characters, 65536 content
+        characters per item and 262144 total rendered characters per collection,
+        plus shared byte/tree/depth/request/admission bounds.
+        Explicit empty markers require a container border-red resizeable center
+        DIV with a DIV/P and a configured no-announcements phrase. Marker-plus-
+        collection ambiguity and unrelated warnings are errors, not empty success.
+        Empty layout support remains source-informed, not populated live proof.
+        Content references are length-framed SHA-256 digests of schema version,
+        configured account alias, title, author, date and canonical content. They
+        are not upstream IDs, URLs, authentication tokens, or editable resources;
+        edits change references, identical copies share one and remain distinct
+        entries. Session isolation must not be replaced by reference equality.
+        Final layout/evidence details
+        are recorded in contracts/announcements.md and VERIFICATION.md.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /informacja:
     get:
       operationId: student_information

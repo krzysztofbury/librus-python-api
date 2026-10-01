@@ -106,6 +106,25 @@ must not force fabricated data into the new domain model. Fixture parity and
 partial field parity cannot qualify unexercised business variants; performance
 claims must state the exact common outputs compared and any excluded differences.
 
+For authorized parser qualification, feed both implementations the same response
+bytes in memory whenever possible. Run the reference parser against an offline
+fixed-response client rather than fetching another school page or logging in
+again. This isolates parser differences from changing data and reduces traffic.
+Separate installed end-to-end evidence from offline reference replay; neither
+substitutes for the other.
+
+Before discarding private pages/results, classify every difference in memory:
+exact match, presentation-only normalization, deliberate domain/consumer mapping,
+factual disagreement, or unresolved. Retain only redacted counts and semantic
+categories, never raw values, captures, assertion diffs, or personal identifiers.
+When parsers disagree, independently check the rendered school content, not just
+the baseline's output. A network-disabled browser can render the same markup;
+state missing external styles/scripts and do not call that a full live UI check.
+Prefer correct rendered semantics over reproducing a reference-client bug.
+Capture enough safe causal diagnostics before closing the authorized session to
+avoid speculative fixes and unnecessary logins. If evidence remains insufficient,
+report the gap and obtain fresh authorization instead of replaying traffic.
+
 ### Offline CI and package checks
 
 GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to `main`,

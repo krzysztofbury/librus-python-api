@@ -220,7 +220,7 @@ This is not completed 0.3.0 coverage.
   preserved unknown types, bounded metadata reuse, and installed proof.
 - [ ] Broader attendance role/layout qualification, populated last-login, custom
   type metadata semantics, and full-year subject-resolution qualification.
-- [ ] Timetable, agenda/details, homework/details, announcements, and completed lessons.
+- [ ] Remaining school families: agenda/details, homework/details and completed lessons.
 - [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
   centralized non-replayed forms, nineteen-operation wire catalogue, original
   offline fixtures, and installed two-week runtime retrieval on one context.
@@ -228,6 +228,10 @@ This is not completed 0.3.0 coverage.
   checks: native matches all slots; document whitespace and incorrect baseline
   string departures rather than changing native to reproduce them.
 - [ ] Obtain populated timetable group/replacement-tooltip and broader role proof.
+- [x] Announcements with complete bounded text, author, raw/typed civil date,
+  content-scoped references, central ordinary GET/OpenAPI, isolated cache/budgets,
+  original fixtures and populated installed same-response apix/browser qualification.
+- [ ] Broader announcement roles/empty/rich layouts and alternate date/ID variants.
 - [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
   original populated/empty/error fixtures, and installed-artifact proof per family.
 - [ ] Apply the apix business compatibility gate and separately authorized live
