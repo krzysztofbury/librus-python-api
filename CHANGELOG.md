@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.2.0.dev0 - Academic coverage in development
+## 0.2.0 - Local-first grade coverage
 
 - First increment: typed final-grade summaries through one bounded HTML GET,
   with school-provided strings and explicit optional-column availability.
 - New original semantic-header, merged-behaviour, unassigned, malformed, bound,
   wire/isolation/cache/recovery fixtures and an opt-in real MCP stdio adapter.
 - Existing lifecycle, budgets, diagnostics, and public identity/profile contracts
-  are preserved. This is not a completed 0.2.0 release or PyPI publication.
+  are preserved. No PyPI publication or production consumer migration is included.
 - Qualify exact PerformLogin/Grant continuations, explicit Account.UserId gateway
   references, and narrowly repaired browser HTML/spacer rows with original
   regressions. Reuse the authorization form instead of fetching it twice.
@@ -16,8 +16,26 @@
 - Raise the shared traffic defaults to five requests/second and burst ten while
   retaining concurrency, queues, deadlines, cooldowns, and token accounting for
   every login hop. These are configurable engineering defaults, not Librus quotas.
-- Individual numeric/descriptive grades, GPA, windows, and other academic slices
-  remain pending; summary layouts beyond the narrow live qualification are unverified.
+- Next increment: typed inline numeric/descriptive grade records, raw school
+  average availability, and inclusive date windows over one cached collection.
+  Grade-view POST is explicitly view-changing and never automatically replayed.
+- Original regressions protect weekday date suffixes, invisible HTML comments,
+  empty-grade markers, metadata/entry bounds, unsupported-layout rejection,
+  four-login default-policy isolation/coalescing, budgets, and cancellation.
+- Installed numeric-grade comparison with unmodified apix completed under approved
+  caps with common-field parity. Document business gaps independently of speed,
+  including intentional unknown-metadata and school-average differences.
+- Complete descriptive-only rows, multiple publication blocks, dated period/annual
+  and predicted marks, and all/week/last-login selections with isolated
+  cache/coalescing keys. Preserve undated descriptive semester text separately.
+- Expanded bounded qualification covered four independent login contexts, with
+  three completed installed comparisons and one initial native parser failure
+  followed by successful memory-only installed-parser replay. Original regressions
+  protect the undated-text and overlapping-subject fixes. No automatic live retries.
+  Populated averages, dated descriptions/publications/corrections remain live-unqualified.
+- Close 0.2.0 scope at grades. Attendance and the remaining academic/school reads
+  move to 0.3.0; messaging moves to 0.4.0. Daily live CI, broad capacity/RSS work,
+  consumer migration, and PyPI publication retain separate gates.
 
 ## 0.1.0 - Local-first account and identity service
 

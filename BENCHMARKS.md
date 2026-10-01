@@ -1,4 +1,4 @@
-# Final-summary comparison
+# Grade comparisons
 
 The development library was compared with `librus-apix` 1.5.3 plus the existing
 consumer's final-summary parser. Apix alone does not expose that summary operation.
@@ -101,3 +101,88 @@ consumer backend using identical freshness and traffic policies.
 
 Further performance work should target fixed RSS overhead and realistic
 multi-account comparisons. Other account variants remain unqualified.
+
+## Installed inline-grade comparison
+
+The next increment was compared with unmodified librus-apix 1.5.3's own
+`get_grades`, without the consumer summary parser. Explicit authorization covered
+one account, one login and three all-view POSTs per implementation, 16 requests
+each/32 combined, with no retries. Both completed all three reads and dispatched
+12 requests each, 24 combined. Numeric subject/symbol/day/semester/category/teacher
+fields matched. Full record parity is not claimed: native preserves missing
+metadata and raw/unavailable averages where legacy substitutes defaults. Neither
+sample contained descriptive entries or populated numeric averages. The business
+coverage matrix in contracts/grades.md remains the feature-completion gate.
+
+Both isolated workers used Python 3.14.7. Native used the installed development
+wheel and unchanged default shared scheduler. Apix remained unthrottled. Imports,
+two-second pacing between reads, and the three-second between-backend pause are
+outside retrieval timing. This is a small sequential default-behavior sample,
+not a matched-policy load test or full-family equivalent-output benchmark.
+
+| Metric | Native grade collection | Unmodified apix 1.5.3 |
+| --- | ---: | ---: |
+| Cold elapsed | 871 ms | 1419 ms |
+| Cold client CPU | 23.1 ms | 54.3 ms |
+| Cold scheduler admission wait | 0.4 ms | None |
+| Cold HTTP requests | 10 | 10 |
+| Mean of two warm fresh reads | 160 ms | 221 ms |
+| Mean warm client CPU | 7.89 ms | 25.66 ms |
+| HTTP requests per warm read | 1 | 1 |
+| New connections per warm read | 0 | 1 |
+| Connections across all three reads | 2 | 5 |
+| Whole-process peak RSS across retrieval | 61.3 MiB | 50.4 MiB |
+| Process RSS before retrieval | 55.9 MiB | 39.2 MiB |
+
+A cached native date-window check dispatched no further HTTP requests. Native
+still uses more whole-process memory. The measured wall times do not establish
+statistical cold superiority, sustained capacity, or broader layout compatibility.
+Apix response-byte totals were not instrumented in this run, not measured zero.
+
+Before the live run, the installed native parser and unmodified apix grade parser
+also replayed the exact discovery page held only in memory. Twenty timed parses
+per backend averaged 5.70 ms versus 18.20 ms CPU, about 3.2x lower native CPU.
+A separate traced parse peaked at 217 KiB versus 1743 KiB Python allocations,
+about 8x lower. Common numeric-field parity passed. No extra school requests were
+made; no capture or normalized school record was retained. Tracing excludes some
+native allocations and these figures are not total RSS or full-layout coverage.
+
+## Grade views: expanded bounded account comparison
+
+The next approved qualification used four independent login contexts and
+all/week/last-login POSTs, one login per implementation/context, paced sequentially
+with no replay. The combined count was 94 of 128 allowed requests: three completed
+native/apix pairs (12 each), one native parser failure (10), and its remaining
+approved apix path (12). It was an installed development artifact before the final
+0.2.0 version bump. All live school responses/records were discarded.
+
+The following means cover only the three completed runtime pairs, one observation
+per view/context. The failed context is excluded, not converted into a successful
+timing sample. Authentication is included in all-view cold reads; each following
+view makes one request. These are sparse sequential samples, not matched-policy
+multi-account load or throughput evidence.
+
+| View | Native wall / CPU | apix wall / CPU | Requests native / apix | New connections native / apix |
+| --- | --- | --- | --- | --- |
+| All, cold | 1097 / 23.8 ms | 938 / 53.8 ms | 10 / 10 | 2 / 3 |
+| Week, warm session | 198 / 5.86 ms | 226 / 22.3 ms | 1 / 1 | 0 / 1 |
+| Last-login, warm session | 142 / 5.64 ms | 220 / 20.3 ms | 1 / 1 | 0 / 1 |
+
+Native cold latency is a non-win here; one native week sample was also slower.
+Native scheduler wait averaged 0.43 ms cold and 0.03 ms per warm view. Lower CPU
+and connection churn do not establish lower upstream latency or traffic volume.
+Each completed run dispatched twelve requests in both implementations. Whole-process
+peak RSS was about 60.9-61.3 MiB native versus 48.9-49.2 MiB apix after the final
+view, again a native non-win. Fixed-startup attribution remains separate work.
+
+The three completed pairs matched the private legacy numeric projection in all
+views. No populated numeric averages or dated descriptive/publication/correction/
+period variants were exercised. The updated fourth-context native runtime preserved
+undated descriptive summaries omitted by apix. Independent authentication changes
+last-login state; equality does not prove historical-login equivalence.
+
+After original regressions and fixes, installed native parser replay of the failed
+context's memory-only apix response bodies passed all views with common numeric
+parity and final-summary parsing. Twenty all-view parses averaged 3.46 ms CPU,
+with 168 KiB peak traced allocations. This was zero extra upstream traffic and
+is not a successful full-runtime rerun. Tracing excludes native allocations.

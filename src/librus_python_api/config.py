@@ -36,6 +36,7 @@ class SideEffect(StrEnum):
     MARK_READ = "mark_read"
     CONSUME_EVENTS = "consume_events"
     SEND_MESSAGE = "send_message"
+    SELECT_VIEW = "select_view"
 
 
 class Evidence(StrEnum):
@@ -197,6 +198,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "grades",
+                "POST",
+                "/przegladaj_oceny/uczen",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -228,6 +237,49 @@ GRADE_MAX_SUBJECTS = 128
 GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
+GRADE_VIEW_FIELDS = MappingProxyType(
+    {
+        "all": "zmiany_logowanie_wszystkie",
+        "week": "zmiany_logowanie_tydzien",
+        "last_login": "zmiany_logowanie",
+    }
+)
+GRADE_CURRENT_HEADER = "Oceny bieżące"
+GRADE_EMPTY_MARKERS = frozenset({"", "-", "Brak ocen"})
+GRADE_AVERAGE_HEADERS = MappingProxyType(
+    {"Średnia ocen": 1, "Średnia ocen z drugiego okresu": 2, "Średnia roczna": 0}
+)
+GRADE_MAX_RECORDS = 2048
+GRADE_MAX_METADATA_LENGTH = 8192
+GRADE_MAX_METADATA_FIELDS = 32
+GRADE_MAX_WINDOW_DAYS = 366
+GRADE_WEEKDAY_LABELS = frozenset({"pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz."})
+GRADE_PERIOD_HEADERS = MappingProxyType(
+    {
+        "Ocena śródroczna z pierwszego okresu": 1,
+        "Ocena śródroczna z drugiego okresu": 2,
+        "Ocena roczna": 0,
+    }
+)
+GRADE_PREDICTED_ANNUAL_HEADER = "Przewidywana ocena roczna"
+GRADE_PREDICTED_PERIOD_HEADERS = MappingProxyType(
+    {
+        "Przewidywana ocena śródroczna z pierwszego okresu": 1,
+        "Przewidywana ocena śródroczna z drugiego okresu": 2,
+    }
+)
+GRADE_PUBLICATION_DATE_LABEL = "opublikowano:"
+GRADE_PUBLICATION_TEACHER_LABEL = "nauczyciel:"
+GRADE_PUBLICATION_PERIOD_LABELS = MappingProxyType(
+    {
+        "pierwszy okres": 1,
+        "pierwszego okresu": 1,
+        "I okres": 1,
+        "drugi okres": 2,
+        "drugiego okresu": 2,
+        "II okres": 2,
+    }
+)
 
 
 class _ValidatedConfig(BaseModel):

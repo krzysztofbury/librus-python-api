@@ -10,34 +10,52 @@ from librus_python_api.config import (
 )
 from librus_python_api.models import (
     Availability,
+    DescriptiveGrade,
+    DescriptiveGradeSummary,
     FinalGrades,
+    GradeKind,
+    GradeRecords,
+    Grades,
     GradeSummaryValue,
+    GradeView,
+    GradeWindow,
     Identity,
     LuckyNumber,
+    NumericGrade,
     Observation,
     Person,
+    SchoolAverage,
     StudentInformation,
     SubjectGradeSummary,
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.2.0.dev0"
+__version__ = "0.2.0"
 
 __all__ = [
     "AccountClient",
     "AccountCredentials",
     "Availability",
     "ConnectionSettings",
+    "DescriptiveGrade",
+    "DescriptiveGradeSummary",
     "FinalGrades",
+    "GradeKind",
+    "GradeRecords",
+    "Grades",
     "GradeSummaryValue",
+    "GradeView",
+    "GradeWindow",
     "Identity",
     "LibrusService",
     "LuckyNumber",
+    "NumericGrade",
     "Observation",
     "OperationLimits",
     "Person",
     "RequestBudget",
     "SchedulerLimits",
+    "SchoolAverage",
     "StudentInformation",
     "SubjectGradeSummary",
     "TransportLimits",

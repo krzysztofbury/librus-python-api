@@ -1,6 +1,6 @@
-# Local-first 0.1.0 verification
+# Local verification history
 
-Date: 2026-09-30. Platform: Linux. No live Librus requests were made. Fixtures are
+Initial 0.1.0 check: 2026-09-30, Linux. No live Librus requests were made then. Fixtures are
 independently authored synthetic examples, not copied HTML or credentialed captures.
 
 ## Proof matrix
@@ -134,6 +134,110 @@ admission wait instead of the earlier eight-second token delay. BENCHMARKS.md
 retains both samples and documents the distinction between burst qualification,
 offline saturation proof, and still-unqualified upstream sustained capacity.
 
+## 0.2.0.dev0 inline-grade checkpoint
+
+Historical checkpoint, superseded by the grades-only acceptance below.
+
+The library now provides `grades()` and inclusive `grades_window()` with frozen
+numeric/descriptive/average records, original parsing fixtures, and the explicit
+view-selection POST contract. This is a development checkpoint, not completed
+grade-family or 0.2.0 coverage. Business differences and gaps against unmodified
+librus-apix 1.5.3 are recorded in contracts/grades.md.
+
+The portable suite passes 219 tests on Linux/Python 3.13 and 3.14. The separately
+installed wheel (3.14) and sdist (3.13) exercise the public grade path through
+original loopback HTTP fixtures outside the source checkout. Coverage includes
+numeric symbols, inline descriptive records, school average availability, inclusive
+window validation, fixed POST form, original combined budgets, default-policy
+four-login coalescing/isolation/cache reuse, and last-waiter cancellation. POST
+401/login redirect/403/429/503 responses never replay credentials or the view
+request. Credential forms are rejected on the grade route before dispatch.
+Unknown nonempty/current or separate grade/publication layouts do not fabricate
+empty or partial success. Existing shared transport/recovery tests remain intact.
+
+Authorized discovery used ten requests, one login and one view POST, against a
+20-request cap. It exercised the source transport path, not an installed public
+grade read. The response remained in memory for parser work. Original regressions
+exposed the ISO-only date assumption, lxml comment handling, and the `Brak ocen`
+empty-cell marker before the fixes. Installed parser replay then completed, with
+common numeric fields matching the unmodified baseline. The response was discarded.
+
+A separately authorized installed-runtime comparison used one login and three
+fresh all-view POSTs per implementation, 16 requests each/32 combined as caps.
+Both completed with 12 HTTP requests each, 24 combined. The native cached date
+window issued no extra request. Subject, raw symbol, civil day, semester, category,
+and teacher matched for the observed populated numeric variant; no descriptive
+entries or populated numeric averages were present. Full record parity is not
+claimed because native preserves unknown metadata and raw/unavailable averages.
+BENCHMARKS.md records cold/warm CPU/latency, requests, connection reuse, higher
+native RSS, same-page replay measurements, and exclusions. Private school records
+crossed only process memory/private pipes and were discarded; retained results are
+redacted metrics. No consumer source, dependency pin, PR, or default backend changed.
+
+Ruff, formatting, strict mypy, and thirteen-operation OpenAPI/catalogue parity
+pass. No credentialed CI, PyPI publication, push, merge, or consumer migration is
+claimed by this local checkpoint. Populated descriptive/average/correction and
+other account variants, separate publication layouts, dated end-period metadata,
+and upstream week/last-login filters remain grade-family gates.
+
+## 0.2.0 local-first grade acceptance
+
+0.2.0 is grades-only. Attendance and the remaining school reads move to 0.3.0;
+communication moves to 0.4.0. The declared grade contracts are implemented, not a
+claim of complete upstream layout or sustained-load coverage. No PyPI publication,
+daily credentialed CI, or production consumer migration is part of this delivery.
+
+Original offline regressions extend the grade suite with descriptive-only rows,
+nested correction spans, period/annual/predicted-annual metadata, multiple publication
+blocks, paragraph preservation, explicit/unknown semesters, strict view validation,
+view-specific coalescing/cache reuse, and all-view date windows. Undated descriptive
+semester text is a separate immutable summary, never assigned an invented date.
+The same subject can appear in numeric and descriptive families without duplicated
+averages; duplicate rows within a family remain failures. Existing traffic/error/
+cancellation/expiry regressions continue to exercise the real loopback runtime.
+
+The newly authorized installed comparison covered four independent login contexts
+under a 128-request combined cap and a 16-request per implementation/context cap.
+It dispatched 94 requests: three completed native/apix pairs at 12 requests each,
+plus a native second-context failure at ten requests and a completed twelve-request
+apix run. No automatic retry, read-once schedule request, message operation, capture,
+or private normalized-record persistence was used. Runs were sequential and paced.
+
+All three completed runtime comparisons matched the private legacy numeric projection
+in all/week/last-login views. Missing native metadata was mapped to baseline defaults
+only for comparison, not in domain results. Dated descriptive collections and numeric
+averages were empty, so their equality is not populated qualification. The final
+context exercised populated undated descriptive summaries using the updated installed
+client; baseline omission is an intentional documented difference.
+
+The second context's failure exposed undated descriptive cells and overlapping subject
+families. Independently authored regressions failed before each fix. Its approved apix
+read supplied memory-only response bodies for the updated installed native parser:
+all three views then passed with common numeric parity, and the final-summary parser
+also passed. This is not a successful second-context full runtime rerun. The replay
+helper was closed and private response data discarded. A new runtime run requires
+new bounded authorization. Populated dated descriptions, publication/correction/period
+marks, numeric averages, role/layout extremes, and sustained capacity remain unqualified.
+
+Week/last-login forms were independently exercised; sequential last-login parity
+cannot prove identical historical-login state because authentication changes that
+state. BENCHMARKS.md retains CPU, latency, request, connection, RSS, and sample limits,
+including slower native latency in some views and higher whole-process RSS.
+
+Final portable suites passed 236 tests each on source Python 3.13 and 3.14,
+installed wheel Python 3.14, and installed sdist Python 3.13. The installed runs
+started outside the checkout and exercised the full portable suite, including
+real loopback authentication/view POSTs, windows, cache/isolation, and cancellation.
+The four optional integration/performance tests were deselected; the grade consumer
+migration is not implemented or implied by an old optional adapter checkout.
+
+Commands: `uv run --locked pytest`, `uv run --locked --python 3.13 pytest`,
+`uv build --no-sources`, then installed-environment `python -m pytest` with only
+the original test directory on PYTHONPATH. Ruff, format checks, strict mypy,
+thirteen-operation contracts, repository hooks, and `git diff --check` pass.
+Redacted worktree secret scanning also passed, including untracked grade files.
+Built distributions are local version 0.2.0, not published packages.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and
@@ -145,11 +249,11 @@ offline saturation proof, and still-unqualified upstream sustained capacity.
 - macOS/Windows installed-artifact/platform qualification.
 - Owner-configured bounded daily credentialed CI, PyPI publication beginning at
   1.0.0rc1, complete consumer migration, and a production backend default switch.
-- Individual grades/GPA/windows and other remaining academic, messaging,
+- Populated grade variants, the failed context's full runtime rerun, and other academic, messaging,
   attachments, send, and read-once event operation slices.
 
 The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
-Library PR #1 is merged. The consumer adapter remains a draft; no package or
+Library PR #1 is merged. Consumer experiment PR #38 is closed, unmerged; no package or
 consumer release has been published. GitHub CI is defined in
 `.github/workflows/ci.yml`; its remote run results are separate from the local
 0.1.0 evidence above. Credentialed compatibility and publishing remain deferred.

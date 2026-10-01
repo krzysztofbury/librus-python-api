@@ -5,7 +5,7 @@ import math
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from types import TracebackType
 from typing import Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
@@ -20,6 +20,7 @@ from tenacity import (
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     ENDPOINTS,
+    GRADE_MAX_WINDOW_DAYS,
     SESSION_COOKIE,
     AccountCredentials,
     ConnectionSettings,
@@ -30,10 +31,15 @@ from librus_python_api.config import (
 from librus_python_api.diagnostics import DiagnosticSink
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.grade_parsers import parse_final_grades
+from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     DiagnosticEvent,
     FinalGrades,
+    Grades,
+    GradeView,
+    GradeViewSelection,
+    GradeWindow,
     Identity,
     LoginSubmission,
     Observation,
@@ -51,7 +57,7 @@ from librus_python_api.transport import (
     TransportFactory,
 )
 
-type _ReadResult = Identity | StudentInformation | FinalGrades
+type _ReadResult = Identity | StudentInformation | FinalGrades | Grades
 
 
 @dataclass(slots=True)
@@ -205,12 +211,14 @@ class AccountClient:
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
         self._flights: dict[
-            tuple[OperationName, float, RequestBudget | None], _Flight
+            tuple[OperationName, GradeView, float, RequestBudget | None], _Flight
         ] = {}
         self._operations = 0
         self._generation = 0
         self._identity: Identity | None = None
-        self._cache: dict[str, tuple[float, _ReadResult]] = {}
+        self._cache: dict[
+            tuple[OperationName, GradeView], tuple[float, _ReadResult]
+        ] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
 
     @property
@@ -248,11 +256,57 @@ class AccountClient:
             FinalGrades, await self._read("final_grades", budget, max_age_seconds)
         )
 
+    async def grades(
+        self,
+        *,
+        view: GradeView = GradeView.ALL,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Grades:
+        """Select a grade view with one non-replayed view-changing POST.
+
+        Changes the selected grade filter, not school records. A cache hit makes
+        no POST. Missing inline weight/count data remains unknown.
+        """
+        if not isinstance(view, GradeView):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        return cast(Grades, await self._read("grades", budget, max_age_seconds, view))
+
+    async def grades_window(
+        self,
+        start: date,
+        end: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> GradeWindow:
+        """Inclusive civil dates, at most 366 days; averages are not dated rows.
+
+        Filtering uses the same full collection/cache/coalescing boundary and
+        creates no per-window cache or extra requests. Input is validated first.
+        """
+        if (
+            type(start) is not date
+            or type(end) is not date
+            or not 0 <= (end - start).days < GRADE_MAX_WINDOW_DAYS
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        result = await self.grades(budget=budget, max_age_seconds=max_age_seconds)
+        return GradeWindow(
+            result.identity,
+            start,
+            end,
+            tuple(g for g in result.records.numeric if start <= g.day <= end),
+            tuple(g for g in result.records.descriptive if start <= g.day <= end),
+            result.observation,
+        )
+
     async def _read(
         self,
         operation: OperationName,
         budget: RequestBudget | None,
         max_age: float,
+        view: GradeView = GradeView.ALL,
     ) -> _ReadResult:
         service = self._service
         service._bind()
@@ -272,11 +326,11 @@ class AccountClient:
             raise LibrusError(ErrorKind.LIMIT)
         service._operations += 1
         self._operations += 1
-        key = (operation, max_age, budget)
+        key = (operation, view, max_age, budget)
         flight = self._flights.get(key)
         if flight is None:
             task = asyncio.create_task(
-                self._execute(operation, budget or service._budget(), max_age)
+                self._execute(operation, budget or service._budget(), max_age, view)
             )
             flight = _Flight(task)
             self._flights[key] = flight
@@ -306,11 +360,12 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
+        view: GradeView,
     ) -> _ReadResult:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         try:
-            return await self._perform(operation, budget, max_age)
+            return await self._perform(operation, budget, max_age, view)
         except LibrusError as error:
             outcome = error.kind
             raise
@@ -339,6 +394,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         max_age: float,
+        view: GradeView,
     ) -> _ReadResult:
         timed_out = False
         try:
@@ -346,7 +402,8 @@ class AccountClient:
                 async with self._lock:
                     self._check_cooldown("authentication")
                     self._check_cooldown(operation)
-                    cached = self._cache.get(operation)
+                    cache_key = (operation, view)
+                    cached = self._cache.get(cache_key)
                     if (
                         max_age > 0
                         and cached
@@ -354,7 +411,7 @@ class AccountClient:
                     ):
                         return cached[1]
                     try:
-                        result = await self._retrieve(operation, budget)
+                        result = await self._retrieve(operation, budget, view)
                     except LibrusError as error:
                         if error.kind in (
                             ErrorKind.ACCESS_DENIED,
@@ -366,7 +423,7 @@ class AccountClient:
                                 error.kind,
                             )
                         raise
-                    self._cache[operation] = (time.monotonic(), result)
+                    self._cache[cache_key] = (time.monotonic(), result)
                     return result
         except TimeoutError:
             timed_out = True
@@ -387,12 +444,24 @@ class AccountClient:
         self,
         operation: OperationName,
         budget: RequestBudget,
+        view: GradeView,
     ) -> _ReadResult:
         authenticated_now = self._identity is None
         # Initial login is outside retries: a failed credential submission must
         # never be replayed by a generic retry policy.
         if authenticated_now:
             await self._authenticate(budget)
+        if not ENDPOINTS[operation].retry_safe:
+            # A view-changing POST is never replayed, even for proven expiry.
+            # Clear stale state so a later explicitly requested operation can
+            # authenticate anew, but do not submit credentials in this attempt.
+            try:
+                return await self._read_authenticated(
+                    operation, budget, authenticated_now, view
+                )
+            except SessionExpiredError:
+                self._invalidate()
+                raise
         retrying = AsyncRetrying(
             retry=retry_if_exception_type(SessionExpiredError),
             stop=stop_after_attempt(2),
@@ -406,7 +475,7 @@ class AccountClient:
                     authenticated_now = True
                 try:
                     return await self._read_authenticated(
-                        operation, budget, authenticated_now
+                        operation, budget, authenticated_now, view
                     )
                 except SessionExpiredError:
                     self._invalidate()
@@ -418,6 +487,7 @@ class AccountClient:
         operation: OperationName,
         budget: RequestBudget,
         authenticated_now: bool,
+        view: GradeView,
     ) -> _ReadResult:
         assert self._identity is not None
         if operation == "identity":
@@ -425,7 +495,11 @@ class AccountClient:
                 return self._identity
             self._identity = await self._fetch_identity(budget)
             return self._identity
-        response = await self._transport.request(operation, budget)
+        response = await self._transport.request(
+            operation,
+            budget,
+            form=GradeViewSelection(view) if operation == "grades" else None,
+        )
         self._validate_read_response(response)
         if (
             response.headers.get("content-type", "").partition(";")[0].strip().lower()
@@ -437,6 +511,11 @@ class AccountClient:
                 parse_final_grades, response.body, budget
             )
             return FinalGrades(self._identity, items, self._observation(operation))
+        if operation == "grades":
+            records = await self._service._parsers.run(
+                parse_grade_records, response.body, budget
+            )
+            return Grades(self._identity, records, self._observation(operation), view)
         assert operation == "student_information"
         fields = await self._service._parsers.run(parse_profile, response.body, budget)
         return StudentInformation(

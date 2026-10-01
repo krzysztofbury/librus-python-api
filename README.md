@@ -3,9 +3,12 @@
 An independent Python library for accessing Librus Synergia. The project is in
 local-first development stage: an async account service supports bounded login,
 typed identity, and student-information reads against offline fixture servers.
-The `0.2.0.dev0` increment also reads typed final-grade summaries. Numeric grades,
-GPA, date windows, and the remaining 0.2.0 academic scope are not implemented yet.
-Bounded login/identity/final-summary live qualification has passed for a narrow
+The local-first `0.2.0` delivery adds final summaries, inline numeric/descriptive grades,
+raw school averages, explicit upstream views, dated period marks, descriptive
+publications, and inclusive date windows. 0.2.0 is grades-only; attendance and the
+remaining school reads are planned for 0.3.0. Qualification and delivery status
+are recorded in VERIFICATION.md, not inferred from this scope adjustment.
+Bounded login/identity/summary/current-grade live qualification has passed for a narrow
 observed variant. General compatibility is unverified; nothing is published to PyPI.
 
 The first intended consumer is
@@ -52,9 +55,12 @@ See [the implementation roadmap](TODO.md).
 - GitHub-hosted CI for Python 3.13/3.14 on Linux: quality/security checks and the
   portable suite against source, installed wheel, and installed sdist. Build
   artifacts are retained for inspection, not published to PyPI.
-- [Final-grade summaries](contracts/grades.md) with explicit column availability,
+- [Grade reads](contracts/grades.md) with explicit column availability,
   preserved school values, bounded semantic HTML parsing, and shared account
-  lifecycle/budgets. The matching MCP adapter remains an opt-in experiment.
+  lifecycle/budgets. Grade-view POSTs have explicit filter side effects and no
+  automatic replay; windows reuse its collection cache. Business compatibility
+  against apix is tracked separately from numeric parity and performance.
+  The consumer migration remains a separate task; its adapter experiment is closed.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -77,8 +83,9 @@ uv pip install dist/*.whl
 
 The supported public entry point is `LibrusService`. Supply credentials explicitly,
 reuse one service across accounts/tools, and close it with an async context manager.
-Enabled development reads are `identity()`, `student_information()`, and
-`final_grades()`. The version is a development marker, not a published release.
+Enabled development reads are `identity()`, `student_information()`,
+`final_grades()`, `grades()`, and `grades_window()`. Version 0.2.0 is a local-only
+delivery, not a published PyPI release.
 
 ## Development principles
 
