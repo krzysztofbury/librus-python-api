@@ -332,5 +332,18 @@ before closing a failed session, without retaining captures or broadening traffi
   test results and blockers promptly; do not imply a build or background work exists
   when the trace shows only exploration. The observed session delay was not diagnosed.
 
-This is implementing-agent self-review, not independent approval. Teacher/classroom
-compatibility is an explicit open gate, not a hidden normalization success claim.
+This was implementing-agent self-review, not independent approval. The subsequent
+same-response browser check resolves the native-correctness gate: all native
+teacher/classroom strings agree with normalized Chromium text. Of 29 differences
+per week, 28 are whitespace-only and one baseline string disagrees with rendered
+markup. Three original lesson-boundary cases preserve native rendering; no native
+production change was justified. Exact baseline-string parity remains deliberately
+different, not an unresolved native failure. The precise baseline transformation
+behind the one live discrepancy was not established; a separately reproduced
+subject-hyphen defect must not be substituted for that missing causal evidence.
+
+For comparison reviews, use rendered page semantics as an independent oracle.
+Classify normalization separately from factual disagreement, and do not change
+correct domain values solely to satisfy a baseline equality check. Browser checks
+here used captured markup/inline styles with scripts and networking disabled;
+they are not a full styled/interactive school UI qualification.

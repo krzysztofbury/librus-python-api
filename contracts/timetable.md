@@ -28,7 +28,7 @@ offline contracts until independently observed in a completed runtime workload.
 | Selection | One fixed week-selection POST | Central route and exact `tydzien=YYYY-MM-DD_YYYY-MM-DD` form; `select_view` side effect, never replayed automatically |
 | Days/slots | Seven nested day lists, including blank slots | Identity-bearing `Timetable` with seven explicit `TimetableDay` dates and immutable periods; no dropped weekend or empty slot |
 | Period/time | Number, raw date/from/to strings, locale weekday string | Explicit numeric period, `datetime.time` interval and owning civil day; no invented timezone/weekday text. Consumers render civil/time strings and weekday labels |
-| Lessons | Multiple subject/teacher blocks joined with slash delimiters | Ordered distinct `TimetableLesson` entries preserve grouping and subject hyphens; teacher/classroom remains combined rendered text with normalized whitespace, absent as None, not guessed identities/rooms. Live teacher/classroom projection differs and remains unresolved |
+| Lessons | Multiple subject/teacher blocks joined with slash delimiters | Ordered distinct `TimetableLesson` entries preserve grouping and subject hyphens; teacher/classroom remains combined rendered text with normalized whitespace, absent as None, not guessed identities/rooms. Same-response Chromium validation confirms native values: baseline differs in whitespace and one incorrect string per week. Do not reproduce that baseline string for exact parity |
 | Changes | Raw notice labels with empty marker or mapped replacement fields | Ordered `TimetableChange` raw labels and complete optional label/value metadata, including unknown labels. No guessed cancellation/substitution enum. Consumers own legacy dictionary/key mapping and empty defaults |
 | Recess | Optional next-recess raw from/to values | Optional typed clock pair associated with its preceding period, preserving valid reported clocks including zero/inverted pairs. No inferred duration or constraint on lesson ordering. Absence remains None |
 | Attribute order | Baseline assumes date/from/to attribute insertion order | Native reads named attributes and checks explicit date coverage, independent of insertion order |
@@ -60,10 +60,17 @@ offline contracts until independently observed in a completed runtime workload.
 
 The final installed native/apix pair completed two populated weeks and native
 cached-week reuse. Dates/times/numbers/recesses/subjects/notices match the legacy
-projection. Combined teacher/classroom differs in 29 periods per week; no retained
-private records remain to classify those differences further. This is completed
-runtime retrieval, not full business parity. Future safe diagnosis needs semantic
-comparison categories, not raw private records or an assumed whitespace explanation.
+projection. Fresh same-response diagnostics classify combined teacher/classroom
+differences as 28 whitespace-only strings plus one baseline/rendered-text disagreement
+per week. Native agrees with normalized Chromium text in all 91 slots per week;
+no native teacher/classroom defect was observed. Preserve that output, not exact
+baseline strings. Three original lesson-boundary cases protect whitespace, line
+breaks, nonbreaking spaces and subject/teacher/room hyphens. An original synthetic
+replay separately demonstrates apix subject-hyphen contamination; the exact cause
+of its one live non-whitespace error is not established and must not be inferred.
+The resolved native-correctness gate is distinct from exact baseline parity.
+Browser checks used captured markup and inline styles only, disabled page scripts
+and blocked external requests, not a separate interactive login or full styled UI.
 Installed qualification status belongs to VERIFICATION.md. Alternative roles,
 multi-group/replacement metadata, wholly empty upstream weeks, changed cell order,
 locale/encoding variants and sustained load require separate evidence. Pure civil

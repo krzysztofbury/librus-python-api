@@ -235,14 +235,17 @@ qualification. Sequential logins change last-login state; empty equality cannot
 qualify populated historical-login behavior. Wider roles/layouts and custom types
 remain unqualified. No consumer backend or dependency was changed.
 
-## Timetable: completed runtime with unresolved field parity
+## Timetable: completed runtime with baseline-string differences
 
 2026-10-01, Linux/Python 3.14. Installed native 0.3.0.dev0 and unmodified apix 1.5.3
 each completed the same two ordinary weeks on one approved context. The explicit
 legacy projection matched subject/date/time/weekday/number/recess/change fields,
 but combined teacher/classroom differed in 29 periods per week. These are completed
 retrieval workloads, not successful full-field parity or interchangeable consumer
-output. The remaining difference is not proven to be whitespace-only.
+output. At timing collection, those differences were not yet classified.
+Subsequent same-response Chromium diagnosis confirms native text in every slot:
+28 differences per week are whitespace-only and one is an incorrect baseline
+string. Those later diagnosis runs are not timing samples for this table.
 
 | Retrieval | Native wall / CPU (ms) | apix wall / CPU (ms) | Requests native / apix |
 | --- | --- | --- | --- |

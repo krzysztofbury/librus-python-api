@@ -10,7 +10,13 @@
   mirrored number markers and zero/inverted reported recesses with regressions.
 - Complete installed timetable retrieval for two populated weeks and cached reuse
   on one context. Dates/times/numbers/recesses/subjects/notices match apix's legacy
-  projection; teacher/classroom differences remain an explicit parity blocker.
+  projection. Subsequent same-response Chromium diagnosis confirms native
+  teacher/classroom values in all slots; 28 differences per week are whitespace
+  and one baseline string does not match rendered text. Preserve correct native
+  output rather than emulate apix; exact-string parity is not claimed.
+- Add original regression cases for multiline/nonbreaking-space lesson rendering
+  and hyphens inside subject, teacher and room text. No production parser change
+  was required to resolve the teacher/classroom correctness gate.
 
 - Add immutable attendance records, strict all/week/last-login views, and inclusive
   civil-date windows over the account's all-view collection cache.

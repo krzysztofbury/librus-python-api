@@ -10,8 +10,9 @@ remaining school reads belong to 0.3.0. The current `0.3.0.dev0` increment adds
 attendance collections, upstream views, date windows, details, and explicit overall/
 subject ratios. One bounded installed comparison completed; broader roles/layouts
 and populated last-login remain unqualified. Explicit timetable weeks are now
-implemented and complete two-week installed retrieval on one profile; an observed
-teacher/classroom text difference prevents a full baseline-parity claim.
+implemented and complete two-week installed retrieval on one profile. Chromium
+validation confirms native teacher/classroom text; differences from apix are
+whitespace normalization and one baseline string inconsistent with rendered text.
 Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
@@ -74,7 +75,8 @@ See [the implementation roadmap](TODO.md).
 - [Timetable weeks](contracts/timetable.md) with explicit civil dates, seven days,
   distinct lesson entries, raw change notices, reported recess clocks, isolated
   week caches, and selection POST non-replay. Two-week runtime qualification
-  completed; exact teacher/classroom compatibility remains unresolved.
+  completed; browser-validated teacher/classroom differences are documented
+  intentional departures from exact apix strings, not a native correctness gap.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,

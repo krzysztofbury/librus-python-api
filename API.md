@@ -5,8 +5,9 @@ information. The 0.2.0 scope is grades, averages, final summaries, views, and
 windows. The first 0.3 development increment adds attendance collections, upstream
 views, date windows, detail fields/notes, gateway records, and overall/subject
 frequency, plus explicit timetable weeks, not complete school-read coverage.
-Two-week installed timetable retrieval completed, but the teacher/classroom
-projection has an unresolved baseline difference. Bounded attendance qualification
+Two-week installed timetable retrieval and Chromium text validation completed.
+Native teacher/classroom text matches rendered markup rather than reproducing
+apix whitespace and its observed incorrect string. Bounded attendance qualification
 has completed on one context; populated last-login and broader layouts remain
 unqualified. Bounded grade live qualification has
 passed for a narrow observed variant; general account compatibility is unverified.
@@ -306,10 +307,16 @@ ID parser error is allowed for this parser; unrelated duplicate IDs still fail.
 
 One installed native/apix pair completed both populated weeks with equal date,
 time, number, recess, subject, weekday and change-notice projections. Combined
-teacher/classroom text differed in 29 periods per week. The retained redacted
-evidence does not establish whether every difference is intended normalization
-or a parser defect. Do not claim full parity or switch a consumer until classified
-and qualified. See [the contract](contracts/timetable.md) and VERIFICATION.md.
+teacher/classroom text differed in 29 periods per week. Subsequent same-response
+comparison in Chromium established 28 whitespace-only differences and one apix
+string inconsistent with rendered markup per week. Native matches all 91 slots
+after rendered-whitespace normalization. Preserve native text rather than
+reproduce the baseline discrepancy. Exact apix string parity is deliberately not
+the correctness criterion. The precise baseline transformation responsible for
+its one non-whitespace error is not established; subject-hyphen splitting is a
+separately reproduced baseline defect, not a proven cause of that live error.
+No consumer cutover is implied. See [the contract](contracts/timetable.md) and
+VERIFICATION.md for browser limitations and qualification scope.
 
 ## Exceptions, retries, and diagnostics
 

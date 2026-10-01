@@ -70,6 +70,40 @@ def test_multiple_lessons_and_raw_change_metadata_are_not_flattened() -> None:
     assert dict(first.changes[0].metadata)["Nauczyciel"] == "Fixture Alternate"
 
 
+@pytest.mark.parametrize(
+    "content,subject,teacher",
+    [
+        (
+            '<div class="text">\n<b>Fixture Biology</b><br>\n'
+            " - Fixture Teacher&nbsp; (R12)\n</div>",
+            "Fixture Biology",
+            "Fixture Teacher (R12)",
+        ),
+        (
+            '<div class="text">\n<b>Fixture Bio-Chem</b><br>\n'
+            " - Fixture North-South&nbsp; (R12-R14)\n</div>",
+            "Fixture Bio-Chem",
+            "Fixture North-South (R12-R14)",
+        ),
+        (
+            '<div class="text"><b>Fixture Bio - Chem</b><br>'
+            " - Fixture Teacher<br>(R12)</div>",
+            "Fixture Bio - Chem",
+            "Fixture Teacher (R12)",
+        ),
+    ],
+)
+def test_rendered_lesson_boundaries_preserve_teacher_and_subject_hyphens(
+    content: str, subject: str, teacher: str
+) -> None:
+    first = parse_timetable(timetable_html(content=content).encode(), MONDAY)[
+        0
+    ].periods[0]
+    assert len(first.lessons) == 1
+    assert first.lessons[0].subject == subject
+    assert first.lessons[0].teacher_and_classroom == teacher
+
+
 def test_notice_only_and_valid_empty_grid_do_not_invent_lessons() -> None:
     first = parse_timetable(
         timetable_html(content=notice("Fixture cancelled")).encode(), MONDAY

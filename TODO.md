@@ -224,8 +224,10 @@ This is not completed 0.3.0 coverage.
 - [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
   centralized non-replayed forms, nineteen-operation wire catalogue, original
   offline fixtures, and installed two-week runtime retrieval on one context.
-- [ ] Classify and resolve the observed timetable teacher/classroom projection
-  differences; obtain populated group/replacement-tooltip and broader role proof.
+- [x] Resolve timetable teacher/classroom correctness with same-response Chromium
+  checks: native matches all slots; document whitespace and incorrect baseline
+  string departures rather than changing native to reproduce them.
+- [ ] Obtain populated timetable group/replacement-tooltip and broader role proof.
 - [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
   original populated/empty/error fixtures, and installed-artifact proof per family.
 - [ ] Apply the apix business compatibility gate and separately authorized live
