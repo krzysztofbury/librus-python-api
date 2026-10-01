@@ -7,7 +7,8 @@ and it is not an official Librus specification.
 The catalogue covers the bounded cookie-login flow, gateway identity, HTML
 student-information and [grade reads](grades.md), including fixed-form
 all/week/last-login view POSTs, plus [attendance reads](attendance.md) and
-[explicit timetable weeks](timetable.md) and [announcements](announcements.md).
+[explicit timetable weeks](timetable.md), [announcements](announcements.md),
+and [ordinary agenda/homework with details](school-reads.md).
 Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
@@ -28,6 +29,9 @@ One populated installed announcement read agrees with same-response apix/browser
 semantics. Full body text is not limited to grade-sized values; content references
 are explicit account-scoped fingerprints, not nonexistent upstream IDs. Empty
 and alternate layouts remain source-informed/offline-only.
+Agenda/homework has populated agenda/detail and empty-homework discovery evidence,
+but installed-family qualification remains partial. Observed endpoints do not
+imply populated homework or a completed installed details path.
 
 ## Adding an endpoint
 

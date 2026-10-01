@@ -2,6 +2,21 @@
 
 ## 0.3.0.dev0 - School reads development
 
+- Add ordinary agenda month and homework window APIs with full event/tooltip text,
+  immutable civil dates/clocks, explicit unavailable values and account-bound
+  detail references. Preserve unknown detail fields and notes.
+- Ship four additional centralized OpenAPI operations with original parser/wire/
+  lifecycle proof. Selection POSTs never replay; shared limits, isolated caching,
+  safe detail recovery and joined cancellation remain in force.
+- Record populated agenda/detail and empty-homework discovery, partial installed
+  agenda qualification and unresolved tooltip comparison. Populated homework,
+  installed details/homework and a complete family rerun remain unqualified.
+  No read-once events, submissions, attachments, consumer switch or publication.
+- Add opt-in synthetic apix comparison for populated homework/details and missing
+  agenda variants. All four public APIs complete on installed artifacts over
+  loopback; common fields match and baseline/native departures are explicit.
+  Native production code is unchanged; this is not populated live qualification.
+
 - Add typed ordinary announcement reads with full bounded multiline plain text,
   author, raw/typed civil date and account-alias-scoped content references rather
   than fabricated upstream IDs. Preserve duplicates; edits change references.

@@ -220,7 +220,17 @@ This is not completed 0.3.0 coverage.
   preserved unknown types, bounded metadata reuse, and installed proof.
 - [ ] Broader attendance role/layout qualification, populated last-login, custom
   type metadata semantics, and full-year subject-resolution qualification.
-- [ ] Remaining school families: agenda/details, homework/details and completed lessons.
+- [x] Ordinary agenda/details and homework/details with typed explicit month/window
+  selections, full text/metadata, account-bound numeric references, central
+  non-replayed wire forms and original parser/service proof.
+- [ ] Complete installed agenda/homework/details qualification: current-month agenda
+  has partial rendered proof; previous-month comparison stopped on an unclassified
+  baseline tooltip difference. Installed live details/homework and populated live homework
+  remain pending. Discovery alone is not installed qualification.
+- [x] Compare unobserved populated homework/details and agenda variants against
+  external unmodified apix with original synthetic responses; exercise all four
+  installed public APIs offline and classify representation/integrity departures.
+- [ ] Remaining school family: completed lessons with bounded resumable pagination.
 - [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
   centralized non-replayed forms, nineteen-operation wire catalogue, original
   offline fixtures, and installed two-week runtime retrieval on one context.

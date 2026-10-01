@@ -16,7 +16,11 @@ whitespace normalization and one baseline string inconsistent with rendered text
 Announcement reads now preserve full bounded plain text, author, civil date and
 account-scoped content references; one populated installed read agrees with
 same-response apix and Chromium semantics. Wider announcement layouts remain
-unqualified.
+unqualified. Ordinary agenda/homework collections and details are implemented
+with explicit selections and account-bound references. Installed qualification is
+partial; populated live homework and its details remain unqualified. Original
+synthetic comparisons against unmodified apix cover these missing live variants,
+including the complete installed offline collection/detail path.
 Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
@@ -85,6 +89,10 @@ See [the implementation roadmap](TODO.md).
   authors, raw/typed civil dates and explicitly content-addressed account references.
   Ordinary GETs reuse shared budgets and isolated sessions/caches; no mark-read,
   link traversal or event consumption is enabled.
+- [Agenda/homework](contracts/school-reads.md) with complete civil months, full
+  event/tooltip text, explicit assignment windows, split raw/typed date-time cells,
+  account-bound details and non-replayed selection POSTs. Recent/read-once agenda,
+  submissions and attachments are excluded.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -111,7 +119,7 @@ Enabled development reads are `identity()`, `student_information()`,
 `final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
 `attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
 `attendance_frequency()`, `subject_frequency()`, explicit-week `timetable()`, and
-`announcements()`.
+`announcements()`, `agenda()`, `agenda_detail()`, `homework()` and `homework_detail()`.
 Version 0.3.0.dev0 is a local-only development build,
 not a published PyPI release.
 

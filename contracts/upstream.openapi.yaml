@@ -658,6 +658,110 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /terminarz/:
+    post:
+      operationId: agenda
+      tags: [Agenda]
+      summary: Select an ordinary agenda month, never recent-event consumption
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Two populated months observed in authorized discovery; installed retrieval is only partially qualified. See contracts/school-reads.md and VERIFICATION.md.
+      description: |
+        Explicit rok/miesiac form, bounded year/month selection. Selection is never
+        automatically replayed. No recent/read-once event endpoint is enabled.
+        Account isolation, shared traffic/body/deadline and bounded parser policies
+        apply; unknown/missing calendars fail rather than becoming empty collections.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [rok, miesiac]
+              properties:
+                rok: {type: string, pattern: '^(20(0[1-9]|[1-9][0-9])|2100)$'}
+                miesiac: {type: string, pattern: '^(0[1-9]|1[0-2])$'}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /terminarz/szczegoly/{id}:
+    get:
+      operationId: agenda_detail
+      tags: [Agenda]
+      summary: Read an ordinary returned agenda detail reference
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Two returned detail pages observed in authorized discovery; installed public-API live qualification remains pending.
+      description: |
+        Fixed numeric detail namespace only, not caller-supplied authenticated URLs.
+        Retain bounded label/value fields and ancillary notes; reject silent partial
+        parsing. One proven-expiry safe recovery stays within the original budget.
+      parameters: [{$ref: '#/components/parameters/NumericId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /moje_zadania:
+    post:
+      operationId: homework
+      tags: [Homework]
+      summary: Select a bounded ordinary homework date window
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized discovery observed explicit empty markup only; populated and installed public-API live qualification remain pending.
+      description: |
+        Explicit inclusive dataOd/dataDo window, at most 371 civil days;
+        fixed all-subject/all-status -1 filters.
+        No submissions, read-once agenda or attachments. Never replay the selection
+        POST. Empty success requires recognized explicit homework markup.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [dataOd, dataDo, przedmiot, status]
+              properties:
+                dataOd: {type: string, format: date}
+                dataDo: {type: string, format: date}
+                przedmiot: {type: string, enum: ['-1']}
+                status: {type: string, enum: ['-1']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /moje_zadania/podglad/{id}:
+    get:
+      operationId: homework_detail
+      tags: [Homework]
+      summary: Read ordinary homework detail fields, without attachments/submissions
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: Source-informed fixed numeric preview namespace; original detail fixtures and qualification tracked separately.
+      description: |
+        Read a fixed numeric preview only. Bound and preserve full label/value text
+        and ancillary notes. No resource links/forms/scripts are invoked. Safe
+        recovery is limited to proven expiry within the original shared budget.
+      parameters: [{$ref: '#/components/parameters/NumericId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /ogloszenia:
     get:
       operationId: announcements

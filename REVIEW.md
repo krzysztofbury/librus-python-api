@@ -369,3 +369,68 @@ they are not a full styled/interactive school UI qualification.
   Differences are whitespace-only, classified in memory before private disposal.
 - Empty/aliased/reordered/richer layouts remain offline-only or unqualified;
   this is not complete 0.3, independent approval, consumer migration or publication.
+
+## Agenda/homework self-review and qualification lessons
+
+Implementing-agent self-review, not independent approval.
+
+- TigerStyle #6: Positive and negative space. Ordinary agenda and homework use
+  closed selection types and fixed routes. References validate account, family
+  and numeric namespace before I/O. Selection POSTs do not replay; missing data
+  cannot become invented empty success. Read-once/submission/attachment routes
+  are not enabled. Reprs and error factories keep school data out of diagnostics.
+- TigerStyle #2: Bounded loops. Collection/text/tooltip/column/field limits join
+  common tree/body/worker and global traffic bounds. Account-local selection
+  caches are bounded, with no implicit detail fan-out or cross-login merging.
+- Test ownership: original parser fixtures protect integrity and typed optional
+  states; real loopback routes independently protect exact wire forms, returned
+  references, login isolation, budgets, non-replay, recovery and cleanup. Existing
+  scheduler/resource tests continue to own shared infrastructure capacity.
+- An original subjectless multiline case failed before correcting title selection.
+  Header-free explanatory lines must not silently displace the first title line.
+  This is an offline requirement fix, not a diagnosed live baseline bug.
+- Three live attempts stopped on helper comparison/scanning failures, not upstream
+  outages. One of four runs completed discovery only. Every replacement login had fresh
+  approval; 45 requests were counted cumulatively, and no failed run was called
+  full installed qualification. Current-month rendered proof is narrow and the
+  final current-build full-family rerun is still pending.
+- Tooltip reconstruction was a poor comparison boundary: labelled fields and
+  unlabelled notes can interleave, and colon spacing is presentation. Preserve
+  complete ordered plaintext and compare its rendering directly. Synthetic
+  reproduction of a helper flaw does not establish the discarded live cause.
+- Future qualification helpers should finish native/rendered comparisons before
+  baseline classification, and retain redacted reason counters for unknown
+  differences before disposing of private records. A baseline difference must
+  neither fabricate native corruption nor silently erase an unresolved gate.
+- Exercise all helper phases with original inputs, including comment nodes,
+  trailing/empty tooltip chunks, interleaved notes, punctuation and differing
+  field layouts. Helper preflight reduces risk but does not prove live correctness.
+  Temporary write-quota failures must be handled before credentials; existing
+  unrelated scratch work was not removed to make room.
+
+Populated homework/details, installed detail/homework runtime, wider layouts and
+full-family rerun remain open. Lessons stay in repository docs, not personal notes.
+
+### Offline baseline follow-up
+
+34 opt-in comparisons now exercise unobserved populated homework/details and
+agenda variants against an external unmodified apix install. The baseline's
+distribution hashes are checked; original response bytes, not copied fixture
+content, are replayed. Native production code is unchanged. Common projections
+match; optional values/notes, text-boundary preservation and stricter integrity
+remain explicit departures. Both installed artifacts exercise the full public
+four-API loopback path. Fourteen synthetic Chromium comparisons confirm native
+rendered text without credentials or external page traffic.
+
+The first comparison assertions incorrectly assumed that apix exposed script
+contents through BeautifulSoup text and treated an HH:MM clock as a lesson number.
+Actual execution disproved both assumptions; expectations were corrected, not
+production behavior. This is why reading loose parser code is not sufficient
+evidence of the installed dependency's behavior. Similar synthetic tooltip failures
+do not retroactively diagnose private live responses that have already been discarded.
+
+The extra layer has a distinct owner: executable external-baseline compatibility,
+not another duplicate native parser unit suite. No test-only production hook was
+introduced. The public-path comparison uses the existing transport-factory seam
+and real loopback aiohttp, with identical returned bytes supplied to apix. Default
+CI remains offline and independent of the optional baseline installation.

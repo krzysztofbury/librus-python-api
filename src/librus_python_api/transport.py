@@ -25,15 +25,20 @@ from librus_python_api.config import (
     Endpoint,
     SideEffect,
     TransportLimits,
+    agenda_form,
+    homework_form,
     timetable_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
+    AgendaSelection,
     AttendanceView,
     AttendanceViewSelection,
     GradeView,
     GradeViewSelection,
+    HomeworkSelection,
     LoginSubmission,
+    RequestForm,
     TimetableSelection,
     TransportResponse,
 )
@@ -53,11 +58,7 @@ class AccountTransport(Protocol):
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission
-        | GradeViewSelection
-        | AttendanceViewSelection
-        | TimetableSelection
-        | None = None,
+        form: RequestForm = None,
         reference_id: str | None = None,
     ) -> TransportResponse: ...
 
@@ -125,11 +126,7 @@ class AiohttpTransport:
         endpoint_id: str,
         budget: RequestBudget,
         *,
-        form: LoginSubmission
-        | GradeViewSelection
-        | AttendanceViewSelection
-        | TimetableSelection
-        | None = None,
+        form: RequestForm = None,
         reference_id: str | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
@@ -192,11 +189,7 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission
-        | GradeViewSelection
-        | AttendanceViewSelection
-        | TimetableSelection
-        | None,
+        form: RequestForm,
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
@@ -219,6 +212,14 @@ class AiohttpTransport:
             if not isinstance(form, TimetableSelection):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
             timetable_form(form.monday)
+        elif endpoint.operation_id == "agenda":
+            if not isinstance(form, AgendaSelection):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            agenda_form(form.year, form.month)
+        elif endpoint.operation_id == "homework":
+            if not isinstance(form, HomeworkSelection):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            homework_form(form.start, form.end)
         elif form is not None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if isinstance(form, LoginSubmission) and (
@@ -249,11 +250,7 @@ class AiohttpTransport:
         endpoint: Endpoint,
         url: str,
         budget: RequestBudget,
-        form: LoginSubmission
-        | GradeViewSelection
-        | AttendanceViewSelection
-        | TimetableSelection
-        | None,
+        form: RequestForm,
     ) -> TransportResponse:
         session = self._get_session()
         proxy = self._connection.proxy_url
@@ -284,6 +281,10 @@ class AiohttpTransport:
             payload = {key: value}
         elif isinstance(form, TimetableSelection):
             payload = timetable_form(form.monday)
+        elif isinstance(form, AgendaSelection):
+            payload = agenda_form(form.year, form.month)
+        elif isinstance(form, HomeworkSelection):
+            payload = homework_form(form.start, form.end)
         async with session.request(
             endpoint.method,
             url,

@@ -522,6 +522,108 @@ full 0.3 coverage, consumer cutover, publishing or owner-configured live CI is
 implied. CONTRIBUTING.md now requires identical-response offline reference replay
 and in-memory difference classification before private records are discarded.
 
+## Agenda/homework increment: partial installed qualification
+
+2026-10-01, Linux. Four public APIs now implement ordinary month/window reads and
+matching account-bound numeric details. All share bounded scheduling, isolated
+cache/coalescing and joined cancellation. Selection POSTs never replay; details
+retain one proven-expiry safe-read recovery within the original budget. No consumer
+files, recent/read-once operations, assignment submissions or attachments changed.
+The catalogue has 24 matching OpenAPI operations. Homework detail remains
+source-informed; the other three routes have observed discovery evidence.
+
+Original fixtures protect complete civil months including leap years, explicit
+empty markers, split raw/typed assignment dates/clocks, full detail content and
+notes, unsafe/foreign references, malformed/active content, item/field/aggregate
+bounds, four independent login contexts, exact forms, selection cache keys,
+non-replay, detail expiry recovery, original budgets and joined cancellation.
+An original failing-before-fix case found that subjectless multiline events could
+use an explanatory second line as title; only a recognized header now skips the
+first line. This edge fix has offline proof, not a completed live rerun.
+
+### Authorization and outcomes
+
+The fresh initial scope allowed two one-login runs, 24 requests each, 48 total,
+120 seconds per run. Only authentication/identity, current/previous agenda month
+selection, one homework window and at most two returned details per family were
+allowed. Replacement logins required separate explicit approval; unused requests
+did not authorize replay. All private pages/records were discarded in memory.
+
+| Run | Requests | Result |
+| --- | ---: | --- |
+| Initial discovery | 10 | Current month retrieved; local comment-node reference scanner failed with TypeError; no more reads |
+| Authorized replacement discovery | 14 | Two populated months (5/13 events), two returned agenda details (8/7 fields), explicit empty homework; same-response baseline/browser structural checks |
+| Installed qualification | 10 | Current month parsed; tooltip presentation reconstruction mismatch stopped comparisons |
+| Authorized final replacement | 11 | Current month's 5 events match normalized Chromium text, subjects, references and full tooltip text; previous month parsed but comparison stopped on an unclassified baseline tooltip difference |
+
+Total: 45/48 requests, four credential submissions, no automatic replay. Installed
+detail and homework paths were not reached. Discovery is not installed public-API
+qualification, and empty homework is not populated assignment/detail evidence.
+No further login is authorized within this scope, despite unused allowance.
+
+Comparison helpers were exercised offline with original markup before live runs.
+The comment-node TypeError was reproduced offline before fixing its guard.
+An intermediate-note/colon-spacing case reproduced the first tooltip comparator's
+loss of order when reconstructing fields followed by notes; the precise live
+cause was not established. Full ordered `metadata_text` now protects that
+presentation boundary. The later unclassified baseline difference remains open;
+it is not evidence of a confirmed native parser bug or full baseline parity.
+
+Chromium renders identical captured markup/inline styles with page scripts and
+external requests disabled. It is not an interactive or fully styled school
+login. Offline apix replay adds no school requests. Current-month differences
+include baseline subject/default inference and title extraction; native full text
+matches browser rendering, but complete serialized parity and precise causes of
+all title differences are not claimed. The current month's cached reuse made no
+additional HTTP request.
+
+438 portable tests pass on source Python 3.13/3.14, installed wheel Python 3.14
+and installed sdist Python 3.13, including 58 new school-read cases; four opt-in
+cases remain deselected. Ruff/format, strict mypy, 24-operation contract parity,
+lock, changed-file hooks, untracked worktree secret scan and locked dependency
+audit pass. Both installed environments pass dependency consistency checks.
+Installed-wheel metadata/license/typing/import-location checks and an executable
+four-public-API loopback smoke pass without school traffic. The sdist is installed
+outside the checkout and exercises the same public loopback paths in its suite.
+No hosted CI run, package publication, production switch or independent reviewer
+approval is claimed.
+See contracts/school-reads.md and REVIEW.md for remaining qualification and lessons.
+
+### Offline apix follow-up for missing live variants
+
+34 opt-in original-response comparisons pass with unmodified external apix 1.5.3
+on source Python 3.14, installed wheel Python 3.14 and installed sdist Python 3.13.
+`tests/integration/test_school_reads_apix.py` verifies baseline source against its
+installed RECORD hashes, blocks external socket/DNS access, and uses a fixed-response
+client rather than constructing an authenticated baseline client. Its public-path
+case executes all four native APIs against actual aiohttp loopback routes and feeds
+the identical returned bytes to apix. Common assignment fields/raw dates/references
+and plain/empty/long detail values match; intentional differences are classified
+in contracts/school-reads.md. No production library code changed in this follow-up.
+
+The comparison explicitly covers populated homework with multiple ordered rows,
+missing clocks/dates and extra columns, populated homework and agenda details,
+long/BR/paragraph values, duplicate/missing/active details, empty agenda, optional
+subjects, clocks, punctuation, metadata notes/trailing breaks and alternate BR tags.
+It also identifies baseline failures on reordered homework classes/linkless rows,
+loss of double-quoted references and word boundaries, and silent duplicate-label
+overwrite. Native integrity/optional-state policies are not weakened for parity.
+
+Network-disabled Chromium 152 validates installed native rendered text in 14
+original positive cases: six agenda cells/tooltips, six detail pages and two
+homework rows. This is independent rendering of synthetic markup, not additional
+live data. The baseline comparison emits six external BeautifulSoup deprecation
+warnings, retained without patching its source. No network performance/RSS claim.
+
+The default suite still passes 438 tests, with 38 opt-in cases deselected (the
+existing four plus these 34 comparisons). Ruff/format and strict mypy pass.
+No school requests or real credential submissions were made; the historical 45/48
+live-request count is unchanged. Complete installed *offline* collection/detail
+comparison is now exercised; installed *live* paths and populated homework/details
+remain pending. Unknown historical live tooltip differences are not retrospectively
+assigned a cause from similar synthetic cases. The new comparison suite is opt-in
+and does not add apix as a library or ordinary-CI dependency.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

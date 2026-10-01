@@ -40,6 +40,8 @@ from librus_python_api.config import (
     OperationLimits,
     SchedulerLimits,
     TransportLimits,
+    agenda_form,
+    homework_form,
     timetable_form,
 )
 from librus_python_api.diagnostics import DiagnosticSink
@@ -48,6 +50,8 @@ from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
+    Agenda,
+    AgendaSelection,
     Announcements,
     Attendance,
     AttendanceDateSelection,
@@ -65,12 +69,17 @@ from librus_python_api.models import (
     GradeView,
     GradeViewSelection,
     GradeWindow,
+    Homework,
+    HomeworkSelection,
     Identity,
     LoginSubmission,
     Observation,
     OperationName,
     ReadSelection,
+    RequestForm,
     SchedulerSnapshot,
+    SchoolDetail,
+    SchoolReference,
     StudentInformation,
     SubjectFrequencies,
     SubjectFrequency,
@@ -81,6 +90,11 @@ from librus_python_api.models import (
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
 from librus_python_api.scheduler import RequestScheduler
+from librus_python_api.school_reads import (
+    parse_agenda,
+    parse_homework,
+    parse_school_detail,
+)
 from librus_python_api.timetable import parse_timetable
 from librus_python_api.transport import (
     AccountTransport,
@@ -99,6 +113,9 @@ type _ReadResult = (
     | SubjectFrequencies
     | Timetable
     | Announcements
+    | Agenda
+    | Homework
+    | SchoolDetail
 )
 
 
@@ -380,6 +397,73 @@ class AccountClient:
             end,
             tuple(row for row in result.items if start <= row.day <= end),
             result.observation,
+        )
+
+    async def agenda(
+        self,
+        year: int,
+        month: int,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Agenda:
+        agenda_form(year, month)
+        return cast(
+            Agenda,
+            await self._read(
+                "agenda", budget, max_age_seconds, AgendaSelection(year, month)
+            ),
+        )
+
+    async def homework(
+        self,
+        start: date,
+        end: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Homework:
+        homework_form(start, end)
+        return cast(
+            Homework,
+            await self._read(
+                "homework", budget, max_age_seconds, HomeworkSelection(start, end)
+            ),
+        )
+
+    def _validate_school_reference(self, reference: SchoolReference, kind: str) -> None:
+        if not isinstance(reference, SchoolReference) or (
+            reference.kind != kind
+            or reference.account != self._alias
+            or type(reference.identifier) is not str
+            or not re.fullmatch(r"[0-9]{1,64}", reference.identifier)
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+
+    async def agenda_detail(
+        self,
+        reference: SchoolReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SchoolDetail:
+        self._validate_school_reference(reference, "agenda")
+        return cast(
+            SchoolDetail,
+            await self._read("agenda_detail", budget, max_age_seconds, reference),
+        )
+
+    async def homework_detail(
+        self,
+        reference: SchoolReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SchoolDetail:
+        self._validate_school_reference(reference, "homework")
+        return cast(
+            SchoolDetail,
+            await self._read("homework_detail", budget, max_age_seconds, reference),
         )
 
     async def announcements(
@@ -683,9 +767,7 @@ class AccountClient:
         if operation == "subject_frequency":
             assert isinstance(view, AttendanceDateSelection)
             return await self._subject_frequencies(budget, view)
-        selection: (
-            GradeViewSelection | AttendanceViewSelection | TimetableSelection | None
-        ) = None
+        selection: RequestForm = None
         if operation == "grades":
             assert isinstance(view, GradeView)
             selection = GradeViewSelection(view)
@@ -695,7 +777,17 @@ class AccountClient:
         elif operation == "timetable":
             assert isinstance(view, TimetableSelection)
             selection = view
-        reference = view.identifier if isinstance(view, DetailReference) else None
+        elif operation == "agenda":
+            assert isinstance(view, AgendaSelection)
+            selection = view
+        elif operation == "homework":
+            assert isinstance(view, HomeworkSelection)
+            selection = view
+        reference = (
+            view.identifier
+            if isinstance(view, (DetailReference, SchoolReference))
+            else None
+        )
         response = await self._transport.request(
             operation, budget, form=selection, reference_id=reference
         )
@@ -717,6 +809,48 @@ class AccountClient:
         ):
             raise LibrusError(ErrorKind.PARSE)
 
+    async def _school_result(
+        self,
+        operation: OperationName,
+        body: bytes,
+        budget: RequestBudget,
+        view: ReadSelection,
+    ) -> Agenda | Homework | SchoolDetail:
+        assert self._identity is not None
+        if operation == "agenda":
+            assert isinstance(view, AgendaSelection)
+            days = await self._service._parsers.run(
+                lambda data: parse_agenda(data, view.year, view.month, self._alias),
+                body,
+                budget,
+            )
+            return Agenda(
+                self._identity,
+                view.year,
+                view.month,
+                days,
+                self._observation(operation),
+            )
+        if operation == "homework":
+            assert isinstance(view, HomeworkSelection)
+            items = await self._service._parsers.run(
+                lambda data: parse_homework(data, self._alias), body, budget
+            )
+            return Homework(
+                self._identity,
+                view.start,
+                view.end,
+                items,
+                self._observation(operation),
+            )
+        assert isinstance(view, SchoolReference)
+        title, fields, notes = await self._service._parsers.run(
+            parse_school_detail, body, budget
+        )
+        return SchoolDetail(
+            self._identity, view, title, fields, notes, self._observation(operation)
+        )
+
     async def _announcement_result(
         self, body: bytes, budget: RequestBudget
     ) -> Announcements:
@@ -735,16 +869,13 @@ class AccountClient:
     ) -> _ReadResult:
         assert self._identity is not None
         self._require_content_type(response, "text/html")
+        if operation in {"agenda", "homework", "agenda_detail", "homework_detail"}:
+            return await self._school_result(operation, response.body, budget, view)
         if operation == "announcements":
             return await self._announcement_result(response.body, budget)
         if operation == "timetable":
             assert isinstance(view, TimetableSelection)
-            days = await self._service._parsers.run(
-                lambda body: parse_timetable(body, view.monday), response.body, budget
-            )
-            return Timetable(
-                self._identity, view.monday, days, self._observation(operation)
-            )
+            return await self._timetable_result(response.body, budget, view)
         if operation == "attendance_detail":
             assert isinstance(view, DetailReference)
             detail_content = await self._service._parsers.run(
@@ -794,6 +925,17 @@ class AccountClient:
             fields.school,
             fields.lucky_number,
             self._observation("student_information"),
+        )
+
+    async def _timetable_result(
+        self, body: bytes, budget: RequestBudget, view: TimetableSelection
+    ) -> Timetable:
+        assert self._identity is not None
+        days = await self._service._parsers.run(
+            lambda data: parse_timetable(data, view.monday), body, budget
+        )
+        return Timetable(
+            self._identity, view.monday, days, self._observation("timetable")
         )
 
     async def _metadata_value(
