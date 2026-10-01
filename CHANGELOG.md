@@ -2,6 +2,17 @@
 
 ## 0.3.0.dev0 - School reads development
 
+- Add typed ordinary announcement reads with full bounded multiline plain text,
+  author, raw/typed civil date and account-alias-scoped content references rather
+  than fabricated upstream IDs. Preserve duplicates; edits change references.
+- Ship the twentieth route/OpenAPI operation and original parser/wire/lifecycle
+  tests. Reuse shared budgets, isolated caching, proven-expiry safe-read recovery
+  and joined cancellation. Unknown/missing markup is not an empty collection.
+- Complete populated installed qualification against identical-response offline
+  apix and network-disabled Chromium, with only whitespace differences. Record
+  the same-response classification rule in CONTRIBUTING.md. No consumer switch,
+  publication, richer-layout or empty-profile qualification is implied.
+
 - Add explicit timetable weeks with immutable days/periods, distinct lessons,
   raw change notices/metadata, local clock values and separately reported recess
   pairs. Reuse bounded account/week caches, shared budgets, and POST non-replay.

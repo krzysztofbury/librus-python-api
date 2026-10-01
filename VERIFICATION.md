@@ -463,6 +463,65 @@ memory and were discarded when each process/browser closed. Total timetable
 investigation traffic, including the earlier 74-request work, is 96 requests;
 this fresh scope's 22/40 accounting is separate from that earlier authorization.
 
+## Announcements increment: same-response installed qualification
+
+2026-10-01, Linux. `AccountClient.announcements()` is an ordinary bounded GET,
+with typed immutable full-text notices, author, raw/typed civil date and account-
+alias-scoped content references. It reuses shared rate/concurrency/queue/body/
+request/deadline limits, isolated session cache/coalescing, joined parser workers
+and cancellation, and at most one proven-expiry safe-read recovery. No mark-read,
+agenda consumption, detail/attachment/link/script execution or consumer change.
+The twentieth OpenAPI operation matches the central route and evidence policy.
+
+Original markup/wire fixtures protect full text above 1024 characters, explicit
+line boundaries and inline joins, semantic field reordering, stable content
+references/scope/edit behavior, duplicate retention, empty/missing distinctions,
+malformed fields/dates/spans, unknown/active/nested content and item/field/aggregate
+bounds. Loopback tests demonstrate four independent login isolation/coalescing,
+fresh/cache semantics, expiry cache invalidation/recovery, finite error handling,
+original budget exhaustion, credential/form guards, failed-parse non-caching and
+joined cancellation cleanup. Existing scheduler tests own global traffic capacity.
+
+One fresh 32-request scope authorized two runs, each at most 16 HTTP requests,
+one credential submission and 120 seconds on the same context. Discovery and
+installed-native qualification each complete with ten requests, 20/32 total.
+Only authentication/identity and the ordinary announcement page were allowed.
+There were no failed runs, extra logins, automatic replay or expanded accounts.
+The populated page has seven announcements, including two bodies above 1024
+characters; there are no table IDs or numeric notice links. Do not fabricate IDs.
+
+Each run also feeds its identical response bytes to unmodified apix 1.5.3 through
+an offline fixed-response client and network-disabled Chromium 152. Neither
+comparison adds school requests or logins. Chromium uses markup/inline styles,
+not external styles or scripts; this is rendered-text validation, not a full
+interactive live UI. All seven native titles/authors/date texts/full contents
+match normalized browser and baseline text. Three baseline titles and seven body
+strings differ only in whitespace; native/browser body line formatting differs
+without losing words. Categories/counts were computed before discarding private
+pages/results; no captures, personal values, screenshots or raw diffs were saved.
+Installed cache reuse returns the same result and makes zero additional requests.
+
+The parser accepts only valid ISO civil dates, keeps original date text and full
+bounded multiline plaintext, and exposes content references without implying
+upstream IDs or resolvable URLs. References do not merge account caches/security
+contexts. Native production code and fixtures are independently authored; apix/
+consumer are read-only requirements/comparison references, not dependencies or
+copied code. Empty markers and aliases remain source-informed/offline-only.
+
+380 portable tests pass on source Python 3.13/3.14, installed wheel Python 3.14 and
+installed sdist Python 3.13; four opt-in consumer/performance cases remain
+deselected. This increment adds 31 original announcement cases. Ruff/format,
+strict mypy, twenty-operation contracts, lock, hooks, secret scans, installed
+metadata/license/typing/import-location and dependency consistency/audit checks
+pass locally. Hosted checks are separate remote evidence. See BENCHMARKS.md for
+traffic proof and the absence of a matched live-baseline network timing claim.
+
+Wider roles, wholly empty live pages, reordered/aliased/richer layouts, alternate
+date formats or future upstream IDs remain unqualified. No independent approval,
+full 0.3 coverage, consumer cutover, publishing or owner-configured live CI is
+implied. CONTRIBUTING.md now requires identical-response offline reference replay
+and in-memory difference classification before private records are discarded.
+
 ## Explicitly pending
 
 - Independently observed live authentication, callback/account variants, and

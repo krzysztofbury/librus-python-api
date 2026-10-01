@@ -1,10 +1,12 @@
-# Public API: 0.3.0.dev0 attendance increment
+# Public API: 0.3.0.dev0 school reads
 
 The 0.1.0 delivery implements login, gateway identity, and HTML student
 information. The 0.2.0 scope is grades, averages, final summaries, views, and
 windows. The first 0.3 development increment adds attendance collections, upstream
 views, date windows, detail fields/notes, gateway records, and overall/subject
-frequency, plus explicit timetable weeks, not complete school-read coverage.
+frequency, plus explicit timetable weeks and announcements, not complete
+school-read coverage. Announcements have one populated installed comparison
+against same-response apix replay and Chromium text validation.
 Two-week installed timetable retrieval and Chromium text validation completed.
 Native teacher/classroom text matches rendered markup rather than reproducing
 apix whitespace and its observed incorrect string. Bounded attendance qualification
@@ -132,7 +134,7 @@ waiting for an account's session lock. Session-changing operations are serialize
 
 Fixed routes, origins, authentication policies, and semantic profile labels live
 in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents nineteen enabled wire
+[OpenAPI YAML](contracts/upstream.openapi.yaml) documents twenty enabled wire
 operations, including the summary GET and explicit grade/attendance-view POSTs.
 These include raw
 HTML, forms, origins, side effects, and evidence gaps.
@@ -317,6 +319,42 @@ its one non-whitespace error is not established; subject-hyphen splitting is a
 separately reproduced baseline defect, not a proven cause of that live error.
 No consumer cutover is implied. See [the contract](contracts/timetable.md) and
 VERIFICATION.md for browser limitations and qualification scope.
+
+## Announcements
+
+`await account.announcements(budget=None, max_age_seconds=0)` returns
+`Announcements(identity, items, observation)` through one fixed ordinary GET.
+It does not mark notices read, consume agenda events, follow notice links or fetch
+attachments. The existing bounded shared scheduler, isolated account lifecycle,
+cache/coalescing, parser workers and joined cancellation apply. Fresh reads are
+the default; explicit cache reuse makes no upstream request. Proven expiry can
+recover once within the original budget; denial, parse, throttle and maintenance
+errors are not an unbounded retry policy.
+
+Each immutable `Announcement` has a complete title/author, original `date_text`,
+typed civil `published_on`, full plain `content`, and `reference`. Paragraph,
+list and BR boundaries become newlines; source whitespace is normalized while
+inline word joins are preserved. No inferred timezone or publication time.
+Missing required fields, unsupported date formats or malformed layout fail;
+an empty content field is not a missing collection. Recognized explicit empty
+markup returns zero items, not a fabricated notice or unavailable marker.
+
+The HTML exposes no upstream ID on the qualified profile. References are
+versioned, length-framed SHA-256 content fingerprints scoped by configured alias.
+Unchanged canonical fields retain the reference across page/row reordering and
+session renewal; edits and alias changes alter it. Identical copies share a
+reference and remain separate entries. These are not upstream IDs, URLs, access
+tokens or arbitrary-detail capabilities. Keep login identity with references;
+do not merge independent security contexts using reference equality.
+
+Bounds: 256 items, 1024 title/author/date characters, 65536 content characters per
+item, 262144 total rendered characters, and existing common body/tree/depth and
+request/deadline/admission limits. Limits reject the collection, never truncate.
+One observed populated installed read and same-response apix/Chromium checks
+agree on all seven notices after whitespace normalization. Empty variants,
+reordered labels, richer content and broader roles have only offline proof or
+remain unqualified. Consumer legacy `description`/date string mapping is separate.
+See [the contract](contracts/announcements.md) and VERIFICATION.md.
 
 ## Exceptions, retries, and diagnostics
 

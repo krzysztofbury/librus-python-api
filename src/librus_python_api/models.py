@@ -24,6 +24,7 @@ type OperationName = Literal[
     "gateway_attendance",
     "subject_frequency",
     "timetable",
+    "announcements",
 ]
 
 
@@ -177,6 +178,24 @@ class Timetable:
     identity: Identity
     monday: date = field(repr=False)
     days: tuple[TimetableDay, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class Announcement:
+    # A content-addressed account-scoped reference, never an upstream resource ID.
+    reference: str = field(repr=False)
+    title: str = field(repr=False)
+    author: str = field(repr=False)
+    date_text: str = field(repr=False)
+    published_on: date = field(repr=False)
+    content: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Announcements:
+    identity: Identity
+    items: tuple[Announcement, ...] = field(repr=False)
     observation: Observation
 
 

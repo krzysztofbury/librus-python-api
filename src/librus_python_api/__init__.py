@@ -9,6 +9,8 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.models import (
+    Announcement,
+    Announcements,
     Attendance,
     AttendanceDetail,
     AttendanceDetailContent,
@@ -57,6 +59,8 @@ __all__ = [
     "AccountCredentials",
     "Availability",
     "Attendance",
+    "Announcement",
+    "Announcements",
     "AttendanceDetail",
     "AttendanceDetailContent",
     "AttendanceKind",

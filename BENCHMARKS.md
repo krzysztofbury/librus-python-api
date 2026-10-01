@@ -275,3 +275,16 @@ and one credential submission per approved run. Guard wait was zero in this pair
 native scheduler wait was not separately measured. One sequential sample per week
 cannot establish general latency/throughput gains or alternative-layout coverage.
 Private records were discarded and no consumer default/dependency changed.
+
+## Announcements: traffic evidence, not a baseline network benchmark
+
+One populated installed-native read completes in ten HTTP requests including
+authentication/identity. Explicit cache reuse adds zero requests. Discovery and
+qualification total 20 of a fresh 32-request cap, one login/read per run.
+Unmodified apix parses the identical captured response through an offline client;
+Chromium renders that markup with page scripts and external requests disabled.
+All seven notices agree after whitespace normalization. This comparison isolates
+parser semantics, not live transport latency: no separate apix HTTP workload,
+matched-network timing, allocation/RSS sample or sustained capacity claim exists.
+Do not present the avoided baseline login/read as a measured library speedup.
+Private responses were discarded after semantic classification.
