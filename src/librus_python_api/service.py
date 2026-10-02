@@ -4,19 +4,12 @@ import asyncio
 import math
 import re
 import time
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Hashable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from types import TracebackType
-from typing import Literal, Self, cast
+from typing import Any, Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
-
-from tenacity import (
-    AsyncRetrying,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_none,
-)
 
 from librus_python_api.announcements import parse_announcements
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
@@ -45,7 +38,9 @@ from librus_python_api.config import (
     SchedulerLimits,
     TransportLimits,
     agenda_form,
+    attendance_view_form,
     completed_lessons_form,
+    grade_view_form,
     homework_form,
     timetable_form,
 )
@@ -56,37 +51,28 @@ from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     Agenda,
-    AgendaSelection,
     Announcements,
     Attendance,
-    AttendanceDateSelection,
     AttendanceDetail,
     AttendanceFrequency,
     AttendanceView,
-    AttendanceViewSelection,
     AttendanceWindow,
     CompletedLesson,
     CompletedLessons,
     CompletedLessonsCursor,
     CompletedLessonsPage,
-    CompletedLessonsPageSelection,
-    CompletedLessonsSelection,
-    DetailReference,
     DiagnosticEvent,
     FinalGrades,
     GatewayAttendance,
     GatewayAttendanceRecord,
     Grades,
     GradeView,
-    GradeViewSelection,
     GradeWindow,
     Homework,
-    HomeworkSelection,
     Identity,
     LoginSubmission,
     Observation,
     OperationName,
-    ReadSelection,
     RequestForm,
     SchedulerSnapshot,
     SchoolDetail,
@@ -95,7 +81,6 @@ from librus_python_api.models import (
     SubjectFrequencies,
     SubjectFrequency,
     Timetable,
-    TimetableSelection,
     TransportResponse,
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
@@ -113,28 +98,18 @@ from librus_python_api.transport import (
     TransportFactory,
 )
 
-type _ReadResult = (
-    Identity
-    | StudentInformation
-    | FinalGrades
-    | Grades
-    | Attendance
-    | AttendanceDetail
-    | GatewayAttendance
-    | SubjectFrequencies
-    | Timetable
-    | Announcements
-    | Agenda
-    | Homework
-    | SchoolDetail
-    | CompletedLessonsPage
-    | CompletedLessons
-)
+HTML = "text/html"
+JSON = "application/json"
+MAX_AGE_LIMIT_SECONDS = 3600
+NUMERIC_ID = re.compile(r"[0-9]{1,64}")
+
+# A read receives its budget and whether this attempt has just logged in.
+type Fetch[T] = Callable[[RequestBudget, bool], Awaitable[T]]
 
 
 @dataclass(slots=True)
 class _Flight:
-    task: asyncio.Task[_ReadResult]
+    task: asyncio.Task[Any]
     waiters: int = 0
 
 
@@ -173,7 +148,7 @@ class LibrusService:
         }
         self._parsers = ParserPool(self._transport_limits.parse_max_bytes)
         self._transports: list[AccountTransport] = []
-        self._tasks: set[asyncio.Task[_ReadResult]] = set()
+        self._tasks: set[asyncio.Task[Any]] = set()
         self._operations = 0
         self._loop: asyncio.AbstractEventLoop | None = None
         self._closed = False
@@ -264,6 +239,15 @@ class LibrusService:
         await self.aclose()
 
 
+def _require_dates(*days: date | None, max_days: int | None = None) -> None:
+    if any(day is not None and type(day) is not date for day in days):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    start, end = days[0], days[-1]
+    if max_days is not None and start is not None and end is not None:
+        if not 0 <= (end - start).days < max_days:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
 class AccountClient:
     """Service-owned account context. Fresh reads are the default.
 
@@ -282,15 +266,11 @@ class AccountClient:
         self._service, self._alias, self._credentials = service, alias, credentials
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
-        self._flights: dict[
-            tuple[OperationName, ReadSelection, float, RequestBudget | None], _Flight
-        ] = {}
+        self._flights: dict[Hashable, _Flight] = {}
         self._operations = 0
         self._generation = 0
         self._identity: Identity | None = None
-        self._cache: dict[
-            tuple[OperationName, ReadSelection], tuple[float, _ReadResult]
-        ] = {}
+        self._cache: dict[Hashable, tuple[float, Any]] = {}
         self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
 
@@ -300,34 +280,49 @@ class AccountClient:
             self._transport_instance = self._service._transport(self._alias)
         return self._transport_instance
 
+    # Public reads: validate input, then describe one fetch for _read.
+
     async def identity(
-        self,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
     ) -> Identity:
-        return cast(Identity, await self._read("identity", budget, max_age_seconds))
+        async def fetch(budget: RequestBudget, fresh_login: bool) -> Identity:
+            # A login already read the identity; reading it again is wasted.
+            if not fresh_login:
+                self._identity = await self._fetch_identity(budget)
+            return self._session_identity()
+
+        return await self._read(("identity",), fetch, budget, max_age_seconds)
 
     async def student_information(
-        self,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
     ) -> StudentInformation:
-        return cast(
-            StudentInformation,
-            await self._read("student_information", budget, max_age_seconds),
+        async def fetch(budget: RequestBudget, _: bool) -> StudentInformation:
+            fields = await self._page("student_information", budget, parse_profile)
+            return StudentInformation(
+                self._session_identity(),
+                fields.name,
+                fields.class_name,
+                fields.register_number,
+                fields.tutor,
+                fields.school,
+                fields.lucky_number,
+                self._observation("student_information"),
+            )
+
+        return await self._read(
+            ("student_information",), fetch, budget, max_age_seconds
         )
 
     async def final_grades(
-        self,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
     ) -> FinalGrades:
-        return cast(
-            FinalGrades, await self._read("final_grades", budget, max_age_seconds)
-        )
+        async def fetch(budget: RequestBudget, _: bool) -> FinalGrades:
+            items = await self._page("final_grades", budget, parse_final_grades)
+            return FinalGrades(
+                self._session_identity(), items, self._observation("final_grades")
+            )
+
+        return await self._read(("final_grades",), fetch, budget, max_age_seconds)
 
     async def grades(
         self,
@@ -341,9 +336,15 @@ class AccountClient:
         Changes the selected grade filter, not school records. A cache hit makes
         no POST. Missing inline weight/count data remains unknown.
         """
-        if not isinstance(view, GradeView):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        return cast(Grades, await self._read("grades", budget, max_age_seconds, view))
+        form = grade_view_form(view)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Grades:
+            records = await self._page("grades", budget, parse_grade_records, form=form)
+            return Grades(
+                self._session_identity(), records, self._observation("grades"), view
+            )
+
+        return await self._read(("grades", view), fetch, budget, max_age_seconds)
 
     async def grades_window(
         self,
@@ -355,15 +356,9 @@ class AccountClient:
     ) -> GradeWindow:
         """Inclusive civil dates, at most 366 days; averages are not dated rows.
 
-        Filtering uses the same full collection/cache/coalescing boundary and
-        creates no per-window cache or extra requests. Input is validated first.
+        Filters the full grade collection, sharing its cache and coalescing.
         """
-        if (
-            type(start) is not date
-            or type(end) is not date
-            or not 0 <= (end - start).days < GRADE_MAX_WINDOW_DAYS
-        ):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
+        _require_dates(start, end, max_days=GRADE_MAX_WINDOW_DAYS)
         result = await self.grades(budget=budget, max_age_seconds=max_age_seconds)
         return GradeWindow(
             result.identity,
@@ -382,11 +377,21 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> Attendance:
         """Read a fixed upstream attendance view without replaying its POST."""
-        if not isinstance(view, AttendanceView):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        return cast(
-            Attendance, await self._read("attendance", budget, max_age_seconds, view)
-        )
+        form = attendance_view_form(view)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Attendance:
+            records = await self._page(
+                "attendance", budget, parse_attendance, form=form
+            )
+            return Attendance(
+                self._session_identity(),
+                records.items,
+                records.semesters,
+                self._observation("attendance"),
+                view,
+            )
+
+        return await self._read(("attendance", view), fetch, budget, max_age_seconds)
 
     async def attendance_window(
         self,
@@ -397,12 +402,7 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> AttendanceWindow:
         """Inclusive civil-date selection over the cached all-view collection."""
-        if (
-            type(start) is not date
-            or type(end) is not date
-            or not 0 <= (end - start).days < ATTENDANCE_MAX_WINDOW_DAYS
-        ):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
+        _require_dates(start, end, max_days=ATTENDANCE_MAX_WINDOW_DAYS)
         result = await self.attendance(budget=budget, max_age_seconds=max_age_seconds)
         return AttendanceWindow(
             result.identity,
@@ -410,6 +410,211 @@ class AccountClient:
             end,
             tuple(row for row in result.items if start <= row.day <= end),
             result.observation,
+        )
+
+    async def attendance_detail(
+        self,
+        detail_id: str,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> AttendanceDetail:
+        if type(detail_id) is not str or not NUMERIC_ID.fullmatch(detail_id):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+
+        async def fetch(budget: RequestBudget, _: bool) -> AttendanceDetail:
+            content = await self._page(
+                "attendance_detail",
+                budget,
+                parse_attendance_detail,
+                reference=detail_id,
+            )
+            return AttendanceDetail(
+                self._session_identity(),
+                detail_id,
+                content.fields,
+                content.notes,
+                self._observation("attendance_detail"),
+            )
+
+        return await self._read(
+            ("attendance_detail", detail_id), fetch, budget, max_age_seconds
+        )
+
+    async def gateway_attendance(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> GatewayAttendance:
+        async def fetch(budget: RequestBudget, _: bool) -> GatewayAttendance:
+            items = await self._page(
+                "gateway_attendance",
+                budget,
+                parse_gateway_attendance,
+                content_type=JSON,
+            )
+            return GatewayAttendance(
+                self._session_identity(),
+                items,
+                self._observation("gateway_attendance"),
+            )
+
+        return await self._read(("gateway_attendance",), fetch, budget, max_age_seconds)
+
+    async def attendance_frequency(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> AttendanceFrequency:
+        rows = await self.gateway_attendance(
+            budget=budget, max_age_seconds=max_age_seconds
+        )
+
+        def semester(number: int) -> tuple[GatewayAttendanceRecord, ...]:
+            return tuple(r for r in rows.items if r.semester == number)
+
+        return AttendanceFrequency(
+            rows.identity,
+            summarize_frequency(semester(1), subject_policy=False),
+            summarize_frequency(semester(2), subject_policy=False),
+            summarize_frequency(rows.items, subject_policy=False),
+            rows.observation,
+        )
+
+    async def subject_frequency(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SubjectFrequencies:
+        _require_dates(start, end, max_days=ATTENDANCE_MAX_WINDOW_DAYS)
+
+        async def fetch(budget: RequestBudget, _: bool) -> SubjectFrequencies:
+            return await self._subject_frequencies(budget, start, end)
+
+        return await self._read(
+            ("subject_frequency", start, end),
+            fetch,
+            budget,
+            max_age_seconds,
+            endpoint="gateway_attendance",
+        )
+
+    async def timetable(
+        self,
+        monday: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Timetable:
+        """Select an explicit school civil week; never replay its selection POST."""
+        form = timetable_form(monday)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Timetable:
+            days = await self._page(
+                "timetable",
+                budget,
+                lambda body: parse_timetable(body, monday),
+                form=form,
+            )
+            return Timetable(
+                self._session_identity(), monday, days, self._observation("timetable")
+            )
+
+        return await self._read(("timetable", monday), fetch, budget, max_age_seconds)
+
+    async def announcements(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> Announcements:
+        """Read ordinary announcements, with full bounded text and inert references."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> Announcements:
+            items = await self._page(
+                "announcements",
+                budget,
+                lambda body: parse_announcements(body, self._alias),
+            )
+            return Announcements(
+                self._session_identity(), items, self._observation("announcements")
+            )
+
+        return await self._read(("announcements",), fetch, budget, max_age_seconds)
+
+    async def agenda(
+        self,
+        year: int,
+        month: int,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Agenda:
+        form = agenda_form(year, month)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Agenda:
+            days = await self._page(
+                "agenda",
+                budget,
+                lambda body: parse_agenda(body, year, month, self._alias),
+                form=form,
+            )
+            return Agenda(
+                self._session_identity(),
+                year,
+                month,
+                days,
+                self._observation("agenda"),
+            )
+
+        return await self._read(("agenda", year, month), fetch, budget, max_age_seconds)
+
+    async def agenda_detail(
+        self,
+        reference: SchoolReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SchoolDetail:
+        return await self._school_detail(
+            "agenda_detail", reference, budget, max_age_seconds
+        )
+
+    async def homework(
+        self,
+        start: date,
+        end: date,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Homework:
+        """Assignments in an inclusive window of at most one calendar month."""
+        form = homework_form(start, end)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Homework:
+            items = await self._page(
+                "homework",
+                budget,
+                lambda body: parse_homework(body, self._alias),
+                form=form,
+            )
+            return Homework(
+                self._session_identity(),
+                start,
+                end,
+                items,
+                self._observation("homework"),
+            )
+
+        return await self._read(
+            ("homework", start, end), fetch, budget, max_age_seconds
+        )
+
+    async def homework_detail(
+        self,
+        reference: SchoolReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> SchoolDetail:
+        return await self._school_detail(
+            "homework_detail", reference, budget, max_age_seconds
         )
 
     async def completed_lessons_page(
@@ -422,14 +627,15 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> CompletedLessonsPage:
         completed_lessons_form(start, end, page)
-        return cast(
-            CompletedLessonsPage,
-            await self._read(
-                "completed_lessons",
-                budget,
-                max_age_seconds,
-                CompletedLessonsPageSelection(start, end, page),
-            ),
+
+        async def fetch(budget: RequestBudget, _: bool) -> CompletedLessonsPage:
+            return await self._lesson_page(start, end, page, budget)
+
+        return await self._read(
+            ("completed_lessons", "page", start, end, page),
+            fetch,
+            budget,
+            max_age_seconds,
         )
 
     async def completed_lessons(
@@ -443,191 +649,79 @@ class AccountClient:
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> CompletedLessons:
-        selection = CompletedLessonsSelection(start, end, cursor, max_pages, limit)
-        validate_selection(selection, self._alias)
-        return cast(
-            CompletedLessons,
-            await self._read("completed_lessons", budget, max_age_seconds, selection),
+        validate_selection(start, end, cursor, max_pages, limit, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> CompletedLessons:
+            return await self._lesson_batch(
+                start, end, cursor, max_pages, limit, budget
+            )
+
+        return await self._read(
+            ("completed_lessons", "batch", start, end, cursor, max_pages, limit),
+            fetch,
+            budget,
+            max_age_seconds,
         )
 
-    async def agenda(
+    # Shared read machinery.
+
+    async def _school_detail(
         self,
-        year: int,
-        month: int,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> Agenda:
-        agenda_form(year, month)
-        return cast(
-            Agenda,
-            await self._read(
-                "agenda", budget, max_age_seconds, AgendaSelection(year, month)
-            ),
-        )
-
-    async def homework(
-        self,
-        start: date,
-        end: date,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> Homework:
-        homework_form(start, end)
-        return cast(
-            Homework,
-            await self._read(
-                "homework", budget, max_age_seconds, HomeworkSelection(start, end)
-            ),
-        )
-
-    def _validate_school_reference(self, reference: SchoolReference, kind: str) -> None:
-        if not isinstance(reference, SchoolReference) or (
-            reference.kind != kind
+        operation: Literal["agenda_detail", "homework_detail"],
+        reference: SchoolReference,
+        budget: RequestBudget | None,
+        max_age_seconds: float,
+    ) -> SchoolDetail:
+        kind = operation.removesuffix("_detail")
+        if (
+            not isinstance(reference, SchoolReference)
+            or reference.kind != kind
             or reference.account != self._alias
             or type(reference.identifier) is not str
-            or not re.fullmatch(r"[0-9]{1,64}", reference.identifier)
+            or not NUMERIC_ID.fullmatch(reference.identifier)
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
-    async def agenda_detail(
-        self,
-        reference: SchoolReference,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> SchoolDetail:
-        self._validate_school_reference(reference, "agenda")
-        return cast(
-            SchoolDetail,
-            await self._read("agenda_detail", budget, max_age_seconds, reference),
-        )
-
-    async def homework_detail(
-        self,
-        reference: SchoolReference,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> SchoolDetail:
-        self._validate_school_reference(reference, "homework")
-        return cast(
-            SchoolDetail,
-            await self._read("homework_detail", budget, max_age_seconds, reference),
-        )
-
-    async def announcements(
-        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
-    ) -> Announcements:
-        """Read ordinary announcements, with full bounded text and inert references."""
-        return cast(
-            Announcements, await self._read("announcements", budget, max_age_seconds)
-        )
-
-    async def timetable(
-        self,
-        monday: date,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> Timetable:
-        """Select an explicit school civil week; never replay its selection POST."""
-        timetable_form(monday)
-        return cast(
-            Timetable,
-            await self._read(
-                "timetable", budget, max_age_seconds, TimetableSelection(monday)
-            ),
-        )
-
-    async def attendance_detail(
-        self,
-        detail_id: str,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> AttendanceDetail:
-        if type(detail_id) is not str or not re.fullmatch(r"[0-9]{1,64}", detail_id):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        return cast(
-            AttendanceDetail,
-            await self._read(
-                "attendance_detail", budget, max_age_seconds, DetailReference(detail_id)
-            ),
-        )
-
-    async def gateway_attendance(
-        self,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> GatewayAttendance:
-        return cast(
-            GatewayAttendance,
-            await self._read("gateway_attendance", budget, max_age_seconds),
-        )
-
-    async def attendance_frequency(
-        self,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> AttendanceFrequency:
-        rows = await self.gateway_attendance(
-            budget=budget, max_age_seconds=max_age_seconds
-        )
-        return AttendanceFrequency(
-            rows.identity,
-            summarize_frequency(
-                tuple(r for r in rows.items if r.semester == 1), subject_policy=False
-            ),
-            summarize_frequency(
-                tuple(r for r in rows.items if r.semester == 2), subject_policy=False
-            ),
-            summarize_frequency(rows.items, subject_policy=False),
-            rows.observation,
-        )
-
-    async def subject_frequency(
-        self,
-        start: date | None = None,
-        end: date | None = None,
-        *,
-        budget: RequestBudget | None = None,
-        max_age_seconds: float = 0.0,
-    ) -> SubjectFrequencies:
-        if any(
-            value is not None and type(value) is not date for value in (start, end)
-        ) or (
-            start is not None
-            and end is not None
-            and not 0 <= (end - start).days < ATTENDANCE_MAX_WINDOW_DAYS
-        ):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        return cast(
-            SubjectFrequencies,
-            await self._read(
-                "subject_frequency",
+        async def fetch(budget: RequestBudget, _: bool) -> SchoolDetail:
+            title, fields, notes = await self._page(
+                operation,
                 budget,
-                max_age_seconds,
-                AttendanceDateSelection(start, end),
-            ),
+                parse_school_detail,
+                reference=reference.identifier,
+            )
+            return SchoolDetail(
+                self._session_identity(),
+                reference,
+                title,
+                fields,
+                notes,
+                self._observation(operation),
+            )
+
+        return await self._read(
+            (operation, reference.identifier), fetch, budget, max_age_seconds
         )
 
-    async def _read(
+    async def _read[T](
         self,
-        operation: OperationName,
+        key: tuple[OperationName, *tuple[Hashable, ...]],
+        fetch: Fetch[T],
         budget: RequestBudget | None,
         max_age: float,
-        view: ReadSelection = GradeView.ALL,
-    ) -> _ReadResult:
+        *,
+        endpoint: str | None = None,
+    ) -> T:
+        """Admit, coalesce, and cache one read; the work runs as an owned task.
+
+        The key starts with the operation name and identifies the selection.
+        """
+        operation = key[0]
         service = self._service
         service._bind()
         if (
             type(max_age) not in (int, float)
             or not math.isfinite(max_age)
-            or not 0 <= max_age <= 3600
+            or not 0 <= max_age <= MAX_AGE_LIMIT_SECONDS
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if budget is not None:
@@ -640,19 +734,27 @@ class AccountClient:
             raise LibrusError(ErrorKind.LIMIT)
         service._operations += 1
         self._operations += 1
-        key = (operation, view, max_age, budget)
-        flight = self._flights.get(key)
+        flight_key = (key, max_age, budget)
+        flight = self._flights.get(flight_key)
         if flight is None:
+            retry_safe = ENDPOINTS[endpoint or operation].retry_safe
             task = asyncio.create_task(
-                self._execute(operation, budget or service._budget(), max_age, view)
+                self._execute(
+                    operation,
+                    key,
+                    fetch,
+                    budget or service._budget(),
+                    max_age,
+                    retry_safe,
+                )
             )
             flight = _Flight(task)
-            self._flights[key] = flight
+            self._flights[flight_key] = flight
             service._tasks.add(task)
             task.add_done_callback(service._tasks.discard)
         flight.waiters += 1
         try:
-            return await asyncio.shield(flight.task)
+            return cast(T, await asyncio.shield(flight.task))
         except asyncio.CancelledError:
             if service._closed:
                 raise LibrusError(ErrorKind.CLOSED) from None
@@ -661,90 +763,131 @@ class AccountClient:
             flight.waiters -= 1
             if flight.waiters == 0:
                 # Remove before joining so new callers never inherit cancellation.
-                if self._flights.get(key) is flight:
-                    del self._flights[key]
+                if self._flights.get(flight_key) is flight:
+                    del self._flights[flight_key]
                 if not flight.task.done() and not flight.task.cancelling():
                     flight.task.cancel()
                 await join_owned(flight.task)
             service._operations -= 1
             self._operations -= 1
 
-    async def _execute(
+    async def _execute[T](
         self,
         operation: OperationName,
+        key: Hashable,
+        fetch: Fetch[T],
         budget: RequestBudget,
         max_age: float,
-        view: ReadSelection,
-    ) -> _ReadResult:
+        retry_safe: bool,
+    ) -> T:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         try:
-            return await self._perform(operation, budget, max_age, view)
+            async with asyncio.timeout(budget.remaining_seconds()):
+                async with self._lock:
+                    return await self._cached(
+                        operation, key, fetch, budget, max_age, retry_safe
+                    )
         except LibrusError as error:
             outcome = error.kind
             raise
         except asyncio.CancelledError:
             outcome = "cancelled"
             raise
+        except TimeoutError:
+            outcome = ErrorKind.TIMEOUT
+            raise LibrusError(ErrorKind.TIMEOUT) from None
         finally:
-            sink = self._service._diagnostic_sink
-            if sink is not None:
-                event = DiagnosticEvent(
+            self._emit(
+                DiagnosticEvent(
                     operation,
                     outcome,
                     time.monotonic() - started,
                     budget.requests_dispatched,
                     budget.response_bytes,
                 )
-                # Diagnostics must never replace an operation result or expose
-                # errors from caller-supplied sinks.
-                try:
-                    sink(event)
-                except Exception:
-                    pass
+            )
 
-    async def _perform(
+    def _emit(self, event: DiagnosticEvent) -> None:
+        sink = self._service._diagnostic_sink
+        if sink is None:
+            return
+        # Diagnostics must never replace an operation result or expose errors
+        # from caller-supplied sinks.
+        try:
+            sink(event)
+        except Exception:
+            pass
+
+    async def _cached[T](
         self,
         operation: OperationName,
+        key: Hashable,
+        fetch: Fetch[T],
         budget: RequestBudget,
         max_age: float,
-        view: ReadSelection,
-    ) -> _ReadResult:
-        timed_out = False
+        retry_safe: bool,
+    ) -> T:
+        self._check_cooldown("authentication")
+        self._check_cooldown(operation)
+        cached = self._cache.get(key)
+        if max_age > 0 and cached and time.monotonic() - cached[0] <= max_age:
+            return cast(T, cached[1])
         try:
-            async with asyncio.timeout(budget.remaining_seconds()):
-                async with self._lock:
-                    self._check_cooldown("authentication")
-                    self._check_cooldown(operation)
-                    cache_key = (operation, view)
-                    cached = self._cache.get(cache_key)
-                    if (
-                        max_age > 0
-                        and cached
-                        and time.monotonic() - cached[0] <= max_age
-                    ):
-                        return cached[1]
-                    try:
-                        result = await self._retrieve(operation, budget, view)
-                    except LibrusError as error:
-                        if error.kind in (
-                            ErrorKind.ACCESS_DENIED,
-                            ErrorKind.SESSION_EXPIRED,
-                        ):
-                            self._cooldowns[operation] = (
-                                time.monotonic()
-                                + self._service._transport_limits.cooldown_seconds,
-                                error.kind,
-                            )
-                        raise
-                    self._cache[cache_key] = (time.monotonic(), result)
-                    if len(self._cache) > ATTENDANCE_RESULT_CACHE_SIZE:
-                        del self._cache[next(iter(self._cache))]
-                    return result
-        except TimeoutError:
-            timed_out = True
-        assert timed_out
-        raise LibrusError(ErrorKind.TIMEOUT)
+            result = await self._authenticated(fetch, budget, retry_safe)
+        except LibrusError as error:
+            if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
+                self._cooldowns[operation] = (
+                    time.monotonic() + self._service._transport_limits.cooldown_seconds,
+                    error.kind,
+                )
+            raise
+        self._cache[key] = (time.monotonic(), result)
+        if len(self._cache) > ATTENDANCE_RESULT_CACHE_SIZE:
+            del self._cache[next(iter(self._cache))]
+        return result
+
+    async def _authenticated[T](
+        self, fetch: Fetch[T], budget: RequestBudget, retry_safe: bool
+    ) -> T:
+        """Run a read in a session; recover proven expiry once for safe reads.
+
+        Initial login is never retried: a failed credential submission must not
+        be replayed. A view-changing POST is never replayed either; expiry only
+        clears the session so a later explicit call can log in again.
+        """
+        fresh_login = self._identity is None
+        if fresh_login:
+            await self._authenticate(budget)
+        try:
+            return await fetch(budget, fresh_login)
+        except SessionExpiredError:
+            self._invalidate()
+            if not retry_safe:
+                raise
+        await self._authenticate(budget)
+        try:
+            return await fetch(budget, True)
+        except SessionExpiredError:
+            self._invalidate()
+            raise
+
+    async def _page[T](
+        self,
+        endpoint: str,
+        budget: RequestBudget,
+        parse: Callable[[bytes], T],
+        *,
+        form: RequestForm = None,
+        reference: str | None = None,
+        content_type: str = HTML,
+    ) -> T:
+        """One authenticated request whose body a pure parser turns into data."""
+        response = await self._transport.request(
+            endpoint, budget, form=form, reference_id=reference
+        )
+        self._validate_read_response(response, content_type)
+        return await self._service._parsers.run(parse, response.body, budget)
 
     def _check_cooldown(self, key: str) -> None:
         cooldown = self._cooldowns.get(key)
@@ -757,356 +900,113 @@ class AccountClient:
         self._metadata.clear()
         self._transport.clear_auth()
 
-    async def _retrieve(
-        self,
-        operation: OperationName,
-        budget: RequestBudget,
-        view: ReadSelection,
-    ) -> _ReadResult:
-        authenticated_now = self._identity is None
-        # Initial login is outside retries: a failed credential submission must
-        # never be replayed by a generic retry policy.
-        if authenticated_now:
-            await self._authenticate(budget)
-        endpoint = (
-            "gateway_attendance" if operation == "subject_frequency" else operation
-        )
-        if not ENDPOINTS[endpoint].retry_safe:
-            # A view-changing POST is never replayed, even for proven expiry.
-            # Clear stale state so a later explicitly requested operation can
-            # authenticate anew, but do not submit credentials in this attempt.
-            try:
-                return await self._read_authenticated(
-                    operation, budget, authenticated_now, view
-                )
-            except SessionExpiredError:
-                self._invalidate()
-                raise
-        retrying = AsyncRetrying(
-            retry=retry_if_exception_type(SessionExpiredError),
-            stop=stop_after_attempt(2),
-            wait=wait_none(),
-            reraise=True,
-        )
-        async for attempt in retrying:
-            with attempt:
-                if self._identity is None:
-                    await self._authenticate(budget)
-                    authenticated_now = True
-                try:
-                    return await self._read_authenticated(
-                        operation, budget, authenticated_now, view
-                    )
-                except SessionExpiredError:
-                    self._invalidate()
-                    raise
-        raise AssertionError("Bounded recovery exhausted")
-
-    async def _read_authenticated(
-        self,
-        operation: OperationName,
-        budget: RequestBudget,
-        authenticated_now: bool,
-        view: ReadSelection,
-    ) -> _ReadResult:
+    def _session_identity(self) -> Identity:
         assert self._identity is not None
-        if operation == "identity":
-            if authenticated_now:
-                return self._identity
-            self._identity = await self._fetch_identity(budget)
-            return self._identity
-        if operation == "subject_frequency":
-            assert isinstance(view, AttendanceDateSelection)
-            return await self._subject_frequencies(budget, view)
-        if operation == "completed_lessons":
-            if isinstance(view, CompletedLessonsSelection):
-                return await self._completed_batch(view, budget)
-            assert isinstance(view, CompletedLessonsPageSelection)
-            return await self._fetch_lesson_page(view, budget)
-        selection: RequestForm = None
-        if operation == "grades":
-            assert isinstance(view, GradeView)
-            selection = GradeViewSelection(view)
-        elif operation == "attendance":
-            assert isinstance(view, AttendanceView)
-            selection = AttendanceViewSelection(view)
-        elif operation == "timetable":
-            assert isinstance(view, TimetableSelection)
-            selection = view
-        elif operation == "agenda":
-            assert isinstance(view, AgendaSelection)
-            selection = view
-        elif operation == "homework":
-            assert isinstance(view, HomeworkSelection)
-            selection = view
-        reference = (
-            view.identifier
-            if isinstance(view, (DetailReference, SchoolReference))
-            else None
-        )
-        response = await self._transport.request(
-            operation, budget, form=selection, reference_id=reference
-        )
-        self._validate_read_response(response)
-        if operation == "gateway_attendance":
-            self._require_content_type(response, "application/json")
-            items = await self._service._parsers.run(
-                parse_gateway_attendance, response.body, budget
-            )
-            return GatewayAttendance(
-                self._identity, items, self._observation(operation)
-            )
-        return await self._read_html_result(operation, response, budget, view)
+        return self._identity
 
-    def _require_content_type(self, response: TransportResponse, expected: str) -> None:
-        if (
-            response.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != expected
-        ):
-            raise LibrusError(ErrorKind.PARSE)
+    def _observation(self, source: str) -> Observation:
+        return Observation(self._alias, datetime.now(UTC), self._generation, source)
 
-    async def _fetch_lesson_page(
-        self,
-        selection: CompletedLessonsPageSelection,
-        budget: RequestBudget,
+    # Multi-request reads.
+
+    async def _lesson_page(
+        self, start: date, end: date, page: int, budget: RequestBudget
     ) -> CompletedLessonsPage:
-        assert self._identity is not None
-        response = await self._transport.request(
-            "completed_lessons", budget, form=selection
-        )
-        self._validate_read_response(response)
-        self._require_content_type(response, "text/html")
-        items, count, fingerprint = await self._service._parsers.run(
-            lambda body: parse_completed_lessons(
-                body,
-                selection.start,
-                selection.end,
-                selection.page,
-            ),
-            response.body,
+        items, count, fingerprint = await self._page(
+            "completed_lessons",
             budget,
+            lambda body: parse_completed_lessons(body, start, end, page),
+            form=completed_lessons_form(start, end, page),
         )
         return CompletedLessonsPage(
-            self._identity,
-            selection.start,
-            selection.end,
-            selection.page,
+            self._session_identity(),
+            start,
+            end,
+            page,
             count,
             items,
             fingerprint,
             self._observation("completed_lessons"),
         )
 
-    async def _completed_batch(
+    async def _lesson_batch(
         self,
-        selection: CompletedLessonsSelection,
+        start: date,
+        end: date,
+        cursor: CompletedLessonsCursor | None,
+        max_pages: int,
+        limit: int,
         budget: RequestBudget,
     ) -> CompletedLessons:
-        assert self._identity is not None
-        cursor = selection.cursor
+        """Read pages until the limit, the last page, or max_pages.
+
+        Pages are not a snapshot: a resumed page must still match the cursor's
+        fingerprint, and a repeated page or changed page count fails the batch.
+        """
         page, offset = (cursor.page, cursor.offset) if cursor else (0, 0)
         count = cursor.page_count if cursor else None
         seen = {cursor.fingerprint} if cursor and not cursor.offset else set()
         items: list[CompletedLesson] = []
         next_cursor = None
-        for fetched in range(1, selection.max_pages + 1):
-            result = await self._fetch_lesson_page(
-                CompletedLessonsPageSelection(selection.start, selection.end, page),
-                budget,
-            )
-            if count is not None and count != result.page_count:
-                raise LibrusError(ErrorKind.PARSE)
-            count = result.page_count
-            if (
-                cursor
+        fetched = 0
+        while fetched < max_pages:
+            fetched += 1
+            result = await self._lesson_page(start, end, page, budget)
+            drifted = (
+                cursor is not None
                 and fetched == 1
-                and offset
+                and offset > 0
                 and cursor.fingerprint != result.fingerprint
+            )
+            if (
+                (count is not None and count != result.page_count)
+                or drifted
+                or result.fingerprint in seen
+                or (offset and offset >= len(result.items))
             ):
                 raise LibrusError(ErrorKind.PARSE)
-            if result.fingerprint in seen or (offset and offset >= len(result.items)):
-                raise LibrusError(ErrorKind.PARSE)
+            count = result.page_count
             seen.add(result.fingerprint)
-            take = min(len(result.items) - offset, selection.limit - len(items))
+            take = min(len(result.items) - offset, limit - len(items))
             items.extend(result.items[offset : offset + take])
             offset += take
             if offset == len(result.items):
                 if page + 1 == count:
                     break
                 page, offset = page + 1, 0
-            if (
-                offset
-                or len(items) == selection.limit
-                or fetched == selection.max_pages
-            ):
+            if offset or len(items) == limit or fetched == max_pages:
                 next_cursor = CompletedLessonsCursor(
-                    self._alias,
-                    selection.start,
-                    selection.end,
-                    page,
-                    offset,
-                    count,
-                    result.fingerprint,
+                    self._alias, start, end, page, offset, count, result.fingerprint
                 )
                 break
         return CompletedLessons(
-            self._identity,
-            selection.start,
-            selection.end,
+            self._session_identity(),
+            start,
+            end,
             tuple(items),
             fetched,
             next_cursor,
             self._observation("completed_lessons"),
         )
 
-    async def _school_result(
-        self,
-        operation: OperationName,
-        body: bytes,
-        budget: RequestBudget,
-        view: ReadSelection,
-    ) -> Agenda | Homework | SchoolDetail:
-        assert self._identity is not None
-        if operation == "agenda":
-            assert isinstance(view, AgendaSelection)
-            days = await self._service._parsers.run(
-                lambda data: parse_agenda(data, view.year, view.month, self._alias),
-                body,
-                budget,
-            )
-            return Agenda(
-                self._identity,
-                view.year,
-                view.month,
-                days,
-                self._observation(operation),
-            )
-        if operation == "homework":
-            assert isinstance(view, HomeworkSelection)
-            items = await self._service._parsers.run(
-                lambda data: parse_homework(data, self._alias), body, budget
-            )
-            return Homework(
-                self._identity,
-                view.start,
-                view.end,
-                items,
-                self._observation(operation),
-            )
-        assert isinstance(view, SchoolReference)
-        title, fields, notes = await self._service._parsers.run(
-            parse_school_detail, body, budget
-        )
-        return SchoolDetail(
-            self._identity, view, title, fields, notes, self._observation(operation)
-        )
-
-    async def _announcement_result(
-        self, body: bytes, budget: RequestBudget
-    ) -> Announcements:
-        assert self._identity is not None
-        items = await self._service._parsers.run(
-            lambda payload: parse_announcements(payload, self._alias), body, budget
-        )
-        return Announcements(self._identity, items, self._observation("announcements"))
-
-    async def _read_html_result(
-        self,
-        operation: OperationName,
-        response: TransportResponse,
-        budget: RequestBudget,
-        view: ReadSelection,
-    ) -> _ReadResult:
-        assert self._identity is not None
-        self._require_content_type(response, "text/html")
-        if operation in {"agenda", "homework", "agenda_detail", "homework_detail"}:
-            return await self._school_result(operation, response.body, budget, view)
-        if operation == "announcements":
-            return await self._announcement_result(response.body, budget)
-        if operation == "timetable":
-            assert isinstance(view, TimetableSelection)
-            return await self._timetable_result(response.body, budget, view)
-        if operation == "attendance_detail":
-            assert isinstance(view, DetailReference)
-            detail_content = await self._service._parsers.run(
-                parse_attendance_detail, response.body, budget
-            )
-            return AttendanceDetail(
-                self._identity,
-                view.identifier,
-                detail_content.fields,
-                detail_content.notes,
-                self._observation(operation),
-            )
-        if operation == "final_grades":
-            items = await self._service._parsers.run(
-                parse_final_grades, response.body, budget
-            )
-            return FinalGrades(self._identity, items, self._observation(operation))
-        if operation == "grades":
-            records = await self._service._parsers.run(
-                parse_grade_records, response.body, budget
-            )
-            return Grades(
-                self._identity,
-                records,
-                self._observation(operation),
-                cast(GradeView, view),
-            )
-        if operation == "attendance":
-            attendance = await self._service._parsers.run(
-                parse_attendance, response.body, budget
-            )
-            return Attendance(
-                self._identity,
-                attendance.items,
-                attendance.semesters,
-                self._observation(operation),
-                cast(AttendanceView, view),
-            )
-        assert operation == "student_information"
-        fields = await self._service._parsers.run(parse_profile, response.body, budget)
-        return StudentInformation(
-            self._identity,
-            fields.name,
-            fields.class_name,
-            fields.register_number,
-            fields.tutor,
-            fields.school,
-            fields.lucky_number,
-            self._observation("student_information"),
-        )
-
-    async def _timetable_result(
-        self, body: bytes, budget: RequestBudget, view: TimetableSelection
-    ) -> Timetable:
-        assert self._identity is not None
-        days = await self._service._parsers.run(
-            lambda data: parse_timetable(data, view.monday), body, budget
-        )
-        return Timetable(
-            self._identity, view.monday, days, self._observation("timetable")
-        )
-
     async def _metadata_value(
-        self, operation: str, identifier: str, budget: RequestBudget
+        self, endpoint: str, identifier: str, budget: RequestBudget
     ) -> str:
-        key = operation, identifier
+        key = endpoint, identifier
         cached = self._metadata.get(key)
         if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
             return cached[1]
-        response = await self._transport.request(
-            operation, budget, reference_id=identifier
-        )
-        self._validate_read_response(response)
-        self._require_content_type(response, "application/json")
         parser = (
             parse_lesson_subject
-            if operation == "attendance_lesson"
+            if endpoint == "attendance_lesson"
             else parse_subject_name
         )
-        value = await self._service._parsers.run(
-            lambda body: parser(body, identifier), response.body, budget
+        value = await self._page(
+            endpoint,
+            budget,
+            lambda body: parser(body, identifier),
+            reference=identifier,
+            content_type=JSON,
         )
         self._metadata[key] = time.monotonic(), value
         if len(self._metadata) > ATTENDANCE_METADATA_CACHE_SIZE:
@@ -1114,112 +1014,87 @@ class AccountClient:
         return value
 
     async def _subject_frequencies(
-        self,
-        budget: RequestBudget,
-        selection: AttendanceDateSelection,
+        self, budget: RequestBudget, start: date | None, end: date | None
     ) -> SubjectFrequencies:
-        assert self._identity is not None
-        response = await self._transport.request("gateway_attendance", budget)
-        self._validate_read_response(response)
-        self._require_content_type(response, "application/json")
-        collection = await self._service._parsers.run(
-            parse_gateway_attendance, response.body, budget
+        collection = await self._page(
+            "gateway_attendance", budget, parse_gateway_attendance, content_type=JSON
         )
         observed = self._observation("gateway_attendance")
         rows = tuple(
             r
             for r in collection
-            if (selection.start is None or r.day >= selection.start)
-            and (selection.end is None or r.day <= selection.end)
+            if (start is None or r.day >= start) and (end is None or r.day <= end)
         )
         lessons = dict.fromkeys(row.lesson_id for row in rows)
         if len(lessons) > ATTENDANCE_METADATA_CACHE_SIZE:
             raise LibrusError(ErrorKind.LIMIT)
+        lesson_subjects = {
+            lesson: await self._metadata_value("attendance_lesson", lesson, budget)
+            for lesson in lessons
+        }
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
-        lesson_subjects: dict[str, str] = {}
-        for identifier in lessons:
-            lesson_subjects[identifier] = await self._metadata_value(
-                "attendance_lesson", identifier, budget
-            )
         for row in rows:
             subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
         if len(subjects) > ATTENDANCE_METADATA_CACHE_SIZE:
             raise LibrusError(ErrorKind.LIMIT)
-        items: list[SubjectFrequency] = []
-        for identifier, records in subjects.items():
-            name = await self._metadata_value("attendance_subject", identifier, budget)
-            items.append(
-                SubjectFrequency(
-                    identifier,
-                    name,
-                    summarize_frequency(tuple(records), subject_policy=True),
-                )
+        items = [
+            SubjectFrequency(
+                subject,
+                await self._metadata_value("attendance_subject", subject, budget),
+                summarize_frequency(tuple(records), subject_policy=True),
             )
+            for subject, records in subjects.items()
+        ]
         return SubjectFrequencies(
-            self._identity, tuple(items), selection.start, selection.end, observed
+            self._session_identity(), tuple(items), start, end, observed
         )
 
-    def _observation(self, source: str) -> Observation:
-        return Observation(self._alias, datetime.now(UTC), self._generation, source)
+    # Authentication and response validation.
 
-    def _validate_read_response(self, response: TransportResponse) -> None:
-        # A redirect is expiry evidence only for a configured login destination.
-        # Other redirects must not trigger a new credential submission.
+    def _validate_read_response(
+        self, response: TransportResponse, content_type: str
+    ) -> None:
         if 300 <= response.status < 400:
-            location = response.headers.get("location", "")
-            failed = False
-            try:
-                target = urlsplit(urljoin(response.url, location))
-                if (
-                    not location
-                    or target.username
-                    or target.password
-                    or target.fragment
-                ):
-                    raise ValueError
-                endpoint = ENDPOINTS["login_callback"]
-                expected = urlsplit(self._service._connection.origin(endpoint))
-                if (target.scheme, target.netloc) != (expected.scheme, expected.netloc):
-                    raise ValueError
-                if target.path not in (
-                    ENDPOINTS["login_callback"].path,
-                    ENDPOINTS["login_portal"].path,
-                ):
-                    raise ValueError
-            except ValueError:
-                failed = True
-            if failed:
-                raise LibrusError(ErrorKind.ACCESS_DENIED)
-            raise LibrusError(ErrorKind.SESSION_EXPIRED)
-        if response.status != 200:
+            # A redirect proves expiry only when it targets a login route.
+            # Other redirects must not trigger a new credential submission.
+            if self._is_login_redirect(response):
+                raise LibrusError(ErrorKind.SESSION_EXPIRED)
+            raise LibrusError(ErrorKind.ACCESS_DENIED)
+        if response.status != 200 or _media_type(response) != content_type:
             raise LibrusError(ErrorKind.PARSE)
+
+    def _is_login_redirect(self, response: TransportResponse) -> bool:
+        location = response.headers.get("location", "")
+        try:
+            target = urlsplit(urljoin(response.url, location))
+        except ValueError:
+            return False
+        callback = ENDPOINTS["login_callback"]
+        expected = urlsplit(self._service._connection.origin(callback))
+        return (
+            bool(location)
+            and not (target.username or target.password or target.fragment)
+            and (target.scheme, target.netloc) == (expected.scheme, expected.netloc)
+            and target.path in (callback.path, ENDPOINTS["login_portal"].path)
+        )
 
     async def _fetch_identity(self, budget: RequestBudget) -> Identity:
-        response = await self._transport.request("identity", budget)
-        self._validate_read_response(response)
-        if (
-            response.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != "application/json"
-        ):
-            raise LibrusError(ErrorKind.PARSE)
-        owner, student = await self._service._parsers.run(
-            parse_identity, response.body, budget
+        owner, student = await self._page(
+            "identity", budget, parse_identity, content_type=JSON
         )
-        credentials = self._credentials
-        previous = self._identity
-        if previous is not None and (owner.id, student.id) != (
+        credentials, previous = self._credentials, self._identity
+        changed = previous is not None and (owner.id, student.id) != (
             previous.owner.id,
             previous.student.id,
-        ):
-            self._invalidate()
-            raise LibrusError(ErrorKind.ACCESS_DENIED)
-        if (
+        )
+        unexpected = (
             credentials.expected_owner_id is not None
             and owner.id != credentials.expected_owner_id
         ) or (
             credentials.expected_student_id is not None
             and student.id != credentials.expected_student_id
-        ):
+        )
+        if changed or unexpected:
             self._invalidate()
             raise LibrusError(ErrorKind.ACCESS_DENIED)
         return Identity(owner, student, self._observation("identity"))
@@ -1248,13 +1123,7 @@ class AccountClient:
                     self._credentials.login, self._credentials.password
                 ),
             )
-            if (
-                response.headers.get("content-type", "")
-                .partition(";")[0]
-                .strip()
-                .lower()
-                != "application/json"
-            ):
+            if _media_type(response) != JSON:
                 raise LibrusError(ErrorKind.ACCOUNT_ACTION_REQUIRED)
             location = await self._service._parsers.run(
                 parse_login, response.body, budget
@@ -1291,3 +1160,7 @@ class AccountClient:
         if 300 <= response.status < 400:
             raise LibrusError(ErrorKind.LIMIT)
         return response
+
+
+def _media_type(response: TransportResponse) -> str:
+    return response.headers.get("content-type", "").partition(";")[0].strip().lower()

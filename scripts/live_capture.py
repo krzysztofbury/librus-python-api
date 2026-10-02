@@ -16,7 +16,6 @@ import json
 import os
 import traceback
 from collections.abc import Awaitable, Callable
-from dataclasses import fields
 from datetime import date, timedelta
 from functools import partial
 from pathlib import Path
@@ -56,7 +55,7 @@ def private_directory(path: Path) -> Path:
 def form_fields(form: RequestForm) -> dict[str, str] | None:
     if form is None or isinstance(form, LoginSubmission):
         return None
-    return {item.name: str(getattr(form, item.name)) for item in fields(form)}
+    return dict(form)
 
 
 class CapturingTransport(AiohttpTransport):

@@ -28,6 +28,7 @@ from pydantic import (
 )
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.models import AttendanceView, GradeView
 
 HttpMethod = Literal["GET", "POST"]
 
@@ -488,6 +489,20 @@ COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
+
+
+def grade_view_form(view: GradeView) -> dict[str, str]:
+    """The grade page's view selector; selecting a view changes upstream state."""
+    if not isinstance(view, GradeView):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {GRADE_VIEW_FIELDS[view.value]: "1"}
+
+
+def attendance_view_form(view: AttendanceView) -> dict[str, str]:
+    if not isinstance(view, AttendanceView):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    key, value = ATTENDANCE_VIEW_FORMS[view.value]
+    return {key: value}
 
 
 def agenda_form(year: int, month: int) -> dict[str, str]:

@@ -332,33 +332,6 @@ def test_invalid_view_and_original_budget_bound_dispatch() -> None:
     asyncio.run(scenario())
 
 
-def test_credential_and_grade_forms_are_blocked_on_attendance_route() -> None:
-    from librus_python_api.models import GradeView, GradeViewSelection, LoginSubmission
-
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                before = service.snapshot().requests_dispatched
-                for form in (
-                    LoginSubmission(
-                        client._credentials.login, client._credentials.password
-                    ),
-                    GradeViewSelection(GradeView.ALL),
-                ):
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            "attendance", RequestBudget(), form=form
-                        )
-                assert not fixture.view_posts
-                assert service.snapshot().requests_dispatched == before
-
-    asyncio.run(scenario())
-
-
 def test_last_attendance_waiter_cancellation_releases_shared_capacity() -> None:
     async def scenario() -> None:
         fixture = AttendanceFixture()

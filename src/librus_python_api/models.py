@@ -69,44 +69,10 @@ class GradeView(StrEnum):
     LAST_LOGIN = "last_login"
 
 
-@dataclass(frozen=True, slots=True)
-class GradeViewSelection:
-    view: GradeView
-
-
 class AttendanceView(StrEnum):
     ALL = "all"
     WEEK = "week"
     LAST_LOGIN = "last_login"
-
-
-@dataclass(frozen=True, slots=True)
-class AttendanceViewSelection:
-    view: AttendanceView
-
-
-@dataclass(frozen=True, slots=True)
-class TimetableSelection:
-    monday: date = field(repr=False)
-
-
-@dataclass(frozen=True, slots=True)
-class AgendaSelection:
-    year: int
-    month: int
-
-
-@dataclass(frozen=True, slots=True)
-class HomeworkSelection:
-    start: date = field(repr=False)
-    end: date = field(repr=False)
-
-
-@dataclass(frozen=True, slots=True)
-class CompletedLessonsPageSelection:
-    start: date = field(repr=False)
-    end: date = field(repr=False)
-    page: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,58 +87,15 @@ class CompletedLessonsCursor:
 
 
 @dataclass(frozen=True, slots=True)
-class CompletedLessonsSelection:
-    start: date = field(repr=False)
-    end: date = field(repr=False)
-    cursor: CompletedLessonsCursor | None = field(repr=False)
-    max_pages: int
-    limit: int
-
-
-@dataclass(frozen=True, slots=True)
 class SchoolReference:
     kind: Literal["agenda", "homework"]
     identifier: str = field(repr=False)
     account: str = field(repr=False)
 
 
-type RequestForm = (
-    LoginSubmission
-    | GradeViewSelection
-    | AttendanceViewSelection
-    | TimetableSelection
-    | AgendaSelection
-    | HomeworkSelection
-    | CompletedLessonsPageSelection
-    | None
-)
-
-
-type ReadView = GradeView | AttendanceView
-
-
-@dataclass(frozen=True, slots=True)
-class DetailReference:
-    identifier: str = field(repr=False)
-
-
-@dataclass(frozen=True, slots=True)
-class AttendanceDateSelection:
-    start: date | None
-    end: date | None
-
-
-type ReadSelection = (
-    ReadView
-    | DetailReference
-    | AttendanceDateSelection
-    | TimetableSelection
-    | AgendaSelection
-    | HomeworkSelection
-    | SchoolReference
-    | CompletedLessonsPageSelection
-    | CompletedLessonsSelection
-)
+# A credential submission keeps secrets out of reprs; other POST forms are
+# built only by the fixed form functions in config.
+type RequestForm = LoginSubmission | Mapping[str, str] | None
 
 
 @dataclass(frozen=True, slots=True)

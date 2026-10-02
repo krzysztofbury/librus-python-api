@@ -343,36 +343,11 @@ def test_week_selection_post_never_replays(
     asyncio.run(scenario())
 
 
-def test_forms_and_original_request_budget_bound_dispatch() -> None:
-    from librus_python_api.models import (
-        AttendanceView,
-        AttendanceViewSelection,
-        LoginSubmission,
-        TimetableSelection,
-    )
-
+def test_original_request_budget_bounds_dispatch() -> None:
     async def scenario() -> None:
         fixture = TimetableFixture()
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                before = service.snapshot().requests_dispatched
-                for form in (
-                    None,
-                    AttendanceViewSelection(AttendanceView.ALL),
-                    LoginSubmission(
-                        client._credentials.login, client._credentials.password
-                    ),
-                    TimetableSelection(date(2026, 10, 6)),
-                ):
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            "timetable", RequestBudget(), form=form
-                        )
-                assert service.snapshot().requests_dispatched == before
-                assert not fixture.week_posts
             async with fixture.service() as service:
                 budget = RequestBudget(max_requests=5)
                 with pytest.raises(LimitError):

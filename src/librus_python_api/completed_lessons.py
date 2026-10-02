@@ -24,30 +24,35 @@ from librus_python_api.grade_parsers import _cells, _rows
 from librus_python_api.models import (
     CompletedLesson,
     CompletedLessonsCursor,
-    CompletedLessonsSelection,
 )
 from librus_python_api.parsers import page_notices, parse_page
 
 
-def validate_selection(selection: CompletedLessonsSelection, account: str) -> None:
-    cursor = selection.cursor
-    completed_lessons_form(selection.start, selection.end, 0)
+def validate_selection(
+    start: date,
+    end: date,
+    cursor: CompletedLessonsCursor | None,
+    max_pages: int,
+    limit: int,
+    account: str,
+) -> None:
+    completed_lessons_form(start, end, 0)
     if (
-        type(selection.max_pages) is not int
-        or not 1 <= selection.max_pages <= COMPLETED_LESSONS_MAX_BATCH_PAGES
-        or type(selection.limit) is not int
-        or not 1 <= selection.limit <= COMPLETED_LESSONS_MAX_BATCH_ITEMS
+        type(max_pages) is not int
+        or not 1 <= max_pages <= COMPLETED_LESSONS_MAX_BATCH_PAGES
+        or type(limit) is not int
+        or not 1 <= limit <= COMPLETED_LESSONS_MAX_BATCH_ITEMS
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     if cursor is None:
         return
-    # Dataclasses are explicit caller inputs, not authenticated opaque tokens.
+    # Cursors are caller-supplied dataclasses, not authenticated opaque tokens.
     if not isinstance(cursor, CompletedLessonsCursor):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     if (
         cursor.account != account
-        or cursor.start != selection.start
-        or cursor.end != selection.end
+        or cursor.start != start
+        or cursor.end != end
         or type(cursor.page) is not int
         or type(cursor.offset) is not int
         or type(cursor.page_count) is not int

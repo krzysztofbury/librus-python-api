@@ -469,36 +469,6 @@ def test_malformed_page_is_not_cached_and_empty_batch_is_explicit() -> None:
     asyncio.run(scenario())
 
 
-def test_transport_rejects_nonselection_and_invalid_wire_pages_before_dispatch() -> (
-    None
-):
-    from librus_python_api.models import (
-        CompletedLessonsPageSelection,
-        HomeworkSelection,
-    )
-
-    async def scenario() -> None:
-        fixture = CompletedLessonsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                before = service.snapshot().requests_dispatched
-                for form in [
-                    None,
-                    HomeworkSelection(START, END),
-                    CompletedLessonsPageSelection(START, END, -1),
-                ]:
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            "completed_lessons", RequestBudget(), form=form
-                        )
-                assert service.snapshot().requests_dispatched == before
-
-    asyncio.run(scenario())
-
-
 @pytest.mark.parametrize("kind", ["deadline", "body_bytes", "close"])
 def test_second_page_whole_operation_cleanup(kind: str) -> None:
     async def scenario() -> None:

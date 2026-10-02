@@ -3,6 +3,7 @@
 import math
 import re
 import zlib
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -15,35 +16,17 @@ from yarl import URL
 
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
-    ATTENDANCE_VIEW_FORMS,
     AUTH_COOKIES,
     ENDPOINTS,
-    GRADE_VIEW_FIELDS,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
     Endpoint,
     SideEffect,
     TransportLimits,
-    agenda_form,
-    completed_lessons_form,
-    homework_form,
-    timetable_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import (
-    AgendaSelection,
-    AttendanceView,
-    AttendanceViewSelection,
-    CompletedLessonsPageSelection,
-    GradeView,
-    GradeViewSelection,
-    HomeworkSelection,
-    LoginSubmission,
-    RequestForm,
-    TimetableSelection,
-    TransportResponse,
-)
+from librus_python_api.models import LoginSubmission, RequestForm, TransportResponse
 from librus_python_api.scheduler import RequestScheduler
 
 
@@ -84,6 +67,23 @@ class TransportFactory(Protocol):
         connection: ConnectionSettings,
         limits: TransportLimits,
     ) -> AccountTransport: ...
+
+
+def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
+    """Credentials go only to the login submission; other POSTs need a form."""
+    if endpoint.operation_id == "login_submit":
+        valid = isinstance(form, LoginSubmission) and (
+            1 <= len(form.login.get_secret_value()) <= 256
+            and 1 <= len(form.password.get_secret_value()) <= 1024
+        )
+    elif endpoint.method == "POST":
+        valid = isinstance(form, Mapping) and all(
+            type(key) is str and type(value) is str for key, value in form.items()
+        )
+    else:
+        valid = form is None
+    if not valid:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
 class AiohttpTransport:
@@ -195,44 +195,7 @@ class AiohttpTransport:
     ) -> TransportResponse:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
-        if endpoint.operation_id == "login_submit":
-            if not isinstance(form, LoginSubmission):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-        elif endpoint.operation_id == "grades":
-            if form is not None and (
-                not isinstance(form, GradeViewSelection)
-                or not isinstance(form.view, GradeView)
-            ):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-        elif endpoint.operation_id == "attendance":
-            if form is not None and (
-                not isinstance(form, AttendanceViewSelection)
-                or not isinstance(form.view, AttendanceView)
-            ):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-        elif endpoint.operation_id == "timetable":
-            if not isinstance(form, TimetableSelection):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-            timetable_form(form.monday)
-        elif endpoint.operation_id == "agenda":
-            if not isinstance(form, AgendaSelection):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-            agenda_form(form.year, form.month)
-        elif endpoint.operation_id == "homework":
-            if not isinstance(form, HomeworkSelection):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-            homework_form(form.start, form.end)
-        elif endpoint.operation_id == "completed_lessons":
-            if not isinstance(form, CompletedLessonsPageSelection):
-                raise LibrusError(ErrorKind.INVALID_INPUT)
-            completed_lessons_form(form.start, form.end, form.page)
-        elif form is not None:
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        if isinstance(form, LoginSubmission) and (
-            not 1 <= len(form.login.get_secret_value()) <= 256
-            or not 1 <= len(form.password.get_secret_value()) <= 1024
-        ):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
+        _check_form(endpoint, form)
         kind: ErrorKind | None = None
         try:
             return await self._scheduler.run(
@@ -267,32 +230,15 @@ class AiohttpTransport:
                 "Referer": str(URL(self._url(endpoint)).with_query(OAUTH_QUERY)),
                 "X-Requested-With": "XMLHttpRequest",
             }
-        payload = None
-        if isinstance(form, CompletedLessonsPageSelection):
-            payload = completed_lessons_form(form.start, form.end, form.page)
-        elif isinstance(form, LoginSubmission):
+        payload: dict[str, str] | None = None
+        if isinstance(form, LoginSubmission):
             payload = {
                 "action": "login",
                 "login": form.login.get_secret_value(),
                 "pass": form.password.get_secret_value(),
             }
-        elif endpoint.operation_id == "grades":
-            view = form.view if isinstance(form, GradeViewSelection) else GradeView.ALL
-            payload = {GRADE_VIEW_FIELDS[view.value]: "1"}
-        elif endpoint.operation_id == "attendance":
-            attendance_view = (
-                form.view
-                if isinstance(form, AttendanceViewSelection)
-                else AttendanceView.ALL
-            )
-            key, value = ATTENDANCE_VIEW_FORMS[attendance_view.value]
-            payload = {key: value}
-        elif isinstance(form, TimetableSelection):
-            payload = timetable_form(form.monday)
-        elif isinstance(form, AgendaSelection):
-            payload = agenda_form(form.year, form.month)
-        elif isinstance(form, HomeworkSelection):
-            payload = homework_form(form.start, form.end)
+        elif form is not None:
+            payload = dict(form)
         async with session.request(
             endpoint.method,
             url,

@@ -70,7 +70,7 @@ type Form = dict[str, str]
 
 
 def check_agenda(body: bytes, form: Form, view: Any) -> str:
-    year, month = int(form["year"]), int(form["month"])
+    year, month = int(form["rok"]), int(form["miesiac"])
     days = parse_agenda(body, year, month, "crosscheck")
     if [day.day.day for day in days] != [day["day"] for day in view]:
         raise AssertionError("agenda days differ")
@@ -118,9 +118,9 @@ def check_homework(body: bytes, form: Form, view: Any) -> str:
 def check_lessons(body: bytes, form: Form, view: Any) -> str:
     items, count, _ = parse_completed_lessons(
         body,
-        date.fromisoformat(form["start"]),
-        date.fromisoformat(form["end"]),
-        int(form["page"]),
+        date.fromisoformat(form["data1"]),
+        date.fromisoformat(form["data2"]),
+        int(form["numer_strony1001"]),
     )
     if len(items) != len(view["rows"]):
         raise AssertionError("lesson row count differs")

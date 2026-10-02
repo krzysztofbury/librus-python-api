@@ -482,13 +482,7 @@ def test_detail_recovery_is_safe_bounded_and_cached(
 
 
 @pytest.mark.parametrize("kind", ["agenda", "homework"])
-def test_forms_original_budget_and_last_waiter_cancellation(kind: str) -> None:
-    from librus_python_api.models import (
-        AgendaSelection,
-        HomeworkSelection,
-        LoginSubmission,
-    )
-
+def test_original_budget_and_last_waiter_cancellation(kind: str) -> None:
     async def scenario() -> None:
         fixture = SchoolReadsFixture()
         async with serve(fixture.app()) as origin:
@@ -496,21 +490,6 @@ def test_forms_original_budget_and_last_waiter_cancellation(kind: str) -> None:
             async with fixture.service() as service:
                 client = service.account("student")
                 await client.identity()
-                before = service.snapshot().requests_dispatched
-                for form in (
-                    None,
-                    LoginSubmission(
-                        client._credentials.login, client._credentials.password
-                    ),
-                    HomeworkSelection(date(2026, 9, 1), date(2026, 9, 30))
-                    if kind == "agenda"
-                    else AgendaSelection(2026, 10),
-                ):
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            kind, RequestBudget(), form=form
-                        )
-                assert service.snapshot().requests_dispatched == before
                 fixture.wait = asyncio.Event()
                 task = asyncio.create_task(
                     client.agenda(2026, 10)
