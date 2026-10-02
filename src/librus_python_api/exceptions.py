@@ -6,6 +6,7 @@ __all__ = [
     "AccessDeniedError",
     "AccountActionRequiredError",
     "ClosedError",
+    "CheckpointError",
     "ConnectionError",
     "CredentialsRejectedError",
     "ErrorKind",
@@ -25,6 +26,7 @@ __all__ = [
 
 
 class ErrorKind(StrEnum):
+    CHECKPOINT = "checkpoint"
     INVALID_INPUT = "invalid_input"
     CREDENTIALS_REJECTED = "credentials_rejected"
     ACCOUNT_ACTION_REQUIRED = "account_action_required"
@@ -126,7 +128,12 @@ class ClosedError(LibrusError):
     pass
 
 
+class CheckpointError(LibrusError):
+    """Durable acknowledgement is unknown; never retry the callback or consume."""
+
+
 _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
+    ErrorKind.CHECKPOINT: CheckpointError,
     ErrorKind.INVALID_INPUT: InvalidInputError,
     ErrorKind.CREDENTIALS_REJECTED: CredentialsRejectedError,
     ErrorKind.ACCOUNT_ACTION_REQUIRED: AccountActionRequiredError,

@@ -63,6 +63,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   In 0.4.3 custom transports also implement `resolve_attachment` and
   `stream_download`. Download implementations must retain scheduler admission
   through EOF/cleanup, await demand before each chunk, and close before returning.
+  In 0.4.4 they also implement `consume_schedule_events`: complete encoded
+  payload receipt must initiate/await checkpoint ownership inside the scheduled
+  worker before returning to the service, not after scheduler delivery.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -337,6 +340,63 @@ Empty recipient layouts and subgroup discovery have not been observed/implemente
 an unknown/empty response fails explicitly, never silently becomes `[]`.
 Evidence and apix differences: [contracts/recipients.md](contracts/recipients.md).
 
+## Notification and checkpoint primitives
+
+`notification_counts()` returns `NotificationCounts(identity, items, observation)`
+with ordered `NotificationCount(category, label, count)` records. Categories are
+grades, attendance, messages, announcements, agenda and homework. A shown category
+without a counter has zero; missing categories are not fabricated. Invalid or
+duplicate counters fail. The menu may be a token-scoped snapshot, not a fresh poll
+or the input for seen-state updates. This ordinary read accepts the common
+budget/freshness arguments and conservatively does not replay on expiry.
+
+```python
+batch = await client.consume_schedule_events(
+    allow_consume_events=True,
+    checkpoint=consumer_owned_durable_checkpoint,
+    checkpoint_timeout_seconds=5,
+    budget=budget,
+)
+```
+
+- Consent defaults to false; the awaitable checkpoint callback is mandatory.
+  A simultaneous consume on the same login is rejected. There is no cache,
+  coalescing, automatic retry, filtering, enrichment or pagination.
+- Before content decoding or parsing, the complete accepted HTTP payload is
+  handed to the callback as `ScheduleEventResponse(version=1, identity, wire,
+  observation)`. `ScheduleEventWire` holds immutable payload bytes with transfer
+  framing removed, optional Content-Type, and content/transfer coding tuples.
+  It has no URL, cookie jar, arbitrary headers or filesystem path. Private fields
+  are excluded from reprs; the callback must protect the response as private data.
+- Callback success acknowledges durable storage. Exceptions, invalid awaitable
+  returns and checkpoint timeouts raise redacted `CheckpointError`; acknowledgement
+  is unknown and may already have committed. No callback or upstream retry occurs.
+- Receipt establishes owned checkpoint work before scheduler delivery. After full
+  receipt, caller cancellation, repeated cancellation, operation deadline and
+  service close wait for the one checkpoint attempt to finish. Its separate
+  interval is positive and at most 30 seconds, default 5. Callbacks must cooperate
+  with cancellation and join owned I/O. If they block or suppress cancellation,
+  ownership remains held until termination, without a hard wall-clock guarantee.
+  Callback re-entry into its own service, including close, fails explicitly.
+- `ScheduleEvents(identity, items, observation)` preserves the complete ordered
+  batch of `RecentScheduleEvent(date_added, type, data)`. Date/type remain strings;
+  data is bounded normalized multiline plain text. No invented ID/hash/UTC offset
+  exists. Duplicates survive. Limits: 1,024 events, 1,024 characters per metadata
+  field, 65,536 per data field, 262,144 total text and shared parser/body budgets.
+- `await client.decode_schedule_events(persisted_response, budget=...)` performs
+  only bounded local decoding/parsing, no login or HTTP. It retains original
+  identity/observation and validates account alias and envelope version. The
+  consumer supplies serialization, recovery policy and trusted provenance.
+
+MCP retains category selection, first-run policy, seen IDs, hashes, locking,
+spooling, migrations and bounded replay. Drain persisted responses before a new
+consume. Loss remains possible after upstream consumption but before complete
+accepted receipt or acknowledged handoff, including crashes, connection failure
+and wire-limit rejection. There is no exactly-once guarantee. Read-once layouts
+are offline-qualified only and excluded from routine live checks.
+
+Full boundary and provenance: [contracts/notifications.md](contracts/notifications.md).
+
 ## Errors
 
 All errors subclass `LibrusError`. Each carries a closed `kind` and no upstream
@@ -356,6 +416,7 @@ text. `error_for(kind)` builds one.
 | `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
 | `LimitError` | A request, byte, item or queue bound was reached |
 | `ClosedError` | The service is closed |
+| `CheckpointError` | Durable handoff failed/timed out; acknowledgement unknown, never automatically replay |
 
 Recovery policy:
 

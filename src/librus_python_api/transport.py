@@ -1,5 +1,6 @@
 """Account-isolated aiohttp transport and explicit injection contract."""
 
+import asyncio
 import math
 import re
 import zlib
@@ -20,6 +21,7 @@ from librus_python_api.attachment_routes import (
     validate_max_bytes,
 )
 from librus_python_api.budget import RequestBudget
+from librus_python_api.checkpoint import CheckpointState, handoff, validate_checkpoint
 from librus_python_api.config import (
     ATTACHMENT_CHUNK_BYTES,
     AUTH_COOKIES,
@@ -42,6 +44,7 @@ from librus_python_api.models import (
     LoginSubmission,
     MessageAttachmentReference,
     RequestForm,
+    ScheduleEventWire,
     TransportResponse,
 )
 from librus_python_api.scheduler import RequestScheduler
@@ -73,6 +76,13 @@ class AccountTransport(Protocol):
 
     async def resolve_attachment(
         self, reference: MessageAttachmentReference, budget: RequestBudget
+    ) -> TransportResponse: ...
+
+    async def consume_schedule_events(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        checkpoint_timeout_seconds: float,
     ) -> TransportResponse: ...
 
     async def stream_download(
@@ -191,7 +201,10 @@ class AiohttpTransport:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        if endpoint.origin == "download" or endpoint_id == "attachment_resolve":
+        if endpoint.origin == "download" or endpoint_id in {
+            "attachment_resolve",
+            "consume_schedule_events",
+        }:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
         if "{id}" in endpoint.path:
@@ -205,6 +218,103 @@ class AiohttpTransport:
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
         return await self._request(endpoint, url, budget, form)
+
+    async def consume_schedule_events(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        checkpoint_timeout_seconds: float,
+    ) -> TransportResponse:
+        validate_checkpoint(checkpoint, checkpoint_timeout_seconds)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        state = CheckpointState()
+        kind: ErrorKind | None = None
+        cancelled = False
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(
+                    self._consume_exchange,
+                    budget,
+                    checkpoint,
+                    checkpoint_timeout_seconds,
+                    state,
+                ),
+            )
+        except asyncio.CancelledError:
+            cancelled = True
+        except LibrusError as error:
+            kind = error.kind
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError):
+            kind = ErrorKind.PARSE
+        # Scheduler cancellation joins but discards a worker exception. Preserve
+        # the stronger durability failure even when cancellation/close overlaps.
+        if state.failed:
+            raise LibrusError(ErrorKind.CHECKPOINT)
+        if cancelled:
+            raise asyncio.CancelledError
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _consume_exchange(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        seconds: float,
+        state: CheckpointState,
+    ) -> TransportResponse:
+        endpoint = ENDPOINTS["consume_schedule_events"]
+        session = self._get_session()
+        proxy = self._connection.proxy_url
+        async with session.get(
+            self._url(endpoint),
+            allow_redirects=False,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            if len(session.cookie_jar) > self._limits.max_cookies:
+                session.cookie_jar.clear()
+                raise LibrusError(ErrorKind.LIMIT)
+            self._check_status(response)
+            body = await self._read_payload(response, budget)
+            if response.status == 200:
+                wire = ScheduleEventWire(
+                    body,
+                    response.headers.get("Content-Type"),
+                    tuple(response.headers.getall("Content-Encoding", [])),
+                    tuple(response.headers.getall("Transfer-Encoding", [])),
+                )
+                await handoff(lambda: checkpoint(wire), seconds, state)
+            return TransportResponse(
+                response.status,
+                body,
+                str(response.url),
+                MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
+            )
+
+    async def _read_payload(
+        self, response: aiohttp.ClientResponse, budget: RequestBudget
+    ) -> bytes:
+        """Dechunked encoded payload, before decompression or semantic decoding."""
+        length = response.content_length
+        if length is not None and (
+            length > self._limits.response_max_bytes
+            or length > budget.remaining_response_bytes
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
+        body = bytearray()
+        async for chunk in response.content.iter_chunked(16 * 1024):
+            budget._receive(len(chunk))
+            if len(body) + len(chunk) > self._limits.response_max_bytes:
+                raise LibrusError(ErrorKind.LIMIT)
+            body.extend(chunk)
+        return bytes(body)
 
     async def resolve_attachment(
         self, reference: MessageAttachmentReference, budget: RequestBudget

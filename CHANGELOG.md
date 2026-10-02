@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.4.4 - Notification and checkpoint primitives
+
+Local-first; no publication, sending or consumer migration. Read-once behavior
+is qualified offline only and excluded from routine live checks.
+
+- Typed token-scoped notification counts and three-string recent-event records,
+  preserving event order/duplicates without library seen state or hashes.
+- Explicitly consenting, uncached one-attempt consumption with mandatory durable
+  encoded-response handoff before MIME/content decoding or parsing.
+- Joined checkpoint ownership across receipt-boundary cancellation, repeated
+  cancellation, operation deadline and service close. A finite cooperative
+  checkpoint interval and redacted unknown-acknowledgement `CheckpointError`.
+- Versioned private response envelopes and zero-network local decoding for
+  consumer-owned serialization/recovery. No spool/state format is invented.
+- Conservative original event layouts and real filesystem checkpoint/restart
+  proofs; cross-process transactions and persisted hash compatibility remain P8.
+- Correct later provenance labels: external apix metadata advertises MIT while
+  its bundled license is GPLv3. No external implementation or fixtures copied.
+
+## 0.4.3 - Bounded attachment streams
+
+Local-first; no sending, publication or consumer filesystem changes.
+
+- Single-owner context-managed streams, credential-free validated signed
+  destinations, shared request/byte/deadline budgets and joined cancellation.
+- Bounded 64 KiB chunks, 50 MiB ceiling, no cache/replay/resume/redirect following
+  and clean-EOF completion rather than implicit successful partial output.
+- Independent encoding regressions and mixed saturation/maximum-file proofs;
+  one installed live 930,056-byte received attachment streamed without saving it.
+  Broader file/handler/effect variants remain pending.
+
 ## 0.4.2 - Message content and inert attachments
 
 Local-first feature release; no downloads, sending or publication.

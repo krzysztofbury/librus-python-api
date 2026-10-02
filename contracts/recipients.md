@@ -39,10 +39,12 @@ recipient page was observed, so no empty-success shape is invented.
 
 ## Apix coverage and provenance
 
-The external MIT-licensed `librus-apix` 1.5.3 distribution was a behavior reference,
+The external `librus-apix` 1.5.3 distribution was a behavior reference,
 not code to copy or an oracle. Fixtures and implementation here are original;
 the group/checkbox shapes were independently observed with approved access.
 There is no apix runtime dependency, hidden fallback or vendored code.
+The external package's MIT metadata conflicts with its bundled GPLv3 license;
+the reference is not described as unambiguously MIT-licensed.
 
 `scripts/compare_recipients.py` supplies captured bytes to apix through an inert,
 strictly scoped replay client. It cannot make network calls. Native and external

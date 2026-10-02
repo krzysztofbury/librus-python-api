@@ -38,6 +38,9 @@ type OperationName = Literal[
     "attachment_download",
     "recipient_groups",
     "recipients",
+    "notification_counts",
+    "consume_schedule_events",
+    "decode_schedule_events",
 ]
 
 
@@ -86,6 +89,15 @@ class AttendanceView(StrEnum):
 class MessageFolder(StrEnum):
     RECEIVED = "received"
     SENT = "sent"
+
+
+class NotificationCategory(StrEnum):
+    GRADES = "grades"
+    ATTENDANCE = "attendance"
+    MESSAGES = "messages"
+    ANNOUNCEMENTS = "announcements"
+    AGENDA = "agenda"
+    HOMEWORK = "homework"
 
 
 @dataclass(frozen=True, slots=True)
@@ -332,6 +344,52 @@ class Observation:
 class Identity:
     owner: Person
     student: Person
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationCount:
+    category: NotificationCategory
+    label: str = field(repr=False)
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationCounts:
+    identity: Identity = field(repr=False)
+    items: tuple[NotificationCount, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEventWire:
+    """HTTP payload bytes with transfer framing removed, before content decoding."""
+
+    body: bytes = field(repr=False)
+    content_type: str | None = field(repr=False)
+    content_codings: tuple[str, ...] = field(repr=False)
+    transfer_codings: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEventResponse:
+    version: int
+    identity: Identity = field(repr=False)
+    wire: ScheduleEventWire = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class RecentScheduleEvent:
+    date_added: str = field(repr=False)
+    type: str = field(repr=False)
+    data: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEvents:
+    identity: Identity = field(repr=False)
+    items: tuple[RecentScheduleEvent, ...] = field(repr=False)
     observation: Observation
 
 

@@ -105,6 +105,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
         item.operation_id: item
         for item in (
             Endpoint(
+                "consume_schedule_events",
+                "GET",
+                "/terminarz/dodane_od_ostatniego_logowania",
+                SideEffect.CONSUME_EVENTS,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
                 "attachment_resolve",
                 "GET",
                 "/wiadomosci/pobierz_zalacznik/{message_id}/{file_id}",
@@ -191,7 +199,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.SYNTHETIC_ONLY,
             ),
             Endpoint(
-                "login_student_landing",
+                "notification_counts",
                 "GET",
                 "/uczen/index",
                 SideEffect.AUTHENTICATION,
@@ -517,6 +525,24 @@ TIMETABLE_START_ATTRIBUTE = "data-time_from"
 TIMETABLE_END_ATTRIBUTE = "data-time_to"
 
 SCHOOL_MAX_ITEMS = 2048
+CHECKPOINT_TIMEOUT_SECONDS = 5.0
+CHECKPOINT_MAX_TIMEOUT_SECONDS = 30.0
+SCHEDULE_RESPONSE_VERSION = 1
+SCHEDULE_MAX_EVENTS = 1024
+NOTIFICATION_MAX_MENU_ITEMS = 64
+NOTIFICATION_MAX_COUNT = 1000000
+NOTIFICATION_DESTINATIONS = MappingProxyType(
+    {
+        "/przegladaj_oceny/uczen": "grades",
+        "/przegladaj_nb/uczen": "attendance",
+        "/wiadomosci": "messages",
+        "/ogloszenia": "announcements",
+        "/terminarz": "agenda",
+        "/moje_zadania": "homework",
+    }
+)
+SCHEDULE_EVENT_HEADERS = ("lp.", "czas dodania", "rodzaj zdarzenia", "dane")
+SCHEDULE_EMPTY_LABEL = "Brak zdarzeń"
 SCHOOL_MAX_CONTENT_LENGTH = 65536
 SCHOOL_MAX_TOTAL_TEXT_LENGTH = 262144
 SCHOOL_MAX_DETAIL_FIELDS = 64

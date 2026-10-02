@@ -21,6 +21,7 @@ from librus_python_api.attendance_frequency import (
     summarize_frequency,
 )
 from librus_python_api.budget import RequestBudget
+from librus_python_api.checkpoint import CHECKPOINT_SERVICE, validate_checkpoint
 from librus_python_api.completed_lessons import (
     parse_completed_lessons,
     validate_selection,
@@ -31,9 +32,11 @@ from librus_python_api.config import (
     ATTENDANCE_METADATA_CACHE_SIZE,
     ATTENDANCE_METADATA_TTL_SECONDS,
     ATTENDANCE_RESULT_CACHE_SIZE,
+    CHECKPOINT_TIMEOUT_SECONDS,
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
     MESSAGE_MAX_CURSOR_IDS,
+    SCHEDULE_RESPONSE_VERSION,
     SESSION_COOKIE,
     AccountCredentials,
     ConnectionSettings,
@@ -87,12 +90,16 @@ from librus_python_api.models import (
     MessagesCursor,
     MessagesPage,
     MessageSummary,
+    NotificationCounts,
     Observation,
     OperationName,
     RecipientGroupReference,
     RecipientGroups,
     Recipients,
     RequestForm,
+    ScheduleEventResponse,
+    ScheduleEvents,
+    ScheduleEventWire,
     SchedulerSnapshot,
     SchoolDetail,
     SchoolReference,
@@ -101,6 +108,12 @@ from librus_python_api.models import (
     SubjectFrequency,
     Timetable,
     TransportResponse,
+)
+from librus_python_api.notifications import (
+    decode_payload,
+    parse_notification_counts,
+    parse_schedule_events,
+    validate_response,
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
@@ -190,6 +203,8 @@ class LibrusService:
         return self._scheduler.snapshot()
 
     def _bind(self) -> None:
+        if CHECKPOINT_SERVICE.get() is self:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         loop = asyncio.get_running_loop()
         if self._loop is not None and self._loop is not loop:
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -218,6 +233,8 @@ class LibrusService:
         )
 
     async def aclose(self) -> None:
+        if CHECKPOINT_SERVICE.get() is self:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         loop = asyncio.get_running_loop()
         if self._loop is not None and self._loop is not loop:
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -297,6 +314,7 @@ class AccountClient:
         self._cache: dict[Hashable, tuple[float, Any]] = {}
         self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
+        self._consuming_schedule = False
 
     @property
     def _transport(self) -> AccountTransport:
@@ -305,6 +323,212 @@ class AccountClient:
         return self._transport_instance
 
     # Public reads: validate input, then describe one fetch for _read.
+
+    async def notification_counts(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> NotificationCounts:
+        """Read token-scoped menu counters, not a fresh notification poll."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> NotificationCounts:
+            items = await self._page(
+                "notification_counts", budget, parse_notification_counts
+            )
+            return NotificationCounts(
+                self._session_identity(),
+                items,
+                self._observation("notification_counts"),
+            )
+
+        return await self._read(
+            ("notification_counts",), fetch, budget, max_age_seconds
+        )
+
+    async def consume_schedule_events(
+        self,
+        *,
+        checkpoint: Callable[[ScheduleEventResponse], Awaitable[None]],
+        allow_consume_events: bool = False,
+        checkpoint_timeout_seconds: float = CHECKPOINT_TIMEOUT_SECONDS,
+        budget: RequestBudget | None = None,
+    ) -> ScheduleEvents:
+        """Consume once, checkpoint complete encoded payload before parsing.
+
+        Callback success acknowledges consumer-owned durable storage. Callback
+        failure/timeout means acknowledgement unknown, never automatic replay.
+        """
+        if (
+            type(allow_consume_events) is not bool
+            or not allow_consume_events
+            or self._consuming_schedule
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        validate_checkpoint(checkpoint, checkpoint_timeout_seconds)
+        self._consuming_schedule = True
+
+        async def fetch(budget: RequestBudget, _: bool) -> ScheduleEvents:
+            accepted: ScheduleEventResponse | None = None
+
+            async def persist(wire: ScheduleEventWire) -> None:
+                nonlocal accepted
+                accepted = ScheduleEventResponse(
+                    SCHEDULE_RESPONSE_VERSION,
+                    self._session_identity(),
+                    wire,
+                    self._observation("consume_schedule_events"),
+                )
+                token = CHECKPOINT_SERVICE.set(self._service)
+                try:
+                    await checkpoint(accepted)
+                finally:
+                    CHECKPOINT_SERVICE.reset(token)
+
+            response = await self._transport.consume_schedule_events(
+                budget, persist, checkpoint_timeout_seconds
+            )
+            self._validate_read_response(response, HTML)
+            assert accepted is not None
+            return await self._decode_schedule(accepted, budget)
+
+        try:
+            return await self._uncached(
+                "consume_schedule_events", fetch, budget, authenticate=True
+            )
+        finally:
+            self._consuming_schedule = False
+
+    async def decode_schedule_events(
+        self, response: ScheduleEventResponse, *, budget: RequestBudget | None = None
+    ) -> ScheduleEvents:
+        """Replay a persisted envelope locally, without authentication or HTTP."""
+        validate_response(
+            response, self._alias, self._service._transport_limits.response_max_bytes
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ScheduleEvents:
+            budget._receive(len(response.wire.body))
+            return await self._decode_schedule(response, budget)
+
+        return await self._uncached(
+            "decode_schedule_events", fetch, budget, authenticate=False
+        )
+
+    async def _decode_schedule(
+        self, response: ScheduleEventResponse, budget: RequestBudget
+    ) -> ScheduleEvents:
+        limits, wire = self._service._transport_limits, response.wire
+        compressed = (
+            bool(wire.content_codings)
+            and wire.content_codings[0].strip().casefold() == "gzip"
+        )
+        bound = (
+            min(limits.parse_max_bytes, budget.remaining_response_bytes)
+            if compressed
+            else limits.parse_max_bytes
+        )
+        body = await self._service._parsers.run(
+            lambda raw: decode_payload(raw, wire, bound), wire.body, budget
+        )
+        if compressed:
+            budget._receive(len(body))
+        items = await self._service._parsers.run(parse_schedule_events, body, budget)
+        return ScheduleEvents(response.identity, items, response.observation)
+
+    async def _uncached[T](
+        self,
+        operation: OperationName,
+        fetch: Fetch[T],
+        budget: RequestBudget | None,
+        *,
+        authenticate: bool,
+    ) -> T:
+        """Own one independent operation, without caching or coalescing."""
+        service = self._service
+        service._bind()
+        if budget is not None and not isinstance(budget, RequestBudget):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        actual = budget or service._budget()
+        actual._bind_loop()
+        actual.remaining_seconds()
+        self._admit_operation()
+        task = asyncio.create_task(
+            self._execute_uncached(operation, fetch, actual, authenticate)
+        )
+        service._tasks.add(task)
+        task.add_done_callback(service._tasks.discard)
+        cancelled = False
+        try:
+            await asyncio.wait((task,))
+            return task.result()
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        finally:
+            if cancelled and not task.done() and not task.cancelling():
+                task.cancel()
+            interrupted = await join_owned(task)
+            self._release_operation()
+            if (
+                not task.cancelled()
+                and (error := task.exception()) is not None
+                and isinstance(error, LibrusError)
+                and error.kind is ErrorKind.CHECKPOINT
+            ):
+                raise LibrusError(ErrorKind.CHECKPOINT) from None
+            if cancelled or interrupted:
+                if service._closed:
+                    raise LibrusError(ErrorKind.CLOSED) from None
+                raise asyncio.CancelledError
+
+    async def _execute_uncached[T](
+        self,
+        operation: OperationName,
+        fetch: Fetch[T],
+        budget: RequestBudget,
+        authenticate: bool,
+    ) -> T:
+        started = time.monotonic()
+        outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
+        try:
+            async with asyncio.timeout(budget.remaining_seconds()):
+                async with self._lock:
+                    if authenticate:
+                        self._check_cooldown("authentication")
+                        self._check_cooldown(operation)
+                        return await self._authenticated(fetch, budget, False)
+                    return await fetch(budget, False)
+        except LibrusError as error:
+            outcome = error.kind
+            if authenticate and error.kind in (
+                ErrorKind.ACCESS_DENIED,
+                ErrorKind.SESSION_EXPIRED,
+            ):
+                self._cooldowns[operation] = (
+                    time.monotonic() + self._service._transport_limits.cooldown_seconds,
+                    error.kind,
+                )
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except TimeoutError:
+            outcome = ErrorKind.TIMEOUT
+            raise LibrusError(ErrorKind.TIMEOUT) from None
+        except Exception:
+            # A custom transport must not leak private exception text or
+            # produce a misleading success diagnostic at this owner boundary.
+            outcome = ErrorKind.CONNECTION
+        finally:
+            self._emit(
+                DiagnosticEvent(
+                    operation,
+                    outcome,
+                    time.monotonic() - started,
+                    budget.requests_dispatched,
+                    budget.response_bytes,
+                )
+            )
+
+        raise LibrusError(ErrorKind.CONNECTION)
 
     async def identity(
         self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0

@@ -12,7 +12,9 @@ async def join_owned[T](future: asyncio.Future[T]) -> bool:
     interrupted = False
     while not future.done():
         try:
-            await asyncio.shield(future)
+            # wait() never forwards cancellation to owned work and has no
+            # abandoned shield wrapper that can log an already-handled error.
+            await asyncio.wait((future,))
         except asyncio.CancelledError:
             interrupted = True
         except Exception:

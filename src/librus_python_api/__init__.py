@@ -58,15 +58,22 @@ from librus_python_api.models import (
     MessagesPage,
     MessageSummary,
     MessageTimestamp,
+    NotificationCategory,
+    NotificationCount,
+    NotificationCounts,
     NumericGrade,
     Observation,
     Person,
+    RecentScheduleEvent,
     Recipient,
     RecipientGroup,
     RecipientGroupReference,
     RecipientGroups,
     RecipientReference,
     Recipients,
+    ScheduleEventResponse,
+    ScheduleEvents,
+    ScheduleEventWire,
     SchoolAverage,
     SchoolDetail,
     SchoolReference,
@@ -83,9 +90,16 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 
 __all__ = [
+    "NotificationCategory",
+    "NotificationCount",
+    "NotificationCounts",
+    "ScheduleEventWire",
+    "ScheduleEventResponse",
+    "RecentScheduleEvent",
+    "ScheduleEvents",
     "AttachmentStream",
     "AttachmentMetadata",
     "AttachmentHeaders",

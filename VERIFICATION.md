@@ -3,6 +3,94 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.4 (2026-10-02) - Notification and checkpoint primitives
+
+### Offline and review
+
+- Complete source suite: 939 passed on Python 3.13.15 and 3.14.7, one opt-in
+  performance case deselected. Ruff, format and strict mypy pass. OpenAPI parity
+  covers 35 unique operations; counts reuse the existing optional student landing
+  route under one catalogue ID and conservative authentication/no-replay policy.
+- Final installed wheel and installed sdist: 939 passed in each of four isolated
+  Python 3.13/3.14 environments. Import origins, version, Python requirement, MIT
+  license metadata/file and `py.typed` marker are checked. Each final environment
+  replays the captured count response through the public API on loopback against
+  independent private Chromium expectations. Native library bytes match the live
+  smoke wheel; documentation-only artifact rebuilds do not require another login.
+- Pre-commit hooks, staged/worktree/history secret scans and dependency audit
+  pass. Qualified local archives remain in `dist/0.4.4/`; nothing is published.
+- Public loopback tests own explicit consent, pre-I/O callback/interval validation,
+  single-login concurrency rejection, no caching/coalescing/replay, complete
+  encoded-payload receipt before checkpointing, unsupported MIME/coding and
+  malformed gzip preserved before parsing, bounds and whole-batch failure.
+- A consumer-owned temporary sink fsyncs file and parent directory. Full envelope
+  serialization/reconstruction, identity and gzip codecs, original identity and
+  observation, duplicate event order and zero-network local replay pass with a
+  fresh service. This is not compatibility with the existing MCP spool format.
+- Cancellation at the exact completed-receipt boundary, repeated cancellation,
+  service close, operation deadline, cooperative checkpoint timeout, cancellation
+  suppression and queued cancellation retain/join ownership before releasing
+  scheduler/account/operation capacity. Other-account reads queue behind held
+  checkpoint admission and resume afterwards.
+- Four independent full 1,024-event batches complete under one exact 24-request
+  cold-login/consume budget. Shared concurrency, byte and queue limits remain
+  enforced. This is representative offline load, not a live consumption claim.
+- Pair-programmer design intentionally strengthens P5 to complete encoded-response
+  checkpoint before semantic parsing. Post-review found self-cancellation bypassed
+  unknown acknowledgement, ambiguous layouts became valid events, and unexpected
+  custom-transport exceptions escaped with success diagnostics. Nine original
+  regressions failed before fixes, including two Python 3.14.7 duplicate loop-error
+  cases and an unfamiliar marked counter silently becoming zero. Corrected guards,
+  owned-task cancellation detection, redacted exception normalization and
+  cancellation-neutral waits now pass those proofs on both supported versions.
+- Pair-programmer re-review approved the offline scope with no remaining blockers.
+  Its optional close/failure and authentication-landing probes are retained as
+  cases in the existing owner tests, not duplicated as separate testing layers.
+- Ordinary counts extend the shared read guarantee matrix. Dedicated tests own
+  category/label/count semantics, absent versus malformed counters, duplicates,
+  unknown marked layouts and bounds. The scoped capture runner enforces one login,
+  24 attempts and one count-page dispatch, including authentication landings.
+
+### Bounded ordinary-count live qualification
+
+Fresh approval covered account index zero, one credential submission and 24 total
+HTTP attempts: authentication, identity and the ordinary count page only. The
+installed 0.4.4 wheel completed in ten requests and one login, including exactly
+one count-page GET. Warm cache reuse dispatched zero requests. Five categories
+were shown; a missing category is not invented. Counts are token-scoped snapshots,
+not fresh notification polling or seen-state updates.
+
+No read-once request, message open, sending, deletion or consumer-state change was
+allowed or made. The login allowance is exhausted; unused requests permit no
+rerun. Chromium checked the identical private response with scripting/networking
+disabled and recorded independent expectations. Apix 1.5.3 received the same bytes
+through an inert client: categories, labels and amounts agree. Original fixtures
+cover a broader counter styling variant that apix ignores while Chromium/native
+agree; apix is not the correctness oracle.
+
+### Evidence and remaining gaps
+
+- Sanitized evidence and distribution checksums are retained under
+  `release-evidence/0.4.4*`. External apix metadata advertises MIT but its bundled
+  license is GPLv3; later incorrect MIT-only labels are corrected. No external
+  implementation, test, fixture or documentation is incorporated.
+- Read-once schedule layouts remain source-informed and offline-qualified only.
+  No live event-consumption or apix live-event parity is claimed. Qualification
+  needs a dedicated test login with disposable events and separately approved
+  recovery integration; the current MCP spool cannot read raw envelopes.
+- Callback success is an application durability acknowledgement. Failure/timeout
+  means acknowledgement unknown, including after commit. Non-cooperative or
+  non-preemptible callback work can exceed its interval while ownership remains
+  retained. Loss before complete accepted receipt/checkpoint remains possible;
+  no exactly-once guarantee or automatic recovery is provided.
+- Broader roles/menu layouts/token freshness, consumer category selection, seen
+  IDs, canonical hashes, bounded spool replay, competing-process transactions
+  and state migrations remain pending. No consumer migration, sending,
+  credentialed CI, push or publication is part of this increment.
+- Private count captures/expectations, disposable builds and qualification
+  environments are deleted after final artifact replay. Only sanitized evidence
+  and the qualified local wheel/sdist are retained.
+
 ## 0.4.3 (2026-10-02) - Bounded attachment streams
 
 ### Offline and review
@@ -219,7 +307,7 @@ requests. Unused requests do not authorize another login.
 
 Chromium independently checked all eight captured responses: displayed group
 labels/tokens, availability and radio linkage; recipient labels, numeric IDs and
-checkbox/value linkage. The separately acquired MIT-licensed apix 1.5.3 received
+checkbox/value linkage. The separately acquired apix 1.5.3 received
 identical bytes through an inert replay client. Group-token and recipient-pair
 mismatch counts were zero. No message open, sending, mark-read, download, deletion
 or read-once call occurred.
@@ -296,7 +384,7 @@ The final received page had two rows, one read and one unread; sent was explicit
 empty. Chromium, with networking and scripts disabled, independently checked
 every visible summary field, numeric reference, computed unread/attachment flag
 and empty marker in all seven captured list responses. The separately installed
-MIT-licensed apix 1.5.3 pure parsers received the exact same bytes; there were zero
+External apix 1.5.3 pure parsers received the exact same bytes; there were zero
 comparable summary-field mismatches. Neither replay used a live client.
 
 The live smoke exercised the installed library, not checkout imports. Final

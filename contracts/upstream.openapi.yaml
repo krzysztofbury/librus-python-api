@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.3
+  version: 0.4.4
   license:
     name: MIT
   description: |
@@ -16,6 +16,24 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /terminarz/dodane_od_ostatniego_logowania:
+    get:
+      operationId: consume_schedule_events
+      tags: [Notifications]
+      summary: Consume once with mandatory durable encoded-response handoff before decoding
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: consume_events
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed read-once route and three-string event concept; conservative original four-column fixtures, not observed native live behavior. Never routine live verification.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
   /wiadomosci/pobierz_zalacznik/{message_id}/{file_id}:
     get:
       operationId: attachment_resolve
@@ -303,16 +321,16 @@ paths:
           $ref: '#/components/responses/Failure'
   /uczen/index:
     get:
-      operationId: login_student_landing
-      tags: [Authentication]
-      summary: Optional student landing if explicitly returned in the redirect chain
-      description: Never bootstrap this route unconditionally or require it for parent access.
+      operationId: notification_counts
+      tags: [Authentication, Notifications]
+      summary: Student landing and explicit token-scoped menu counter read
+      description: Optional authentication landing if returned in the redirect chain, also explicitly readable for notification counters. Never required for parent access. Counts are token-scoped, not a fresh poll; conservatively no replay.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Source-informed student route; not a parent-account capability assumption. Offline verification only.
+      x-evidence-note: Reuses the student landing route for independently authored bounded counter parsing. Installed 0.4.4 wheel observed five shown categories, independently checked against Chromium and same-byte apix. Broader role/layout/token freshness remains unqualified.
       responses:
         '200':
           $ref: '#/components/responses/Html'

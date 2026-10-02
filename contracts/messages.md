@@ -26,12 +26,16 @@ are not replayed. A later-page failure never exposes or caches partial output.
 
 ## Independent evidence and provenance
 
-Requirements were informed by the external MIT-licensed `librus-apix` 1.5.3
+Requirements were informed by the external `librus-apix` 1.5.3
 distribution (metadata homepage: https://github.com/poroknights/librus-apix), and
 by the consumer's bounded mailbox collection requirements. No implementation,
 fixture or test from that distribution or the consumer was copied here. Original
 fixtures use independently observed layout with invented values. No apix runtime
 dependency or fallback is added.
+
+Its package metadata advertises MIT while its bundled license is GPLv3. Treat
+that inconsistency as a provenance warning, not an assertion of MIT licensing.
+Implementation and fixtures here remain independent.
 
 Private authorized captures are replayed using only apix's pure parsers by
 `scripts/compare_messages.py`, never another login or network client. Chromium

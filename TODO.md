@@ -30,7 +30,7 @@ Rules that hold for every release:
 | `0.4.1` | Recipient groups and recipients | Done locally for observed simple groups; hierarchy/empty-list gaps remain |
 | `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
 | `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
-| `0.4.4` | Notification/checkpoint primitives | Planned |
+| `0.4.4` | Notification/checkpoint primitives | Done locally for count snapshots and offline checkpoint/replay; read-once live/consumer compatibility pending |
 | Sending (version TBD) | Validated one-attempt delivery | Plan and approve before implementation |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
@@ -80,8 +80,13 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Attachment follow-ups: sent-message downloads, multiple/empty files,
   broader signed-key/handler/header variants and upstream read-effect evidence.
   Do not expand allowlists without independent qualification.
-- [ ] 0.4.4: the read-once schedule/checkpoint interface, and adapting notification
-  records while MCP keeps its seen state, hashes, replay and migrations.
+- [x] 0.4.4 library primitives: explicit read-once consent, durable encoded-response
+  handoff before parsing, typed events and zero-network local replay. Ordinary
+  token-scoped counts use typed categories. No orchestration/seen state/hashes.
+- [ ] Qualify read-once layouts on a dedicated test login with disposable events
+  and separately approved recovery integration. Routine live checks exclude it.
+- [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
+  migrations: separate P5/P8 work, not implemented by the library increment.
 - [ ] Sending (version TBD): approve the plan in
   [contracts/messages.md](contracts/messages.md#featureversion-sequence) before
   implementing validated single-attempt sending with typed unknown-delivery results, plus
@@ -420,12 +425,12 @@ as completed parser validation.
 
 Dependencies: P2-P4. Requirements: R07-R09, R12.
 
-- [ ] Specify an awaitable checkpoint callback for the read-once schedule
-  operation. MCP supplies persistence; the library must await durable handoff of
-  the complete validated batch before optional enrichment, filtering, or normal
-  cancellation propagation can discard the result. Define failure ownership
-  and a bounded cancellation-deferral interval explicitly.
-- [ ] Document the remaining loss window before receipt/parsing/checkpoint;
+- [x] Specify an awaitable checkpoint callback for the read-once schedule
+  operation. The 0.4.4 design strengthens the boundary: consumer-owned durable
+  handoff of the complete encoded response before decoding/parsing, then a typed
+  complete batch. No filtering/enrichment before handoff. Define unknown
+  acknowledgement, joined ownership and a finite cooperative checkpoint interval.
+- [x] Document the remaining loss window before complete receipt/checkpoint;
   no exactly-once promise. Drain already persisted events before another live
   consume. Preserve overflow batches for later bounded processing.
 - [ ] Keep notification category selection, first-run semantics, deduplication,
@@ -434,9 +439,12 @@ Dependencies: P2-P4. Requirements: R07-R09, R12.
 - [ ] Preserve canonical schedule identities, hashes, date/text normalization,
   pending-spool replay, and unrequested-category state. New gateway IDs need an
   explicit migration map/versioning strategy; do not silently reset history.
-- [ ] Exercise read-once receipt, checkpoint failure, cancellation, failed seen
-  saves, restart/replay, and competing consumers with a local fixture server
-  plus real temporary filesystem state. Never test by live double-fetching.
+- [x] Library proofs: read-once receipt, checkpoint failure/cancellation, local
+  restart decoding and same-login concurrency rejection on original loopback
+  fixtures plus a real temporary filesystem sink. Never live double-fetch.
+- [ ] Consumer proofs: failed seen saves, bounded spool draining, competing
+  processes and state-format compatibility. The new raw envelope is not a
+  drop-in replacement for the existing persisted event spool.
 - [ ] Implement recipient discovery and a typed send result. Validate unique
   recipient references and payload bounds before I/O. Do not expose arbitrary
   authenticated URLs as a public escape hatch.

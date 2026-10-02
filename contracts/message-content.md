@@ -22,12 +22,14 @@ paths, anchor layouts, duplicate IDs and foreign message IDs fail explicitly.
 
 ## Provenance and evidence
 
-The separately acquired MIT-licensed apix 1.5.3 content reader informed the
+The separately acquired apix 1.5.3 content reader informed the
 three main fields/body requirements; existing native list observations establish
 folder reference families. The separately scoped consumer's independently
 implemented attachment flow informed numeric file/message linkage and filename
 labels. No external code, test or fixture was copied, and neither project is a
 runtime dependency. Fixtures are independently authored with invented values.
+The external metadata advertises MIT but its bundled license is GPLv3; no
+external implementation or fixture is incorporated despite that inconsistency.
 Attachment conventions from a consumer are source-informed requirements, not
 this library's independently observed live behavior.
 

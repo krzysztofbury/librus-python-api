@@ -1,0 +1,49 @@
+{
+  "version": "0.4.4",
+  "date": "2026-10-02",
+  "offline": {
+    "source_tests_per_python": 939,
+    "installed_wheel_tests_per_python": 939,
+    "installed_sdist_tests_per_python": 939,
+    "python_versions": ["3.13", "3.14"],
+    "openapi_unique_operations": 35,
+    "full_event_batches": 4,
+    "events_per_full_batch": 1024,
+    "shared_cold_dispatches": 24,
+    "read_once_live_qualified": false,
+    "full_envelope_filesystem_reconstruction": true,
+    "replay_http_dispatches": 0,
+    "checkpoint_failures_have_unknown_acknowledgement": true,
+    "regression_cases_failed_before_fix": 9
+  },
+  "live": {
+    "allowed_logins": 1,
+    "allowed_requests": 24,
+    "used_logins": 1,
+    "used_requests": 10,
+    "count_page_dispatches": 1,
+    "shown_categories": 5,
+    "warm_cache_requests": 0,
+    "read_once_requests": 0,
+    "message_opens_sends_deletes": 0,
+    "consumer_state_changes": false
+  },
+  "comparison": {
+    "browser_live_responses": 1,
+    "browser_categories": 5,
+    "browser_mismatches": 0,
+    "final_installed_browser_replays": 4,
+    "final_library_bytes_match_live_smoke": true,
+    "apix_version": "1.5.3",
+    "apix_same_byte_count_mismatches": 0,
+    "apix_license_metadata_bundled_conflict": true,
+    "original_non_button_counter_variant_differs_from_apix": true
+  },
+  "gaps": [
+    "read-once live event layouts and consumption",
+    "consumer durable spool and canonical hash compatibility",
+    "cross-process transactions and state migration",
+    "broader menu roles, layouts and token freshness",
+    "sending, credentialed CI, consumer migration and publication"
+  ]
+}

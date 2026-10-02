@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.3`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.4`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -27,20 +27,24 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Recipient discovery | `recipient_groups`, `recipients` | 0.4.1: eight named groups; populated tutor, teacher and office lookups on one login, independently checked |
 | Message content | `message_content` | 0.4.3: already-read received content with one attachment; full text, read receipt and file reference independently checked |
 | Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
+| Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
+| Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.3. School reads,
+not a claim that every family was called live again in 0.4.4. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Notification primitives follow in `0.4.4`. Sending is plan-only. Message-list live
+Notification primitives do not own seen state or persistence. Sending is plan-only. Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
 Content requires explicit potential mark-read consent; see
 [contracts/message-content.md](contracts/message-content.md) for its qualification gaps.
 Stream lifecycle, byte budgets and destination restrictions are specified in
 [contracts/attachments.md](contracts/attachments.md).
+Read-once checkpoint ownership and its remaining loss windows are specified in
+[contracts/notifications.md](contracts/notifications.md); routine live checks never consume events.
 Behaviour notes stay unsupported until a populated page has been observed
 ([decision](contracts/behaviour-notes.md)).
 
