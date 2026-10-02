@@ -73,6 +73,27 @@ notification persistence remain consumer responsibilities.
   form guards, non-replay, detail recovery, failed-parse non-caching, original
   budgets and joined cancellation. Common resource/scheduler proof is reused.
 
+### Subsequent qualification attempt
+
+The 2026-10-02 combined qualification follow-up did not close the live gates. Two
+installed attempts stopped in completed lessons before these operations. A third,
+reordered attempt dispatched one agenda POST and stopped on browser-projected event
+count disagreement, before recording a successful comparison. Previous-month,
+detail and homework operations were not reached. Each attempt had separate bounded
+authorization and exactly one login; none was automatically retried.
+
+Original offline markup with calendar days inside an outer layout table reproduces
+the comparator dropping all inner event rows. Its ancestor filter incorrectly
+treated layout rows outside each day as nested event rows. The browser projection
+now enumerates rows within each day without that filter. This repairs the harness,
+not the production agenda parser, and does not retrospectively identify the live
+disagreement's cause. That private response had already been discarded.
+
+The new harness retains fixed reason counters and code locations, keeps the failed
+response in memory until sanitized diagnostics finish, and runs independent school
+families before lessons. These are offline-tested improvements, not a completed
+current-build live rerun or resolution of the earlier tooltip discrepancy.
+
 ## Provenance and qualification
 
 Unmodified installed apix 1.5.3 and the read-only consumer inform requirements

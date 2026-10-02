@@ -176,7 +176,9 @@ def parse_completed_lessons(
         t for t in document.iter("table") if "decorated" in t.get("class", "").split()
     ]
     empty = [
-        n for n in document.iter() if "msgEmptyTable" in n.get("class", "").split()
+        n
+        for n in document.iter()
+        if isinstance(n.tag, str) and "msgEmptyTable" in n.get("class", "").split()
     ]
     if len(tables) > 1 or len(empty) > 1:
         raise LibrusError(ErrorKind.PARSE)

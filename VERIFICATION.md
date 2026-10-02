@@ -1,5 +1,54 @@
 # Local verification history
 
+## Combined school-read qualification follow-up (0.3.0.dev0)
+
+On 2026-10-02, three separately authorized installed-wheel attempts each dispatched
+10 of at most 24 HTTP requests and submitted credentials once. Nine requests per
+attempt covered the approved authentication/identity path; one was a school read.
+Total new accounting is 30/72 requests across three exhausted one-login scopes.
+Unused request allowance does not authorize another login. Earlier family traffic
+accounting remains separate. The fixed reports in `release-evidence/` contain only
+technical counters/classifications, not account aliases, credentials or school data.
+
+| Attempt | School read reached | Stop | Qualification result |
+| --- | --- | --- | --- |
+| Initial | Completed-lessons first page | AttributeError | No successful comparison |
+| Replacement | Completed-lessons first page | ParseError | No successful comparison |
+| Reordered | Current-month agenda | Browser event-count mismatch | No successful comparison |
+
+Both lesson responses had zero decorated tables and pagination spans. Their private
+bytes were discarded. Native/apix/browser lesson parity, explicit empty semantics,
+live pagination/resume and layout cause are not established. The reordered attempt
+stopped before previous-month agenda, details, homework and notes. No earlier live
+tooltip discrepancy is resolved, and no current-build full live rerun is claimed.
+
+Original offline tests reproduce two distinct defects: comments crash lesson
+empty-marker scanning, and outer layout-table ancestors make the browser comparator
+drop agenda events. Both fail before their corresponding fixes. These synthetic
+reproductions do not establish the causes of discarded live failures. Unknown lesson
+markup still fails explicitly. The harness now keeps failed bytes in memory until
+fixed structural/code-location diagnostics finish, exits nonzero on unsuccessful
+runs, and refuses an existing report marker before any possible credential access.
+
+508 portable tests pass on source Python 3.13/3.14 and installed wheel/sdist on each
+interpreter. All four installed environments pass dependency consistency and
+version/MIT/typing/import-location checks. Forty existing original-response apix
+comparisons pass on each installed artifact; unchanged external BeautifulSoup
+warnings remain visible. One installed-wheel Python 3.14 real-HTTP/Chromium preflight
+passes all school-read families, lesson resume and the synthetic empty notes probe,
+including commented lesson markup and an agenda inside an outer layout table.
+These are offline checks, not rendered live data or sustained-load qualification.
+
+The default suite deselects 45 opt-in cases. Earlier consumer/performance workloads
+were not rerun. The twenty-sixth route/OpenAPI operation is an internal ordinary
+notes probe with offline wire/budget proof, not a public note API. Public note support
+is explicitly deferred pending populated evidence (contracts/behaviour-notes.md).
+Consumer code is unchanged, no package was published, and all task-owned temporary
+builds/environments were cleaned. Current-build live gates remain pending.
+Ruff/format, strict mypy, lock validation, repository hooks, worktree secret scanning
+and the locked dependency audit pass. No known vulnerabilities were reported by
+that audit; this is not a general security guarantee.
+
 ## Completed-lessons increment (0.3.0.dev0)
 
 On 2026-10-02, 488 portable tests pass on source Python 3.13/3.14 and on both

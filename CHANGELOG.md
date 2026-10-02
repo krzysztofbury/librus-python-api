@@ -2,6 +2,16 @@
 
 ## 0.3.0.dev0 - School reads development
 
+- Fix completed-lesson empty-marker discovery on HTML comments without weakening
+  unknown-layout rejection. Original regression fails before the fix.
+- Add an offline-tested one-shot installed qualification harness, privacy-safe
+  reason/structure/code-location diagnostics and Chromium projections. Correct its
+  agenda projection for calendars inside outer layout tables. Live attempts stopped;
+  completed lessons and the remaining agenda/homework live gates remain pending.
+- Record default-off public behaviour-note support and an internal non-replayed,
+  budgeted ordinary-read probe with its centralized OpenAPI operation. Populated
+  note evidence, consumer migration and publication remain separate work.
+
 - Add immutable completed-lesson page and bounded-batch APIs with explicit civil
   date windows, same-response pagination and account/window continuation cursors.
   Preserve topic boundaries, optional teacher/number and numeric attendance details.

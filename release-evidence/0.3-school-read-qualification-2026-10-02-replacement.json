@@ -1,0 +1,34 @@
+{
+  "status": "stopped",
+  "max_requests": 24,
+  "max_logins": 1,
+  "installed_version": "0.3.0.dev0",
+  "pages": [],
+  "chromium_version": "152.0.7977.82",
+  "phase": "completed_lessons_page",
+  "error_type": "ParseError",
+  "failure_site": {
+    "module_file": "completed_lessons.py",
+    "function": "parse_completed_lessons"
+  },
+  "error_kind": "parse",
+  "failed_response_structure": {
+    "decorated_tables": 0,
+    "row_column_counts": {},
+    "pagination_spans": 0,
+    "pagination_has_colon": false,
+    "pagination_digit_group_counts": []
+  },
+  "requests": 10,
+  "logins": 1,
+  "operations": {
+    "login_portal": 2,
+    "login_authorization": 2,
+    "login_submit": 1,
+    "login_continue": 1,
+    "login_perform": 1,
+    "login_grant": 1,
+    "identity": 1,
+    "completed_lessons": 1
+  }
+}

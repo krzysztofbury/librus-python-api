@@ -1,0 +1,27 @@
+{
+  "status": "stopped",
+  "max_requests": 24,
+  "max_logins": 1,
+  "installed_version": "0.3.0.dev0",
+  "pages": [],
+  "chromium_version": "152.0.7977.82",
+  "phase": "agenda",
+  "error_type": "ComparisonFailure",
+  "failure_site": {
+    "module_file": "school_read_comparison.py",
+    "function": "require"
+  },
+  "classification": "agenda_event_count",
+  "requests": 10,
+  "logins": 1,
+  "operations": {
+    "login_portal": 2,
+    "login_authorization": 2,
+    "login_submit": 1,
+    "login_continue": 1,
+    "login_perform": 1,
+    "login_grant": 1,
+    "identity": 1,
+    "agenda": 1
+  }
+}

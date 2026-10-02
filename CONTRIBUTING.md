@@ -73,6 +73,38 @@ baseline defects and integrity-policy differences are separately asserted. Curre
 results and limitations are in contracts/school-reads.md,
 contracts/completed-lessons.md and VERIFICATION.md.
 
+### Optional school-read harness preflight
+
+`scripts/qualify_school_reads.py` is a manual development utility, included in the
+sdist for reproducibility but not installed in the library wheel or invoked by CI.
+It is not a daily credentialed workflow. Before spending a fresh live scope, test
+its complete HTTP/rendered path using original loopback data:
+
+```sh
+LIBRUS_APIX_SITE_PACKAGES=/path/to/external/site-packages \
+  python -m pytest tests/integration/test_qualification_harness.py -m integration
+```
+
+Use an environment with the library, test dependencies, external apix 1.5.3,
+Playwright 1.58.0 and `/usr/bin/chromium`. School page scripts, service workers and
+external requests are blocked; browser automation evaluates independent DOM
+projections. This checks synthetic rendering, not the styled live school UI.
+
+Manual live execution requires a separately approved account, exact operations,
+windows, one-login scope and at most 24 requests. The harness currently has a fixed
+qualification plan; changing it requires both scope review and another offline
+preflight. The `--authorized` flag records operator intent, not permission by itself.
+Use an installed wheel outside the checkout, keep the private credential file
+outside Git with owner-only permissions, and allocate a new report path exclusively
+for that approved attempt. An unsuccessful run exits nonzero and cannot replay an
+existing report marker. Budget left after a stop never authorizes another login.
+
+Only allowlisted structure/reason counters and owning-code locations may be retained.
+Do not print raw exceptions or use private captures as fixtures. Apix differences
+are reported separately from native/browser agreement; unresolved counters are not
+parity evidence. Current live gates and the note-capability decision are recorded
+in VERIFICATION.md and contracts/behaviour-notes.md.
+
 ### Evidence and live compatibility
 
 Passing synthetic tests establishes behavior against those fixtures, not that

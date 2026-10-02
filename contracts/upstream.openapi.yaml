@@ -531,6 +531,30 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /uwagi:
+    get:
+      operationId: behaviour_notes_probe
+      summary: Internal ordinary-read probe for the behaviour-note evidence decision
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Read-only consumer requirements identify this candidate route; no public library note API or populated semantics are claimed.
+      description: |
+        Internal manual qualification route only, requiring separate explicit live
+        account/operation/request/login authorization. Shared transport scheduler,
+        request/body/deadline limits and fixed destination checks apply. This probe
+        does not replay even safe GETs: a failed qualification attempt stops.
+        Raw bounded HTML is assessed in memory against independent rendered
+        structure. Retain only technical shape/classification counters, never
+        private rows or captures. An explicit empty marker cannot qualify populated
+        records. No public behaviour-note API, tool enablement, source fallback,
+        message/read-once access or notification-state change is enabled.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Attendances:
     get:
       operationId: gateway_attendance
