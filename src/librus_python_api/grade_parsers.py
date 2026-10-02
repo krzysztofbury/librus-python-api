@@ -20,7 +20,7 @@ from librus_python_api.models import (
     GradeSummaryValue,
     SubjectGradeSummary,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_page
 
 
 def _text(element: html.HtmlElement) -> str:
@@ -185,7 +185,7 @@ def _subject_rows(
 
 
 def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
-    table, fields, width = _locate(parse_html_document(body))
+    table, fields, width = _locate(parse_page(body))
     items: list[SubjectGradeSummary] = []
     subjects: set[str] = set()
     for cells in _subject_rows(table, width):

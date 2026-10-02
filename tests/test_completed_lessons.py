@@ -126,6 +126,8 @@ def test_malformed_rows_and_metadata_never_become_partial(
         '<html><p class="msgEmptyTable"></p></html>',
         '<html><div class="pagination"><span>1 z 2</span></div>'
         '<p class="msgEmptyTable">Fixture empty</p></html>',
+        '<html><div class="warning-content">Fixture unknown notice</div>'
+        '<p class="msgEmptyTable">Fixture empty</p></html>',
     ],
 )
 def test_unknown_or_contradictory_empty_layout_fails(body: str) -> None:

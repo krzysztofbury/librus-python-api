@@ -26,7 +26,7 @@ from librus_python_api.models import (
     CompletedLessonsCursor,
     CompletedLessonsSelection,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import page_notices, parse_page
 
 
 def validate_selection(selection: CompletedLessonsSelection, account: str) -> None:
@@ -170,7 +170,7 @@ def parse_completed_lessons(
     page: int,
 ) -> tuple[tuple[CompletedLesson, ...], int, str]:
     completed_lessons_form(start, end, page)
-    document = parse_html_document(body)
+    document = parse_page(body)
     count = _pagination(document, page)
     tables = [
         t for t in document.iter("table") if "decorated" in t.get("class", "").split()
@@ -200,7 +200,10 @@ def parse_completed_lessons(
                 raise LibrusError(ErrorKind.LIMIT)
     if (items and empty) or (not items and (not empty or count != 1 or page != 0)):
         raise LibrusError(ErrorKind.PARSE)
-    if empty and not _text(empty[0], SCHOOL_MAX_FIELD_LENGTH):
+    # An unrecognized notice next to an empty marker is not a valid empty page.
+    if empty and (
+        not _text(empty[0], SCHOOL_MAX_FIELD_LENGTH) or page_notices(document)
+    ):
         raise LibrusError(ErrorKind.PARSE)
     rows = tuple(items)
     # Domain values, not HTML/CSRF noise or redacted reprs, define page integrity.

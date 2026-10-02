@@ -44,7 +44,7 @@ from librus_python_api.models import (
     NumericGrade,
     SchoolAverage,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_html_document, parse_page
 
 
 def _label(title: str) -> str:
@@ -428,7 +428,7 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
 
 
 def parse_grade_records(body: bytes) -> GradeRecords:
-    document = parse_html_document(body)
+    document = parse_page(body)
     collection = _Collection()
     numeric_tables = []
     tables = list(document.iter("table"))

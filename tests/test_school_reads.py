@@ -1,12 +1,15 @@
 """Calendar/homework integrity and owning service security/wire guarantees."""
 
 import asyncio
+from collections.abc import Callable
 from datetime import date, datetime, time
 from typing import Literal, cast
 
 import pytest
 
 from librus_python_api import Agenda, Homework, RequestBudget, SchoolReference
+from librus_python_api.completed_lessons import parse_completed_lessons
+from librus_python_api.config import homework_form
 from librus_python_api.exceptions import (
     AccessDeniedError,
     InvalidInputError,
@@ -16,6 +19,7 @@ from librus_python_api.exceptions import (
     SessionExpiredError,
     ThrottledError,
     UnsupportedCapabilityError,
+    ViewDisabledError,
 )
 from librus_python_api.school_reads import (
     parse_agenda,
@@ -24,10 +28,15 @@ from librus_python_api.school_reads import (
 )
 from tests.http_support import serve
 from tests.school_reads_support import (
+    HOMEWORK_EMPTY,
+    RANGE_REJECTED,
+    VIEW_DISABLED,
     SchoolReadsFixture,
     agenda_html,
     detail_html,
     homework_html,
+    homework_row,
+    warning_html,
 )
 
 
@@ -145,62 +154,106 @@ def test_malformed_calendar_never_becomes_partial(before: str, after: str) -> No
         parse_agenda(agenda_html().replace(before, after).encode(), 2026, 10, "fixture")
 
 
-def test_homework_preserves_split_dates_extra_cells_and_reference() -> None:
-    items = parse_homework(homework_html(extra="Fixture status").encode(), "fixture")
-    item = items[0]
-    assert (item.lesson, item.teacher, item.subject, item.category) == (
-        "Fixture topic",
-        "Fixture Teacher",
+def test_homework_maps_observed_columns_by_header() -> None:
+    done = (
+        '<img class="tooltip helper-icon" '
+        'title="Zadanie oznaczono jako wykonane (2026-09-27, 17:59)">'
+    )
+    rows = homework_row("456") + homework_row(
+        "789",
+        topic="Fixture second",
+        assigned=("2026-09-24", "czw."),
+        due=("2026-09-25", "pt."),
+        options=done,
+    )
+    first, second = parse_homework(homework_html(rows=rows).encode(), "fixture")
+    assert (first.subject, first.teacher, first.topic, first.category) == (
         "Fixture Biology",
-        "Fixture practice",
+        "Fixture Teacher",
+        "Fixture topic",
+        "Fixture category",
     )
-    assert item.assigned.day == date(2026, 9, 1) and item.assigned.clock == time(8, 15)
-    assert item.due.day == date(2026, 10, 3) and item.due.clock == time(12, 30)
-    assert item.due.raw_day == "2026-10-03" and item.due.raw_clock == "12:30"
-    assert item.extra_cells == ("Fixture status",)
-    assert item.reference == SchoolReference("homework", "456", "fixture")
-    assert "Fixture" not in repr(item)
+    assert (first.assigned_on, first.due_on) == (date(2026, 9, 16), date(2026, 9, 17))
+    assert first.submission_status == "-"
+    assert first.marked_done_at is None
+    assert first.reference == SchoolReference("homework", "456", "fixture")
+    assert second.marked_done_at == datetime(2026, 9, 27, 17, 59)
+    assert second.reference == SchoolReference("homework", "789", "fixture")
+    assert "Fixture" not in repr(first)
 
 
-def test_explicit_homework_empty_and_missing_clock_are_not_fabricated_data() -> None:
-    assert (
-        parse_homework(
-            b'<html><p class="msgEmptyTable">Fixture no assignments</p></html>',
-            "fixture",
-        )
-        == ()
-    )
-    item = parse_homework(
-        homework_html().replace("08:15", "").replace("2026-10-03", "-").encode(),
-        "fixture",
-    )[0]
-    assert item.assigned.clock is None and item.due.day is None
+def test_homework_empty_page_is_empty_but_rejected_range_is_not() -> None:
+    assert parse_homework(HOMEWORK_EMPTY.encode(), "fixture") == ()
+    with pytest.raises(InvalidInputError):
+        parse_homework(warning_html(RANGE_REJECTED, "Brak wpisów").encode(), "fixture")
     for body in (
         "<html></html>",
-        "<html><p>Fixture no assignments</p></html>",
-        homework_html().replace(
-            "</body>", '<p class="msgEmptyTable">Fixture no assignments</p></body>'
-        ),
+        warning_html("Fixture unknown notice", "Brak wpisów"),
+        homework_html().replace("</body>", '<p class="msgEmptyTable">x</p></body>'),
     ):
         with pytest.raises(ParseError):
             parse_homework(body.encode(), "fixture")
 
 
 @pytest.mark.parametrize(
-    "before,after",
+    "parse",
     [
-        ("2026-09-01", "2026-02-30"),
-        ("08:15", "25:01"),
-        ("2026-09-01", "01.09.2026"),
-        ("<td>Fixture topic</td>", ""),
-        ("<td>Fixture Teacher</td>", '<td rowspan="2">Fixture Teacher</td>'),
-        ("/moje_zadania/podglad/456", "/moje_zadania/wyslij/456"),
-        ("/moje_zadania/podglad/456", "/moje_zadania/podglad/%34"),
+        lambda body: parse_homework(body, "fixture"),
+        lambda body: parse_agenda(body, 2026, 10, "fixture"),
+        lambda body: parse_completed_lessons(
+            body, date(2026, 9, 1), date(2026, 9, 30), 0
+        ),
     ],
 )
-def test_invalid_homework_fails_not_silently_dropped(before: str, after: str) -> None:
-    with pytest.raises((ParseError, UnsupportedCapabilityError)):
-        parse_homework(homework_html().replace(before, after).encode(), "fixture")
+def test_view_disabled_by_school_is_typed_not_parse_failure(
+    parse: Callable[[bytes], object],
+) -> None:
+    with pytest.raises(ViewDisabledError):
+        parse(warning_html(VIEW_DISABLED).encode())
+
+
+@pytest.mark.parametrize(
+    "before,after,error",
+    [
+        ("2026-09-16", "2026-02-30", ParseError),
+        ("2026-09-16", "16.09.2026", ParseError),
+        ("<td>śr.</td>", "<td>pt.</td>", ParseError),
+        ('<td class=" bold">Fixture Teacher</td>', "", ParseError),
+        ('class=" bold">Fixture Teacher', 'rowspan="2">Fixture Teacher', ParseError),
+        ("<a>Kategoria</a>", "<a>Fixture new column</a>", UnsupportedCapabilityError),
+        (
+            "/moje_zadania/podglad/456",
+            "/moje_zadania/podglad/%34",
+            UnsupportedCapabilityError,
+        ),
+    ],
+)
+def test_invalid_homework_fails_not_silently_dropped(
+    before: str, after: str, error: type[Exception]
+) -> None:
+    with pytest.raises(error):
+        parse_homework(homework_html().replace(before, after, 1).encode(), "fixture")
+
+
+@pytest.mark.parametrize(
+    "start,end,valid",
+    [
+        (date(2026, 9, 1), date(2026, 10, 1), True),
+        (date(2026, 9, 1), date(2026, 10, 2), False),
+        (date(2026, 1, 31), date(2026, 2, 28), True),
+        (date(2026, 1, 31), date(2026, 3, 1), False),
+        (date(2026, 10, 2), date(2026, 10, 1), False),
+    ],
+)
+def test_homework_window_is_limited_to_one_calendar_month(
+    start: date, end: date, valid: bool
+) -> None:
+    # The upstream form rejects longer ranges with an inline warning.
+    if valid:
+        assert homework_form(start, end)["dataDo"] == end.isoformat()
+    else:
+        with pytest.raises(InvalidInputError):
+            homework_form(start, end)
 
 
 @pytest.mark.parametrize("kind", ["agenda", "homework"])
@@ -275,7 +328,7 @@ def test_four_logins_collections_details_and_selection_cache_isolation() -> None
                             await client.agenda(2026, 10)
                             if family == "agenda"
                             else await client.homework(
-                                date(2026, 9, 1), date(2026, 10, 31)
+                                date(2026, 9, 1), date(2026, 9, 30)
                             )
                         )
 
@@ -306,7 +359,7 @@ def test_four_logins_collections_details_and_selection_cache_isolation() -> None
                             await client.agenda(2026, 10, max_age_seconds=60)
                             if kind == "agenda"
                             else await client.homework(
-                                date(2026, 9, 1), date(2026, 10, 31), max_age_seconds=60
+                                date(2026, 9, 1), date(2026, 9, 30), max_age_seconds=60
                             )
                         )
                         assert cached is result
@@ -314,7 +367,7 @@ def test_four_logins_collections_details_and_selection_cache_isolation() -> None
                 assert fixture.logins == {alias: 1 for alias in aliases}
                 await service.account(aliases[0]).agenda(2026, 9)
                 await service.account(aliases[0]).homework(
-                    date(2026, 9, 2), date(2026, 10, 31)
+                    date(2026, 9, 2), date(2026, 10, 2)
                 )
                 assert len(fixture.forms) == 10
                 assert service.snapshot().active == service.snapshot().queued == 0
@@ -390,7 +443,7 @@ def test_selection_never_replays(
                     if kind == "agenda":
                         await client.agenda(2026, 10)
                     else:
-                        await client.homework(date(2026, 9, 1), date(2026, 10, 31))
+                        await client.homework(date(2026, 9, 1), date(2026, 9, 30))
                 assert len(fixture.forms) == 1 and fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
@@ -449,7 +502,7 @@ def test_forms_original_budget_and_last_waiter_cancellation(kind: str) -> None:
                     LoginSubmission(
                         client._credentials.login, client._credentials.password
                     ),
-                    HomeworkSelection(date(2026, 9, 1), date(2026, 10, 31))
+                    HomeworkSelection(date(2026, 9, 1), date(2026, 9, 30))
                     if kind == "agenda"
                     else AgendaSelection(2026, 10),
                 ):
@@ -462,7 +515,7 @@ def test_forms_original_budget_and_last_waiter_cancellation(kind: str) -> None:
                 task = asyncio.create_task(
                     client.agenda(2026, 10)
                     if kind == "agenda"
-                    else client.homework(date(2026, 9, 1), date(2026, 10, 31))
+                    else client.homework(date(2026, 9, 1), date(2026, 9, 30))
                 )
                 try:
                     await asyncio.wait_for(fixture.started.wait(), timeout=2)
@@ -479,7 +532,7 @@ def test_forms_original_budget_and_last_waiter_cancellation(kind: str) -> None:
                         await service.account("student").agenda(2026, 10, budget=budget)
                     else:
                         await service.account("student").homework(
-                            date(2026, 9, 1), date(2026, 10, 31), budget=budget
+                            date(2026, 9, 1), date(2026, 9, 30), budget=budget
                         )
                 assert budget.requests_dispatched == 5
 
@@ -501,13 +554,13 @@ def test_malformed_collection_is_not_cached_or_returned_as_empty(kind: str) -> N
                     if kind == "agenda":
                         await client.agenda(2026, 10)
                     else:
-                        await client.homework(date(2026, 9, 1), date(2026, 10, 31))
+                        await client.homework(date(2026, 9, 1), date(2026, 9, 30))
                 del fixture.bodies[kind]
                 result = (
                     await client.agenda(2026, 10, max_age_seconds=60)
                     if kind == "agenda"
                     else await client.homework(
-                        date(2026, 9, 1), date(2026, 10, 31), max_age_seconds=60
+                        date(2026, 9, 1), date(2026, 9, 30), max_age_seconds=60
                     )
                 )
                 assert (

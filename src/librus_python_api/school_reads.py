@@ -2,7 +2,7 @@
 
 import calendar
 import re
-from datetime import date, time
+from datetime import date, datetime, time
 from typing import Literal
 
 from lxml import html
@@ -10,7 +10,9 @@ from lxml import html
 from librus_python_api.announcements import _text
 from librus_python_api.config import (
     AGENDA_DETAIL_PATH_PREFIX,
+    HOMEWORK_COLUMNS,
     HOMEWORK_DETAIL_PATH_PREFIX,
+    HOMEWORK_DONE_PATTERN,
     HOMEWORK_MAX_COLUMNS,
     SCHOOL_MAX_CONTENT_LENGTH,
     SCHOOL_MAX_DETAIL_FIELDS,
@@ -19,6 +21,7 @@ from librus_python_api.config import (
     SCHOOL_MAX_TOOLTIP_FIELDS,
     SCHOOL_MAX_TOOLTIP_LENGTH,
     SCHOOL_MAX_TOTAL_TEXT_LENGTH,
+    WEEKDAY_LABELS,
     agenda_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -27,15 +30,19 @@ from librus_python_api.models import (
     AgendaDay,
     AgendaEvent,
     HomeworkItem,
-    SchoolDateTime,
     SchoolReference,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import page_notices, parse_html_document, parse_page
 
 
 def school_reference(
     nodes: list[html.HtmlElement], kind: Literal["agenda", "homework"], account: str
 ) -> SchoolReference | None:
+    """Find the single detail link.
+
+    Agenda cells must not carry any other handler. Homework rows also carry a
+    mark-done button; the library never follows handlers, so it is inert here.
+    """
     prefix = (
         AGENDA_DETAIL_PATH_PREFIX if kind == "agenda" else HOMEWORK_DETAIL_PATH_PREFIX
     )
@@ -46,7 +53,7 @@ def school_reference(
         action = node.get("onclick", "")
         if len(action) > 4096:
             raise LibrusError(ErrorKind.LIMIT)
-        if not action:
+        if not action or (kind == "homework" and prefix not in action):
             continue
         paths = re.findall(r"['\"](" + re.escape(prefix) + r"[0-9]{1,64})['\"]", action)
         if len(paths) != 1:
@@ -144,7 +151,7 @@ def parse_agenda(
     body: bytes, year: int, month: int, account: str
 ) -> tuple[AgendaDay, ...]:
     agenda_form(year, month)
-    document = parse_html_document(body)
+    document = parse_page(body)
     nodes = document.xpath(
         '//div[contains(concat(" ",normalize-space(@class)," ")," kalendarz-dzien ")]'
     )
@@ -183,22 +190,8 @@ def parse_agenda(
     return tuple(days[number] for number in range(1, expected + 1))
 
 
-def _date(value: str) -> date | None:
-    if value in {"", "-"}:
-        return None
-    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        pass
-    raise LibrusError(ErrorKind.PARSE)
-
-
-def _clock(value: str) -> time | None:
-    if value in {"", "-"}:
-        return None
-    if not re.fullmatch(r"[0-9]{2}:[0-9]{2}(?::[0-9]{2})?", value):
+def _clock(value: str) -> time:
+    if not re.fullmatch(r"[0-9]{2}:[0-9]{2}", value):
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     try:
         return time.fromisoformat(value)
@@ -207,28 +200,94 @@ def _clock(value: str) -> time | None:
     raise LibrusError(ErrorKind.PARSE)
 
 
-def _homework_row(row: html.HtmlElement, account: str) -> HomeworkItem:
+def _iso_date(value: str) -> date:
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        raise LibrusError(ErrorKind.PARSE)
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        pass
+    raise LibrusError(ErrorKind.PARSE)
+
+
+def _dated(value: str, weekday: str) -> date:
+    day = _iso_date(value)
+    # The adjacent weekday cell guards against silent column drift.
+    if weekday != WEEKDAY_LABELS[day.weekday()]:
+        raise LibrusError(ErrorKind.PARSE)
+    return day
+
+
+def _homework_columns(table: html.HtmlElement) -> list[str]:
+    """Expand the header into one field name per body cell."""
+    headers = [
+        row
+        for row in _rows(table)
+        if next(row.iterancestors("thead"), None) is not None
+    ]
+    if len(headers) != 1:
+        raise LibrusError(ErrorKind.PARSE)
+    columns: list[str] = []
+    for cell in _cells(headers[0]):
+        field = HOMEWORK_COLUMNS.get(_text(cell, SCHOOL_MAX_FIELD_LENGTH))
+        if field is None:
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        span = 2 if field in ("assigned", "due") else 1
+        if cell.get("colspan", "1") != str(span) or field in columns:
+            raise LibrusError(ErrorKind.PARSE)
+        columns.extend([field] if span == 1 else [field, field + "_weekday"])
+    required = {"subject", "teacher", "topic", "category", "assigned", "due"}
+    if not required <= set(columns) or len(columns) > HOMEWORK_MAX_COLUMNS:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    return columns
+
+
+def _marked_done_at(options: html.HtmlElement | None) -> datetime | None:
+    if options is None:
+        return None
+    found = []
+    for image in options.iter("img"):
+        title = image.get("title", "")
+        if title.startswith("Zadanie oznaczono jako wykonane"):
+            match = re.fullmatch(HOMEWORK_DONE_PATTERN, title)
+            if match is None:
+                raise LibrusError(ErrorKind.PARSE)
+            found.append(datetime.combine(_iso_date(match[1]), _clock(match[2])))
+    if len(found) > 1:
+        raise LibrusError(ErrorKind.PARSE)
+    return found[0] if found else None
+
+
+def _homework_row(
+    row: html.HtmlElement, columns: list[str], account: str
+) -> HomeworkItem:
     cells = _cells(row)
-    if not 8 <= len(cells) <= HOMEWORK_MAX_COLUMNS or any(
+    if len(cells) != len(columns) or any(
         c.tag != "td" or c.get("colspan", "1") != "1" or c.get("rowspan", "1") != "1"
         for c in cells
     ):
         raise LibrusError(ErrorKind.PARSE)
-    values = [_text(cell, SCHOOL_MAX_FIELD_LENGTH) for cell in cells]
+    by_field = dict(zip(columns, cells, strict=True))
+    values = {
+        field: _text(cell, SCHOOL_MAX_FIELD_LENGTH)
+        for field, cell in by_field.items()
+        if field != "options"
+    }
     return HomeworkItem(
-        values[0],
-        values[1],
-        values[2],
-        values[3],
-        SchoolDateTime(_date(values[4]), _clock(values[5]), values[4], values[5]),
-        SchoolDateTime(_date(values[6]), _clock(values[7]), values[6], values[7]),
-        tuple(values[8:]),
+        values["subject"],
+        values["teacher"],
+        values["topic"],
+        values["category"],
+        _dated(values["assigned"], values["assigned_weekday"]),
+        _dated(values["due"], values["due_weekday"]),
+        values.get("submission_status"),
+        _marked_done_at(by_field.get("options")),
         school_reference(list(row.iter()), "homework", account),
     )
 
 
 def parse_homework(body: bytes, account: str) -> tuple[HomeworkItem, ...]:
-    document = parse_html_document(body)
+    document = parse_page(body)
     tables = [
         t
         for t in document.iter("table")
@@ -240,17 +299,19 @@ def parse_homework(body: bytes, account: str) -> tuple[HomeworkItem, ...]:
     if len(tables) > 1 or len(markers) > 1 or (tables and markers):
         raise LibrusError(ErrorKind.PARSE)
     if not tables:
-        if len(markers) != 1:
+        # An unrecognized notice next to an empty marker is not a valid empty list.
+        if len(markers) != 1 or page_notices(document):
             raise LibrusError(ErrorKind.PARSE)
         return ()
     table = tables[0]
     if len(list(table.iter("table"))) != 1:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    columns = _homework_columns(table)
     items: list[HomeworkItem] = []
     total = 0
     for row in _rows(table):
         if {"line0", "line1"}.intersection(row.get("class", "").split()):
-            item = _homework_row(row, account)
+            item = _homework_row(row, columns, account)
             total += sum(len(_text(c, SCHOOL_MAX_FIELD_LENGTH)) for c in _cells(row))
             if len(items) >= SCHOOL_MAX_ITEMS or total > SCHOOL_MAX_TOTAL_TEXT_LENGTH:
                 raise LibrusError(ErrorKind.LIMIT)
@@ -267,7 +328,7 @@ def parse_homework(body: bytes, account: str) -> tuple[HomeworkItem, ...]:
 def parse_school_detail(
     body: bytes,
 ) -> tuple[str | None, tuple[tuple[str, str], ...], tuple[str, ...]]:
-    document = parse_html_document(body)
+    document = parse_page(body)
     containers = document.xpath(
         '//div[contains(concat(" ",normalize-space(@class)," "),'
         '" container-background ")]'

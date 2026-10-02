@@ -339,22 +339,16 @@ class Agenda:
 
 
 @dataclass(frozen=True, slots=True)
-class SchoolDateTime:
-    day: date | None = field(repr=False)
-    clock: time | None = field(repr=False)
-    raw_day: str = field(repr=False)
-    raw_clock: str = field(repr=False)
-
-
-@dataclass(frozen=True, slots=True)
 class HomeworkItem:
-    lesson: str = field(repr=False)
-    teacher: str = field(repr=False)
     subject: str = field(repr=False)
+    teacher: str = field(repr=False)
+    topic: str = field(repr=False)
     category: str = field(repr=False)
-    assigned: SchoolDateTime = field(repr=False)
-    due: SchoolDateTime = field(repr=False)
-    extra_cells: tuple[str, ...] = field(repr=False)
+    assigned_on: date = field(repr=False)
+    due_on: date = field(repr=False)
+    # Raw solution-upload status; None when the school layout has no column.
+    submission_status: str | None = field(repr=False)
+    marked_done_at: datetime | None = field(repr=False)
     reference: SchoolReference | None = field(repr=False)
 
 

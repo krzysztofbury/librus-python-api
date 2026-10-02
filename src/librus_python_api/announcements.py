@@ -19,7 +19,7 @@ from librus_python_api.config import (
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.grade_parsers import _cells, _rows
 from librus_python_api.models import Announcement
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_page
 
 
 def _text(element: html.HtmlElement, limit: int, *, multiline: bool = False) -> str:
@@ -157,7 +157,7 @@ def _reference(account: str, fields: dict[str, str]) -> str:
 def parse_announcements(body: bytes, account: str) -> tuple[Announcement, ...]:
     if not isinstance(account, str) or not account or len(account) > 80:
         raise LibrusError(ErrorKind.INVALID_INPUT)
-    document = parse_html_document(body)
+    document = parse_page(body)
     tables, empty = _tables(document), _empty(document)
     if empty and tables:
         raise LibrusError(ErrorKind.PARSE)

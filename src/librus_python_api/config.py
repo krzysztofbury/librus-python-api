@@ -5,6 +5,7 @@ records source-informed routes with explicit offline/live evidence separation.
 There is intentionally no public arbitrary authenticated URL interface.
 """
 
+import calendar
 import re
 import ssl
 from collections.abc import Mapping
@@ -453,7 +454,33 @@ SCHOOL_MAX_FIELD_LENGTH = 1024
 SCHOOL_MAX_TOOLTIP_LENGTH = 8192
 SCHOOL_MAX_TOOLTIP_FIELDS = 32
 HOMEWORK_MAX_COLUMNS = 32
-HOMEWORK_MAX_WINDOW_DAYS = 371
+# Observed header labels. Date columns span two cells: a date and its weekday.
+HOMEWORK_COLUMNS = MappingProxyType(
+    {
+        "Przedmiot": "subject",
+        "Nauczyciel": "teacher",
+        "Temat": "topic",
+        "Kategoria": "category",
+        "Data zadania": "assigned",
+        "Termin wykonania": "due",
+        "Status przesyłania rozwiązania": "submission_status",
+        "Opcje": "options",
+    }
+)
+HOMEWORK_DONE_PATTERN = (
+    r"Zadanie oznaczono jako wykonane \(([0-9]{4}-[0-9]{2}-[0-9]{2}), "
+    r"([0-9]{2}:[0-9]{2})\)"
+)
+WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
+# Observed page-level notices shown instead of the requested content.
+PAGE_NOTICES = MappingProxyType(
+    {
+        "Ten widok został wyłączony przez administratora szkoły.": (
+            ErrorKind.VIEW_DISABLED
+        ),
+        "Wybrano nieprawidłowy zakres daty.": ErrorKind.INVALID_INPUT,
+    }
+)
 COMPLETED_LESSONS_MAX_WINDOW_DAYS = 371
 COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
 COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256
@@ -473,11 +500,18 @@ def agenda_form(year: int, month: int) -> dict[str, str]:
     return {"rok": str(year), "miesiac": f"{month:02d}"}
 
 
+def _one_month_after(day: date) -> date:
+    year, month = (day.year + 1, 1) if day.month == 12 else (day.year, day.month + 1)
+    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+
+
 def homework_form(start: date, end: date) -> dict[str, str]:
+    """The upstream form accepts at most one calendar month per selection."""
     if (
         type(start) is not date
         or type(end) is not date
-        or not (0 <= (end - start).days < HOMEWORK_MAX_WINDOW_DAYS)
+        or start.year > 9998
+        or not start <= end <= _one_month_after(start)
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     return {

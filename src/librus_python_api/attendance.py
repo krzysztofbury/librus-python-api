@@ -24,7 +24,7 @@ from librus_python_api.models import (
     AttendanceRecord,
     AttendanceRecords,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_page
 
 
 def _detail_id(element: html.HtmlElement) -> str | None:
@@ -109,7 +109,7 @@ def _plain_cell_is_layout(cell: html.HtmlElement) -> bool:
 
 
 def parse_attendance(body: bytes) -> AttendanceRecords:
-    document = parse_html_document(body)
+    document = parse_page(body)
     tables = [
         table
         for table in document.iter("table")
@@ -167,7 +167,7 @@ def parse_attendance(body: bytes) -> AttendanceRecords:
 
 
 def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
-    document = parse_html_document(body)
+    document = parse_page(body)
     containers = [
         node
         for node in document.iter("div")

@@ -25,7 +25,7 @@ from librus_python_api.models import (
     TimetableLesson,
     TimetablePeriod,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_page
 
 
 def _clock(value: str | None) -> time:
@@ -209,7 +209,7 @@ def parse_timetable(body: bytes, monday: date) -> tuple[TimetableDay, ...]:
     timetable_form(monday)
     # The upstream repeats this particular slot ID. Other duplicate IDs and
     # parser repairs remain errors; semantic slot uniqueness is checked below.
-    table = _grid(parse_html_document(body, repeatable_id="timetableEntryBox"))
+    table = _grid(parse_page(body, repeatable_id="timetableEntryBox"))
     periods: list[tuple[TimetablePeriod, ...]] = []
     for row in _rows(table):
         classes = set(row.get("class", "").split())

@@ -7,7 +7,7 @@ from typing import Any
 from lxml import etree, html
 from pydantic import ValidationError
 
-from librus_python_api.config import PROFILE_LABELS
+from librus_python_api.config import PAGE_NOTICES, PROFILE_LABELS
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     Availability,
@@ -139,8 +139,30 @@ def parse_html_document(
     return document
 
 
+def page_notices(document: html.HtmlElement) -> tuple[str, ...]:
+    """Texts of page-level information boxes, which replace requested content."""
+    nodes = document.xpath(
+        '//div[contains(concat(" ",normalize-space(@class)," ")," warning-content ")]'
+    )
+    return tuple(" ".join(node.text_content().split()) for node in nodes)
+
+
+def parse_page(body: bytes, *, repeatable_id: str | None = None) -> html.HtmlElement:
+    """Parse a whole Synergia page and raise for a recognized notice.
+
+    Notices such as a view disabled by the school administrator are typed
+    outcomes, never parse failures or empty collections.
+    """
+    document = parse_html_document(body, repeatable_id=repeatable_id)
+    for notice in page_notices(document):
+        kind = PAGE_NOTICES.get(notice)
+        if kind is not None:
+            raise LibrusError(kind)
+    return document
+
+
 def parse_profile(body: bytes) -> ProfileFields:
-    document = parse_html_document(body)
+    document = parse_page(body)
     required = {"name", "class_name", "register_number", "tutor", "school"}
     candidates: list[dict[str, str]] = []
     for table in document.iter("table"):
