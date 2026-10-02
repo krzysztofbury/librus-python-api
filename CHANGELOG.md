@@ -15,7 +15,7 @@ Local-first release; not published to PyPI.
 - Completed-lesson pages and bounded resumable batches.
 - `ViewDisabledError` for views the school has switched off, on every page.
 - `scripts/live_capture.py` (one login, allowlist, request cap, private 0600
-  captures outside the repository) and `scripts/crosscheck.py` (offline Chromium
+  captures outside any Git work tree) and `scripts/crosscheck.py` (offline Chromium
   comparison).
 
 ### Changed (breaking for 0.3.0.dev0 users)
