@@ -571,6 +571,28 @@ def completed_lessons_form(start: date, end: date, page: int) -> dict[str, str]:
     }
 
 
+# Field names each view-selection POST may carry; the transport rejects others.
+FORM_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
+    {
+        "grades": frozenset(GRADE_VIEW_FIELDS.values()),
+        "attendance": frozenset(key for key, _ in ATTENDANCE_VIEW_FORMS.values()),
+        "timetable": frozenset({TIMETABLE_WEEK_FIELD}),
+        "agenda": frozenset({"rok", "miesiac"}),
+        "homework": frozenset({"dataOd", "dataDo", "przedmiot", "status"}),
+        "completed_lessons": frozenset(
+            {
+                "data1",
+                "data2",
+                "filtruj_id_przedmiotu",
+                "numer_strony1001",
+                "porcjowanie_pojemnik1001",
+            }
+        ),
+    }
+)
+FORM_MAX_VALUE_LENGTH = 64
+
+
 # Source-informed stable type-ID policy, never inferred from names or symbols.
 ATTENDANCE_TYPE_KINDS = MappingProxyType(
     {

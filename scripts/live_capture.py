@@ -5,7 +5,7 @@ dispatches at most --max-requests requests, refuses every operation outside an
 allowlist of reads and view selections, and keeps going after a failed read, so
 one run shows the state of the whole public read surface. Raw pages are private
 school data: they are written with 0600 permissions to a new directory that
-must be outside this repository. Delete it after diagnosis and publish only
+must be outside any Git work tree. Delete it after diagnosis and publish only
 independently authored fixtures.
 
     uv run python scripts/live_capture.py --secrets FILE --account 0 --out DIR
@@ -59,8 +59,9 @@ ALLOWED = frozenset(
 
 def private_directory(path: Path) -> Path:
     resolved = path.expanduser().resolve()
-    if resolved == REPOSITORY or REPOSITORY in resolved.parents:
-        raise SystemExit("Refusing to write private captures inside the repository")
+    # Any Git work tree could be committed and published, not only this one.
+    if any((folder / ".git").exists() for folder in (resolved, *resolved.parents)):
+        raise SystemExit("Refusing to write private captures inside a Git work tree")
     resolved.mkdir(mode=0o700, parents=True, exist_ok=False)
     return resolved
 
@@ -158,18 +159,20 @@ async def capture(
                 "attendance_detail",
                 lambda: client.attendance_detail(details[-1], budget=budget),
             )
-        gateway = await step(
+        await step(
             "attendance_frequency", lambda: client.attendance_frequency(budget=budget)
         )
-        if gateway is not None:
+        rows = await step(
+            "gateway_attendance",
+            lambda: client.gateway_attendance(budget=budget, max_age_seconds=60),
+        )
+        if rows is not None and rows.items:
             # One school day keeps the per-lesson metadata fan-out small.
-            rows = await client.gateway_attendance(budget=budget, max_age_seconds=60)
-            if rows.items:
-                day = max(row.day for row in rows.items)
-                await step(
-                    "subject_frequency",
-                    lambda: client.subject_frequency(day, day, budget=budget),
-                )
+            day = max(row.day for row in rows.items)
+            await step(
+                "subject_frequency",
+                lambda: client.subject_frequency(day, day, budget=budget),
+            )
         monday = today - timedelta(days=today.weekday())
         await step("timetable", lambda: client.timetable(monday, budget=budget))
         await step("announcements", lambda: client.announcements(budget=budget))

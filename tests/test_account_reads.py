@@ -20,11 +20,13 @@ from librus_python_api.exceptions import (
     LibrusError,
     LimitError,
     MaintenanceError,
+    OperationTimeoutError,
     ParseError,
     SessionExpiredError,
     ThrottledError,
     ViewDisabledError,
 )
+from librus_python_api.models import DiagnosticEvent
 from tests.http_support import serve
 from tests.reads_support import (
     HTML_OPERATIONS,
@@ -371,3 +373,39 @@ def test_each_read_sends_exactly_its_fixed_form(operation: str) -> None:
         assert query == "" and body == b""
 
     run(scenario)
+
+
+def test_diagnostics_report_each_outcome_kind() -> None:
+    events: list[DiagnosticEvent] = []
+
+    async def main() -> None:
+        fixture = ReadsFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service(diagnostic_sink=events.append) as service:
+                client = service.account("student")
+                await client.announcements()
+                fixture.bodies["announcements"] = (b"<html></html>", "text/html")
+                with pytest.raises(ParseError):
+                    await client.announcements()
+                del fixture.bodies["announcements"]
+                fixture.hold = asyncio.Event()
+                with pytest.raises(OperationTimeoutError):
+                    await client.announcements(
+                        budget=RequestBudget(timeout_seconds=0.3)
+                    )
+                fixture.held.clear()
+                task = asyncio.create_task(client.agenda(2026, 10))
+                await asyncio.wait_for(fixture.held.wait(), timeout=2)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+                fixture.hold.set()
+
+    asyncio.run(main())
+    assert [event.outcome for event in events] == [
+        "ok",
+        ErrorKind.PARSE,
+        ErrorKind.TIMEOUT,
+        "cancelled",
+    ]

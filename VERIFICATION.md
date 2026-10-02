@@ -9,8 +9,8 @@ in the Git history of this file.
 
 | Check | Result |
 | --- | --- |
-| `pytest` from source, Python 3.14 | 611 passed (1 opt-in performance case deselected) |
-| Installed wheel and sdist, Python 3.13 and 3.14, run outside the checkout | 611 passed in each of the four environments; imports resolve to the installed package |
+| `pytest` from source, Python 3.14 | 622 passed (1 opt-in performance case deselected) |
+| Installed wheel and sdist, Python 3.13 and 3.14, run outside the checkout | 622 passed in each of the four environments; imports resolve to the installed package |
 | Ruff, format, strict mypy (src, tests, scripts) | Clean |
 | OpenAPI and route catalogue parity | Pass, 26 operations |
 

@@ -87,7 +87,7 @@ With the owner's authorization for a stated scope and request budget:
    uv run python scripts/live_capture.py --secrets FILE --account N --out DIR
    ```
 
-   `DIR` must be new and outside the repository. Files are written 0600. The run
+   `DIR` must be new and outside any Git work tree. Files are written 0600. The run
    continues past failures, so one login shows every family's state.
 2. Cross-check offline. Chromium renders the same bytes independently, with
    scripts and network disabled:

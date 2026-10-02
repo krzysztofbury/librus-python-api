@@ -18,6 +18,8 @@ from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     AUTH_COOKIES,
     ENDPOINTS,
+    FORM_FIELDS,
+    FORM_MAX_VALUE_LENGTH,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
@@ -70,15 +72,25 @@ class TransportFactory(Protocol):
 
 
 def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
-    """Credentials go only to the login submission; other POSTs need a form."""
+    """Credentials go only to the login submission; other POSTs carry only
+    their own known fields; a GET carries no form."""
     if endpoint.operation_id == "login_submit":
         valid = isinstance(form, LoginSubmission) and (
             1 <= len(form.login.get_secret_value()) <= 256
             and 1 <= len(form.password.get_secret_value()) <= 1024
         )
     elif endpoint.method == "POST":
-        valid = isinstance(form, Mapping) and all(
-            type(key) is str and type(value) is str for key, value in form.items()
+        allowed = FORM_FIELDS.get(endpoint.operation_id, frozenset())
+        valid = (
+            isinstance(form, Mapping)
+            and 0 < len(form) <= len(allowed)
+            and all(
+                type(key) is str
+                and key in allowed
+                and type(value) is str
+                and len(value) <= FORM_MAX_VALUE_LENGTH
+                for key, value in form.items()
+            )
         )
     else:
         valid = form is None

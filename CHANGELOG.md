@@ -25,8 +25,8 @@ Local-first release; not published to PyPI.
   `reference`. `lesson`, `assigned`, `due`, `extra_cells` and `SchoolDateTime`
   are removed.
 - `homework()` accepts at most one calendar month, the upstream limit.
-- `AccountTransport.request` takes a plain string form for view POSTs. The
-  selection wrapper types are removed.
+- `AccountTransport.request` takes a plain string form for view POSTs, limited
+  to that endpoint's known field names. The selection wrapper types are removed.
 
 ### Fixed
 
@@ -39,6 +39,8 @@ Each fix was found on live pages:
 - Timetable substitution notices wrapped in their tooltip anchor failed.
 - Long agenda descriptions exceeded the tooltip line cap, and their numbered
   lines became bogus fields.
+- From review: text beside a wrapped timetable notice and unknown homework
+  handlers now fail instead of being dropped.
 
 ### Internal
 

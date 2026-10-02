@@ -117,6 +117,25 @@ def test_multiline_description_stays_one_field_until_the_next_label() -> None:
     assert event.metadata_notes == ()
 
 
+def test_unknown_label_is_a_field_before_opis_and_description_after_it() -> None:
+    # Pinned rule: an unknown label cannot be told apart from description text,
+    # so after "Opis" it stays in the description (still in metadata_text).
+    title = (
+        "Sala: 12&lt;br&gt;Opis: Fixture agenda&lt;br&gt;Sala: 14&lt;br&gt;"
+        "Data dodania: 2026-09-01"
+    )
+    cell = f'<td title="{title}">Fixture meeting</td>'
+    event = parse_agenda(agenda_html(cell=cell).encode(), 2026, 10, "fixture")[
+        1
+    ].events[0]
+    assert event.metadata == (
+        ("Sala", "12"),
+        ("Opis", "Fixture agenda\nSala: 14"),
+        ("Data dodania", "2026-09-01"),
+    )
+    assert "Sala: 14" in event.metadata_text
+
+
 def test_subjectless_multiline_title_is_not_replaced_with_its_note() -> None:
     event = parse_agenda(
         agenda_html(

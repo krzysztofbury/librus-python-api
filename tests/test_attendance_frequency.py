@@ -24,6 +24,7 @@ class FrequencyFixture(AttendanceFixture):
         self.gateway_body = gateway_rows()
         self.detail_body = DETAIL
         self.metadata_requests: list[tuple[str, str]] = []
+        self.gateway_expiry = 0
 
     def app(self) -> web.Application:
         app = super().app()
@@ -35,6 +36,9 @@ class FrequencyFixture(AttendanceFixture):
 
     async def gateway(self, request: web.Request) -> web.Response:
         self.record(request)
+        if self.gateway_expiry:
+            self.gateway_expiry -= 1
+            return web.Response(status=401)
         return web.Response(body=self.gateway_body, content_type="application/json")
 
     async def detail(self, request: web.Request) -> web.Response:
@@ -324,5 +328,22 @@ def test_subject_resolution_budget_exhaustion_is_not_partial_success() -> None:
                     await client.subject_frequency(budget=budget)
                 assert budget.requests_dispatched == 2
                 assert fixture.metadata_requests == [("lesson", "41")]
+
+    asyncio.run(scenario())
+
+
+def test_subject_frequency_recovers_gateway_expiry_once() -> None:
+    # It reads through the retry-safe gateway route, unlike view POSTs.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.identity()
+                fixture.gateway_expiry = 1
+                result = await client.subject_frequency()
+                assert result.items
+                assert fixture.logins == {"student": 2}
 
     asyncio.run(scenario())
