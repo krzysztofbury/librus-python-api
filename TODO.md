@@ -131,31 +131,31 @@ to finish every domain model before the first endpoint or to wait until P6/P7
 
 Dependencies: none. Regression coverage: R01-R17 inventory.
 
-- [ ] Record independent implementation provenance and dependency licenses.
+- [x] Record independent implementation provenance and dependency licenses.
   Treat external implementations as research references, not material to copy.
   Retain consumer fixtures/tests in their existing repository; write new library
   fixtures independently. Do not claim this source-informed effort is clean-room.
 - [ ] Decide distribution `librus-python-api` and import `librus_python_api`;
   confirm PyPI availability/ownership before release. Do not shadow `librus`,
   `librus_apix`, or `src`, and do not depend on upstream as a hidden fallback.
-- [ ] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
+  Status: names decided and used; PyPI ownership is confirmed in P7.
+- [x] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
   bundled license, `py.typed`, and a single package-version source. Select and
   test supported Python versions; Python 3.14 compatibility is mandatory for
   the consumer. Claim older-version support only if exercised in the declared
   verification matrix.
-  Local 0.1.0 progress: builds, checks, and installed-client/adapter reads are
-  verified on Linux/3.13/3.14. GitHub-hosted CI also verifies this matrix; other
-  platforms remain pending. PyPI ownership is still a separate release gate.
+  Verified on Linux with Python 3.13 and 3.14, from source and installed
+  artifacts, locally and in GitHub CI. Other platforms are tracked in P6.
 - [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
   Selected `aiohttp` after a loopback experiment, now retired in favor of real
   transport/service tests. The 0.1.0 account
   transport and login/identity network paths are implemented and tested offline.
-- [ ] Define public async client ownership, `aclose`/context-manager behavior,
+- [x] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.
   Construction/import must do no network I/O or implicit environment discovery.
-- [ ] Design one service-level lifecycle for all consumer accounts/tools, with
+- [x] Design one service-level lifecycle for all consumer accounts/tools, with
   account-scoped typed clients. MCP selects logins, operations, date ranges,
   and freshness and combines their results; the service handles scheduling and
   shared budgets. No summary/batch endpoint, private patches, or manual cookie
@@ -163,12 +163,12 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Create a per-operation contract matrix: account types, source endpoint,
   requested fields, result types, capability status, pagination, side effects,
   retry safety, and evidence confidence. Include every row in P3-P5.
-- [ ] Keep upstream routes centralized in `config.py` and maintain importable
+  Status: every enabled read has its route, side effect, retry safety and
+  evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.0.
+- [x] Keep upstream routes centralized in `config.py` and maintain importable
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
-  provenance and live gaps. The initial empty contract/checker is implemented;
-   nine login/identity wire contracts are populated. Later contracts accompany
-   their own operation slices.
+  provenance and live gaps. 26 operations, checked by `tests/test_contracts.py`.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -192,19 +192,28 @@ Dependencies: P0.
   agenda, homework, announcements, messages, recipients, attachments, and notes.
   Keep MCP/Pydantic wire models out of the library API. Prefer typed dataclasses
   with explicit runtime validation at parse boundaries; document serialization.
+  Status: done for every 0.1-0.3 family; messages, recipients, attachments and
+  notes are pending.
 - [ ] Define typed page results with items, continuation, truncation reason,
   source identity, and detected-change information. Never imply that an offset
   cursor freezes upstream data. Bind continuation to account/query/source.
+  Status: completed lessons have bound cursors with page fingerprints; message
+  pages are pending.
 - [ ] Normalize IDs without conflating distinct sources: retain opaque IDs where
   evidenced, distinguish display IDs from valid legacy detail references, and
   reject URL/path injection. Numeric legacy routes remain strictly numeric.
+  Status: done for every enabled route (numeric references, account-bound
+  `SchoolReference`); message IDs are pending.
 - [ ] Model empty success, unsupported capability, unpublished data, permission
   denial, incomplete data, and parse failure separately. Required-field failures
   must not silently become `[]`, zero, or a fabricated record.
-- [ ] Define account provenance, observation times, freshness, completeness, and
+  Status: empty markers, `ViewDisabledError`, `UnsupportedCapabilityError`,
+  `AccessDeniedError`, `LimitError` and `ParseError` are distinct; unpublished
+  data (for example an unpublished timetable) is not modelled yet.
+- [x] Define account provenance, observation times, freshness, completeness, and
   typed operation failures. An account failure must not invalidate another's
   session/results; MCP owns partial-summary policy and cross-account merging.
-- [ ] Define typed exceptions for invalid input, rejected credentials, required
+- [x] Define typed exceptions for invalid input, rejected credentials, required
   account action/captcha, session expiry, access denial, throttling, maintenance,
   connection/timeout, response limits, parsing, and uncertain delivery.
   Error messages and attached diagnostics must exclude secret/raw response data.
@@ -212,10 +221,15 @@ Dependencies: P0.
   raw grade strings, missing grades, and explicit attendance units. Preserve
   school-provided averages where available; derived averages need documented
   weighting and grade-symbol rules, not assumptions from another school.
+  Status: civil dates and local clocks are never converted, raw grades and
+  school averages are kept, and ratios are explicit; a `Europe/Warsaw` policy is
+  needed for message timestamps in 0.4.0.
 - [ ] Start with `scope`, typed detail/event references, integer calendar inputs,
   normalized field names, and ID-bearing record collections. Prefer an explicit
   ratio domain type; keep presentation conversion in MCP. Support A01-A08
   without inheriting legacy tool names or dynamic display-name dictionaries.
+  Status: typed references, integer calendar inputs, ID-bearing collections and
+  `FrequencyMeasure` exist; `scope` is not implemented.
 
 Exit: valid and invalid independent examples exercise actual validation, and
 the proposed records can be mapped to existing MCP outputs without data loss.
@@ -236,49 +250,54 @@ their broad checkboxes are not blanket claims from the identity slice.
   identity without using student identity as the cache/security key. Isolate
   messaging session state too. Multi-child switching inside one login is not
   assumed or required for the initial four-login use case.
-- [ ] Implement explicit session ownership and deterministic resource cleanup.
+  Status: done and verified live on four logins; messaging session isolation
+  comes with 0.4.0.
+- [x] Implement explicit session ownership and deterministic resource cleanup.
   Public injection must not require consumers to replace `_session` or clone
   private fields. Preserve all cookie restrictions and duplicate names.
-- [ ] Independently validate the current login handshake, bounded redirect
+- [x] Independently validate the current login handshake, bounded redirect
   allowlist, proxy behavior, and authenticated terminal state. Do not reuse the
   obsolete password-grant path solely because historical packages used it.
-- [ ] Coalesce concurrent authentication; allow at most one reauthentication for
+- [x] Coalesce concurrent authentication; allow at most one reauthentication for
   a proven safe operation. Distinguish bad credentials, expired session,
   persistent endpoint denial, maintenance, and confirmed throttling. Apply
   cooldowns once at the library owner boundary, with consumer-equivalent defaults.
-- [ ] Recognize unsupported interactive authentication as an explicit outcome.
+- [x] Recognize unsupported interactive authentication as an explicit outcome.
   Do not loop, mislabel it as a parser failure, or promise CAPTCHA/2FA support.
-- [ ] Enforce connection/read and whole-operation deadlines, including queue
+- [x] Enforce connection/read and whole-operation deadlines, including queue
   wait, redirects, authentication recovery, body streaming, and pagination.
   A slow-drip response must not run indefinitely by resetting an idle timeout.
 - [ ] Bound bytes before parsing for HTML/JSON and attachments. Cover absent or
   misleading Content-Length, chunked bodies, decompression, cumulative redirect
   bodies, malformed encodings, and cancellation while waiting for bytes.
-- [ ] Bound parser CPU/memory and measure event-loop responsiveness on maximum
+  Status: done for HTML and JSON; attachment streams come with 0.4.0.
+- [x] Bound parser CPU/memory and measure event-loop responsiveness on maximum
   accepted bodies. An asyncio deadline cannot preempt synchronous parsing;
   if parsing is offloaded, bound workers and account for their actual completion
   without letting them mutate session state after cancellation.
-- [ ] Bound global and per-account active requests AND queued tasks. Share the
+- [x] Bound global and per-account active requests AND queued tasks. Share the
   global budget across clients without sharing authentication state. Decide
   which proven-safe reads may overlap; serialize session-changing operations.
-- [ ] Enforce shared request rate and burst limits in addition to concurrency.
+- [x] Enforce shared request rate and burst limits in addition to concurrency.
   Count login steps, redirects, retries, bootstraps, lookups, and page reads at
   dispatch. Use fair admission, bounded waits, and service-wide backoff where
   appropriate. Test that multiple account clients cannot multiply the budget.
-- [ ] Set explicit service account/queue limits and per-operation attempt/page/
+- [x] Set explicit service account/queue limits and per-operation attempt/page/
   byte/deadline budgets with conservative defaults. Allow MCP to share a total
   retrieval budget across its calls. Exhaustion stops new dispatch and returns
   a typed incomplete/limit result. No Librus-approved rate is currently known.
-- [ ] Coalesce identical safe in-flight reads within account/query/session scope;
+- [x] Coalesce identical safe in-flight reads within account/query/session scope;
   reuse sessions and reference caches across summaries. Define waiter cancellation
   and freshness behavior; never share account data or coalesce side-effecting work.
-- [ ] Classify retries by operation semantics, not GET/POST. Bounded backoff and
+- [x] Classify retries by operation semantics, not GET/POST. Bounded backoff and
   Retry-After handling apply only to safe retryable operations. Never replay a
   send or read-once event request after an ambiguous result.
-- [ ] Prove cancellation closes/releases resources and cannot leave requests
+  Retry safety is per endpoint, and `Endpoint` rejects any route that has a side
+  effect yet is marked retry-safe.
+- [x] Prove cancellation closes/releases resources and cannot leave requests
   mutating a session later. Do not remove MCP's thread-worker protections before
   the corresponding paths use the new native async implementation.
-- [ ] Provide redacted diagnostics: endpoint class, status, elapsed time, counts,
+- [x] Provide redacted diagnostics: endpoint class, status, elapsed time, counts,
   error kind. No credential/token repr, response body excerpts, or signed URLs.
 
 Exit: a local HTTP fixture server proves isolation, lifecycle, bounded work,
@@ -303,30 +322,34 @@ and relevant account-variant fixtures before its adapter becomes the default.
 | Completed lessons | list and bounded-page tools | Retain an independently implemented HTML route unless JSON parity is demonstrated for topic, attendance reference, teacher, and pagination. |
 | Message lists | received/sent/page/all-pages/bounded `get_messages` | Assess legacy and separate JSON subsystems independently. Prove sent-folder support, ID mapping, unread status, and stable source selection; do not eagerly fetch bodies. |
 
-- [ ] Implement the identity slice first, including an MCP adapter experiment
+- [x] Implement the identity slice first, including an MCP adapter experiment
   and a fixture-server integration test. Record request count, session reuse,
   and exact field coverage before widening scope.
 - [ ] Complete the remaining slices using separate fetching and pure parsing.
   Parse each response once and return pagination metadata with its rows.
-- [ ] For HTML, locate semantic page/table markers and map verified headers.
+  Status: all slices except message lists are done and verified live
+  (VERIFICATION.md).
+- [x] For HTML, locate semantic page/table markers and map verified headers.
   Handle documented span variants explicitly; reject ambiguous layouts. Avoid
   whole-document positional XPath and guessing empty success from missing tables.
-- [ ] For JSON, validate envelopes, nested references, required values, and
+- [x] For JSON, validate envelopes, nested references, required values, and
   endpoint-specific variants. Bound IDs, list sizes, nesting/decoding work;
   preserve justified optional/unknown fields without silently skipping bad rows.
 - [ ] Implement bounded page/offset continuation and ID deduplication. Cover page
   zero, repeated/clamped pages, overlaps, short/oversized pages, and empty ranges.
   Cursor translation may require retaining the legacy endpoint during migration.
-- [ ] Support current scope/date filtering semantics. Label client-side filtering
+  Status: done for completed lessons; message pagination is pending.
+- [x] Support current scope/date filtering semantics. Label client-side filtering
   separately from upstream bounds; do not approximate `last_login` with a date
   window or lose events because authentication changed its reference point.
-- [ ] Fetch needed metadata in bounded bulk or deduplicated per-ID requests.
+- [x] Fetch needed metadata in bounded bulk or deduplicated per-ID requests.
   Add per-account bounded TTL caches, invalidation on account/session changes,
   and explicit freshness rules. Do not cache changing attendance as reference data.
-- [ ] Define unknown attendance-type behavior using verified metadata. Never
+- [x] Define unknown attendance-type behavior using verified metadata. Never
   classify an unknown type as present or return 100% merely for lack of evidence.
-- [ ] Keep JSON-to-HTML fallback explicit, capability-scoped, and budgeted. A
+- [x] Keep JSON-to-HTML fallback explicit, capability-scoped, and budgeted. A
   schema failure must surface; it must not silently change data source or IDs.
+  There is no fallback: each read has one source and its failures are typed.
 
 Exit: all enabled ordinary reads map to the existing MCP contract; parser and
 transport tests protect real behavior rather than supplying prebuilt results.
@@ -408,7 +431,7 @@ Dependencies: each completed slice; full run before P8.
 - [ ] Compare old/new request counts, connection reuse, elapsed-time distribution,
   peak memory, and active/queued work. Set numeric acceptance thresholds after
   recording baseline measurements. A quiet live account is not a load test.
-- [ ] Prove cache capacity, TTL expiry, invalidation, and account isolation.
+- [x] Prove cache capacity, TTL expiry, invalidation, and account isolation.
   Verify a warm cache skips metadata requests but still fetches fresh records.
 - [ ] Use targeted mutation/property tests for critical guards: account isolation,
   bounded queues/bodies/pages, send non-retry, checkpoint ordering, and redirect
