@@ -14,6 +14,7 @@ import pytest
 from librus_python_api import (
     AccountClient,
     MessageFolder,
+    RecipientGroupReference,
     RequestBudget,
     SchoolReference,
 )
@@ -301,6 +302,14 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
             lambda **kw: client.messages_page(MessageFolder.SENT, **kw),
             lambda **kw: client.messages_page(MessageFolder.SENT, page=1, **kw),
         ),
+        "recipients": (
+            lambda **kw: client.recipients(
+                RecipientGroupReference("nauczyciel", "student"), **kw
+            ),
+            lambda **kw: client.recipients(
+                RecipientGroupReference("wychowawca", "student"), **kw
+            ),
+        ),
     }
 
 
@@ -318,6 +327,7 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
         "completed_lessons",
         "messages_received",
         "messages_sent",
+        "recipients",
     ],
 )
 def test_distinct_selections_are_never_served_from_each_others_cache(
@@ -363,6 +373,13 @@ def test_wrong_media_type_or_oversized_page_fails_without_raw_cause(
 
 
 WIRE_FORMS = {
+    "recipients": {
+        "typAdresata": "nauczyciel",
+        "poprzednia": "5",
+        "tabZaznaczonych": "",
+        "czyWirtualneKlasy": "false",
+        "idGrupy": "0",
+    },
     "messages_received": {"numer_strony105": "0", "porcjowanie_pojemnik105": "105"},
     "messages_sent": {"numer_strony105": "0", "porcjowanie_pojemnik105": "105"},
     "grades": {"zmiany_logowanie_wszystkie": "1"},

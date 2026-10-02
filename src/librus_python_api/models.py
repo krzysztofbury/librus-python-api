@@ -32,6 +32,8 @@ type OperationName = Literal[
     "completed_lessons",
     "messages_received",
     "messages_sent",
+    "recipient_groups",
+    "recipients",
 ]
 
 
@@ -140,6 +142,48 @@ class Messages:
     duplicates_skipped: int
     next_cursor: MessagesCursor | None = field(repr=False)
     truncation_reason: Literal["item_limit", "page_limit"] | None
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroup:
+    reference: RecipientGroupReference = field(repr=False)
+    label: str = field(repr=False)
+    available: bool
+    lookup_supported: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+    group_type: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Recipient:
+    reference: RecipientReference = field(repr=False)
+    label: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroups:
+    identity: "Identity" = field(repr=False)
+    groups: tuple[RecipientGroup, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class Recipients:
+    identity: "Identity" = field(repr=False)
+    group: RecipientGroupReference = field(repr=False)
+    items: tuple[Recipient, ...] = field(repr=False)
     observation: "Observation"
 
 

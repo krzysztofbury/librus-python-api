@@ -294,6 +294,17 @@ CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
         ("timetable", {"rok": "2026"}),  # another endpoint's field
         ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
         ("grades", {}),  # empty form
+        ("recipients", {"typAdresata": "nauczyciel"}),
+        (
+            "recipients",
+            {
+                "typAdresata": "nauczyciel",
+                "poprzednia": "5",
+                "tabZaznaczonych": "1",
+                "czyWirtualneKlasy": "false",
+                "idGrupy": "0",
+            },
+        ),
         (
             "messages_sent",
             {

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.0
+  version: 0.4.1
   license:
     name: MIT
   description: |
@@ -978,6 +978,56 @@ paths:
               properties:
                 numer_strony105: {type: string, pattern: '^(0|[1-9][0-9]{0,2})$'}
                 porcjowanie_pojemnik105: {type: string, enum: ['105']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /wiadomosci/2/6:
+    get:
+      operationId: recipient_groups
+      summary: Open recipient selection and discover available group types
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Eight named group selectors observed and compared with Chromium/apix on identical bytes; subgroup lookup remains unsupported. See contracts/recipients.md.
+      description: |
+        Opens a compose/selection view, not a message. No sends, body retrieval,
+        mark-read or event consumption. Session selection is serialized and never
+        automatically replayed. Shared request/body/deadline limits apply.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /getRecipients:
+    post:
+      operationId: recipients
+      summary: Retrieve recipients for one explicitly selected group type
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Installed public lookup of tutor, teacher and office groups; labels, numeric IDs and checkbox linkage agree with Chromium and apix on identical bytes. Empty lists and other groups remain unqualified.
+      description: |
+        Exactly five fixed selection fields with a named group-type token. This is
+        not a send operation and cannot carry subject/body, recipient selections,
+        credentials or uploads. No replay. Unknown layouts fail explicitly.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [typAdresata, poprzednia, tabZaznaczonych, czyWirtualneKlasy, idGrupy]
+              properties:
+                typAdresata: {type: string, pattern: '^[a-z][a-z0-9_]{0,63}$'}
+                poprzednia: {type: string, enum: ['5']}
+                tabZaznaczonych: {type: string, enum: ['']}
+                czyWirtualneKlasy: {type: string, enum: ['false']}
+                idGrupy: {type: string, enum: ['0']}
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}

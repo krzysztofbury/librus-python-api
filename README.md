@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.0`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.1`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -24,18 +24,19 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Homework | `homework`, `homework_detail` | Verified: populated and empty |
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
 | Message lists | `messages_page`, `messages` | 0.4.0: populated received and empty sent on one login; bounded resume/cache smoke and independent Chromium agreement |
+| Recipient discovery | `recipient_groups`, `recipients` | 0.4.1: eight named groups; populated tutor, teacher and office lookups on one login, independently checked |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.0. School reads,
-timetable, profile and messages were compared with Chromium's independent
+not a claim that every family was called live again in 0.4.1. School reads,
+timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Recipient discovery, full content, streams and notification primitives follow
-in separate `0.4.1`..`0.4.4` increments. Sending is plan-only. Message-list live
+Full content, streams and notification primitives follow
+in separate `0.4.2`..`0.4.4` increments. Sending is plan-only. Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
-Behaviour
-notes stay unsupported until a populated page has been observed
+Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
+Behaviour notes stay unsupported until a populated page has been observed
 ([decision](contracts/behaviour-notes.md)).
 
 ## Example

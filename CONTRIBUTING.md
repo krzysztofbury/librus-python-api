@@ -67,6 +67,8 @@ measurement.
 | Live capture safety | `tests/test_live_capture.py` |
 | Message summary semantics, continuation and full multi-account mailboxes | `tests/test_messages.py` |
 | Message-list live scope, one-login cap and installed-smoke execution | `tests/test_message_capture.py` |
+| Recipient selectors, IDs, scopes and limits | `tests/test_recipients.py` |
+| Recipient-only live scope and smoke flow | `tests/test_recipient_capture.py` |
 
 A new read goes into the tables in `tests/reads_support.py` and
 `tests/test_account_reads.py`; its family module covers only what is specific to
@@ -121,6 +123,17 @@ checks Chromium's visible message fields, references, flags and empty markers;
 a message parser error fails qualification, never counts as agreement. Retain
 no raw values or screenshots. Coverage and future feature approval gates are in
 [contracts/messages.md](contracts/messages.md).
+
+Recipient discovery has a separate `scripts/capture_recipients.py` allowlist:
+one credential submission, 24 requests, six recipient POSTs, and only the
+explicitly approved tutor/teacher/office tokens. `--mode smoke` exercises the
+public APIs and zero-request warm caches. Authentication/service errors stop
+the attempt. A parser failure preserves only the other approved groups' captures
+for offline diagnosis and is reported as failed qualification, not success.
+`scripts/compare_recipients.py` replays an external apix installation without
+network access. Always delete private captures after final offline comparisons.
+See [contracts/recipients.md](contracts/recipients.md) for the hierarchy and empty
+layout gates; recipient discovery does not authorize sending.
 
 Rules that past mistakes earned:
 

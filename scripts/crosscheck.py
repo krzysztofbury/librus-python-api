@@ -21,8 +21,9 @@ from playwright.async_api import Page, async_playwright
 from librus_python_api.completed_lessons import parse_completed_lessons
 from librus_python_api.exceptions import LibrusError
 from librus_python_api.messages import parse_messages
-from librus_python_api.models import MessageFolder
+from librus_python_api.models import MessageFolder, RecipientGroupReference
 from librus_python_api.parsers import parse_profile
+from librus_python_api.recipients import parse_recipient_groups, parse_recipients
 from librus_python_api.school_reads import (
     parse_agenda,
     parse_homework,
@@ -107,6 +108,21 @@ MESSAGES_DOM = r"""() => {
    recipient_read_status:read === -1 ? null : r.cells[read].innerText,
  }))};
 }"""
+
+GROUPS_DOM = r"""() => [...document.querySelectorAll(
+ 'table.message-recipients tbody tr')]
+ .map(r=>{
+   const radio=r.querySelector('input[type=radio]');
+   const label=r.querySelector('label');
+   return {type:radio.value, label:label.innerText, available:!radio.disabled,
+    linked:label.htmlFor === radio.id};
+ })"""
+
+RECIPIENTS_DOM = r"""() => [...document.querySelectorAll('label')].map(l=>{
+ const control=document.getElementById(l.htmlFor);
+ return {label:l.innerText, id:l.htmlFor.split('_').at(-1),
+   control_type:control?control.type:null, value:control?control.value:null};
+})"""
 
 
 def normalized(value: str | None) -> str:
@@ -262,7 +278,41 @@ def check_messages(folder: MessageFolder, body: bytes, form: Form, view: Any) ->
     )
 
 
+def check_recipient_groups(body: bytes, form: Form, view: Any) -> str:
+    groups = parse_recipient_groups(body, "crosscheck")
+    if len(groups) != len(view):
+        raise AssertionError("recipient group count differs")
+    for group, row in zip(groups, view, strict=True):
+        if (
+            group.reference.identifier != row["type"]
+            or normalized(group.label) != normalized(row["label"])
+            or group.available != row["available"]
+            or not row["linked"]
+        ):
+            raise AssertionError("recipient group fields or control linkage differ")
+    return f"{len(groups)} groups; labels, tokens, controls and availability agree"
+
+
+def check_recipients(body: bytes, form: Form, view: Any) -> str:
+    items = parse_recipients(
+        body, RecipientGroupReference(form["typAdresata"], "crosscheck")
+    )
+    if len(items) != len(view):
+        raise AssertionError("recipient count differs")
+    for item, row in zip(items, view, strict=True):
+        if (
+            normalized(item.label) != normalized(row["label"])
+            or item.reference.identifier != row["id"]
+            or row["value"] != row["id"]
+            or row["control_type"] != "checkbox"
+        ):
+            raise AssertionError("recipient visible label, ID or control differs")
+    return f"{len(items)} recipients; labels, IDs and controls agree"
+
+
 CHECKS: dict[str, tuple[str, Callable[[bytes, Form, Any], str]]] = {
+    "recipient_groups": (GROUPS_DOM, check_recipient_groups),
+    "recipients": (RECIPIENTS_DOM, check_recipients),
     "messages_received": (
         MESSAGES_DOM,
         partial(check_messages, MessageFolder.RECEIVED),
@@ -291,7 +341,10 @@ async def check_directory(page: Page, directory: Path) -> bool:
             detail = compare(body, entry["form"] or {}, await page.evaluate(script))
         except LibrusError as error:
             detail = f"typed {type(error).__name__}"
-            if entry["endpoint"].startswith("messages_"):
+            if entry["endpoint"].startswith("messages_") or entry["endpoint"] in {
+                "recipient_groups",
+                "recipients",
+            }:
                 passed = False
         except AssertionError as error:
             passed = False

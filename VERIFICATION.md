@@ -3,6 +3,83 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.1 (2026-10-02) - Recipient discovery
+
+### Offline
+
+| Check | Result |
+| --- | --- |
+| Complete source suite, Python 3.13 and 3.14 | 748 passed in both environments; one opt-in performance case deselected |
+| Installed wheel and sdist, Python 3.13 and 3.14, outside checkout | 748 passed in each of four environments; imports, metadata, license and `py.typed` checked |
+| Installed public API replay of actual private captures through loopback HTTP | All four environments: eight group types and three lookups with 1/55/1 recipients; warm cache dispatches none |
+| Ruff, format and strict mypy | Clean |
+| OpenAPI / route catalogue parity | Pass, 30 operations |
+| Full bounded lookup | 2,000 distinct IDs sharing one display name survive one real loopback HTTP lookup |
+
+The shared read suite owns account isolation, cache/coalescing, notices,
+budgets, cancellation, exact forms and no selection replay for both operations.
+The family suite owns named selectors, header/body boundaries, label/checkbox
+linkage and cardinality, duplicate names versus duplicate IDs, foreign and
+injected references, unsupported subgroups, limits and cache selection keys.
+Capture tests own approved token selection, six-list and one-login limits, and
+the actual discovery/smoke flow on loopback. No external fixture or code was
+copied. `scripts/replay_recipients.py` exercises the installed runtime against
+real response bytes, not only synthetic tests.
+
+### Bounded live use
+
+One account context, initially two attempts of at most 24 requests each. The
+first scope allowed only numeric group types, which the real composer does not
+use. That attempt stopped after ten requests and one credential submission,
+before any recipient POST. The owner explicitly amended the remaining attempt
+to the observed `wychowawca`, `nauczyciel` and `sekretariat` tokens; no third
+attempt was authorized or performed.
+
+The installed 0.4.1 wheel public smoke then passed in sixteen requests, one
+login, one group GET and six recipient POSTs (two fresh reads per approved
+group). Group discovery and each group lookup also passed zero-request warm-cache
+checks. The three groups had 1, 55 and 1 recipients. Total: two logins, 26/48
+requests. Unused requests do not authorize another login.
+
+Chromium independently checked all eight captured responses: displayed group
+labels/tokens, availability and radio linkage; recipient labels, numeric IDs and
+checkbox/value linkage. The separately acquired MIT-licensed apix 1.5.3 received
+identical bytes through an inert replay client. Group-token and recipient-pair
+mismatch counts were zero. No message open, sending, mark-read, download, deletion
+or read-once call occurred.
+
+### Review correction and evidence boundary
+
+The real group header initially failed parsing; an original headed-table test
+failed before the `tbody`-only correction. After the successful live smoke,
+review found that an unlabeled numeric checkbox could silently disappear. A new
+regression failed before a cardinality guard was added. The select-all checkbox
+is explicitly excluded, not misidentified as a recipient.
+
+The strengthened parser, conservative lookup-capability naming and updated
+route-evidence metadata were qualified
+offline against all private captured bytes, including Chromium comparison and
+the installed public runtime on loopback. That is not a fresh credentialed smoke
+of changed code and does not consume another login. Qualification uses real
+populated responses rather than apix/synthetic agreement as its oracle.
+
+Privacy-safe metrics are in `release-evidence/0.4.1-recipients.json`; distribution
+checksums are in `release-evidence/0.4.1.sha256`. Raw responses were private 0600
+captures outside Git, deleted after final offline replay. No names, numeric
+recipient IDs, raw diffs, cookies or message text are retained.
+
+### Gaps and next increment
+
+- Empty recipient layouts, subgroup/virtual-class selection, other group types,
+  disabled recipients and other account roles remain unqualified. `grupa` lookup
+  is explicitly unsupported; unknown/empty pages fail, never silently become `[]`.
+- No performance improvement, general-school compatibility, consumer migration,
+  credentialed CI or PyPI publication is claimed. Earlier school reads/message
+  lists were regression-tested offline, not rerun live outside this scope.
+- Full message content is next (0.4.2). Its potentially mark-read effect requires
+  a separate approved already-read/sent message selection before live access.
+- Sending remains plan-only; discovery never authorizes contact with a recipient.
+
 ## 0.4.0 (2026-10-02) - Message lists only
 
 ### Offline

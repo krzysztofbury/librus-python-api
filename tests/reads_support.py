@@ -7,7 +7,12 @@ from typing import Any
 
 from aiohttp import web
 
-from librus_python_api import AccountClient, MessageFolder, SchoolReference
+from librus_python_api import (
+    AccountClient,
+    MessageFolder,
+    RecipientGroupReference,
+    SchoolReference,
+)
 from librus_python_api.config import ENDPOINTS
 from tests.announcements_support import announcement_table, page
 from tests.attendance_support import DETAIL, attendance_html, gateway_rows
@@ -16,6 +21,7 @@ from tests.grade_records_support import grades_html
 from tests.grade_support import summary_html
 from tests.http_support import SchoolFixture, profile_html
 from tests.messages_support import message_row, messages_html
+from tests.recipients_support import groups_html, recipient_html
 from tests.school_reads_support import agenda_html, detail_html, homework_html
 from tests.timetable_support import MONDAY, timetable_html
 
@@ -36,6 +42,8 @@ VALID: dict[str, tuple[bytes, str]] = {
     "completed_lessons": (lessons_html().encode(), HTML),
     "messages_received": (messages_html(count=3).encode(), HTML),
     "messages_sent": (messages_html(MessageFolder.SENT, count=3).encode(), HTML),
+    "recipient_groups": (groups_html().encode(), HTML),
+    "recipients": (recipient_html().encode(), HTML),
 }
 OPERATIONS = tuple(VALID)
 
@@ -85,6 +93,10 @@ def read(client: AccountClient, alias: str, operation: str) -> Read:
             MessageFolder.RECEIVED, **kw
         ),
         "messages_sent": lambda **kw: client.messages_page(MessageFolder.SENT, **kw),
+        "recipient_groups": client.recipient_groups,
+        "recipients": lambda **kw: client.recipients(
+            RecipientGroupReference("nauczyciel", alias), **kw
+        ),
     }
     method: Read = selections.get(operation) or getattr(client, operation)
     return method

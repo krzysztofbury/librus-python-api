@@ -48,7 +48,7 @@ are deleted. Agreement with apix is not a correctness oracle.
 | Caller pagination / collection | Account/folder-bound bounded cursor | Unique IDs, overlap deduplication, page-count drift, mid-page fingerprints and non-progress rejection |
 | Received bold style | Typed `unread` | Same meaning, checked against Chromium computed style; numeric CSS bold supported |
 | Sent recipient status | Raw `recipient_read_status`; `unread=None` | Apix compares a tag with `"NIE"`, which is not a valid recipient-status interpretation; never inherit this behavior |
-| `recipient_groups`, `get_recipients` | Deferred to 0.4.1 | No recipient routes enabled yet |
+| `recipient_groups`, `get_recipients` | Implemented in 0.4.1 | Simple-group lookup and named discovery; [separate contract](recipients.md) |
 | `message_content` | Deferred to 0.4.2 | Body and possible mark-read require a separate explicit scope |
 | Attachment indicator | `has_attachment` | Indicator only; streams deferred to 0.4.3 |
 | Notification helpers / read-once events | Deferred to 0.4.4 | Callback handoff, not persistence owned by the library |

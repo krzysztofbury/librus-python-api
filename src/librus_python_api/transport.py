@@ -28,6 +28,7 @@ from librus_python_api.config import (
     Endpoint,
     SideEffect,
     TransportLimits,
+    recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import LoginSubmission, RequestForm, TransportResponse
@@ -103,6 +104,9 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
                 and re.fullmatch(r"0|[1-9][0-9]{0,3}", page) is not None
                 and int(page) < MESSAGE_MAX_PAGE_COUNT
             )
+        if valid and endpoint.operation_id == "recipients":
+            assert isinstance(form, Mapping)
+            valid = form == recipient_form(form.get("typAdresata", ""))
     else:
         valid = form is None
     if not valid:

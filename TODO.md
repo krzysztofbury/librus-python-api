@@ -27,7 +27,7 @@ Rules that hold for every release:
 | `0.2.0` | Grades: summaries, records, views, windows | Done |
 | `0.3.0` | Attendance, timetable, announcements, agenda, homework, completed lessons; behaviour-note decision | Done, with the gaps below |
 | `0.4.0` | Received/sent message lists and bounded continuation | Done locally, with message-layout gaps below |
-| `0.4.1` | Recipient groups and recipients | Next |
+| `0.4.1` | Recipient groups and recipients | Done locally for observed simple groups; hierarchy/empty-list gaps remain |
 | `0.4.2` | Full message content, explicit read side effects, attachment metadata | Planned |
 | `0.4.3` | Bounded attachment streams | Planned |
 | `0.4.4` | Notification/checkpoint primitives | Planned |
@@ -63,7 +63,10 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   and same-byte Chromium/apix replay completed on one login. Populated sent
   rows, multi-page metadata, attachment flags, other roles and the newer mailbox
   layout remain live-unqualified; original offline proofs are not live evidence.
-- [ ] 0.4.1: recipient discovery. Obtain a fresh bounded live authorization.
+- [x] 0.4.1: named recipient-group discovery and ID-bearing simple-group lookup.
+  Installed live smoke covered tutor, teachers and school office; Chromium/apix
+  replay agreed. Empty lists, subgroup/virtual-class discovery, other groups and
+  roles remain pending. Details: [contracts/recipients.md](contracts/recipients.md).
 - [ ] 0.4.2: full-message content and attachment metadata. Audit mark-read effects
   before enabling any content read; use a separately approved message selection.
 - [ ] 0.4.3: credential-free bounded download streams, with the
@@ -184,7 +187,7 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [x] Keep upstream routes centralized in `config.py` and maintain importable
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
-   provenance and live gaps. 28 operations, checked by `tests/test_contracts.py`.
+   provenance and live gaps. 30 operations, checked by `tests/test_contracts.py`.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -208,8 +211,8 @@ Dependencies: P0.
   agenda, homework, announcements, messages, recipients, attachments, and notes.
   Keep MCP/Pydantic wire models out of the library API. Prefer typed dataclasses
   with explicit runtime validation at parse boundaries; document serialization.
-  Status: done for every 0.1-0.3 family and message summaries; recipients,
-  content, attachments and notes are pending.
+  Status: done for every 0.1-0.3 family, message summaries and simple recipient
+  discovery; content, attachments and notes are pending.
 - [ ] Define typed page results with items, continuation, truncation reason,
   source identity, and detected-change information. Never imply that an offset
   cursor freezes upstream data. Bind continuation to account/query/source.

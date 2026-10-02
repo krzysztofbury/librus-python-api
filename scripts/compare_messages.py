@@ -72,13 +72,9 @@ def compare_directory(
     return results
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("directory", type=Path)
-    parser.add_argument("--reference", type=Path, required=True)
-    args = parser.parse_args()
+def load_reference(directory: Path) -> tuple[Any, Any]:
     distributions = list(
-        importlib.metadata.distributions(path=[str(args.reference.resolve())])
+        importlib.metadata.distributions(path=[str(directory.resolve())])
     )
     if not any(
         d.metadata["Name"].replace("_", "-").casefold() == "librus-apix"
@@ -86,9 +82,18 @@ def main() -> None:
         for d in distributions
     ):
         raise SystemExit("Expected an external librus-apix 1.5.3 installation")
-    sys.path.insert(0, str(args.reference.resolve()))
+    sys.path.insert(0, str(directory.resolve()))
     reference = importlib.import_module("librus_apix.messages")
     soup_type = importlib.import_module("bs4").BeautifulSoup
+    return reference, soup_type
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("directory", type=Path)
+    parser.add_argument("--reference", type=Path, required=True)
+    args = parser.parse_args()
+    reference, soup_type = load_reference(args.reference)
     print(json.dumps(compare_directory(args.directory, reference, soup_type), indent=2))
 
 

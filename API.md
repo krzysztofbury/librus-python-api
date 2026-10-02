@@ -1,4 +1,4 @@
-# Public API (0.4.0)
+# Public API (0.4.1)
 
 Everything public is exported from `librus_python_api`; exceptions live in
 `librus_python_api.exceptions`. Results are frozen dataclasses. Their reprs omit
@@ -216,6 +216,36 @@ selected mailbox view, so its POST is never replayed, including after expiry.
 Page and batch caches are separate and fresh by default.
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
+
+## Recipient discovery
+
+- `recipient_groups()` returns `RecipientGroups(identity, groups, observation)`.
+  Each `RecipientGroup` has an account-bound `reference`, displayed `label`,
+  upstream `available` flag and library `lookup_supported` flag. Group identifiers are named
+  tokens, not numeric IDs. A fresh call makes one selection-view GET.
+- `recipients(group: RecipientGroupReference)` returns
+  `Recipients(identity, group, items, observation)` through one fixed POST.
+  References must belong to the same account alias; arbitrary URLs, token
+  injection and foreign references fail before I/O. The special `grupa` selector
+  has unqualified selection semantics, is not supported for lookup, and raises
+  `UnsupportedCapabilityError` before I/O. A disabled group's metadata does not
+  grant permission; callers should not select it and upstream denial stays typed.
+- Each `Recipient` preserves a plain-text `label` and a numeric
+  `RecipientReference(identifier, account, group_type)`. Equal display names with
+  different IDs remain different records. No dictionary keyed by a person's
+  name or cross-account deduplication occurs. IDs must match the label's checkbox
+  target/value; a missing label or duplicate ID is a parse failure.
+
+Limits: 32 group selectors, 2,048 recipients, 1,024 characters per label and
+128 KiB total recipient text, plus shared transport/parser/body limits. Each
+lookup has its own account/group cache key and accepts the common budget and
+freshness parameters. Fresh reads are default. Both selection operations are
+never replayed, even though group discovery uses GET. No send route, message
+content, mark-read, attachment or read-once access is enabled.
+
+Empty recipient layouts and subgroup discovery have not been observed/implemented;
+an unknown/empty response fails explicitly, never silently becomes `[]`.
+Evidence and apix differences: [contracts/recipients.md](contracts/recipients.md).
 
 ## Errors
 

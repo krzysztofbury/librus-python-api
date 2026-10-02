@@ -331,6 +331,22 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "recipient_groups",
+                "GET",
+                "/wiadomosci/2/6",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "recipients",
+                "POST",
+                "/getRecipients",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -537,6 +553,31 @@ MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
     {MessageFolder.RECEIVED: "/wiadomosci/1/5/", MessageFolder.SENT: "/wiadomosci/1/6/"}
 )
 
+RECIPIENT_FORM_FIELDS = frozenset(
+    {"typAdresata", "poprzednia", "tabZaznaczonych", "czyWirtualneKlasy", "idGrupy"}
+)
+RECIPIENT_GROUP_TYPE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
+RECIPIENT_MAX_GROUPS = 32
+RECIPIENT_MAX_ITEMS = 2048
+RECIPIENT_MAX_LABEL_LENGTH = 1024
+RECIPIENT_MAX_TOTAL_TEXT_LENGTH = 131072
+RECIPIENT_UNSUPPORTED_TYPES = frozenset({"grupa"})
+
+
+def recipient_form(group_type: str) -> dict[str, str]:
+    if (
+        type(group_type) is not str
+        or RECIPIENT_GROUP_TYPE_PATTERN.fullmatch(group_type) is None
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {
+        "typAdresata": group_type,
+        "poprzednia": "5",
+        "tabZaznaczonych": "",
+        "czyWirtualneKlasy": "false",
+        "idGrupy": "0",
+    }
+
 
 def message_page_form(folder: MessageFolder, page: int) -> dict[str, str]:
     if (
@@ -639,6 +680,7 @@ FORM_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
         ),
         "messages_received": MESSAGE_PAGE_FIELDS,
         "messages_sent": MESSAGE_PAGE_FIELDS,
+        "recipients": RECIPIENT_FORM_FIELDS,
     }
 )
 FORM_MAX_VALUE_LENGTH = 64

@@ -44,6 +44,7 @@ from librus_python_api.config import (
     grade_view_form,
     homework_form,
     message_page_form,
+    recipient_form,
     timetable_form,
 )
 from librus_python_api.diagnostics import DiagnosticSink
@@ -82,6 +83,9 @@ from librus_python_api.models import (
     MessageSummary,
     Observation,
     OperationName,
+    RecipientGroupReference,
+    RecipientGroups,
+    Recipients,
     RequestForm,
     SchedulerSnapshot,
     SchoolDetail,
@@ -94,6 +98,11 @@ from librus_python_api.models import (
 )
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
+from librus_python_api.recipients import (
+    parse_recipient_groups,
+    parse_recipients,
+    validate_group,
+)
 from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.school_reads import (
     parse_agenda,
@@ -717,6 +726,51 @@ class AccountClient:
             fetch,
             budget,
             max_age_seconds,
+        )
+
+    async def recipient_groups(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> RecipientGroups:
+        """Discover named group types; never send or open existing messages."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> RecipientGroups:
+            groups = await self._page(
+                "recipient_groups",
+                budget,
+                lambda body: parse_recipient_groups(body, self._alias),
+            )
+            return RecipientGroups(
+                self._session_identity(), groups, self._observation("recipient_groups")
+            )
+
+        return await self._read(("recipient_groups",), fetch, budget, max_age_seconds)
+
+    async def recipients(
+        self,
+        group: RecipientGroupReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Recipients:
+        """One typed group lookup; duplicate labels never overwrite distinct IDs."""
+        validate_group(group, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Recipients:
+            items = await self._page(
+                "recipients",
+                budget,
+                lambda body: parse_recipients(body, group),
+                form=recipient_form(group.identifier),
+            )
+            return Recipients(
+                self._session_identity(), group, items, self._observation("recipients")
+            )
+
+        return await self._read(
+            ("recipients", group.identifier), fetch, budget, max_age_seconds
         )
 
     # Shared read machinery.

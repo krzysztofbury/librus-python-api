@@ -1,0 +1,17 @@
+{
+  "version": "0.4.1",
+  "date": "2026-10-02",
+  "scope": "recipient-only discovery on one independently authenticated context",
+  "attempts": [
+    {"mode": "early_discovery", "logins": 1, "requests": 10, "group_gets": 1, "recipient_posts": 0, "result": "stopped before POST because named tokens were outside the original numeric-only scope"},
+    {"mode": "installed_public_smoke_after_explicit_scope_amendment", "logins": 1, "requests": 16, "group_gets": 1, "recipient_posts": 6, "result": "passed"}
+  ],
+  "totals": {"logins": 2, "requests": 26, "authorized_cap": 48},
+  "observed_group_types": 8,
+  "approved_populated_groups": {"tutor": 1, "teachers": 55, "school_office": 1},
+  "warm_group_and_recipient_cache_dispatches": 0,
+  "identical_byte_replay": {"responses": 8, "chromium": "labels, tokens, IDs, checkbox linkage and availability agree", "apix_version": "1.5.3", "group_token_mismatches": 0, "recipient_pair_mismatches": 0},
+  "excluded_live_operations": ["message lists", "message content", "mark-read", "sending", "downloads", "deletion", "read-once events"],
+  "remaining_login_authorization": 0,
+  "post_smoke_changes": "missing-label cardinality guard, conservative lookup-capability naming and route-evidence metadata; qualified offline against captured bytes, not by a third login"
+}

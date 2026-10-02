@@ -36,6 +36,8 @@ from scripts.live_capture import private_directory
 
 
 class CaptureAudit:
+    captured_operations = frozenset({"messages_received", "messages_sent"})
+
     def __init__(self) -> None:
         self.requests = self.logins = self.lists = 0
         self.failed = False
@@ -101,15 +103,15 @@ class MessageCaptureTransport(AiohttpTransport):
         except BaseException:
             self.audit.failed = True
             raise
-        if endpoint.operation_id in {"messages_received", "messages_sent"}:
-            assert isinstance(form, Mapping)
+        if endpoint.operation_id in self.audit.captured_operations:
+            assert form is None or isinstance(form, Mapping)
             name = f"{len(self.index):02d}-{endpoint.operation_id}.html"
             write_private(self.out / name, response.body)
             self.index.append(
                 {
                     "file": name,
                     "endpoint": endpoint.operation_id,
-                    "form": dict(form),
+                    "form": dict(form) if form is not None else None,
                     "status": response.status,
                     "bytes": len(response.body),
                 }

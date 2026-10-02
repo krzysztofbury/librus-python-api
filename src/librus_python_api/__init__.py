@@ -54,6 +54,12 @@ from librus_python_api.models import (
     NumericGrade,
     Observation,
     Person,
+    Recipient,
+    RecipientGroup,
+    RecipientGroupReference,
+    RecipientGroups,
+    RecipientReference,
+    Recipients,
     SchoolAverage,
     SchoolDetail,
     SchoolReference,
@@ -70,9 +76,15 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
+    "Recipient",
+    "RecipientGroup",
+    "RecipientGroupReference",
+    "RecipientGroups",
+    "RecipientReference",
+    "Recipients",
     "MessageFolder",
     "MessageReference",
     "MessageSummary",

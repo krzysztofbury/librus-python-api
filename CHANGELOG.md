@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.1 - Recipient discovery
+
+Local-first feature release; not published to PyPI. No send operation is enabled.
+
+- Typed account-bound group and recipient references, displayed group labels,
+  availability/subgroup metadata and ID-bearing recipient collections.
+- `recipient_groups()` and `recipients(group)` use shared traffic, parsing and
+  caching boundaries. Selection-view GET/POST requests are never replayed.
+- Named selector tokens are preserved; distinct IDs with the same name cannot
+  overwrite each other. Label/checkbox/value linkage and cardinality are checked.
+- Explicit pre-I/O rejection of foreign/injected references and the unsupported
+  subgroup selector. Unknown/empty layouts fail rather than silently returning
+  an empty collection.
+- Bounded one-login capture, public installed smoke and identical-byte apix and
+  independent Chromium replay. Eight group types and three populated simple
+  lookup types were observed; hierarchy, empty layouts and other roles remain
+  pending.
+
 ## 0.4.0 - Ordinary message lists
 
 Local-first feature release; not published to PyPI. Communication is split into
