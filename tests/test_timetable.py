@@ -62,6 +62,20 @@ def test_substitution_notice_wrapped_in_its_tooltip_anchor_keeps_metadata() -> N
     )
 
 
+@pytest.mark.parametrize(
+    "wrapped",
+    [
+        '<a title="Nauczyciel: X">Fixture extra<div class="center plan-lekcji-info">'
+        "zastępstwo</div></a>",
+        '<a title="Nauczyciel: X"><div class="center plan-lekcji-info">'
+        "zastępstwo</div>Fixture tail</a>",
+    ],
+)
+def test_text_beside_a_wrapped_notice_is_not_dropped(wrapped: str) -> None:
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_timetable(timetable_html(content=wrapped).encode(), MONDAY)
+
+
 def test_multiple_lessons_and_raw_change_metadata_are_not_flattened() -> None:
     content = (
         lesson("Fixture Bio-Chem")

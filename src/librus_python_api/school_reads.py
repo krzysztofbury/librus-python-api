@@ -15,6 +15,7 @@ from librus_python_api.config import (
     HOMEWORK_COLUMNS,
     HOMEWORK_DETAIL_PATH_PREFIX,
     HOMEWORK_DONE_PATTERN,
+    HOMEWORK_MARK_DONE_HANDLER,
     HOMEWORK_MAX_COLUMNS,
     SCHOOL_MAX_CONTENT_LENGTH,
     SCHOOL_MAX_DETAIL_FIELDS,
@@ -54,8 +55,13 @@ def school_reference(
         action = node.get("onclick", "")
         if len(action) > 4096:
             raise LibrusError(ErrorKind.LIMIT)
-        if not action or (kind == "homework" and prefix not in action):
+        if not action:
             continue
+        if kind == "homework" and prefix not in action:
+            # Only the observed mark-done button is inert; anything else is new.
+            if re.fullmatch(HOMEWORK_MARK_DONE_HANDLER, action):
+                continue
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         paths = re.findall(r"['\"](" + re.escape(prefix) + r"[0-9]{1,64})['\"]", action)
         if len(paths) != 1:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)

@@ -477,6 +477,9 @@ HOMEWORK_DONE_PATTERN = (
     r"Zadanie oznaczono jako wykonane \(([0-9]{4}-[0-9]{2}-[0-9]{2}), "
     r"([0-9]{2}:[0-9]{2})\)"
 )
+HOMEWORK_MARK_DONE_HANDLER = (
+    r"\s*showConfirmQuestion\(\s*[0-9]{1,64}\s*,\s*[0-9]{1,64}\s*\);?\s*"
+)
 WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
 # Observed page-level notices shown instead of the requested content.
 PAGE_NOTICES = MappingProxyType(

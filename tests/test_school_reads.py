@@ -248,6 +248,14 @@ def test_invalid_homework_fails_not_silently_dropped(
         parse_homework(homework_html().replace(before, after, 1).encode(), "fixture")
 
 
+def test_unknown_homework_handler_fails_instead_of_dropping_reference() -> None:
+    body = homework_html().replace(
+        "showConfirmQuestion(1, 2);", "openPreview(&quot;\\/moje_zadania&quot;);"
+    )
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_homework(body.encode(), "fixture")
+
+
 @pytest.mark.parametrize(
     "start,end,valid",
     [

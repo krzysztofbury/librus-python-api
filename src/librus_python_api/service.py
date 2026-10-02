@@ -727,6 +727,8 @@ class AccountClient:
         if budget is not None:
             budget._bind_loop()
             budget.remaining_seconds()
+        # Resolve policy before admission so a lookup failure cannot leak a slot.
+        retry_safe = ENDPOINTS[endpoint or operation].retry_safe
         if (
             service._operations >= service._limits.operations
             or self._operations >= service._limits.operations_per_account
@@ -737,7 +739,6 @@ class AccountClient:
         flight_key = (key, max_age, budget)
         flight = self._flights.get(flight_key)
         if flight is None:
-            retry_safe = ENDPOINTS[endpoint or operation].retry_safe
             task = asyncio.create_task(
                 self._execute(
                     operation,

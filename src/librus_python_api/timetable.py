@@ -95,6 +95,9 @@ def _content(
                 and parent is not cell
                 and parent.tag == "a"
                 and len(parent) == 1
+                # A pure wrapper only: text beside the notice must not vanish.
+                and not (parent.text or "").strip()
+                and not (node.tail or "").strip()
                 else None
             )
             descendants = set(node.iter()) | (
