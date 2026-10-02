@@ -7,8 +7,7 @@ from datetime import date
 
 from lxml import html
 
-from librus_python_api.announcements import _text
-from librus_python_api.attendance import _detail_id
+from librus_python_api import markup
 from librus_python_api.config import (
     COMPLETED_LESSONS_MAX_BATCH_ITEMS,
     COMPLETED_LESSONS_MAX_BATCH_PAGES,
@@ -20,7 +19,6 @@ from librus_python_api.config import (
     completed_lessons_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import _cells, _rows
 from librus_python_api.models import (
     CompletedLesson,
     CompletedLessonsCursor,
@@ -82,7 +80,7 @@ def _pagination(document: html.HtmlElement, page: int) -> int:
     spans = [node for node in containers[0] if node.tag == "span"]
     if len(spans) != 1:
         raise LibrusError(ErrorKind.PARSE)
-    value = _text(spans[0], SCHOOL_MAX_FIELD_LENGTH)
+    value = markup.text(spans[0], SCHOOL_MAX_FIELD_LENGTH)
     match = re.fullmatch(r"(?:Strona\s+)?([0-9]{1,4})\s+z\s+([0-9]{1,4})", value, re.I)
     if match is None:
         raise LibrusError(ErrorKind.PARSE)
@@ -112,7 +110,7 @@ def _day(value: str) -> date:
 
 
 def _lesson(row: html.HtmlElement, start: date, end: date) -> CompletedLesson:
-    cells = _cells(row)
+    cells = markup.cells(row)
     if len(cells) != 7 or any(
         cell.tag != "td"
         or cell.get("rowspan", "1") != "1"
@@ -127,12 +125,12 @@ def _lesson(row: html.HtmlElement, start: date, end: date) -> CompletedLesson:
     data = [c for c in cells if c not in date_cells and c not in weekdays]
     if len(date_cells) != 1 or len(weekdays) != 1 or len(data) != 5:
         raise LibrusError(ErrorKind.PARSE)
-    raw_day = _text(date_cells[0], SCHOOL_MAX_FIELD_LENGTH)
+    raw_day = markup.text(date_cells[0], SCHOOL_MAX_FIELD_LENGTH)
     day = _day(raw_day)
     if not start <= day <= end:
         raise LibrusError(ErrorKind.PARSE)
     values = [
-        _text(
+        markup.text(
             c,
             SCHOOL_MAX_CONTENT_LENGTH if i == 2 else SCHOOL_MAX_FIELD_LENGTH,
             multiline=True,
@@ -149,13 +147,13 @@ def _lesson(row: html.HtmlElement, start: date, end: date) -> CompletedLesson:
     anchors = list(data[4].iter("a"))
     if len(anchors) > 1:
         raise LibrusError(ErrorKind.PARSE)
-    identifier = _detail_id(anchors[0]) if anchors else None
+    identifier = markup.attendance_detail_id(anchors[0]) if anchors else None
     if anchors and identifier is None:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     return CompletedLesson(
         day,
         raw_day,
-        _text(weekdays[0], SCHOOL_MAX_FIELD_LENGTH),
+        markup.text(weekdays[0], SCHOOL_MAX_FIELD_LENGTH),
         int(raw_number) if raw_number not in {"", "-"} else None,
         raw_number,
         subject,
@@ -192,7 +190,7 @@ def parse_completed_lessons(
     if tables:
         if list(tables[0].iterdescendants("table")):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        for row in _rows(tables[0]):
+        for row in markup.rows(tables[0]):
             if next(row.iterancestors("thead"), None) is not None:
                 continue
             item = _lesson(row, start, end)
@@ -207,7 +205,7 @@ def parse_completed_lessons(
         raise LibrusError(ErrorKind.PARSE)
     # An unrecognized notice next to an empty marker is not a valid empty page.
     if empty and (
-        not _text(empty[0], SCHOOL_MAX_FIELD_LENGTH) or page_notices(document)
+        not markup.text(empty[0], SCHOOL_MAX_FIELD_LENGTH) or page_notices(document)
     ):
         raise LibrusError(ErrorKind.PARSE)
     rows = tuple(items)

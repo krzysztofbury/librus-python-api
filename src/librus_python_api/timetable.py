@@ -6,6 +6,7 @@ from datetime import date, time, timedelta
 
 from lxml import html
 
+from librus_python_api import markup
 from librus_python_api.config import (
     TIMETABLE_DATE_ATTRIBUTE,
     TIMETABLE_END_ATTRIBUTE,
@@ -16,8 +17,6 @@ from librus_python_api.config import (
     timetable_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import _cells, _rows, _text
-from librus_python_api.grade_records import _metadata
 from librus_python_api.models import (
     TimetableChange,
     TimetableDay,
@@ -51,7 +50,7 @@ def _lesson(element: html.HtmlElement) -> TimetableLesson:
     subjects = list(element.iter("b"))
     if len(subjects) != 1:
         raise LibrusError(ErrorKind.PARSE)
-    subject, rendered = _text(subjects[0]), _text(element)
+    subject, rendered = markup.text(subjects[0]), markup.text(element)
     if not subject or not rendered.startswith(subject):
         raise LibrusError(ErrorKind.PARSE)
     remainder = rendered[len(subject) :].strip()
@@ -62,13 +61,13 @@ def _lesson(element: html.HtmlElement) -> TimetableLesson:
 
 
 def _change(element: html.HtmlElement) -> TimetableChange:
-    label = _text(element)
+    label = markup.text(element)
     anchors = list(element.iter("a"))
     if not label or len(anchors) > 1:
         raise LibrusError(ErrorKind.PARSE)
     if anchors and anchors[0].get("title") is None:
         raise LibrusError(ErrorKind.PARSE)
-    metadata = _metadata(anchors[0]) if anchors else {}
+    metadata = markup.tooltip_fields(anchors[0]) if anchors else {}
     if any(len(key) > 1024 or len(value) > 1024 for key, value in metadata.items()):
         raise LibrusError(ErrorKind.LIMIT)
     return TimetableChange(label, tuple(metadata.items()))
@@ -136,7 +135,7 @@ def _slot(
 
 
 def _period(row: html.HtmlElement, monday: date) -> tuple[TimetablePeriod, ...]:
-    cells = _cells(row)
+    cells = markup.cells(row)
     slots = [cell for cell in cells if cell.get("id") == "timetableEntryBox"]
     numbers = [
         cell
@@ -144,11 +143,11 @@ def _period(row: html.HtmlElement, monday: date) -> tuple[TimetablePeriod, ...]:
         if cell.tag == "td"
         and cell not in slots
         and "center" in cell.get("class", "").split()
-        and re.fullmatch(r"[0-9]{1,2}", _text(cell))
+        and re.fullmatch(r"[0-9]{1,2}", markup.text(cell))
     ]
     if len(slots) != 7 or not 1 <= len(numbers) <= 2:
         raise LibrusError(ErrorKind.PARSE)
-    values = {_text(cell) for cell in numbers}
+    values = {markup.text(cell) for cell in numbers}
     if len(values) != 1:
         raise LibrusError(ErrorKind.PARSE)
     raw_number = values.pop()
@@ -166,9 +165,11 @@ def _recess(
 ) -> tuple[TimetablePeriod, ...]:
     cells = [
         cell
-        for cell in _cells(row)
+        for cell in markup.cells(row)
         if "center" in cell.get("class", "").split()
-        and re.fullmatch(r"[0-9]{2}:[0-9]{2}\s*-\s*[0-9]{2}:[0-9]{2}", _text(cell))
+        and re.fullmatch(
+            r"[0-9]{2}:[0-9]{2}\s*-\s*[0-9]{2}:[0-9]{2}", markup.text(cell)
+        )
     ]
     if (
         len(cells) != 1
@@ -176,7 +177,7 @@ def _recess(
         or any(p.next_recess is not None for p in previous)
     ):
         raise LibrusError(ErrorKind.PARSE)
-    start, separator, end = _text(cells[0]).partition("-")
+    start, separator, end = markup.text(cells[0]).partition("-")
     if not separator:
         raise LibrusError(ErrorKind.PARSE)
     # Upstream recess clocks are reported values, not guaranteed positive gaps.
@@ -211,7 +212,7 @@ def parse_timetable(body: bytes, monday: date) -> tuple[TimetableDay, ...]:
     # parser repairs remain errors; semantic slot uniqueness is checked below.
     table = _grid(parse_page(body, repeatable_id="timetableEntryBox"))
     periods: list[tuple[TimetablePeriod, ...]] = []
-    for row in _rows(table):
+    for row in markup.rows(table):
         classes = set(row.get("class", "").split())
         if "line1" in classes:
             current = _period(row, monday)
@@ -230,7 +231,7 @@ def parse_timetable(body: bytes, monday: date) -> tuple[TimetableDay, ...]:
             if not periods:
                 raise LibrusError(ErrorKind.PARSE)
             periods[-1] = _recess(row, periods[-1])
-        elif any(cell.get("id") == "timetableEntryBox" for cell in _cells(row)):
+        elif any(cell.get("id") == "timetableEntryBox" for cell in markup.cells(row)):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     if not periods:
         raise LibrusError(ErrorKind.PARSE)

@@ -362,7 +362,6 @@ GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32
 GRADE_MAX_WINDOW_DAYS = 366
-GRADE_WEEKDAY_LABELS = frozenset({"pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz."})
 GRADE_PERIOD_HEADERS = MappingProxyType(
     {
         "Ocena śródroczna z pierwszego okresu": 1,

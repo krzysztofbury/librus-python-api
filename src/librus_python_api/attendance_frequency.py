@@ -2,9 +2,9 @@
 
 from pydantic import ValidationError
 
+from librus_python_api import markup
 from librus_python_api.config import ATTENDANCE_MAX_RECORDS, ATTENDANCE_TYPE_KINDS
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_records import _day
 from librus_python_api.models import (
     AttendanceKind,
     FrequencyMeasure,
@@ -42,7 +42,7 @@ def parse_gateway_attendance(body: bytes) -> tuple[GatewayAttendanceRecord, ...]
         records.append(
             GatewayAttendanceRecord(
                 row.Id,
-                _day(row.Date),
+                markup.civil_date(row.Date),
                 row.Semester,
                 row.Type.Id,
                 AttendanceKind(ATTENDANCE_TYPE_KINDS.get(row.Type.Id, "unknown")),

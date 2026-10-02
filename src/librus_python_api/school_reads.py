@@ -7,7 +7,7 @@ from typing import Literal
 
 from lxml import html
 
-from librus_python_api.announcements import _text
+from librus_python_api import markup
 from librus_python_api.config import (
     AGENDA_DETAIL_PATH_PREFIX,
     HOMEWORK_COLUMNS,
@@ -25,7 +25,6 @@ from librus_python_api.config import (
     agenda_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import _cells, _rows
 from librus_python_api.models import (
     AgendaDay,
     AgendaEvent,
@@ -79,7 +78,7 @@ def _metadata(
         if not part.strip():
             continue
         rendered = (
-            _text(parse_html_document(part.encode()), SCHOOL_MAX_FIELD_LENGTH)
+            markup.text(parse_html_document(part.encode()), SCHOOL_MAX_FIELD_LENGTH)
             if "<" in part
             else " ".join(part.split())
         )
@@ -94,7 +93,7 @@ def _metadata(
         else:
             fields[label] = value
     text = (
-        _text(
+        markup.text(
             parse_html_document(raw.encode()), SCHOOL_MAX_TOOLTIP_LENGTH, multiline=True
         )
         if raw
@@ -112,10 +111,10 @@ def _event(cell: html.HtmlElement, day: date, account: str) -> AgendaEvent:
         or cell.get("colspan", "1") != "1"
     ):
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    text = _text(cell, SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
+    text = markup.text(cell, SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
     if not text:
         raise LibrusError(ErrorKind.PARSE)
-    subject = _text(spans[0], SCHOOL_MAX_FIELD_LENGTH) if spans else None
+    subject = markup.text(spans[0], SCHOOL_MAX_FIELD_LENGTH) if spans else None
     lines = text.splitlines()
     header = lines[0].removesuffix(subject).rstrip(" ,") if subject else lines[0]
     number = re.fullmatch(
@@ -165,14 +164,16 @@ def parse_agenda(
             './/div[contains(concat(" ",normalize-space(@class)," "),'
             '" kalendarz-numer-dnia ")]'
         )
-        if len(markers) != 1 or not re.fullmatch(r"[0-9]{1,2}", _text(markers[0], 2)):
+        if len(markers) != 1 or not re.fullmatch(
+            r"[0-9]{1,2}", markup.text(markers[0], 2)
+        ):
             raise LibrusError(ErrorKind.PARSE)
-        number = int(_text(markers[0], 2))
+        number = int(markup.text(markers[0], 2))
         if not 1 <= number <= expected or number in days:
             raise LibrusError(ErrorKind.PARSE)
         events = []
         for row in node.iter("tr"):
-            cells = _cells(row)
+            cells = markup.cells(row)
             if len(cells) != 1 or cells[0].tag != "td":
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
             item = _event(cells[0], date(year, month, number), account)
@@ -222,14 +223,14 @@ def _homework_columns(table: html.HtmlElement) -> list[str]:
     """Expand the header into one field name per body cell."""
     headers = [
         row
-        for row in _rows(table)
+        for row in markup.rows(table)
         if next(row.iterancestors("thead"), None) is not None
     ]
     if len(headers) != 1:
         raise LibrusError(ErrorKind.PARSE)
     columns: list[str] = []
-    for cell in _cells(headers[0]):
-        field = HOMEWORK_COLUMNS.get(_text(cell, SCHOOL_MAX_FIELD_LENGTH))
+    for cell in markup.cells(headers[0]):
+        field = HOMEWORK_COLUMNS.get(markup.text(cell, SCHOOL_MAX_FIELD_LENGTH))
         if field is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         span = 2 if field in ("assigned", "due") else 1
@@ -261,7 +262,7 @@ def _marked_done_at(options: html.HtmlElement | None) -> datetime | None:
 def _homework_row(
     row: html.HtmlElement, columns: list[str], account: str
 ) -> HomeworkItem:
-    cells = _cells(row)
+    cells = markup.cells(row)
     if len(cells) != len(columns) or any(
         c.tag != "td" or c.get("colspan", "1") != "1" or c.get("rowspan", "1") != "1"
         for c in cells
@@ -269,7 +270,7 @@ def _homework_row(
         raise LibrusError(ErrorKind.PARSE)
     by_field = dict(zip(columns, cells, strict=True))
     values = {
-        field: _text(cell, SCHOOL_MAX_FIELD_LENGTH)
+        field: markup.text(cell, SCHOOL_MAX_FIELD_LENGTH)
         for field, cell in by_field.items()
         if field != "options"
     }
@@ -309,14 +310,16 @@ def parse_homework(body: bytes, account: str) -> tuple[HomeworkItem, ...]:
     columns = _homework_columns(table)
     items: list[HomeworkItem] = []
     total = 0
-    for row in _rows(table):
+    for row in markup.rows(table):
         if {"line0", "line1"}.intersection(row.get("class", "").split()):
             item = _homework_row(row, columns, account)
-            total += sum(len(_text(c, SCHOOL_MAX_FIELD_LENGTH)) for c in _cells(row))
+            total += sum(
+                len(markup.text(c, SCHOOL_MAX_FIELD_LENGTH)) for c in markup.cells(row)
+            )
             if len(items) >= SCHOOL_MAX_ITEMS or total > SCHOOL_MAX_TOTAL_TEXT_LENGTH:
                 raise LibrusError(ErrorKind.LIMIT)
             items.append(item)
-        elif next(row.iterancestors("thead"), None) is None and _text(
+        elif next(row.iterancestors("thead"), None) is None and markup.text(
             row, SCHOOL_MAX_FIELD_LENGTH
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
@@ -343,14 +346,14 @@ def parse_school_detail(
     labels: set[str] = set()
     notes = []
     total = 0
-    for row in _rows(tables[0]):
-        cells = _cells(row)
+    for row in markup.rows(tables[0]):
+        cells = markup.cells(row)
         if (
             len(cells) == 1
             and cells[0].tag == "td"
             and cells[0].get("colspan", "1") == "2"
         ):
-            value = _text(cells[0], SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
+            value = markup.text(cells[0], SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
             if next(row.iterancestors("thead"), None) is not None:
                 if title is not None:
                     raise LibrusError(ErrorKind.PARSE)
@@ -364,15 +367,15 @@ def parse_school_detail(
                 for c in cells
             ):
                 raise LibrusError(ErrorKind.PARSE)
-            label = _text(cells[0], SCHOOL_MAX_FIELD_LENGTH)
+            label = markup.text(cells[0], SCHOOL_MAX_FIELD_LENGTH)
             canonical = label.rstrip(":").strip().casefold()
             if not canonical or canonical in labels:
                 raise LibrusError(ErrorKind.PARSE)
             labels.add(canonical)
-            value = _text(cells[1], SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
+            value = markup.text(cells[1], SCHOOL_MAX_CONTENT_LENGTH, multiline=True)
             fields[label] = value
             total += len(label) + len(value)
-        elif _text(row, SCHOOL_MAX_FIELD_LENGTH):
+        elif markup.text(row, SCHOOL_MAX_FIELD_LENGTH):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         if (
             len(fields) + len(notes) > SCHOOL_MAX_DETAIL_FIELDS
