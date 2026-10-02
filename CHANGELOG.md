@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.2 - Message content and inert attachments
+
+Local-first feature release; no downloads, sending or publication.
+
+- Typed full plain-text content, civil send/read timestamps and account/folder/
+  message-bound attachment references with untrusted displayed filenames.
+- `message_content()` requires explicit `allow_mark_read=True` for received
+  opens. Potential read effects invalidate cached received summaries even when
+  the open fails. No automatic content replay or hidden aiohttp GET retry.
+- Bounded body/file metadata, strict reference and layout validation, shared
+  isolation, traffic, parsing, coalescing and cancellation boundaries.
+- Independent original fixtures and regressions for the observed separate read
+  receipt table and page comments. Populated sent content, attachment metadata
+  and richer layouts remain live-unqualified; see [VERIFICATION.md](VERIFICATION.md).
+
 ## 0.4.1 - Recipient discovery
 
 Local-first feature release; not published to PyPI. No send operation is enabled.

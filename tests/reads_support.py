@@ -10,6 +10,7 @@ from aiohttp import web
 from librus_python_api import (
     AccountClient,
     MessageFolder,
+    MessageReference,
     RecipientGroupReference,
     SchoolReference,
 )
@@ -20,6 +21,7 @@ from tests.completed_lessons_support import lessons_html
 from tests.grade_records_support import grades_html
 from tests.grade_support import summary_html
 from tests.http_support import SchoolFixture, profile_html
+from tests.message_content_support import content_html
 from tests.messages_support import message_row, messages_html
 from tests.recipients_support import groups_html, recipient_html
 from tests.school_reads_support import agenda_html, detail_html, homework_html
@@ -42,6 +44,8 @@ VALID: dict[str, tuple[bytes, str]] = {
     "completed_lessons": (lessons_html().encode(), HTML),
     "messages_received": (messages_html(count=3).encode(), HTML),
     "messages_sent": (messages_html(MessageFolder.SENT, count=3).encode(), HTML),
+    "message_content_received": (content_html().encode(), HTML),
+    "message_content_sent": (content_html(MessageFolder.SENT).encode(), HTML),
     "recipient_groups": (groups_html().encode(), HTML),
     "recipients": (recipient_html().encode(), HTML),
 }
@@ -93,6 +97,14 @@ def read(client: AccountClient, alias: str, operation: str) -> Read:
             MessageFolder.RECEIVED, **kw
         ),
         "messages_sent": lambda **kw: client.messages_page(MessageFolder.SENT, **kw),
+        "message_content_received": lambda **kw: client.message_content(
+            MessageReference(MessageFolder.RECEIVED, "101", alias),
+            allow_mark_read=True,
+            **kw,
+        ),
+        "message_content_sent": lambda **kw: client.message_content(
+            MessageReference(MessageFolder.SENT, "101", alias), **kw
+        ),
         "recipient_groups": client.recipient_groups,
         "recipients": lambda **kw: client.recipients(
             RecipientGroupReference("nauczyciel", alias), **kw

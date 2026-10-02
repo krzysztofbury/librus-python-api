@@ -1,4 +1,4 @@
-# Public API (0.4.1)
+# Public API (0.4.2)
 
 Everything public is exported from `librus_python_api`; exceptions live in
 `librus_python_api.exceptions`. Results are frozen dataclasses. Their reprs omit
@@ -216,6 +216,42 @@ selected mailbox view, so its POST is never replayed, including after expiry.
 Page and batch caches are separate and fresh by default.
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
+
+## Message content
+
+`message_content(reference, *, allow_mark_read=False)` returns
+`MessageContent(identity, content, may_mark_read, observation)`. `reference` must
+be a `MessageReference` for the same login with a numeric ID and typed folder.
+Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
+
+- Received opens require `allow_mark_read=True`, even for an already-read
+  selection or warm cache. Opening may mark read before any response or parse
+  failure. Consent does not assert that upstream actually changed a read flag.
+- `may_mark_read` describes the route, not delivery or mutation confirmation.
+  Sent opens do not require the opt-in. Neither folder is automatically replayed,
+  including after proven expiry or a stale keepalive disconnect.
+- `content` is `MessageContentData(reference, correspondent, subject, timestamp,
+  read_timestamp, text, attachments)`. School timestamps use the same raw/civil
+  time policy as lists. `read_timestamp` retains the optional displayed
+  `Przeczytano` value; it is not inbox unread or per-recipient status.
+- `text` is full plain text with supported block/`br` boundaries and normalized
+  whitespace, at most 65,536 characters. No HTML, scripts or external resources
+  are returned or fetched. Active body content is unsupported, not executed.
+- `attachments` contains up to 20 inert `MessageAttachment(reference, filename)`
+  entries. Each `MessageAttachmentReference(message, identifier)` binds a numeric
+  file ID to the full account/folder/message reference. Duplicate names survive;
+  duplicate file IDs, foreign message IDs and unrecognized marked download
+  handlers fail. The displayed filename is untrusted text, never a local path.
+  No file bytes, signed URL, MIME type or size are guessed; there is no download
+  method in 0.4.2. Populated metadata has source-informed offline evidence only.
+- Identical opens share the existing account/budget/cache boundary. Fresh
+  received opens invalidate cached received pages and batches before dispatch,
+  including failures, so potentially stale unread flags cannot be reused. Warm
+  content reuse dispatches no request and does not mutate the mailbox.
+
+Unknown metadata/body layouts and bounds fail the whole operation. Full HTML
+fidelity, populated sent content, receipt variants, attachment handlers and
+other/new mailbox layouts remain live qualification gaps.
 
 ## Recipient discovery
 

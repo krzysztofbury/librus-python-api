@@ -9,6 +9,7 @@ aborted. Requires a local Chromium and Playwright:
 
 import asyncio
 import json
+import re
 import sys
 from collections.abc import Callable
 from datetime import date
@@ -310,7 +311,58 @@ def check_recipients(body: bytes, form: Form, view: Any) -> str:
     return f"{len(items)} recipients; labels, IDs and controls agree"
 
 
+CONTENT_DOM = r"""() => {
+ const tables = [...document.querySelectorAll('table')].filter(
+  t => t.className.trim() === 'stretch');
+ const metadata = tables.map(t => [...t.rows].map(r => [...r.cells].map(
+  c => c.innerText.trim())));
+ const bodies = [...document.querySelectorAll('.container-message-content')];
+ const attachments = [...document.querySelectorAll('[onclick]')].filter(
+  e => e.getAttribute('onclick').includes('pobierz_zalacznik')).map(e => ({
+   handler:e.getAttribute('onclick'), name:e.closest('tr').cells[0].innerText,
+   tag:e.tagName
+  }));
+ return {metadata, bodies:bodies.map(b => b.innerText), attachments};
+}"""
+
+
+def check_content(body: bytes, form: Form, view: Any) -> str:
+    from librus_python_api.message_content import parse_message_content
+    from librus_python_api.models import MessageReference
+
+    ref = MessageReference(MessageFolder.RECEIVED, form["reference"], "offline")
+    data = parse_message_content(body, ref)
+    tables = view["metadata"]
+    main = [t for t in tables if len(t) == 3]
+    assert len(main) == 1, "metadata table cardinality"
+    assert [normalized(r[1]) for r in main[0]] == [
+        normalized(v) for v in (data.correspondent, data.subject, data.timestamp.raw)
+    ], "metadata values"
+    receipts = [t for t in tables if len(t) == 1 and t[0][0] == "Przeczytano"]
+    assert len(receipts) == int(data.read_timestamp is not None), "receipt presence"
+    if data.read_timestamp is not None:
+        assert normalized(receipts[0][0][1]) == normalized(data.read_timestamp.raw), (
+            "receipt timestamp"
+        )
+
+    def lines(value: str) -> str:
+        return "\n".join(
+            normalized(line) for line in value.splitlines() if normalized(line)
+        )
+
+    assert len(view["bodies"]) == 1, "body cardinality"
+    assert lines(view["bodies"][0]) == data.text, "rendered body line boundaries"
+    assert len(view["attachments"]) == len(data.attachments), "attachment count"
+    for native, other in zip(data.attachments, view["attachments"], strict=True):
+        assert native.filename == normalized(other["name"]), "attachment label"
+        assert other["tag"] == "IMG", "attachment marker"
+        parts = re.findall(r"[0-9]+", other["handler"])
+        assert parts == [ref.identifier, native.reference.identifier], "attachment IDs"
+    return "content fields, rendered lines, read receipt and inert files agree"
+
+
 CHECKS: dict[str, tuple[str, Callable[[bytes, Form, Any], str]]] = {
+    "message_content_received": (CONTENT_DOM, check_content),
     "recipient_groups": (GROUPS_DOM, check_recipient_groups),
     "recipients": (RECIPIENTS_DOM, check_recipients),
     "messages_received": (
@@ -338,12 +390,16 @@ async def check_directory(page: Page, directory: Path) -> bool:
         await page.set_content(body.decode())
         script, compare = check
         try:
-            detail = compare(body, entry["form"] or {}, await page.evaluate(script))
+            form = entry["form"] or {}
+            if entry["endpoint"] == "message_content_received":
+                form = {"reference": entry["reference"]}
+            detail = compare(body, form, await page.evaluate(script))
         except LibrusError as error:
             detail = f"typed {type(error).__name__}"
             if entry["endpoint"].startswith("messages_") or entry["endpoint"] in {
                 "recipient_groups",
                 "recipients",
+                "message_content_received",
             }:
                 passed = False
         except AssertionError as error:

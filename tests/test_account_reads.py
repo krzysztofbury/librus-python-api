@@ -14,6 +14,7 @@ import pytest
 from librus_python_api import (
     AccountClient,
     MessageFolder,
+    MessageReference,
     RecipientGroupReference,
     RequestBudget,
     SchoolReference,
@@ -310,6 +311,26 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
                 RecipientGroupReference("wychowawca", "student"), **kw
             ),
         ),
+        "message_content_received": (
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.RECEIVED, "101", "student"),
+                allow_mark_read=True,
+                **kw,
+            ),
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.RECEIVED, "102", "student"),
+                allow_mark_read=True,
+                **kw,
+            ),
+        ),
+        "message_content_sent": (
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.SENT, "101", "student"), **kw
+            ),
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.SENT, "102", "student"), **kw
+            ),
+        ),
     }
 
 
@@ -328,6 +349,8 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
         "messages_received",
         "messages_sent",
         "recipients",
+        "message_content_received",
+        "message_content_sent",
     ],
 )
 def test_distinct_selections_are_never_served_from_each_others_cache(

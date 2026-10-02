@@ -340,6 +340,22 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "message_content_received",
+                "GET",
+                "/wiadomosci/1/5/{id}",
+                SideEffect.MARK_READ,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "message_content_sent",
+                "GET",
+                "/wiadomosci/1/6/{id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
                 "recipients",
                 "POST",
                 "/getRecipients",
@@ -548,10 +564,13 @@ MESSAGE_HEADER_LABELS = MappingProxyType(
     {MessageFolder.RECEIVED: "Nadawca", MessageFolder.SENT: "Adresat"}
 )
 MESSAGE_PAGE_FIELDS = frozenset({"numer_strony105", "porcjowanie_pojemnik105"})
-# References are inert data. No message-content route is enabled in this slice.
+# Reference and attachment paths are inert data, never arbitrary fetched URLs.
 MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
     {MessageFolder.RECEIVED: "/wiadomosci/1/5/", MessageFolder.SENT: "/wiadomosci/1/6/"}
 )
+MESSAGE_ATTACHMENT_PATH_PREFIX = "/wiadomosci/pobierz_zalacznik/"
+MESSAGE_MAX_CONTENT_LENGTH = 65536
+MESSAGE_MAX_ATTACHMENTS = 20
 
 RECIPIENT_FORM_FIELDS = frozenset(
     {"typAdresata", "poprzednia", "tabZaznaczonych", "czyWirtualneKlasy", "idGrupy"}

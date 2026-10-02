@@ -44,6 +44,10 @@ from librus_python_api.models import (
     HomeworkItem,
     Identity,
     LuckyNumber,
+    MessageAttachment,
+    MessageAttachmentReference,
+    MessageContent,
+    MessageContentData,
     MessageFolder,
     MessageReference,
     Messages,
@@ -76,9 +80,13 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 
 __all__ = [
+    "MessageAttachment",
+    "MessageAttachmentReference",
+    "MessageContent",
+    "MessageContentData",
     "Recipient",
     "RecipientGroup",
     "RecipientGroupReference",

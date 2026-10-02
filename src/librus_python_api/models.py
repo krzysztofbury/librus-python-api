@@ -32,6 +32,8 @@ type OperationName = Literal[
     "completed_lessons",
     "messages_received",
     "messages_sent",
+    "message_content_received",
+    "message_content_sent",
     "recipient_groups",
     "recipients",
 ]
@@ -109,6 +111,37 @@ class MessageSummary:
     unread: bool | None
     has_attachment: bool
     recipient_read_status: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageAttachmentReference:
+    message: MessageReference = field(repr=False)
+    identifier: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageAttachment:
+    reference: MessageAttachmentReference = field(repr=False)
+    filename: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageContentData:
+    reference: MessageReference = field(repr=False)
+    correspondent: str = field(repr=False)
+    subject: str = field(repr=False)
+    timestamp: MessageTimestamp = field(repr=False)
+    read_timestamp: MessageTimestamp | None = field(repr=False)
+    text: str = field(repr=False)
+    attachments: tuple[MessageAttachment, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageContent:
+    identity: "Identity" = field(repr=False)
+    content: MessageContentData = field(repr=False)
+    may_mark_read: bool
+    observation: "Observation"
 
 
 @dataclass(frozen=True, slots=True)

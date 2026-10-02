@@ -3,6 +3,92 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.2 (2026-10-02) - Message content and inert attachment metadata
+
+### Offline
+
+- Complete source suite, Python 3.13/3.14: 803 passed in both environments,
+  one opt-in performance case deselected. Installed wheel/sdist suites also pass
+  all 803 tests in four isolated environments outside the checkout; installed
+  imports, package metadata, license, `py.typed` and dependency consistency checked.
+- All four artifact environments replay the three captured content responses
+  and an original synthetic two-file response through the installed public API
+  on loopback. Every content field agrees with independently recorded Chromium
+  expectations, not a comparison against the same parser. Warm reuse dispatches
+  zero requests. The qualified library package bytes match the live-smoke wheel.
+- Ruff, format and strict mypy are clean. OpenAPI parity passes for 32 operations.
+- Repository hooks, staged/worktree/history secret scans and locked dependency
+  audit pass; no known dependency vulnerabilities were reported.
+- Four independent maximum-content reads (65,536 characters and 20 file
+  references each) pass through real loopback HTTP under one exact 24-request
+  login/content budget. This is representative bounded offline load, not a
+  performance-improvement or large live-mailbox claim.
+- Shared read tests own isolation, coalescing/cache, budget/deadline/cancellation,
+  notices, response limits, exact GET wire forms and no expiry replay.
+- Content tests own explicit consent, bound reference validation, metadata/body/
+  receipt semantics, whole-read failure, attachment linkage/cardinality/limits,
+  duplicate names versus IDs, and invalidation of both received page and batch
+  caches even when parsing fails. Capture tests exercise both approved flows,
+  unread-selection rejection, scope and actual-attempt/login caps offline.
+
+### Bounded live qualification
+
+Fresh owner approval: two attempts on one independent account context, each
+with one login submission, 24 total HTTP attempts, identity, received/sent page
+zero and at most two opens of one already-read received message. No unread
+opens, sending, downloads, deletion or read-once requests were allowed or made.
+
+| Attempt | Login submissions | Requests | Received opens | Result |
+| --- | --- | --- | --- | --- |
+| Source-route discovery | 1 | 12 | 1 | Main metadata, optional read receipt and body captured |
+| Installed 0.4.2 wheel public smoke | 1 | 13 | 2 | Two fresh results agree; warm reuse dispatches zero |
+| Total | 2 | 25 of 48 allowed | 3 | Login authorization exhausted |
+
+The selected already-read message has 395 normalized plain-text characters,
+a displayed read timestamp and no attachments. Received lists contained two
+rows (one unread) and sent lists were explicitly empty. Unread content was never
+opened. Unused requests do not permit a third login or expanded scope.
+
+Chromium independently checked all seven captured responses, including three
+content responses, with scripts/networking disabled. Every common field,
+rendered body line boundary and displayed read timestamp agrees. Two invented
+file entries also pass the independent browser check, which is offline evidence
+only. Apix 1.5.3 received the exact same three content responses through an inert
+client; all four comparable fields agree. Apix has no attachment or read-receipt
+contract, so those fields are independently checked, not parity-inferred.
+
+### Regressions and evidence boundary
+
+The observed page contains two exact `stretch` tables, not one: main metadata
+and the read receipt. An original regression failed before receipt-aware parsing.
+An HTML page comment caused a raw `TypeError` during attachment scanning; its
+regression failed before non-element nodes were skipped. Both fixes precede the
+successful installed live smoke.
+
+A real persistent-connection disconnect test detects aiohttp's hidden GET replay:
+it fails with the default retry behavior and passes with hidden retries disabled.
+The service still owns explicit safe expiry recovery. Content opens never recover
+or replay automatically. Potential read effects are not rolled back by parse,
+transport, timeout or cancellation failure.
+
+Privacy-safe metrics are retained in `release-evidence/0.4.2-content.json` and
+distribution checksums in `release-evidence/0.4.2.sha256`. Private captures and
+independent browser expectation files (0600, inside a task-owned 0700 directory
+outside Git), temporary builds and environments are deleted after qualification.
+No message text, field diffs, account/record IDs, cookies or screenshots remain.
+
+### Remaining gaps
+
+- Populated sent content, populated attachment metadata, empty/rich live bodies,
+  read-receipt variants, other account roles and newer mailbox layouts are not
+  live-qualified. Attachment handlers/labels have original offline proof and
+  source-informed consumer requirements only; no attachment route is enabled.
+- No credentialed CI, consumer migration, PyPI publication or push is included.
+  Earlier feature families were regression-tested offline, not rerun live except
+  for the two explicitly approved mailbox page-zero lists.
+- Bounded attachment streams are next in 0.4.3. Sending and read-once operations
+  remain separately planned and authorized.
+
 ## 0.4.1 (2026-10-02) - Recipient discovery
 
 ### Offline

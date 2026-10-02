@@ -1,0 +1,71 @@
+"""Inert apix content replay; print only field mismatch counts, never values."""
+
+import argparse
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+from librus_python_api.config import ENDPOINTS
+from librus_python_api.message_content import parse_message_content
+from librus_python_api.models import MessageFolder, MessageReference
+from scripts.compare_messages import load_reference, normalized
+
+
+class CapturedContentClient:
+    MESSAGE_URL = ENDPOINTS["message_content_received"].path.removesuffix("/{id}")
+
+    def __init__(self, body: bytes, identifier: str) -> None:
+        self.body, self.identifier = body, identifier
+
+    def get(self, url: str) -> SimpleNamespace:
+        assert url == self.MESSAGE_URL + "/" + self.identifier
+        return SimpleNamespace(text=self.body.decode())
+
+
+def compare(directory: Path, reference: Any) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for entry in json.loads((directory / "index.json").read_text())["captured"]:
+        if entry["endpoint"] != "message_content_received":
+            continue
+        body = (directory / entry["file"]).read_bytes()
+        identifier = entry["reference"]
+        native = parse_message_content(
+            body, MessageReference(MessageFolder.RECEIVED, identifier, "offline")
+        )
+        other = reference.message_content(
+            CapturedContentClient(body, identifier), identifier
+        )
+        fields = {
+            "correspondent": (native.correspondent, other.author),
+            "subject": (native.subject, other.title),
+            "timestamp": (native.timestamp.raw, other.date),
+            "text": (native.text, other.content),
+        }
+        results.append(
+            {
+                "fields": len(fields),
+                "mismatches": {
+                    k: int(normalized(a) != normalized(b))
+                    for k, (a, b) in fields.items()
+                },
+                "attachments": len(native.attachments),
+                "read_timestamp_present": native.read_timestamp is not None,
+                "apix_attachment_and_receipt_support": False,
+            }
+        )
+    return results
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    parser.add_argument("--reference", type=Path, required=True)
+    args = parser.parse_args()
+    try:
+        reference, _ = load_reference(args.reference)
+        result = compare(args.directory, reference)
+    except Exception as error:
+        print(json.dumps({"error_type": type(error).__name__}))
+        raise SystemExit(1) from None
+    print(json.dumps(result, indent=2))

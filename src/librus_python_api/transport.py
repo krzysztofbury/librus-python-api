@@ -145,6 +145,9 @@ class AiohttpTransport:
                 ),
                 headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
             )
+            # aiohttp otherwise silently replays GET on a stale keepalive
+            # connection. Some GETs mark read; every attempt must be budgeted.
+            self._session._retry_connection = False
         return self._session
 
     def _url(self, endpoint: Endpoint) -> str:

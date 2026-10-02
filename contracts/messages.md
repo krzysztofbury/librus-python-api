@@ -49,7 +49,7 @@ are deleted. Agreement with apix is not a correctness oracle.
 | Received bold style | Typed `unread` | Same meaning, checked against Chromium computed style; numeric CSS bold supported |
 | Sent recipient status | Raw `recipient_read_status`; `unread=None` | Apix compares a tag with `"NIE"`, which is not a valid recipient-status interpretation; never inherit this behavior |
 | `recipient_groups`, `get_recipients` | Implemented in 0.4.1 | Simple-group lookup and named discovery; [separate contract](recipients.md) |
-| `message_content` | Deferred to 0.4.2 | Body and possible mark-read require a separate explicit scope |
+| `message_content` | Implemented in 0.4.2 | Explicit potential mark-read consent, full text and send/read civil timestamps; qualified only for an already-read received message |
 | Attachment indicator | `has_attachment` | Indicator only; streams deferred to 0.4.3 |
 | Notification helpers / read-once events | Deferred to 0.4.4 | Callback handoff, not persistence owned by the library |
 | `send_message` | Plan-only | Separate approval gate; no live send in list qualification |
@@ -86,7 +86,27 @@ or PyPI publication are part of these increments.
    needs a named consenting recipient, exact approved content and an explicit
    one-attempt budget. No recipient contact is authorized by this roadmap.
 
+   The future manual qualification case is one Polish automation-test message to
+   one privately specified recipient. Its approved payload must identify the
+   sender and the automation test, say that no reply is needed, and apologize for
+   the unsolicited message. Keep the recipient and exact text outside this public
+   repository. This case belongs to the separate sending increment, not 0.4.2;
+   it does not bypass offline fault tests, exact-recipient/sender verification or
+   fresh bounded authentication/discovery approval. At most one send dispatch,
+   with no retry or fallback after an ambiguous result.
+
 ## Qualification lessons
+
+- A message detail has two exact `stretch` tables: main metadata and an optional
+  separate `Przeczytano` receipt. Treating every matching table as main metadata
+  rejected a real already-read message. An independently authored regression
+  failed before receipt-aware parsing was added.
+- lxml comments do not behave like HTML elements for attribute defaults. A page
+  comment caused a raw `TypeError` in attachment discovery; skip non-element
+  nodes, with a failing-before-fix regression.
+- HTTP GET is not evidence of no side effects. aiohttp's persistent-connection
+  retry can replay a potentially mark-read GET outside scheduler accounting.
+  A real loopback disconnect regression proves that hidden replay is disabled.
 
 - Discover real populated and explicit-empty layouts before treating fixtures as
   wire evidence. A blank footer and an informational banner broke the first

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.1
+  version: 0.4.2
   license:
     name: MIT
   description: |
@@ -16,6 +16,48 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /wiadomosci/1/5/{id}:
+    get:
+      operationId: message_content_received
+      tags: [Messages]
+      summary: Open one received message with explicit potential mark-read consent
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: mark_read
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized already-read received open, label-pair metadata, separate read receipt and body independently checked on captured bytes; no populated attachments or sent content observed. Original HTTP proof prohibits replay.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+  /wiadomosci/1/6/{id}:
+    get:
+      operationId: message_content_sent
+      tags: [Messages]
+      summary: Open one sent message without automatic replay
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Existing sent-folder references; original offline HTTP proof only. Populated sent content remains live-unqualified.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
   /loguj/portalRodzina:
     get:
       operationId: login_portal

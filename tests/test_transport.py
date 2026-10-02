@@ -19,6 +19,45 @@ from librus_python_api.transport import AiohttpTransport
 from tests.http_support import serve
 
 
+def test_read_effect_get_is_not_replayed_after_stale_keepalive_disconnect() -> None:
+    async def scenario() -> None:
+        calls = 0
+
+        async def warm(request: web.Request) -> web.Response:
+            return web.Response(text="warm")
+
+        async def open_message(request: web.Request) -> web.Response:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                assert request.transport is not None
+                request.transport.close()
+            return web.Response(text="content")
+
+        app = web.Application()
+        app.router.add_get("/gateway/api/2.0/Me", warm)
+        app.router.add_get("/wiadomosci/1/5/{id}", open_message)
+        async with serve(app) as origin, RequestScheduler(("a",)) as scheduler:
+            transport = AiohttpTransport(
+                "a",
+                scheduler,
+                ConnectionSettings(synergia_origin=origin, api_origin=origin),
+                TransportLimits(),
+            )
+            try:
+                await transport.request("identity", RequestBudget())
+                budget = RequestBudget(max_requests=1)
+                with pytest.raises(LibrusError, match="^connection$"):
+                    await transport.request(
+                        "message_content_received", budget, reference_id="101"
+                    )
+                assert calls == budget.requests_dispatched == 1
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())
+
+
 def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> None:
     async def scenario() -> None:
         async def submit(request: web.Request) -> web.Response:

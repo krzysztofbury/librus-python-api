@@ -28,7 +28,7 @@ Rules that hold for every release:
 | `0.3.0` | Attendance, timetable, announcements, agenda, homework, completed lessons; behaviour-note decision | Done, with the gaps below |
 | `0.4.0` | Received/sent message lists and bounded continuation | Done locally, with message-layout gaps below |
 | `0.4.1` | Recipient groups and recipients | Done locally for observed simple groups; hierarchy/empty-list gaps remain |
-| `0.4.2` | Full message content, explicit read side effects, attachment metadata | Planned |
+| `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
 | `0.4.3` | Bounded attachment streams | Planned |
 | `0.4.4` | Notification/checkpoint primitives | Planned |
 | Sending (version TBD) | Validated one-attempt delivery | Plan and approve before implementation |
@@ -67,8 +67,11 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   Installed live smoke covered tutor, teachers and school office; Chromium/apix
   replay agreed. Empty lists, subgroup/virtual-class discovery, other groups and
   roles remain pending. Details: [contracts/recipients.md](contracts/recipients.md).
-- [ ] 0.4.2: full-message content and attachment metadata. Audit mark-read effects
-  before enabling any content read; use a separately approved message selection.
+- [x] 0.4.2: full-message content and inert attachment metadata implemented.
+  Explicit mark-read consent, summary-cache invalidation and no hidden replay;
+  installed live smoke and Chromium/apix agree on one already-read received
+  message. Source and installed wheel/sdist suites pass on 3.13/3.14. Populated sent content and
+  attachment metadata, receipt variants and richer/new layouts remain unqualified.
 - [ ] 0.4.3: credential-free bounded download streams, with the
   MCP atomic-publication integration and cancellation proof from P4.
 - [ ] 0.4.4: the read-once schedule/checkpoint interface, and adapting notification
@@ -78,6 +81,12 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   implementing validated single-attempt sending with typed unknown-delivery results, plus
   MCP confirmation and token integration. Exercise offline only; never widen the
   daily check to sends, mark-read content or event consumption.
+  Planned manual live test: at most one Polish automation-test message to one
+  privately specified recipient, explicitly requiring no response and apologizing
+  for the unsolicited test. Verify sender and exact recipient first; qualify the
+  native single-attempt path offline and agree on fresh authentication/discovery
+  budgets before execution. Never retry uncertain delivery. Keep personal target
+  details and the exact payload in owner-only local state outside Git.
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
 

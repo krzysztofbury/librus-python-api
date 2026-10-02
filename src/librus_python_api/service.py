@@ -52,6 +52,7 @@ from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredE
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
+from librus_python_api.message_content import parse_message_content, validate_reference
 from librus_python_api.messages import parse_messages
 from librus_python_api.messages import validate_selection as validate_message_selection
 from librus_python_api.models import (
@@ -76,7 +77,9 @@ from librus_python_api.models import (
     Homework,
     Identity,
     LoginSubmission,
+    MessageContent,
     MessageFolder,
+    MessageReference,
     Messages,
     MessagesCursor,
     MessagesPage,
@@ -680,6 +683,48 @@ class AccountClient:
             budget,
             max_age_seconds,
         )
+
+    async def message_content(
+        self,
+        reference: MessageReference,
+        *,
+        allow_mark_read: bool = False,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> MessageContent:
+        """Open one message; received opens require explicit read-effect consent."""
+        validate_reference(reference, self._alias)
+        if type(allow_mark_read) is not bool or (
+            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        operation: Literal["message_content_received", "message_content_sent"] = (
+            "message_content_received"
+            if reference.folder is MessageFolder.RECEIVED
+            else "message_content_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> MessageContent:
+            # An upstream read effect can occur even if dispatch, parsing or
+            # cancellation later fails. Never retain pre-open mailbox summaries.
+            if reference.folder is MessageFolder.RECEIVED:
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_received":
+                        del self._cache[key]
+            content = await self._page(
+                operation,
+                budget,
+                lambda body: parse_message_content(body, reference),
+                reference=reference.identifier,
+            )
+            return MessageContent(
+                self._session_identity(),
+                content,
+                reference.folder is MessageFolder.RECEIVED,
+                self._observation(operation),
+            )
+
+        return await self._read((operation, reference), fetch, budget, max_age_seconds)
 
     async def messages_page(
         self,
