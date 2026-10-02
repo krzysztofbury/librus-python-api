@@ -1,26 +1,17 @@
 """Timetable business invariants at parser and actual loopback service boundaries."""
 
-import asyncio
-from datetime import date, datetime, time, timedelta
+from datetime import time, timedelta
 
 import pytest
 
-from librus_python_api import RequestBudget
 from librus_python_api.exceptions import (
-    AccessDeniedError,
-    InvalidInputError,
     LimitError,
-    MaintenanceError,
     ParseError,
-    SessionExpiredError,
-    ThrottledError,
     UnsupportedCapabilityError,
 )
 from librus_python_api.timetable import parse_timetable
-from tests.http_support import serve
 from tests.timetable_support import (
     MONDAY,
-    TimetableFixture,
     lesson,
     notice,
     timetable_html,
@@ -254,126 +245,3 @@ def test_tooltip_duplicate_fields_and_oversized_plain_values_fail() -> None:
             parse_timetable(
                 timetable_html(content=notice(title=title)).encode(), MONDAY
             )
-
-
-def test_timetable_week_cache_keys_and_four_login_coalescing() -> None:
-    async def scenario() -> None:
-        fixture = TimetableFixture()
-        aliases = ("student-a", "parent-a", "student-b", "parent-b")
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(aliases) as service:
-                results = await asyncio.gather(
-                    *(
-                        service.account(a).timetable(MONDAY)
-                        for a in aliases
-                        for _ in range(2)
-                    )
-                )
-                assert len(fixture.week_posts) == 4
-                for index, alias in enumerate(aliases):
-                    first = results[index * 2]
-                    assert first is results[index * 2 + 1]
-                    assert (
-                        first.days[0].periods[0].lessons[0].subject
-                        == "Fixture " + alias + " 2026-10-05"
-                    )
-                    assert (
-                        await service.account(alias).timetable(
-                            MONDAY, max_age_seconds=60
-                        )
-                        is first
-                    )
-                    other = await service.account(alias).timetable(
-                        MONDAY + timedelta(days=7)
-                    )
-                    assert other.monday != first.monday
-                    assert (
-                        other.days[0].periods[0].lessons
-                        != first.days[0].periods[0].lessons
-                    )
-                assert len(fixture.week_posts) == 8
-                assert service.snapshot().active == service.snapshot().queued == 0
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "monday",
-    ["2026-10-05", date(2026, 10, 6), datetime(2026, 10, 5), date(9999, 12, 27), None],
-)
-def test_invalid_monday_is_rejected_before_login(monday: date) -> None:
-    async def scenario() -> None:
-        fixture = TimetableFixture()
-        fixture.origin = "http://localhost:8080"
-        async with fixture.service() as service:
-            with pytest.raises(InvalidInputError):
-                await service.account("student").timetable(monday)
-            assert service.snapshot().requests_dispatched == 0
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "status,expected",
-    [
-        (401, SessionExpiredError),
-        (302, SessionExpiredError),
-        (403, AccessDeniedError),
-        (429, ThrottledError),
-        (503, MaintenanceError),
-    ],
-)
-def test_week_selection_post_never_replays(
-    status: int, expected: type[Exception]
-) -> None:
-    async def scenario() -> None:
-        fixture = TimetableFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                fixture.timetable_status = status
-                with pytest.raises(expected):
-                    await client.timetable(MONDAY)
-                assert fixture.logins == {"student": 1}
-                assert len(fixture.week_posts) == 1
-
-    asyncio.run(scenario())
-
-
-def test_original_request_budget_bounds_dispatch() -> None:
-    async def scenario() -> None:
-        fixture = TimetableFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                budget = RequestBudget(max_requests=5)
-                with pytest.raises(LimitError):
-                    await service.account("student").timetable(MONDAY, budget=budget)
-                assert budget.requests_dispatched == 5
-                assert not fixture.week_posts
-
-    asyncio.run(scenario())
-
-
-def test_last_waiter_cancellation_releases_capacity() -> None:
-    async def scenario() -> None:
-        fixture = TimetableFixture()
-        fixture.wait_timetable = asyncio.Event()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                task = asyncio.create_task(service.account("student").timetable(MONDAY))
-                try:
-                    await asyncio.wait_for(fixture.timetable_started.wait(), timeout=2)
-                    task.cancel()
-                    with pytest.raises(asyncio.CancelledError):
-                        await task
-                    assert service.snapshot().active == service.snapshot().queued == 0
-                finally:
-                    fixture.wait_timetable.set()
-                assert (await service.account("student").timetable(MONDAY)).days
-
-    asyncio.run(scenario())

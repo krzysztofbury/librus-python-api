@@ -14,34 +14,8 @@ from librus_python_api.attendance_frequency import (
     summarize_frequency,
 )
 from librus_python_api.exceptions import InvalidInputError, LimitError, ParseError
-from tests.attendance_support import AttendanceFixture
+from tests.attendance_support import DETAIL, AttendanceFixture, gateway_rows
 from tests.http_support import serve
-
-
-def gateway_rows(types: tuple[int, ...] = (1, 2, 100, 1266, 3)) -> bytes:
-    return json.dumps(
-        {
-            "Attendances": [
-                {
-                    "Id": index + 1,
-                    "Date": "2026-10-01",
-                    "Semester": 1,
-                    "Type": {"Id": kind},
-                    "Lesson": {"Id": 41},
-                    "LessonNo": 2,
-                }
-                for index, kind in enumerate(types)
-            ]
-        }
-    ).encode()
-
-
-DETAIL = (
-    '<div class="container-background"><table>'
-    '<tr class="line0"><th>Data:</th><td>2026-10-01</td></tr>'
-    '<tr class="line1"><th>Temat zajęć:</th><td>Fixture<br>topic</td></tr>'
-    "</table></div>"
-)
 
 
 class FrequencyFixture(AttendanceFixture):

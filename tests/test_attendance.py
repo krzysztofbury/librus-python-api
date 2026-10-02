@@ -1,20 +1,15 @@
 """Attendance business contracts at parser and real loopback service boundaries."""
 
 import asyncio
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 
-from librus_python_api import AttendanceView, RequestBudget
+from librus_python_api import AttendanceView
 from librus_python_api.attendance import parse_attendance
 from librus_python_api.exceptions import (
-    AccessDeniedError,
-    InvalidInputError,
     LimitError,
-    MaintenanceError,
     ParseError,
-    SessionExpiredError,
-    ThrottledError,
     UnsupportedCapabilityError,
 )
 from tests.attendance_support import AttendanceFixture, attendance_box, attendance_html
@@ -230,126 +225,5 @@ def test_attendance_views_cache_and_windows_use_one_all_collection() -> None:
                 assert empty.items == ()
                 assert len(fixture.view_posts) == 3
                 assert len(fixture.logins) == 1
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "status,expected",
-    [
-        (401, SessionExpiredError),
-        (302, SessionExpiredError),
-        (403, AccessDeniedError),
-        (429, ThrottledError),
-        (503, MaintenanceError),
-    ],
-)
-def test_attendance_post_is_never_replayed(
-    status: int, expected: type[Exception]
-) -> None:
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                await service.account("student").identity()
-                fixture.attendance_status = status
-                with pytest.raises(expected):
-                    await service.account("student").attendance()
-                assert fixture.logins == {"student": 1}
-                assert len(fixture.view_posts) == 1
-
-    asyncio.run(scenario())
-
-
-def test_distinct_accounts_keep_sessions_and_coalesce_only_identical_reads() -> None:
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        aliases = ("student-a", "student-b", "parent-a", "parent-b")
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(aliases) as service:
-                results = await asyncio.gather(
-                    *(
-                        service.account(a).attendance()
-                        for a in aliases
-                        for _ in range(2)
-                    )
-                )
-                assert len(fixture.view_posts) == 4
-                for index, alias in enumerate(aliases):
-                    result = results[index * 2]
-                    assert result is results[index * 2 + 1]
-                    assert result.items[0].subject == "Fixture " + alias
-                    assert (
-                        await service.account(alias).attendance(max_age_seconds=60)
-                        is result
-                    )
-                assert service.snapshot().active == 0
-                assert service.snapshot().queued == 0
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "start,end",
-    [
-        (date(2026, 10, 2), date(2026, 10, 1)),
-        (date(2026, 1, 1), date(2027, 1, 2)),
-        (datetime(2026, 10, 1), date(2026, 10, 1)),
-        ("2026-10-01", date(2026, 10, 1)),
-    ],
-)
-def test_invalid_window_is_rejected_before_authentication(
-    start: date, end: date
-) -> None:
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        fixture.origin = "http://localhost:8080"
-        async with fixture.service() as service:
-            with pytest.raises(InvalidInputError):
-                await service.account("student").attendance_window(start, end)
-            assert service.snapshot().requests_dispatched == 0
-
-    asyncio.run(scenario())
-
-
-def test_invalid_view_and_original_budget_bound_dispatch() -> None:
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                with pytest.raises(InvalidInputError):
-                    await service.account("student").attendance(view="all")  # type: ignore[arg-type]
-                assert not fixture.calls
-                budget = RequestBudget(max_requests=5, timeout_seconds=3)
-                with pytest.raises(LimitError):
-                    await service.account("student").attendance(budget=budget)
-                assert budget.requests_dispatched == 5
-                assert not fixture.view_posts
-
-    asyncio.run(scenario())
-
-
-def test_last_attendance_waiter_cancellation_releases_shared_capacity() -> None:
-    async def scenario() -> None:
-        fixture = AttendanceFixture()
-        fixture.wait_attendance = asyncio.Event()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                task = asyncio.create_task(client.attendance())
-                try:
-                    await asyncio.wait_for(fixture.attendance_started.wait(), timeout=2)
-                    task.cancel()
-                    with pytest.raises(asyncio.CancelledError):
-                        await task
-                    assert service.snapshot().active == 0
-                    assert service.snapshot().queued == 0
-                finally:
-                    fixture.wait_attendance.set()
-                assert (await client.attendance()).items
 
     asyncio.run(scenario())

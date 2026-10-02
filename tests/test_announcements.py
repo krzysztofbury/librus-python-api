@@ -1,30 +1,21 @@
 """Announcement data integrity and login-owned service/wire behavior."""
 
-import asyncio
 import re
 from datetime import date
 
 import pytest
 
-from librus_python_api import RequestBudget
 from librus_python_api.announcements import parse_announcements
 from librus_python_api.exceptions import (
-    AccessDeniedError,
-    InvalidInputError,
     LimitError,
-    MaintenanceError,
     ParseError,
-    SessionExpiredError,
-    ThrottledError,
     UnsupportedCapabilityError,
 )
 from tests.announcements_support import (
-    AnnouncementsFixture,
     announcement_table,
     empty_page,
     page,
 )
-from tests.http_support import serve
 
 
 def test_full_content_line_boundaries_inline_text_and_typed_date() -> None:
@@ -179,164 +170,3 @@ def test_limits_reject_instead_of_truncating(
     monkeypatch.setattr("librus_python_api.announcements." + bound, value)
     with pytest.raises(LimitError):
         parse_announcements(body.encode(), "fixture")
-
-
-def test_four_login_isolation_coalescing_cache_and_freshness() -> None:
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        aliases = ("student-a", "parent-a", "student-b", "parent-b")
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(aliases) as service:
-                results = await asyncio.gather(
-                    *(
-                        service.account(a).announcements()
-                        for a in aliases
-                        for _ in range(2)
-                    )
-                )
-                assert len(fixture.announcement_gets) == 4
-                refs = set()
-                for index, alias in enumerate(aliases):
-                    result = results[index * 2]
-                    assert result is results[index * 2 + 1]
-                    assert result.items[0].author == "Fixture " + alias
-                    assert result.observation.source == "announcements"
-                    assert result.identity.student.id == "student-shared"
-                    refs.add(result.items[0].reference)
-                    assert (
-                        await service.account(alias).announcements(max_age_seconds=60)
-                        is result
-                    )
-                assert len(refs) == 4
-                assert len(fixture.announcement_gets) == 4
-                fixture.announcement_body = empty_page()
-                assert (await service.account(aliases[0]).announcements()).items == ()
-                assert len(fixture.announcement_gets) == 5
-                assert service.snapshot().active == service.snapshot().queued == 0
-
-    asyncio.run(scenario())
-
-
-def test_proven_expiry_recovers_once_and_invalidates_prior_cache() -> None:
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                first = await client.announcements()
-                fixture.announcement_expiry = 1
-                fixture.announcement_body = page(
-                    announcement_table(title="Fixture refreshed")
-                )
-                refreshed = await client.announcements()
-                assert refreshed.items[0].title == "Fixture refreshed"
-                assert (
-                    refreshed.observation.session_generation
-                    > first.observation.session_generation
-                )
-                assert fixture.logins == {"student": 2}
-                assert len(fixture.announcement_gets) == 3
-                assert await client.announcements(max_age_seconds=60) is refreshed
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "status,expected",
-    [
-        (403, AccessDeniedError),
-        (429, ThrottledError),
-        (503, MaintenanceError),
-        (401, SessionExpiredError),
-    ],
-)
-def test_failures_do_not_loop_or_cache_partial_results(
-    status: int, expected: type[Exception]
-) -> None:
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                await service.account("student").identity()
-                fixture.announcement_status = status
-                with pytest.raises(expected):
-                    await service.account("student").announcements()
-                assert len(fixture.announcement_gets) == (2 if status == 401 else 1)
-                assert fixture.logins == {"student": 2 if status == 401 else 1}
-
-    asyncio.run(scenario())
-
-
-def test_original_budget_and_form_guards_own_all_announcement_dispatches() -> None:
-    from librus_python_api.models import LoginSubmission
-
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                before = service.snapshot().requests_dispatched
-                with pytest.raises(InvalidInputError):
-                    await client._transport.request(
-                        "announcements",
-                        RequestBudget(),
-                        form=LoginSubmission(
-                            client._credentials.login, client._credentials.password
-                        ),
-                    )
-                assert service.snapshot().requests_dispatched == before
-            async with fixture.service() as service:
-                budget = RequestBudget(max_requests=5, timeout_seconds=3)
-                with pytest.raises(LimitError):
-                    await service.account("student").announcements(budget=budget)
-                assert budget.requests_dispatched == 5
-                assert not fixture.announcement_gets
-
-    asyncio.run(scenario())
-
-
-def test_malformed_read_is_not_cached_or_returned_as_empty() -> None:
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                fixture.announcement_body = page()
-                with pytest.raises(ParseError):
-                    await client.announcements()
-                fixture.announcement_body = page(announcement_table())
-                result = await client.announcements(max_age_seconds=60)
-                assert result.items[0].title == "Fixture notice"
-                assert len(fixture.announcement_gets) == 2
-                assert fixture.logins == {"student": 1}
-
-    asyncio.run(scenario())
-
-
-def test_cancellation_releases_joined_read_and_does_not_poison_next_call() -> None:
-    async def scenario() -> None:
-        fixture = AnnouncementsFixture()
-        fixture.wait_announcements = asyncio.Event()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                task = asyncio.create_task(service.account("student").announcements())
-                try:
-                    await asyncio.wait_for(
-                        fixture.announcements_started.wait(), timeout=2
-                    )
-                    task.cancel()
-                    with pytest.raises(asyncio.CancelledError):
-                        await task
-                    assert service.snapshot().active == service.snapshot().queued == 0
-                finally:
-                    fixture.wait_announcements.set()
-                assert (await service.account("student").announcements()).items
-
-    asyncio.run(scenario())

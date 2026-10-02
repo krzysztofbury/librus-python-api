@@ -1,11 +1,37 @@
 """Independently authored attendance markup and loopback wire fixtures."""
 
-import asyncio
+import json
 from html import escape
 
 from aiohttp import web
 
 from tests.http_support import SchoolFixture
+
+
+def gateway_rows(types: tuple[int, ...] = (1, 2, 100, 1266, 3)) -> bytes:
+    return json.dumps(
+        {
+            "Attendances": [
+                {
+                    "Id": index + 1,
+                    "Date": "2026-10-01",
+                    "Semester": 1,
+                    "Type": {"Id": kind},
+                    "Lesson": {"Id": 41},
+                    "LessonNo": 2,
+                }
+                for index, kind in enumerate(types)
+            ]
+        }
+    ).encode()
+
+
+DETAIL = (
+    '<div class="container-background"><table>'
+    '<tr class="line0"><th>Data:</th><td>2026-10-01</td></tr>'
+    '<tr class="line1"><th>Temat zajęć:</th><td>Fixture<br>topic</td></tr>'
+    "</table></div>"
+)
 
 
 def attendance_box(
@@ -61,11 +87,7 @@ def attendance_html(
 class AttendanceFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()
-        self.attendance_body: str | None = None
-        self.attendance_status = 200
         self.view_posts: list[tuple[str, dict[str, str]]] = []
-        self.wait_attendance: asyncio.Event | None = None
-        self.attendance_started = asyncio.Event()
 
     def app(self) -> web.Application:
         app = super().app()
@@ -82,14 +104,8 @@ class AttendanceFixture(SchoolFixture):
         )
         assert "X-Requested-With" not in request.headers
         self.view_posts.append((login, form))
-        self.attendance_started.set()
-        if self.wait_attendance is not None:
-            await self.wait_attendance.wait()
         return web.Response(
-            status=self.attendance_status,
-            text=self.attendance_body
-            if self.attendance_body is not None
-            else attendance_html(
+            text=attendance_html(
                 first=attendance_box(
                     day="2026-10-01"
                     if "zmiany_logowanie_wszystkie" in form
@@ -103,5 +119,4 @@ class AttendanceFixture(SchoolFixture):
                 else "",
             ),
             content_type="text/html",
-            headers={"Location": "/loguj"} if self.attendance_status == 302 else None,
         )

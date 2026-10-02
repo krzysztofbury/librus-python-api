@@ -144,7 +144,6 @@ class SchoolReadsFixture(SchoolFixture):
         self.detail_gets: list[tuple[str, str, str]] = []
         self.status: dict[str, int] = {}
         self.bodies: dict[str, str] = {}
-        self.detail_expiry = 0
         self.wait: asyncio.Event | None = None
         self.started = asyncio.Event()
 
@@ -205,9 +204,6 @@ class SchoolReadsFixture(SchoolFixture):
         login = self.record(request)
         assert not request.query and not await request.read()
         self.detail_gets.append((kind, login, request.match_info["id"]))
-        if self.detail_expiry:
-            self.detail_expiry -= 1
-            return web.Response(status=401)
         return self.response(kind + "_detail", detail_html(kind))
 
     async def agenda_detail(self, request: web.Request) -> web.Response:

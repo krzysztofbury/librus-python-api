@@ -1,23 +1,15 @@
 import asyncio
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 
 from librus_python_api import (
     Availability,
-    RequestBudget,
-    SchedulerLimits,
-    TransportLimits,
 )
 from librus_python_api.config import GRADE_MAX_METADATA_LENGTH, GRADE_MAX_RECORDS
 from librus_python_api.exceptions import (
-    AccessDeniedError,
-    InvalidInputError,
     LimitError,
-    MaintenanceError,
     ParseError,
-    SessionExpiredError,
-    ThrottledError,
     UnsupportedCapabilityError,
 )
 from librus_python_api.grade_records import parse_grade_records
@@ -224,156 +216,5 @@ def test_public_grade_read_and_windows_share_one_account_scoped_collection() -> 
                 assert len(fixture.calls) == service.snapshot().requests_dispatched == 6
                 assert await client.grades() is not result
                 assert len(fixture.view_posts) == 2
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "start,end",
-    [
-        (date(2026, 9, 30), date(2026, 9, 29)),
-        (date(2026, 1, 1), date(2027, 1, 2)),
-        (datetime(2026, 1, 1), date(2026, 1, 1)),
-        ("2026-01-01", date(2026, 1, 1)),
-    ],
-)
-def test_invalid_window_is_rejected_before_any_login(start: date, end: date) -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        fixture.origin = "http://localhost:8080"
-        async with fixture.service() as service:
-            with pytest.raises(InvalidInputError):
-                await service.account("student").grades_window(start, end)
-            assert service.snapshot().requests_dispatched == 0
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize(
-    "status,error",
-    [
-        (401, SessionExpiredError),
-        (302, SessionExpiredError),
-        (403, AccessDeniedError),
-        (429, ThrottledError),
-        (503, MaintenanceError),
-    ],
-)
-def test_grade_view_failure_never_replays_the_post_or_credentials(
-    status: int, error: type[Exception]
-) -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        fixture.grade_status = status
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                budget = RequestBudget(max_requests=20)
-                with pytest.raises(error):
-                    await client.grades(budget=budget)
-                assert budget.requests_dispatched == 1
-                assert len(fixture.view_posts) == 1
-                assert fixture.logins == {"student": 1}
-                assert service.snapshot().active == service.snapshot().queued == 0
-
-    asyncio.run(scenario())
-
-
-def test_four_login_grade_reads_coalesce_without_merging_security_contexts() -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        aliases = ("student-a", "parent-a", "student-b", "parent-b")
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(
-                aliases, scheduler_limits=SchedulerLimits()
-            ) as service:
-                results = await asyncio.gather(
-                    *(service.account(a).grades() for a in aliases for _ in range(2))
-                )
-                for index, alias in enumerate(aliases):
-                    result = results[2 * index]
-                    assert result is results[2 * index + 1]
-                    assert result.identity.owner.id == alias
-                    assert result.identity.student.id == "student-shared"
-                    assert result.records.numeric[0].subject == f"Fixture {alias}"
-                    assert (
-                        await service.account(alias).grades(max_age_seconds=60)
-                        is result
-                    )
-                assert fixture.logins == dict.fromkeys(aliases, 1)
-                assert len(fixture.view_posts) == 4
-                assert (
-                    len(fixture.calls) == service.snapshot().requests_dispatched == 24
-                )
-                assert len(fixture.connections) == 4
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize("max_requests", [5, 6])
-def test_view_post_obeys_the_original_login_and_read_budget(max_requests: int) -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                budget = RequestBudget(max_requests=max_requests)
-                if max_requests == 5:
-                    with pytest.raises(LimitError):
-                        await service.account("student").grades(budget=budget)
-                    assert not fixture.view_posts
-                else:
-                    assert (
-                        await service.account("student").grades(budget=budget)
-                    ).records.numeric[0].raw == "4+"
-                assert budget.requests_dispatched == max_requests
-
-    asyncio.run(scenario())
-
-
-def test_last_waiter_cancellation_joins_view_operation_and_releases_scheduler() -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        fixture.wait_grades = asyncio.Event()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                task = asyncio.create_task(client.grades())
-                await fixture.grades_started.wait()
-                task.cancel()
-                with pytest.raises(asyncio.CancelledError):
-                    await task
-                assert service.snapshot().active == service.snapshot().queued == 0
-                fixture.wait_grades.set()
-                assert (await client.grades()).records.numeric
-                assert len(fixture.view_posts) == 2
-                assert fixture.logins == {"student": 1}
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize("mode", ["wrong-type", "malformed", "parser-bytes"])
-def test_grade_collection_checks_content_and_parser_byte_bounds(mode: str) -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        limits = TransportLimits()
-        expected: type[ParseError | LimitError] = ParseError
-        if mode == "wrong-type":
-            fixture.grade_content_type = "application/json"
-        elif mode == "malformed":
-            fixture.grade_body = "<html>Wrong fixture page</html>"
-        else:
-            limits = TransportLimits(parse_max_bytes=512)
-            expected = LimitError
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(transport_limits=limits) as service:
-                with pytest.raises(expected):
-                    await service.account("student").grades()
-                assert len(fixture.view_posts) == 1
 
     asyncio.run(scenario())

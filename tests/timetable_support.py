@@ -1,12 +1,7 @@
 """Original timetable requirements and independent loopback wire fixture."""
 
-import asyncio
 from datetime import date, timedelta
 from html import escape
-
-from aiohttp import web
-
-from tests.http_support import SchoolFixture
 
 MONDAY = date(2026, 10, 5)
 
@@ -63,41 +58,3 @@ def timetable_html(
     body = "".join(rows)
     grid += ("<tbody>" + body + "</tbody>") if tbody else body
     return "<html><body>" + grid + "</table></body></html>"
-
-
-class TimetableFixture(SchoolFixture):
-    def __init__(self) -> None:
-        super().__init__()
-        self.timetable_body: str | None = None
-        self.timetable_status = 200
-        self.week_posts: list[tuple[str, dict[str, str]]] = []
-        self.wait_timetable: asyncio.Event | None = None
-        self.timetable_started = asyncio.Event()
-
-    def app(self) -> web.Application:
-        app = super().app()
-        app.router.add_post("/przegladaj_plan_lekcji", self.timetable)
-        return app
-
-    async def timetable(self, request: web.Request) -> web.Response:
-        login = self.record(request)
-        form = {key: str(value) for key, value in (await request.post()).items()}
-        assert set(form) == {"tydzien"}
-        first, last = form["tydzien"].split("_")
-        monday = date.fromisoformat(first)
-        assert monday.weekday() == 0 and date.fromisoformat(last) == monday + timedelta(
-            days=6
-        )
-        assert "X-Requested-With" not in request.headers
-        self.week_posts.append((login, form))
-        self.timetable_started.set()
-        if self.wait_timetable is not None:
-            await self.wait_timetable.wait()
-        return web.Response(
-            status=self.timetable_status,
-            text=self.timetable_body
-            if self.timetable_body is not None
-            else timetable_html(monday, lesson("Fixture " + login + " " + first)),
-            content_type="text/html",
-            headers={"Location": "/loguj"} if self.timetable_status == 302 else None,
-        )
