@@ -64,7 +64,12 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
+
+[[tool.mypy.overrides]]
+# Playwright is installed ad hoc for the offline browser cross-check only.
+module = ["playwright.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Optional integration checkout, not part of this library's import namespace.
