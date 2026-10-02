@@ -1,11 +1,12 @@
-"""Capture one login's school-read pages for offline diagnosis.
+"""Capture one login's Librus pages for offline diagnosis and release smoke checks.
 
 Live use requires the owner's authorization. The run submits credentials once,
-dispatches at most --max-requests requests, refuses every operation outside a
-read-only allowlist and keeps going after a failed read, so one run shows every
-family's state. Raw pages are private school data: they are written with 0600
-permissions to a directory that must be outside this repository. Delete the
-directory after diagnosis; publish only independently authored fixtures.
+dispatches at most --max-requests requests, refuses every operation outside an
+allowlist of reads and view selections, and keeps going after a failed read, so
+one run shows the state of the whole public read surface. Raw pages are private
+school data: they are written with 0600 permissions to a new directory that
+must be outside this repository. Delete it after diagnosis and publish only
+independently authored fixtures.
 
     uv run python scripts/live_capture.py --secrets FILE --account 0 --out DIR
 """
@@ -31,9 +32,21 @@ from librus_python_api.models import LoginSubmission, RequestForm, TransportResp
 from librus_python_api.transport import AiohttpTransport
 
 REPOSITORY = Path(__file__).resolve().parent.parent
-READ_ONLY = frozenset(
+# Ordinary reads plus view-selection POSTs, which change only the filter shown
+# in that login's own session. Messages, sends and read-once routes stay out.
+ALLOWED = frozenset(
     {
         "identity",
+        "student_information",
+        "final_grades",
+        "grades",
+        "attendance",
+        "attendance_detail",
+        "gateway_attendance",
+        "attendance_lesson",
+        "attendance_subject",
+        "timetable",
+        "announcements",
         "agenda",
         "agenda_detail",
         "homework",
@@ -77,7 +90,7 @@ class CapturingTransport(AiohttpTransport):
             CapturingTransport.logins += 1
             if CapturingTransport.logins > 1:
                 raise SystemExit("Refusing a second credential submission")
-        elif not endpoint_id.startswith("login_") and endpoint_id not in READ_ONLY:
+        elif not endpoint_id.startswith("login_") and endpoint_id not in ALLOWED:
             raise SystemExit(f"Refusing operation outside the allowlist: {endpoint_id}")
         response = await super().request(
             endpoint_id, budget, form=form, reference_id=reference_id
@@ -129,6 +142,37 @@ async def capture(
     ) as service:
         client = service.account("capture")
         await step("identity", lambda: client.identity(budget=budget))
+        await step(
+            "student_information", lambda: client.student_information(budget=budget)
+        )
+        await step("final_grades", lambda: client.final_grades(budget=budget))
+        await step("grades", lambda: client.grades(budget=budget))
+        attendance = await step("attendance", lambda: client.attendance(budget=budget))
+        details = [
+            row.detail_id
+            for row in (attendance.items if attendance is not None else ())
+            if row.detail_id is not None
+        ]
+        if details:
+            await step(
+                "attendance_detail",
+                lambda: client.attendance_detail(details[-1], budget=budget),
+            )
+        gateway = await step(
+            "attendance_frequency", lambda: client.attendance_frequency(budget=budget)
+        )
+        if gateway is not None:
+            # One school day keeps the per-lesson metadata fan-out small.
+            rows = await client.gateway_attendance(budget=budget, max_age_seconds=60)
+            if rows.items:
+                day = max(row.day for row in rows.items)
+                await step(
+                    "subject_frequency",
+                    lambda: client.subject_frequency(day, day, budget=budget),
+                )
+        monday = today - timedelta(days=today.weekday())
+        await step("timetable", lambda: client.timetable(monday, budget=budget))
+        await step("announcements", lambda: client.announcements(budget=budget))
         homework = await step(
             "homework",
             lambda: client.homework(month_start, today, budget=budget),
@@ -191,7 +235,7 @@ def main() -> None:
     parser.add_argument("--secrets", type=Path, required=True)
     parser.add_argument("--account", type=int, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--max-requests", type=int, default=24)
+    parser.add_argument("--max-requests", type=int, default=64)
     arguments = parser.parse_args()
     out = private_directory(arguments.out)
     account = json.loads(arguments.secrets.read_text())["accounts"][arguments.account]

@@ -96,6 +96,27 @@ def test_tooltip_full_text_retains_intermediate_notes_and_label_spacing() -> Non
     assert event.metadata_notes == ("Fixture intermediate note",)
 
 
+def test_multiline_description_stays_one_field_until_the_next_label() -> None:
+    # Observed: a long meeting description, one line per <br>, some with colons.
+    lines = [f"{n}. Fixture item: part {n}" for n in range(1, 40)]
+    title = (
+        "Nauczyciel: Fixture Teacher&lt;br&gt;Opis: Fixture agenda&lt;br&gt;"
+        + "&lt;br&gt;".join(lines)
+        + "&lt;br&gt;Data dodania: 2026-09-01 10:00:00"
+    )
+    cell = f'<td title="{title}">Fixture meeting</td>'
+    event = parse_agenda(agenda_html(cell=cell).encode(), 2026, 10, "fixture")[
+        1
+    ].events[0]
+    assert [label for label, _ in event.metadata] == [
+        "Nauczyciel",
+        "Opis",
+        "Data dodania",
+    ]
+    assert dict(event.metadata)["Opis"] == "\n".join(["Fixture agenda", *lines])
+    assert event.metadata_notes == ()
+
+
 def test_subjectless_multiline_title_is_not_replaced_with_its_note() -> None:
     event = parse_agenda(
         agenda_html(

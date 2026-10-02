@@ -323,6 +323,7 @@ PROFILE_LABELS = MappingProxyType(
     {
         "Uczeń": "name",
         "Imię i nazwisko": "name",
+        "Imię i nazwisko ucznia": "name",
         "Klasa": "class_name",
         "Numer w dzienniku": "register_number",
         "Nr w dzienniku": "register_number",
@@ -452,7 +453,12 @@ SCHOOL_MAX_TOTAL_TEXT_LENGTH = 262144
 SCHOOL_MAX_DETAIL_FIELDS = 64
 SCHOOL_MAX_FIELD_LENGTH = 1024
 SCHOOL_MAX_TOOLTIP_LENGTH = 8192
-SCHOOL_MAX_TOOLTIP_FIELDS = 32
+# Tooltips carry one line per <br>; a long description can span dozens.
+SCHOOL_MAX_TOOLTIP_LINES = 256
+# Observed agenda tooltip labels. Lines after "Opis" continue the description
+# until the next label, so numbered description lines never become fields.
+AGENDA_TOOLTIP_LABELS = frozenset({"Nauczyciel", "Opis", "Data dodania"})
+AGENDA_DESCRIPTION_LABEL = "Opis"
 HOMEWORK_MAX_COLUMNS = 32
 # Observed header labels. Date columns span two cells: a date and its weekday.
 HOMEWORK_COLUMNS = MappingProxyType(

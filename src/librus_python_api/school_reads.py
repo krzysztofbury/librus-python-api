@@ -9,7 +9,9 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    AGENDA_DESCRIPTION_LABEL,
     AGENDA_DETAIL_PATH_PREFIX,
+    AGENDA_TOOLTIP_LABELS,
     HOMEWORK_COLUMNS,
     HOMEWORK_DETAIL_PATH_PREFIX,
     HOMEWORK_DONE_PATTERN,
@@ -18,8 +20,8 @@ from librus_python_api.config import (
     SCHOOL_MAX_DETAIL_FIELDS,
     SCHOOL_MAX_FIELD_LENGTH,
     SCHOOL_MAX_ITEMS,
-    SCHOOL_MAX_TOOLTIP_FIELDS,
     SCHOOL_MAX_TOOLTIP_LENGTH,
+    SCHOOL_MAX_TOOLTIP_LINES,
     SCHOOL_MAX_TOTAL_TEXT_LENGTH,
     WEEKDAY_LABELS,
     agenda_form,
@@ -70,10 +72,11 @@ def _metadata(
     if len(raw) > SCHOOL_MAX_TOOLTIP_LENGTH:
         raise LibrusError(ErrorKind.LIMIT)
     parts = re.split(r"<br\s*/?>|\n", raw, flags=re.I)
-    if len(parts) > SCHOOL_MAX_TOOLTIP_FIELDS:
+    if len(parts) > SCHOOL_MAX_TOOLTIP_LINES:
         raise LibrusError(ErrorKind.LIMIT)
     fields: dict[str, str] = {}
     notes = []
+    describing = False
     for part in parts:
         if not part.strip():
             continue
@@ -86,6 +89,10 @@ def _metadata(
             raise LibrusError(ErrorKind.LIMIT)
         label, separator, value = rendered.partition(":")
         label, value = label.strip(), value.strip()
+        if describing and not (separator and label in AGENDA_TOOLTIP_LABELS):
+            fields[AGENDA_DESCRIPTION_LABEL] += "\n" + rendered
+            continue
+        describing = separator != "" and label == AGENDA_DESCRIPTION_LABEL
         if not separator:
             notes.append(rendered)
         elif not label or label in fields:

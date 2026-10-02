@@ -39,6 +39,29 @@ def test_named_attributes_seven_days_empty_slots_and_recess(tbody: bool) -> None
     assert "Fixture" not in repr(first)
 
 
+def test_substitution_notice_wrapped_in_its_tooltip_anchor_keeps_metadata() -> None:
+    # Observed: the anchor carrying the tooltip wraps the notice element.
+    content = (
+        '<a href="javascript:void(0);" title="&lt;b&gt;Data:&lt;/b&gt; 2026-10-05'
+        "&lt;br&gt;&lt;b&gt;Nr lekcji:&lt;/b&gt; 2&lt;br&gt;"
+        "&lt;b&gt;Nauczyciel:&lt;/b&gt; Fixture Alternate&lt;br&gt;"
+        '&lt;b&gt;Uwaga:&lt;/b&gt; Fixture: note">'
+        '<div class="center plan-lekcji-info">zastępstwo</div></a>\n' + lesson()
+    )
+    period = parse_timetable(timetable_html(content=content).encode(), MONDAY)[
+        0
+    ].periods[0]
+    assert [item.subject for item in period.lessons] == ["Fixture Biology"]
+    (change,) = period.changes
+    assert change.label == "zastępstwo"
+    assert change.metadata == (
+        ("Data", "2026-10-05"),
+        ("Nr lekcji", "2"),
+        ("Nauczyciel", "Fixture Alternate"),
+        ("Uwaga", "Fixture: note"),
+    )
+
+
 def test_multiple_lessons_and_raw_change_metadata_are_not_flattened() -> None:
     content = (
         lesson("Fixture Bio-Chem")

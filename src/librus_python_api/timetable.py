@@ -60,9 +60,12 @@ def _lesson(element: html.HtmlElement) -> TimetableLesson:
     return TimetableLesson(subject, teacher)
 
 
-def _change(element: html.HtmlElement) -> TimetableChange:
+def _change(
+    element: html.HtmlElement, wrapper: html.HtmlElement | None
+) -> TimetableChange:
+    """A notice; its tooltip anchor sits inside it or wraps it."""
     label = markup.text(element)
-    anchors = list(element.iter("a"))
+    anchors = list(element.iter("a")) + ([wrapper] if wrapper is not None else [])
     if not label or len(anchors) > 1:
         raise LibrusError(ErrorKind.PARSE)
     if anchors and anchors[0].get("title") is None:
@@ -84,14 +87,26 @@ def _content(
     for node in cell.iter("div"):
         classes = set(node.get("class", "").split())
         if "text" in classes or {"center", "plan-lekcji-info"} <= classes:
-            descendants = set(node.iter())
+            parent = node.getparent()
+            wrapper = (
+                parent
+                if "text" not in classes
+                and parent is not None
+                and parent is not cell
+                and parent.tag == "a"
+                and len(parent) == 1
+                else None
+            )
+            descendants = set(node.iter()) | (
+                {wrapper} if wrapper is not None else set()
+            )
             if descendants.intersection(consumed):
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
             consumed.update(descendants)
             if "text" in classes:
                 lessons.append(_lesson(node))
             else:
-                changes.append(_change(node))
+                changes.append(_change(node, wrapper))
             if (
                 len(lessons) > TIMETABLE_MAX_LESSONS_PER_SLOT
                 or len(changes) > TIMETABLE_MAX_CHANGES_PER_SLOT

@@ -569,3 +569,26 @@ def test_only_proven_session_expiry_can_trigger_credential_recovery(mode: str) -
                     assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
+
+
+def test_profile_reads_student_rows_and_ignores_login_owner_rows() -> None:
+    # Observed layout: student rows, then the logged-in user's own rows.
+    body = """<html><body><h2>Informacja</h2>
+    <table class="decorated big center form"><thead><tr><td>Uczeń</td></tr></thead>
+    <tr><th>Imię i nazwisko ucznia</th><td>Fixture Student</td></tr>
+    <tr><th>Klasa</th><td>5 X</td></tr>
+    <tr><th>Nr w dzienniku</th><td>9</td></tr>
+    <tr><th>Wychowawca</th><td>Fixture Tutor</td></tr>
+    <tr><th>Szkoła</th><td>Fixture School</td></tr>
+    <tr><td colspan="2">Użytkownik</td></tr>
+    <tr><th>Imię i nazwisko użytkownika</th><td>Fixture Parent</td></tr>
+    <tr><th>Login</th><td>fixture-login</td></tr>
+    <tr><th>Hasło</th><td>********</td></tr>
+    </table></body></html>"""
+    fields = parse_profile(body.encode())
+    assert (fields.name, fields.class_name, fields.register_number) == (
+        "Fixture Student",
+        "5 X",
+        9,
+    )
+    assert fields.lucky_number.availability == Availability.UNAVAILABLE
