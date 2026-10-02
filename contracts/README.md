@@ -8,7 +8,8 @@ The catalogue covers the bounded cookie-login flow, gateway identity, HTML
 student-information and [grade reads](grades.md), including fixed-form
 all/week/last-login view POSTs, plus [attendance reads](attendance.md) and
 [explicit timetable weeks](timetable.md), [announcements](announcements.md),
-and [ordinary agenda/homework with details](school-reads.md).
+and [ordinary agenda/homework with details](school-reads.md), plus
+[completed lessons](completed-lessons.md).
 Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown
@@ -32,6 +33,9 @@ and alternate layouts remain source-informed/offline-only.
 Agenda/homework has populated agenda/detail and empty-homework discovery evidence,
 but installed-family qualification remains partial. Observed endpoints do not
 imply populated homework or a completed installed details path.
+Completed lessons add the twenty-fifth route/OpenAPI operation, with same-response
+pagination and bounded resumable batches. Evidence is source-informed/offline only;
+no populated live pages, role/layout coverage or upstream snapshot is implied.
 
 ## Adding an endpoint
 

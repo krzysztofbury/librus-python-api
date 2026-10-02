@@ -29,6 +29,7 @@ type OperationName = Literal[
     "agenda_detail",
     "homework",
     "homework_detail",
+    "completed_lessons",
 ]
 
 
@@ -102,6 +103,33 @@ class HomeworkSelection:
 
 
 @dataclass(frozen=True, slots=True)
+class CompletedLessonsPageSelection:
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    page: int
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedLessonsCursor:
+    account: str = field(repr=False)
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    page: int
+    offset: int
+    page_count: int
+    fingerprint: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedLessonsSelection:
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    cursor: CompletedLessonsCursor | None = field(repr=False)
+    max_pages: int
+    limit: int
+
+
+@dataclass(frozen=True, slots=True)
 class SchoolReference:
     kind: Literal["agenda", "homework"]
     identifier: str = field(repr=False)
@@ -115,6 +143,7 @@ type RequestForm = (
     | TimetableSelection
     | AgendaSelection
     | HomeworkSelection
+    | CompletedLessonsPageSelection
     | None
 )
 
@@ -141,7 +170,48 @@ type ReadSelection = (
     | AgendaSelection
     | HomeworkSelection
     | SchoolReference
+    | CompletedLessonsPageSelection
+    | CompletedLessonsSelection
 )
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedLesson:
+    day: date = field(repr=False)
+    raw_day: str = field(repr=False)
+    weekday: str = field(repr=False)
+    lesson_number: int | None
+    raw_lesson_number: str = field(repr=False)
+    subject: str = field(repr=False)
+    teacher: str | None = field(repr=False)
+    subject_teacher_text: str = field(repr=False)
+    topic: str = field(repr=False)
+    z_value: str = field(repr=False)
+    attendance_symbol: str = field(repr=False)
+    attendance_detail_id: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedLessonsPage:
+    identity: "Identity" = field(repr=False)
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    page: int
+    page_count: int
+    items: tuple[CompletedLesson, ...] = field(repr=False)
+    fingerprint: str = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedLessons:
+    identity: "Identity" = field(repr=False)
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    items: tuple[CompletedLesson, ...] = field(repr=False)
+    pages_fetched: int
+    next_cursor: CompletedLessonsCursor | None = field(repr=False)
+    observation: "Observation"
 
 
 class GradeKind(StrEnum):

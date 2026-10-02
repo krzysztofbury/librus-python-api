@@ -21,6 +21,8 @@ with explicit selections and account-bound references. Installed qualification i
 partial; populated live homework and its details remain unqualified. Original
 synthetic comparisons against unmodified apix cover these missing live variants,
 including the complete installed offline collection/detail path.
+Completed lessons now support typed page reads and bounded resumable batches;
+their source-informed HTML layouts have offline proof only.
 Qualification and delivery status
 are recorded in VERIFICATION.md, not inferred from this scope adjustment.
 Bounded login/identity/summary/current-grade live qualification has passed for a narrow
@@ -93,6 +95,10 @@ See [the implementation roadmap](TODO.md).
   event/tooltip text, explicit assignment windows, split raw/typed date-time cells,
   account-bound details and non-replayed selection POSTs. Recent/read-once agenda,
   submissions and attachments are excluded.
+- [Completed lessons](contracts/completed-lessons.md) with same-response row/page
+  metadata, explicit date windows, typed records, bounded batches and account/window
+  cursors. Shared operation budgets and POST non-replay cover the entire batch;
+  pagination drift fails explicitly. There is no transactional snapshot guarantee.
 
 The public `LibrusService` owns isolated account clients, coalesced safe reads,
 account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
@@ -119,7 +125,8 @@ Enabled development reads are `identity()`, `student_information()`,
 `final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
 `attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
 `attendance_frequency()`, `subject_frequency()`, explicit-week `timetable()`, and
-`announcements()`, `agenda()`, `agenda_detail()`, `homework()` and `homework_detail()`.
+`announcements()`, `agenda()`, `agenda_detail()`, `homework()`, `homework_detail()`,
+`completed_lessons_page()` and `completed_lessons()`.
 Version 0.3.0.dev0 is a local-only development build,
 not a published PyPI release.
 

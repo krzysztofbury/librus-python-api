@@ -230,7 +230,10 @@ This is not completed 0.3.0 coverage.
 - [x] Compare unobserved populated homework/details and agenda variants against
   external unmodified apix with original synthetic responses; exercise all four
   installed public APIs offline and classify representation/integrity departures.
-- [ ] Remaining school family: completed lessons with bounded resumable pagination.
+- [x] Completed lessons with typed records, same-response page metadata and bounded
+  resumable batches; original parser/wire/lifecycle proof and installed artifacts.
+- [ ] Qualify live completed-lesson pagination, populated/empty pages and broader
+  role/date/layout variants under fresh authorization. Cursors are not snapshots.
 - [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
   centralized non-replayed forms, nineteen-operation wire catalogue, original
   offline fixtures, and installed two-week runtime retrieval on one context.

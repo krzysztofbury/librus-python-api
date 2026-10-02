@@ -24,6 +24,10 @@ from librus_python_api.models import (
     AttendanceView,
     AttendanceWindow,
     Availability,
+    CompletedLesson,
+    CompletedLessons,
+    CompletedLessonsCursor,
+    CompletedLessonsPage,
     DescriptiveGrade,
     DescriptiveGradeSummary,
     FinalGrades,
@@ -63,6 +67,10 @@ from librus_python_api.service import AccountClient, LibrusService
 __version__ = "0.3.0.dev0"
 
 __all__ = [
+    "CompletedLesson",
+    "CompletedLessons",
+    "CompletedLessonsCursor",
+    "CompletedLessonsPage",
     "AccountClient",
     "AccountCredentials",
     "Availability",

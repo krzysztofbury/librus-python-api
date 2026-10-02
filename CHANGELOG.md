@@ -2,6 +2,14 @@
 
 ## 0.3.0.dev0 - School reads development
 
+- Add immutable completed-lesson page and bounded-batch APIs with explicit civil
+  date windows, same-response pagination and account/window continuation cursors.
+  Preserve topic boundaries, optional teacher/number and numeric attendance details.
+- Ship the twenty-fifth centralized route/OpenAPI operation with original parser/
+  loopback/lifecycle tests and synthetic external-apix comparison. Whole-batch shared
+  budgets, isolated caching/coalescing, non-replayed POSTs and joined cleanup apply.
+  Live pagination/layouts remain unqualified; no consumer switch or publication.
+
 - Add ordinary agenda month and homework window APIs with full event/tooltip text,
   immutable civil dates/clocks, explicit unavailable values and account-bound
   detail references. Preserve unknown detail fields and notes.

@@ -288,6 +288,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "completed_lessons",
+                "POST",
+                "/zrealizowane_lekcje",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
                 "homework_detail",
                 "GET",
                 "/moje_zadania/podglad/{id}",
@@ -436,6 +444,11 @@ SCHOOL_MAX_TOOLTIP_LENGTH = 8192
 SCHOOL_MAX_TOOLTIP_FIELDS = 32
 HOMEWORK_MAX_COLUMNS = 32
 HOMEWORK_MAX_WINDOW_DAYS = 371
+COMPLETED_LESSONS_MAX_WINDOW_DAYS = 371
+COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
+COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256
+COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
+COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
 
@@ -471,6 +484,24 @@ def timetable_form(monday: date) -> dict[str, str]:
         raise LibrusError(ErrorKind.INVALID_INPUT)
     sunday = monday + timedelta(days=6)
     return {TIMETABLE_WEEK_FIELD: f"{monday.isoformat()}_{sunday.isoformat()}"}
+
+
+def completed_lessons_form(start: date, end: date, page: int) -> dict[str, str]:
+    if (
+        type(start) is not date
+        or type(end) is not date
+        or not 0 <= (end - start).days < COMPLETED_LESSONS_MAX_WINDOW_DAYS
+        or type(page) is not int
+        or not 0 <= page < COMPLETED_LESSONS_MAX_PAGE_COUNT
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {
+        "data1": start.isoformat(),
+        "data2": end.isoformat(),
+        "filtruj_id_przedmiotu": "-1",
+        "numer_strony1001": str(page),
+        "porcjowanie_pojemnik1001": "1001",
+    }
 
 
 # Source-informed stable type-ID policy, never inferred from names or symbols.

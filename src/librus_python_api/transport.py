@@ -26,6 +26,7 @@ from librus_python_api.config import (
     SideEffect,
     TransportLimits,
     agenda_form,
+    completed_lessons_form,
     homework_form,
     timetable_form,
 )
@@ -34,6 +35,7 @@ from librus_python_api.models import (
     AgendaSelection,
     AttendanceView,
     AttendanceViewSelection,
+    CompletedLessonsPageSelection,
     GradeView,
     GradeViewSelection,
     HomeworkSelection,
@@ -220,6 +222,10 @@ class AiohttpTransport:
             if not isinstance(form, HomeworkSelection):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
             homework_form(form.start, form.end)
+        elif endpoint.operation_id == "completed_lessons":
+            if not isinstance(form, CompletedLessonsPageSelection):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            completed_lessons_form(form.start, form.end, form.page)
         elif form is not None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if isinstance(form, LoginSubmission) and (
@@ -262,7 +268,9 @@ class AiohttpTransport:
                 "X-Requested-With": "XMLHttpRequest",
             }
         payload = None
-        if isinstance(form, LoginSubmission):
+        if isinstance(form, CompletedLessonsPageSelection):
+            payload = completed_lessons_form(form.start, form.end, form.page)
+        elif isinstance(form, LoginSubmission):
             payload = {
                 "action": "login",
                 "login": form.login.get_secret_value(),

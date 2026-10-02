@@ -1,5 +1,45 @@
 # Local verification history
 
+## Completed-lessons increment (0.3.0.dev0)
+
+On 2026-10-02, 488 portable tests pass on source Python 3.13/3.14 and on both
+installed wheel and installed sdist for each interpreter. Fifty new cases own
+completed-lesson fields/pagination, explicit empty/malformed layouts, exact forms,
+date/page/row bounds, maximum batches, mid-page/page-boundary resume, drift/repeat
+rejection, four concurrent independent login contexts, cache/coalescing distinction,
+POST non-replay and cumulative request/body/deadline/closure/cancellation paths.
+The new loopback cases exercise both public APIs through actual aiohttp, not
+injected domain results. These are offline runtime checks, not live load evidence.
+
+Forty opt-in external-apix comparisons pass on source Python 3.13 and all four
+installed-artifact environments: the existing 34 school-read cases plus six new
+completed-lesson cases. The new cases cover common fields/long topic text and
+classified departures for missing teachers, BR boundaries, reordered date classes
+and pagination whitespace. Unmodified apix 1.5.3 invents a teacher from a lone
+subject and a fallback date for reordered classes, concatenates BR-separated words,
+and reports zero pages for an ordinary-space count it cannot parse. Native values
+follow the original synthetic contract, not these baseline defaults. Existing apix
+BeautifulSoup deprecation warnings remain visible. No baseline source/fixture was
+copied, and synthetic disagreement is not rendered live school-content proof.
+
+Installed metadata checks confirm 0.3.0.dev0, MIT, Python >=3.13, py.typed and bundled
+license. Dependency consistency checks pass for all four installs. Artifacts and
+temporary environments were created in one task-owned scratch invocation and
+cleaned on exit; nothing was published. Ruff/format and strict mypy pass. Default
+pytest deselects 44 opt-in cases (40 apix plus the prior four integration/performance
+cases); those prior consumer/performance paths were not rerun for this increment.
+Lock validation, worktree secret scanning and the locked dependency audit pass;
+no known vulnerabilities were found at this check, not a security guarantee.
+
+The twenty-fifth route/OpenAPI operation is source-informed with no live requests
+or real credential submissions. Completed-lesson populated/empty pages, live
+pagination variants, account roles and rendered school semantics remain unqualified.
+Cursors detect mid-page changes/count drift/repeated pages, not all same-count
+insertions across consumed page boundaries; no transactional snapshot or reliable
+sync watermark is claimed. Wider earlier-family live gaps remain unchanged.
+Consumer migration, behaviour-note evidence decision, credentialed CI and PyPI are
+separate gates. See contracts/completed-lessons.md for the exact policy.
+
 Initial 0.1.0 check: 2026-09-30, Linux. No live Librus requests were made then. Fixtures are
 independently authored synthetic examples, not copied HTML or credentialed captures.
 
