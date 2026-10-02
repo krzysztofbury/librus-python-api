@@ -29,7 +29,7 @@ Rules that hold for every release:
 | `0.4.0` | Received/sent message lists and bounded continuation | Done locally, with message-layout gaps below |
 | `0.4.1` | Recipient groups and recipients | Done locally for observed simple groups; hierarchy/empty-list gaps remain |
 | `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
-| `0.4.3` | Bounded attachment streams | Planned |
+| `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
 | `0.4.4` | Notification/checkpoint primitives | Planned |
 | Sending (version TBD) | Validated one-attempt delivery | Plan and approve before implementation |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
@@ -72,8 +72,14 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   installed live smoke and Chromium/apix agree on one already-read received
   message. Source and installed wheel/sdist suites pass on 3.13/3.14. Populated sent content and
   attachment metadata, receipt variants and richer/new layouts remain unqualified.
-- [ ] 0.4.3: credential-free bounded download streams, with the
-  MCP atomic-publication integration and cancellation proof from P4.
+- [x] 0.4.3: single-owner credential-free bounded download streams, shared
+  request/byte/deadline limits and joined cancellation. Pair-programmer design
+  and corrected post-review complete. Installed live smoke streams one received
+  attachment; populated metadata and page-zero sent rows checked independently.
+  MCP file naming and atomic-publication integration from P4 remain separate.
+- [ ] Attachment follow-ups: sent-message downloads, multiple/empty files,
+  broader signed-key/handler/header variants and upstream read-effect evidence.
+  Do not expand allowlists without independent qualification.
 - [ ] 0.4.4: the read-once schedule/checkpoint interface, and adapting notification
   records while MCP keeps its seen state, hashes, replay and migrations.
 - [ ] Sending (version TBD): approve the plan in

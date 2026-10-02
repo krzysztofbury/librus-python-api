@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.2`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.3`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -23,22 +23,24 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Agenda | `agenda`, `agenda_detail` | Verified on two contexts, two months each |
 | Homework | `homework`, `homework_detail` | Verified: populated and empty |
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
-| Message lists | `messages_page`, `messages` | 0.4.0: populated received and empty sent on one login; bounded resume/cache smoke and independent Chromium agreement |
+| Message lists | `messages_page`, `messages` | 0.4.3: page-zero received and sent rows, attachment/unread flags checked independently; pagination remains unqualified |
 | Recipient discovery | `recipient_groups`, `recipients` | 0.4.1: eight named groups; populated tutor, teacher and office lookups on one login, independently checked |
-| Message content | `message_content` | 0.4.2: installed smoke on an already-read received message; full text and read receipt independently checked, no populated attachments |
+| Message content | `message_content` | 0.4.3: already-read received content with one attachment; full text, read receipt and file reference independently checked |
+| Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.2. School reads,
+not a claim that every family was called live again in 0.4.3. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Streams and notification primitives follow
-in separate `0.4.3` and `0.4.4` increments. Sending is plan-only. Message-list live
+Notification primitives follow in `0.4.4`. Sending is plan-only. Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
 Content requires explicit potential mark-read consent; see
 [contracts/message-content.md](contracts/message-content.md) for its qualification gaps.
+Stream lifecycle, byte budgets and destination restrictions are specified in
+[contracts/attachments.md](contracts/attachments.md).
 Behaviour notes stay unsupported until a populated page has been observed
 ([decision](contracts/behaviour-notes.md)).
 

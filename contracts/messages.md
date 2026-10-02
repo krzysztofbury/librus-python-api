@@ -50,7 +50,7 @@ are deleted. Agreement with apix is not a correctness oracle.
 | Sent recipient status | Raw `recipient_read_status`; `unread=None` | Apix compares a tag with `"NIE"`, which is not a valid recipient-status interpretation; never inherit this behavior |
 | `recipient_groups`, `get_recipients` | Implemented in 0.4.1 | Simple-group lookup and named discovery; [separate contract](recipients.md) |
 | `message_content` | Implemented in 0.4.2 | Explicit potential mark-read consent, full text and send/read civil timestamps; qualified only for an already-read received message |
-| Attachment indicator | `has_attachment` | Indicator only; streams deferred to 0.4.3 |
+| Attachment indicator | `has_attachment` | Indicator only; separate native streams implemented in 0.4.3, not an apix capability |
 | Notification helpers / read-once events | Deferred to 0.4.4 | Callback handoff, not persistence owned by the library |
 | `send_message` | Plan-only | Separate approval gate; no live send in list qualification |
 
@@ -58,6 +58,11 @@ Live qualification is limited to one login: a populated two-row received page
 and an explicitly empty sent page. Populated sent rows, multi-page metadata,
 attachment indicators, other account roles and the newer
 mailbox layout remain pending. See [VERIFICATION.md](../VERIFICATION.md).
+
+Later 0.4.3 evidence extends page-zero lists to 35 received and eight populated
+sent rows, plus populated attachment flags and one content attachment reference.
+Independent Chromium and same-byte apix common fields agree. Pagination and
+newer layouts remain pending; native streams have no apix parity counterpart.
 
 ## Feature/version sequence
 

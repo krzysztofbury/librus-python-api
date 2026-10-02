@@ -50,3 +50,10 @@ Apix omits attachment metadata and read receipts. Its agreement on common
 fields is not a correctness oracle. Exact qualification, request accounting and
 remaining gaps are in [VERIFICATION.md](../VERIFICATION.md). Streams are 0.4.3;
 sending remains separately planned and authorized.
+
+Later 0.4.3 qualification observes one populated attachment layout on two
+already-read content responses. Filename and message/file route linkage agree
+with independent Chromium rendering; the installed wheel streams that selected
+file. This closes that narrow metadata gap, not every handler/role/layout gap.
+The content method itself remains inert and never downloads automatically.
+See [the stream contract](attachments.md) for its separate limits and evidence.

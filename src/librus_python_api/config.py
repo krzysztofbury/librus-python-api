@@ -62,7 +62,7 @@ class Endpoint:
     side_effect: SideEffect
     retry_safe: bool
     evidence: Evidence
-    origin: Literal["synergia", "api"] = "synergia"
+    origin: Literal["synergia", "api", "download"] = "synergia"
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", self.operation_id):
@@ -83,14 +83,18 @@ class Endpoint:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if self.side_effect != SideEffect.NONE and self.retry_safe:
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        if self.origin not in ("synergia", "api"):
+        if self.origin not in ("synergia", "api", "download"):
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
 # Future login, JSON, messaging, and HTML routes all belong in this catalogue.
 # Contract checks compare every method/path against the versioned OpenAPI YAML.
 UPSTREAM_ORIGINS = MappingProxyType(
-    {"synergia": "https://synergia.librus.pl", "api": "https://api.librus.pl"}
+    {
+        "synergia": "https://synergia.librus.pl",
+        "api": "https://api.librus.pl",
+        "download": "https://sandbox.librus.pl",
+    }
 )
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
@@ -100,6 +104,23 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
         for item in (
+            Endpoint(
+                "attachment_resolve",
+                "GET",
+                "/wiadomosci/pobierz_zalacznik/{message_id}/{file_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "attachment_download",
+                "GET",
+                "/GetFile/{key}/get",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "download",
+            ),
             Endpoint(
                 "login_portal",
                 "GET",
@@ -571,6 +592,11 @@ MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
 MESSAGE_ATTACHMENT_PATH_PREFIX = "/wiadomosci/pobierz_zalacznik/"
 MESSAGE_MAX_CONTENT_LENGTH = 65536
 MESSAGE_MAX_ATTACHMENTS = 20
+ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
+ATTACHMENT_CHUNK_BYTES = 64 * 1024
+ATTACHMENT_MAX_LOCATION_LENGTH = 2048
+ATTACHMENT_KEY_PATTERN = re.compile(r"[A-Za-z0-9_.~-]{1,512}\Z")
+ATTACHMENT_REDIRECT_PATH = "/GetFile/{key}"
 
 RECIPIENT_FORM_FIELDS = frozenset(
     {"typAdresata", "poprzednia", "tabZaznaczonych", "czyWirtualneKlasy", "idGrupy"}
@@ -856,12 +882,14 @@ class ConnectionSettings(_ValidatedConfig):
     )
     synergia_origin: str = UPSTREAM_ORIGINS["synergia"]
     api_origin: str = UPSTREAM_ORIGINS["api"]
+    download_origin: str = UPSTREAM_ORIGINS["download"]
     proxy_url: SecretStr | None = Field(default=None, repr=False)
     ssl_context: ssl.SSLContext | None = Field(default=None, repr=False)
 
-    @field_validator("synergia_origin", "api_origin")
+    @field_validator("synergia_origin", "api_origin", "download_origin")
     @classmethod
     def validate_origin(cls, value: str, info: ValidationInfo) -> str:
+        assert info.field_name is not None
         parsed = urlsplit(value)
         port = parsed.port
         if (
@@ -873,9 +901,9 @@ class ConnectionSettings(_ValidatedConfig):
         ):
             raise ValueError("Only origin URLs are allowed")
         local = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        expected = (
-            "api.librus.pl" if info.field_name == "api_origin" else "synergia.librus.pl"
-        )
+        expected = urlsplit(
+            UPSTREAM_ORIGINS[info.field_name.removesuffix("_origin")]
+        ).hostname
         official = parsed.hostname == expected
         if not local and not (
             official and parsed.scheme == "https" and port in (None, 443)
@@ -901,4 +929,8 @@ class ConnectionSettings(_ValidatedConfig):
         return self
 
     def origin(self, endpoint: Endpoint) -> str:
-        return self.api_origin if endpoint.origin == "api" else self.synergia_origin
+        return {
+            "api": self.api_origin,
+            "synergia": self.synergia_origin,
+            "download": self.download_origin,
+        }[endpoint.origin]

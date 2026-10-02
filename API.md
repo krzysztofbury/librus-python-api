@@ -53,11 +53,16 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   (8 per account). These are engineering defaults, not a published Librus quota.
 - `TransportLimits`: 30 s request and 10 s connect timeouts, 4 MiB bodies, 10
   redirects, 128 cookies, 256 KiB parser input, 60 s cooldown (see Errors).
+  Attachment downloads use the operation's remaining deadline rather than the
+  ordinary 30 s request/HTML body cap; the connect timeout still applies.
 - `OperationLimits`: the budget used when a call passes none.
 - `ConnectionSettings`: verified TLS context and explicit proxy only. Origins can
   be overridden only with loopback addresses, for fixture servers.
 - `transport_factory`: an `AccountTransport` per login, owned and closed by the
   service. It must honour the scheduler, budgets and destination checks.
+  In 0.4.3 custom transports also implement `resolve_attachment` and
+  `stream_download`. Download implementations must retain scheduler admission
+  through EOF/cleanup, await demand before each chunk, and close before returning.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -242,16 +247,65 @@ Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
   file ID to the full account/folder/message reference. Duplicate names survive;
   duplicate file IDs, foreign message IDs and unrecognized marked download
   handlers fail. The displayed filename is untrusted text, never a local path.
-  No file bytes, signed URL, MIME type or size are guessed; there is no download
-  method in 0.4.2. Populated metadata has source-informed offline evidence only.
+   No file bytes, signed URL, MIME type or size are guessed. The separate 0.4.3
+   stream accepts these references; one populated metadata layout is now observed.
 - Identical opens share the existing account/budget/cache boundary. Fresh
   received opens invalidate cached received pages and batches before dispatch,
   including failures, so potentially stale unread flags cannot be reused. Warm
   content reuse dispatches no request and does not mutate the mailbox.
 
 Unknown metadata/body layouts and bounds fail the whole operation. Full HTML
-fidelity, populated sent content, receipt variants, attachment handlers and
+   fidelity, populated sent content, receipt variants, other attachment handlers and
 other/new mailbox layouts remain live qualification gaps.
+
+## Attachment streams
+
+`stream_attachment(reference, *, max_bytes=50*1024*1024, budget=None)` constructs
+an `AttachmentStream` without I/O. Use it as an async context manager:
+
+```python
+budget = RequestBudget(
+    max_requests=24, timeout_seconds=120, max_response_bytes=12 * 1024 * 1024
+)
+async with client.stream_attachment(
+    attachment.reference, budget=budget, max_bytes=10 * 1024 * 1024
+) as stream:
+    async for chunk in stream:
+        await caller_owned_sink.write(chunk)
+    assert stream.complete  # Publish only after clean EOF and joined cleanup.
+```
+
+- Only account/folder/message/file-bound `MessageAttachmentReference` values are
+  accepted. No arbitrary URL, automatic content open or consent bypass exists.
+- Exactly two fresh HTTP dispatches after authentication: authenticated redirect
+  resolution and a separate credential-free download. Neither hop retries,
+  follows redirects or resumes partial output. There is no cache/coalescing.
+- Official verified HTTPS sandbox destinations use a bounded, unreserved signed
+  key and exact route grammar. Userinfo, query, fragment, percent encoding,
+  traversal and alternate destinations fail closed. Loopback origins can be
+  explicitly configured for fixtures, independently of authenticated origins.
+- `metadata` is immutable `AttachmentMetadata(identity, reference, headers,
+  observation)`. `AttachmentHeaders` exposes optional `content_type`,
+  `content_length` and raw `content_disposition`; these are untrusted server
+  hints, not filenames or MIME detection. Signed URLs and credentials are absent.
+- Chunks are at most 64 KiB. Actual bytes count against the file cap and shared
+  cumulative budget before delivery. Default service byte budgets remain 4 MiB
+  including authentication/source bodies; larger files need an explicit budget.
+  The file cap must be 1 byte through 50 MiB. Unknown Content-Length is supported.
+- Only identity content coding and ordinary chunked framing are supported.
+  Unsupported or ambiguous encodings, oversized/truncated bodies and transport
+  errors raise typed, redacted failures, never successful partial EOF.
+- One task consumes a non-reentrant stream. The account lock, service operation
+  slot and shared scheduler admission stay occupied during streaming and pauses.
+  The whole-operation deadline includes queues and consumer backpressure and
+  independently closes paused streams. Other accounts still use shared limits.
+- `complete` is true only after clean EOF and joined transport work. Context
+  exit, idempotent `aclose()`, cancellation or service shutdown close/join work.
+  Early breaks leave it false. An async iterator used without its context is
+  invalid. The library never writes, names, saves or atomically publishes files.
+
+Evidence, source-informed restrictions and remaining gaps:
+[contracts/attachments.md](contracts/attachments.md).
 
 ## Recipient discovery
 
@@ -277,7 +331,7 @@ Limits: 32 group selectors, 2,048 recipients, 1,024 characters per label and
 lookup has its own account/group cache key and accepts the common budget and
 freshness parameters. Fresh reads are default. Both selection operations are
 never replayed, even though group discovery uses GET. No send route, message
-content, mark-read, attachment or read-once access is enabled.
+   content, mark-read, attachment or read-once access occurs in recipient discovery.
 
 Empty recipient layouts and subgroup discovery have not been observed/implemented;
 an unknown/empty response fails explicitly, never silently becomes `[]`.

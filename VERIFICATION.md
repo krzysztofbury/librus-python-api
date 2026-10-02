@@ -3,6 +3,96 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.3 (2026-10-02) - Bounded attachment streams
+
+### Offline and review
+
+- Complete source suite on Python 3.13/3.14: 865 passed in both environments,
+  one opt-in performance case deselected. Ruff, format and strict mypy pass.
+  OpenAPI parity covers 34 operations.
+- Installed wheel and sdist suites pass all 865 tests in four isolated Python
+  3.13/3.14 environments outside the checkout. Installed import location,
+  package version, MIT license, `py.typed` and dependency consistency pass.
+  Every environment replays both content captures against independent private
+  Chromium expectations, including the populated attachment linkage. Final
+  library package bytes match the wheel used for the live stream smoke.
+- Locked dependency audit reports no known vulnerabilities. Repository hooks
+  and staged/worktree/history secret scans pass.
+- Public stream tests exercise original two-origin HTTP, independent login
+  contexts, account-bound references, credential/cookie isolation, hostile
+  redirects, real streaming, 64 KiB chunks, exact byte bounds, unknown-length
+  cumulative budgets, framing/encoding failure and no automatic replay.
+- Representative offline load streams one full 50 MiB file with an exact
+  seven-request login/resolve/download budget. Four independent logins with mixed
+  reads/downloads saturate shared admission; paused streams retain scheduler
+  slots and an exact six-request warm shared budget completes queued work.
+- Early break, queued/entry/body cancellation, repeated cancellation during
+  delayed cleanup, service close and paused-consumer deadline cases release
+  capacity only after joining owned transport work. Subsequent reads succeed.
+- Pair-programmer design precedes implementation. Independent post-review found
+  a first-field-only encoding guard accepted duplicate Content-Encoding and
+  unsupported Transfer-Encoding with false completion. All three raw-wire
+  regressions failed before the fix. The corrected complete-field guard rejects
+  those representations before delivery; ordinary chunked framing succeeds.
+  Duplicate identity/chunked field cases also remain in the owning regression
+  table. Re-review approved the corrected offline scope with no blockers.
+- The qualification runner's original loopback tests enforce one login, 24
+  attempts, exact account-bound selection, already-read discovery, one bounded
+  smoke download, stop-on-ambiguity and no retained attachment bytes.
+
+### Bounded live qualification
+
+Fresh approval allowed up to four independent discovery logins and one reserved
+installed-smoke login, each with 24 total wire attempts. Scope: identity,
+received/sent page zero, at most one already-read received content open per
+login, and the selected smoke attachment's resolution/download up to 10 MiB.
+
+| Attempt | Logins | Requests | Content opens | Download | Result |
+| --- | --- | --- | --- | --- | --- |
+| Discovery A | 1 | 11 | 0 | None | No eligible attachment |
+| Discovery B | 1 | 11 | 0 | None | No eligible attachment |
+| Discovery C | 1 | 12 | 1 | None | One attachment reference observed |
+| Installed wheel smoke, same selected login/reference | 1 | 14 | 1 | 1 | 930,056 bytes, clean EOF |
+| Total | 4 of 5 allowed | 48 of 120 allowed | 2 | 1 | No expanded or repeated attempts |
+
+The fourth discovery login was unnecessary after an eligible message was found.
+Unused allowances are not permission for reruns. No unread or sent content was
+opened; no sending, deletion, read-once operation or consumer migration occurred.
+The download supplied no Content-Length; actual byte accounting and clean EOF
+confirmed stream completion. Attachment bytes were consumed and discarded,
+never saved. One successful file does not establish arbitrary key/header formats
+or the absence of upstream read effects.
+
+Chromium independently checked all ten captured responses with scripts and
+networking disabled. This extends list evidence to 35 received rows and eight
+populated sent rows on page zero, including attachment/unread flags. Two content
+responses include one displayed attachment and a read receipt. Rendered fields,
+body lines, filename and numeric route linkage agree. The browser check initially
+mistook popup-name/dimension numbers for attachment IDs; extracting only the
+inert route literal corrected that false mismatch without a parser change.
+
+Apix 1.5.3 received identical captured list/content bytes through inert parsers.
+Common summary and four content fields agree. Apix has no attachment-stream,
+attachment-metadata or read-receipt contract; those are native independently
+checked features, not inferred apix parity.
+
+### Evidence and remaining gaps
+
+- Sanitized accounting is in `release-evidence/0.4.3-streams.json`; local artifact
+  checksums are in `release-evidence/0.4.3.sha256`. No public evidence contains
+  account/message/file IDs, signed keys, filenames, cookies or body text.
+  Task-owned private captures, browser expectations, build trees and virtual
+  environments are deleted after qualification; only the two local distribution
+  archives and sanitized evidence remain.
+- Sent-message downloads, multiple/empty files, alternate attachment handlers,
+  key/header variants and upstream read effects remain live-unqualified.
+  Conservative key grammar and provisional `none` effect classification remain
+  source-informed restrictions. Populated pagination/new mailbox layouts and
+  other 0.4.x gaps not explicitly observed here remain pending.
+- Library file naming/saving/publication is intentionally absent. MCP atomic
+  publication, notifications, sending, credentialed CI and PyPI publication
+  retain their separate scopes. No push or publication is part of 0.4.3.
+
 ## 0.4.2 (2026-10-02) - Message content and inert attachment metadata
 
 ### Offline

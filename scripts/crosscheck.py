@@ -356,8 +356,16 @@ def check_content(body: bytes, form: Form, view: Any) -> str:
     for native, other in zip(data.attachments, view["attachments"], strict=True):
         assert native.filename == normalized(other["name"]), "attachment label"
         assert other["tag"] == "IMG", "attachment marker"
-        parts = re.findall(r"[0-9]+", other["handler"])
-        assert parts == [ref.identifier, native.reference.identifier], "attachment IDs"
+        # Popup names and window dimensions also contain numbers; only the
+        # inert route literal identifies the message/file pair. Never eval it.
+        route = re.search(
+            r"/wiadomosci/pobierz_zalacznik/([0-9]+)/([0-9]+)",
+            other["handler"].replace(r"\/", "/"),
+        )
+        assert route is not None, "attachment route literal"
+        assert list(route.groups()) == [ref.identifier, native.reference.identifier], (
+            "attachment IDs"
+        )
     return "content fields, rendered lines, read receipt and inert files agree"
 
 

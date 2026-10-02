@@ -1,5 +1,6 @@
 """Independent bounded async client. General live compatibility is unqualified."""
 
+from librus_python_api.attachments import AttachmentStream
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     AccountCredentials,
@@ -14,6 +15,8 @@ from librus_python_api.models import (
     AgendaEvent,
     Announcement,
     Announcements,
+    AttachmentHeaders,
+    AttachmentMetadata,
     Attendance,
     AttendanceDetail,
     AttendanceDetailContent,
@@ -80,9 +83,12 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 __all__ = [
+    "AttachmentStream",
+    "AttachmentMetadata",
+    "AttachmentHeaders",
     "MessageAttachment",
     "MessageAttachmentReference",
     "MessageContent",

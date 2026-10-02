@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.2
+  version: 0.4.3
   license:
     name: MIT
   description: |
@@ -16,6 +16,56 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /wiadomosci/pobierz_zalacznik/{message_id}/{file_id}:
+    get:
+      operationId: attachment_resolve
+      tags: [Attachments]
+      summary: Resolve one account-bound attachment without replay or following redirects
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed consumer two-hop legacy flow with original bounded HTTP proof. Installed 0.4.3 wheel observed one received-message 302 resolution; absence of read effects remains unqualified.
+      parameters:
+        - in: path
+          name: message_id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+        - in: path
+          name: file_id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /GetFile/{key}/get:
+    get:
+      operationId: attachment_download
+      tags: [Attachments]
+      summary: Credential-free bounded stream from the exact signed sandbox route
+      security: []
+      x-origin: download
+      x-upstream-origin: https://sandbox.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Separate no-cookie session and strict destination grammar exercised on original loopback fixtures. Installed 0.4.3 wheel streamed one 930056-byte received attachment with clean EOF and no declared length; broader signed key alphabet remains source-informed.
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 512, pattern: '^(?!\.{1,2}$)[A-Za-z0-9_.~-]+$'}
+      responses:
+        '200':
+          description: Uninterpreted file bytes, identity encoding, no redirects; streamed under byte/deadline/request limits
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        default:
+          $ref: '#/components/responses/Failure'
   /wiadomosci/1/5/{id}:
     get:
       operationId: message_content_received

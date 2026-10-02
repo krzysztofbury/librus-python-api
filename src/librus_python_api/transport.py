@@ -3,7 +3,7 @@
 import math
 import re
 import zlib
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -14,8 +14,14 @@ from urllib.parse import urljoin, urlsplit
 import aiohttp
 from yarl import URL
 
+from librus_python_api.attachment_routes import (
+    validate_attachment_reference,
+    validate_key,
+    validate_max_bytes,
+)
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
+    ATTACHMENT_CHUNK_BYTES,
     AUTH_COOKIES,
     ENDPOINTS,
     FORM_FIELDS,
@@ -31,7 +37,13 @@ from librus_python_api.config import (
     recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import LoginSubmission, RequestForm, TransportResponse
+from librus_python_api.models import (
+    AttachmentHeaders,
+    LoginSubmission,
+    MessageAttachmentReference,
+    RequestForm,
+    TransportResponse,
+)
 from librus_python_api.scheduler import RequestScheduler
 
 
@@ -58,6 +70,20 @@ class AccountTransport(Protocol):
         location: str,
         budget: RequestBudget,
     ) -> TransportResponse: ...
+
+    async def resolve_attachment(
+        self, reference: MessageAttachmentReference, budget: RequestBudget
+    ) -> TransportResponse: ...
+
+    async def stream_download(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None: ...
 
     def has_cookie(self, name: str, endpoint_id: str) -> bool: ...
     def clear_auth(self) -> None: ...
@@ -124,6 +150,7 @@ class AiohttpTransport:
         self._account, self._scheduler = account, scheduler
         self._connection, self._limits = connection, limits
         self._session: aiohttp.ClientSession | None = None
+        self._download_session: aiohttp.ClientSession | None = None
         self._closed = False
 
     def _get_session(self) -> aiohttp.ClientSession:
@@ -164,6 +191,8 @@ class AiohttpTransport:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        if endpoint.origin == "download" or endpoint_id == "attachment_resolve":
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
         if "{id}" in endpoint.path:
             if type(reference_id) is not str or not re.fullmatch(
@@ -176,6 +205,144 @@ class AiohttpTransport:
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
         return await self._request(endpoint, url, budget, form)
+
+    async def resolve_attachment(
+        self, reference: MessageAttachmentReference, budget: RequestBudget
+    ) -> TransportResponse:
+        validate_attachment_reference(reference, self._account)
+        endpoint = ENDPOINTS["attachment_resolve"]
+        path = endpoint.path.format(
+            message_id=reference.message.identifier, file_id=reference.identifier
+        )
+        return await self._request(
+            endpoint, self._connection.origin(endpoint) + path, budget, None
+        )
+
+    def _get_download_session(self) -> aiohttp.ClientSession:
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        if self._download_session is None:
+            self._download_session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=1, ssl=self._connection.ssl_context or True
+                ),
+                cookie_jar=aiohttp.DummyCookieJar(),
+                trust_env=False,
+                auto_decompress=False,
+                read_bufsize=ATTACHMENT_CHUNK_BYTES,
+                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+            )
+            self._download_session._retry_connection = False
+        return self._download_session
+
+    async def stream_download(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None:
+        validate_key(key)
+        validate_max_bytes(max_bytes)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            await self._scheduler.run(
+                self._account,
+                budget,
+                partial(
+                    self._download_exchange,
+                    key,
+                    budget,
+                    max_bytes,
+                    opened,
+                    demand,
+                    deliver,
+                ),
+            )
+            return
+        except aiohttp.ClientPayloadError:
+            kind = ErrorKind.PARSE
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError):
+            kind = ErrorKind.PARSE
+        except LibrusError as error:
+            # A signed-server denial does not prove Librus session expiry.
+            kind = (
+                ErrorKind.ACCESS_DENIED
+                if error.kind is ErrorKind.SESSION_EXPIRED
+                else error.kind
+            )
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _download_exchange(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None:
+        validate_key(key)
+        endpoint = ENDPOINTS["attachment_download"]
+        url = self._connection.origin(endpoint) + endpoint.path.format(key=key)
+        proxy = self._connection.proxy_url
+        timeout = aiohttp.ClientTimeout(
+            total=budget.remaining_seconds(),
+            connect=self._limits.connect_timeout_seconds,
+        )
+        async with self._get_download_session().get(
+            url,
+            allow_redirects=False,
+            timeout=timeout,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            self._check_status(response)
+            if response.status != 200:
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            content_codings = response.headers.getall("Content-Encoding", [])
+            transfer_codings = response.headers.getall("Transfer-Encoding", [])
+            if (
+                len(content_codings) > 1
+                or any(v.strip().casefold() != "identity" for v in content_codings)
+                or len(transfer_codings) > 1
+                or any(v.strip().casefold() != "chunked" for v in transfer_codings)
+            ):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            length = response.content_length
+            if length is not None and (
+                length > max_bytes or length > budget.remaining_response_bytes
+            ):
+                raise LibrusError(ErrorKind.LIMIT)
+            opened(
+                AttachmentHeaders(
+                    response.headers.get("Content-Type"),
+                    length,
+                    response.headers.get("Content-Disposition"),
+                )
+            )
+            received = 0
+            while True:
+                await demand()
+                chunk = await response.content.read(ATTACHMENT_CHUNK_BYTES)
+                if not chunk:
+                    if length is not None and received != length:
+                        raise LibrusError(ErrorKind.PARSE)
+                    return
+                budget._receive(len(chunk))
+                received += len(chunk)
+                if received > max_bytes:
+                    raise LibrusError(ErrorKind.LIMIT)
+                deliver(chunk)
 
     async def follow(
         self,
@@ -277,12 +444,7 @@ class AiohttpTransport:
             allow_redirects=False,
             proxy=proxy.get_secret_value() if proxy is not None else None,
         ) as response:
-            if (
-                len(response.headers) > 128
-                or sum(len(k) + len(v) for k, v in response.headers.items()) > 32 * 1024
-                or len(response.headers.getall("Location", [])) > 1
-            ):
-                raise LibrusError(ErrorKind.LIMIT)
+            self._check_headers(response)
             if len(session.cookie_jar) > self._limits.max_cookies:
                 session.cookie_jar.clear()
                 raise LibrusError(ErrorKind.LIMIT)
@@ -294,6 +456,14 @@ class AiohttpTransport:
                 str(response.url),
                 MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
             )
+
+    def _check_headers(self, response: aiohttp.ClientResponse) -> None:
+        if (
+            len(response.headers) > 128
+            or sum(len(k) + len(v) for k, v in response.headers.items()) > 32 * 1024
+            or len(response.headers.getall("Location", [])) > 1
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
 
     def _check_status(self, response: aiohttp.ClientResponse) -> None:
         if response.status in (429, 503):
@@ -374,3 +544,5 @@ class AiohttpTransport:
         self._closed = True
         if self._session is not None:
             await self._session.close()
+        if self._download_session is not None:
+            await self._download_session.close()

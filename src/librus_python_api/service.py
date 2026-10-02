@@ -12,6 +12,7 @@ from typing import Any, Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
 
 from librus_python_api.announcements import parse_announcements
+from librus_python_api.attachments import AttachmentStream
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
 from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
@@ -25,6 +26,7 @@ from librus_python_api.completed_lessons import (
     validate_selection,
 )
 from librus_python_api.config import (
+    ATTACHMENT_MAX_BYTES,
     ATTENDANCE_MAX_WINDOW_DAYS,
     ATTENDANCE_METADATA_CACHE_SIZE,
     ATTENDANCE_METADATA_TTL_SECONDS,
@@ -77,6 +79,7 @@ from librus_python_api.models import (
     Homework,
     Identity,
     LoginSubmission,
+    MessageAttachmentReference,
     MessageContent,
     MessageFolder,
     MessageReference,
@@ -684,6 +687,16 @@ class AccountClient:
             max_age_seconds,
         )
 
+    def stream_attachment(
+        self,
+        reference: MessageAttachmentReference,
+        *,
+        max_bytes: int = ATTACHMENT_MAX_BYTES,
+        budget: RequestBudget | None = None,
+    ) -> AttachmentStream:
+        """Construct an uncached stream context; no content open or file writes."""
+        return AttachmentStream(self, reference, max_bytes=max_bytes, budget=budget)
+
     async def message_content(
         self,
         reference: MessageReference,
@@ -884,13 +897,7 @@ class AccountClient:
             budget.remaining_seconds()
         # Resolve policy before admission so a lookup failure cannot leak a slot.
         retry_safe = ENDPOINTS[endpoint or operation].retry_safe
-        if (
-            service._operations >= service._limits.operations
-            or self._operations >= service._limits.operations_per_account
-        ):
-            raise LibrusError(ErrorKind.LIMIT)
-        service._operations += 1
-        self._operations += 1
+        self._admit_operation()
         flight_key = (key, max_age, budget)
         flight = self._flights.get(flight_key)
         if flight is None:
@@ -924,8 +931,23 @@ class AccountClient:
                 if not flight.task.done() and not flight.task.cancelling():
                     flight.task.cancel()
                 await join_owned(flight.task)
-            service._operations -= 1
-            self._operations -= 1
+            self._release_operation()
+
+    def _admit_operation(self) -> None:
+        service = self._service
+        if (
+            service._operations >= service._limits.operations
+            or self._operations >= service._limits.operations_per_account
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
+        service._operations += 1
+        self._operations += 1
+
+    def _release_operation(self) -> None:
+        self._service._operations -= 1
+        self._operations -= 1
+        assert self._operations >= 0
+        assert self._service._operations >= 0
 
     async def _execute[T](
         self,

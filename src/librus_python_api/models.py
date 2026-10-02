@@ -34,6 +34,8 @@ type OperationName = Literal[
     "messages_sent",
     "message_content_received",
     "message_content_sent",
+    "attachment_resolve",
+    "attachment_download",
     "recipient_groups",
     "recipients",
 ]
@@ -123,6 +125,21 @@ class MessageAttachmentReference:
 class MessageAttachment:
     reference: MessageAttachmentReference = field(repr=False)
     filename: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentHeaders:
+    content_type: str | None = field(repr=False)
+    content_length: int | None
+    content_disposition: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentMetadata:
+    identity: "Identity" = field(repr=False)
+    reference: MessageAttachmentReference = field(repr=False)
+    headers: AttachmentHeaders = field(repr=False)
+    observation: "Observation"
 
 
 @dataclass(frozen=True, slots=True)
