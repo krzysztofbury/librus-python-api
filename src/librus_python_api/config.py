@@ -295,6 +295,16 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.SOURCE_INFORMED,
             ),
+            # Internal ordinary-read discovery only. No public note capability is
+            # enabled until independently observed populated semantics exist.
+            Endpoint(
+                "behaviour_notes_probe",
+                "GET",
+                "/uwagi",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
             Endpoint(
                 "homework_detail",
                 "GET",

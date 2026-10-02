@@ -3,6 +3,34 @@
 The initial phase review below is historical offline evidence. Current live
 qualification and performance evidence are in VERIFICATION.md and BENCHMARKS.md.
 
+## Combined qualification follow-up review and lessons
+
+- Safety, TigerStyle #2/#6/#12: one-shot manual qualification counts wire attempts,
+  suppresses the dependency's implicit connection retry, checks fixed operations,
+  windows, returned references and global/family ceilings, and closes after failure.
+  Each new login required fresh authorization. Unknown live lesson markup still
+  fails; no public note API or consumer fallback is enabled.
+- Privacy: raw credentials, HTML, domain rows and baseline values stay in memory.
+  Reports use fixed reason counters and owning-code locations, never exception
+  messages, locals, captures, row diffs or personal identifiers. Report creation is
+  exclusive; it is a replay guard, not a substitute for external authorization.
+- Test ownership: parser regressions protect comments on recognized and unknown
+  pages. The optional full browser/HTTP test protects the distinct rendered boundary,
+  including an outer calendar layout table. Portable checks protect scope rejection,
+  probe wire/budgets, diagnostic privacy and failed-CLI/replay-marker behavior.
+- Process failure: a broad synthetic preflight still omitted decisive layout and
+  comment conditions. Three live attempts stopped without a completed comparison.
+  The initial harness discarded comparison bytes before collecting diagnostics,
+  and lessons-first ordering prevented independent school families from being
+  reached. The revised harness addresses both issues offline; it has not received
+  another live qualification pass. Do not label these gates closed.
+- Causal limits: offline reproductions establish actual parser/comparator defects,
+  not the causes of discarded live discrepancies. Keep unsupported-response cause,
+  prior tooltip disagreement, populated homework and live lesson pagination pending.
+- Handoff: one combined draft PR records the partial outcome and default-off note
+  decision. Consumer migration, messaging, credentialed CI and publication are not
+  authorized by this task. This is implementing-agent review, not independent approval.
+
 ## Completed-lessons implementing-agent review
 
 Safety: the new selection POST never replays, including failures after a successful

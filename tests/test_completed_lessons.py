@@ -77,6 +77,19 @@ def test_explicit_empty_and_single_page_without_pagination() -> None:
 
 
 @pytest.mark.parametrize(
+    "body",
+    [
+        lessons_html(),
+        '<html><body><p class="msgEmptyTable">Fixture empty</p></body></html>',
+    ],
+)
+def test_comments_do_not_change_recognized_page_semantics(body: str) -> None:
+    assert parse(body.replace("<body>", "<body><!-- Fixture comment -->")) == parse(
+        body
+    )
+
+
+@pytest.mark.parametrize(
     "before,after",
     [
         ("Strona 1 z 1", "Strona 2 z 2"),
@@ -108,6 +121,7 @@ def test_malformed_rows_and_metadata_never_become_partial(
     "body",
     [
         "<html></html>",
+        "<html><body><!-- Fixture comment -->Fixture unknown</body></html>",
         lessons_html(rows=""),
         '<html><p class="msgEmptyTable"></p></html>',
         '<html><div class="pagination"><span>1 z 2</span></div>'

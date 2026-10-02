@@ -3,8 +3,9 @@
 This increment adds ordinary completed-lesson reads, not message/event consumption,
 consumer migration or publication. The central HTML route and selection form are
 source-informed business requirements. Original implementation and fixtures contain
-no copied third-party source, captures or identifiable records. No live Librus
-requests or real credential submissions are authorized or performed for this work.
+no copied third-party source, captures or identifiable records. The initial
+increment was offline-only. Later explicitly authorized installed qualification
+attempts stopped without qualifying the live lesson layout; see the evidence below.
 
 ## Public domain and wire contract
 
@@ -81,6 +82,19 @@ watermarks. Explicit cache reuse serves prior results; fresh resumed reads remai
 the default. Consumer serialization/persistence is a separate task.
 
 ## Evidence and qualification
+
+The 2026-10-02 qualification follow-up reached one first-page POST in each of two
+separately authorized installed-wheel attempts. Both responses had no decorated
+table or pagination span. The first stopped with `AttributeError`; the second
+stopped with `ParseError`. No successful native/apix/browser comparison, explicit
+empty lesson result, pagination or resume was established. A third reordered attempt
+stopped in agenda comparison before reaching lessons. Raw pages were discarded.
+
+An original commented-markup regression independently reproduces an attribute
+error in empty-marker discovery. Comments are now excluded from attribute reads;
+recognized records and empty pages keep their semantics, while unknown commented
+pages produce `ParseError`. This offline bug and fix do not prove the cause of the
+discarded first live failure or explain why the live lesson layout was absent.
 
 The original parser/service tests own visible fields, pagination integrity, exact
 forms, four-login isolation/coalescing, page/batch cache distinction, maximum bounds,

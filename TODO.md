@@ -234,6 +234,8 @@ This is not completed 0.3.0 coverage.
   resumable batches; original parser/wire/lifecycle proof and installed artifacts.
 - [ ] Qualify live completed-lesson pagination, populated/empty pages and broader
   role/date/layout variants under fresh authorization. Cursors are not snapshots.
+  The combined follow-up stopped twice on first-page lesson responses and once in
+  agenda comparison; no live lesson layout or complete family rerun is qualified.
 - [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
   centralized non-replayed forms, nineteen-operation wire catalogue, original
   offline fixtures, and installed two-week runtime retrieval on one context.
@@ -249,8 +251,10 @@ This is not completed 0.3.0 coverage.
   original populated/empty/error fixtures, and installed-artifact proof per family.
 - [ ] Apply the apix business compatibility gate and separately authorized live
   qualification to each enabled family; do not expand routine drift traffic.
-- [ ] Record the behaviour-note capability decision. Implement only with
-  independently sourced populated evidence; otherwise retain explicit limitations.
+- [x] Record the behaviour-note capability decision: public support deferred,
+  default off until independently observed populated semantics exist. The internal
+  ordinary GET probe is offline-tested, not a public capability or live evidence.
+  See contracts/behaviour-notes.md; consumer migration still needs gap acceptance.
 
 Consumer migration remains a separately authorized task, not an implicit adapter
 deliverable in this release.
