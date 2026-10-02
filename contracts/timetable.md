@@ -1,8 +1,6 @@
-# Timetable business contract: 0.3.0.dev0
+# Timetable (0.3.0)
 
-This local development increment provides explicit civil-week timetable reads.
-It is not completed 0.3.0 school coverage or a consumer migration. Discovery and
-installed evidence are recorded separately in VERIFICATION.md.
+Explicit civil-week timetable reads. Live evidence is in VERIFICATION.md.
 
 ## Requirements and provenance
 
@@ -17,8 +15,12 @@ attributes, seven-day grid, repeated slot ID, period/recess row shapes, populate
 lesson blocks, and change notices without tooltip metadata for two weeks.
 Focused baseline diagnosis established two numeric prefix markers around the
 time header. Mirrored values must agree; conflicting period markers fail.
-Multi-group entries and populated replacement tooltips remain source-informed
-offline contracts until independently observed in a completed runtime workload.
+Substitution notices ("zastępstwo") were observed on 2026-10-02 on two student
+contexts. Their tooltip anchor wraps the notice element, unlike the earlier
+fixtures, which put the anchor inside it. Both shapes are now supported. The
+tooltip fields, each label in bold, are Data, Nr lekcji, Klasa, Nauczyciel,
+Przedmiot, Sala, an optional Uwaga, and Data dodania. Multi-group entries remain
+source-informed.
 
 ## Business compatibility matrix
 
@@ -56,23 +58,14 @@ offline contracts until independently observed in a completed runtime workload.
 - The nineteenth OpenAPI operation documents the matching raw upstream HTML
   request/response, side effect, policy, provenance and evidence limits.
 
-## Qualification limits
+## Evidence
 
-The final installed native/apix pair completed two populated weeks and native
-cached-week reuse. Dates/times/numbers/recesses/subjects/notices match the legacy
-projection. Fresh same-response diagnostics classify combined teacher/classroom
-differences as 28 whitespace-only strings plus one baseline/rendered-text disagreement
-per week. Native agrees with normalized Chromium text in all 91 slots per week;
-no native teacher/classroom defect was observed. Preserve that output, not exact
-baseline strings. Three original lesson-boundary cases protect whitespace, line
-breaks, nonbreaking spaces and subject/teacher/room hyphens. An original synthetic
-replay separately demonstrates apix subject-hyphen contamination; the exact cause
-of its one live non-whitespace error is not established and must not be inferred.
-The resolved native-correctness gate is distinct from exact baseline parity.
-Browser checks used captured markup and inline styles only, disabled page scripts
-and blocked external requests, not a separate interactive login or full styled UI.
-Installed qualification status belongs to VERIFICATION.md. Alternative roles,
-multi-group/replacement metadata, wholly empty upstream weeks, changed cell order,
-locale/encoding variants and sustained load require separate evidence. Pure civil
-times are not UTC instants and cannot silently imply daylight-saving conversions.
-No consumer changes or PyPI publication are part of this increment.
+2026-10-02, installed 0.3.0 wheel, two student contexts: 91 slots per week,
+including class-absence notices and wrapped substitution notices. Lessons,
+notice labels and full notice tooltips match Chromium's rendering of the same
+bytes. Earlier: a two-week installed comparison on one context, where native
+teacher and classroom text matched Chromium in all 91 slots, while apix differed
+in whitespace and one string per week.
+
+Not yet observed: multi-group entries, wholly empty weeks, other roles and
+locales. Civil times are not UTC instants.

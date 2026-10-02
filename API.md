@@ -1,498 +1,202 @@
-# Public API: 0.3.0.dev0 school reads
+# Public API (0.3.0)
 
-The 0.1.0 delivery implements login, gateway identity, and HTML student
-information. The 0.2.0 scope is grades, averages, final summaries, views, and
-windows. The first 0.3 development increment adds attendance collections, upstream
-views, date windows, detail fields/notes, gateway records, and overall/subject
-frequency, plus explicit timetable weeks and announcements, not complete
-school-read coverage. Ordinary agenda/homework and their details are implemented,
-with partial installed agenda qualification and no populated homework live proof.
-Announcements have one populated installed comparison
-against same-response apix replay and Chromium text validation.
-Two-week installed timetable retrieval and Chromium text validation completed.
-Native teacher/classroom text matches rendered markup rather than reproducing
-apix whitespace and its observed incorrect string. Bounded attendance qualification
-has completed on one context; populated last-login and broader layouts remain
-unqualified. Bounded grade live qualification has
-passed for a narrow observed variant; general account compatibility is unverified.
-Reading school data requires separate authorization.
-Authentication can change the upstream last-login timestamp.
+Everything public is exported from `librus_python_api`; exceptions live in
+`librus_python_api.exceptions`. Results are frozen dataclasses. Their reprs omit
+personal fields. Serializing them for MCP or anything else is the consumer's job.
 
-## Ownership and typed results
-
-Module ownership is explicit: shared transport/wire/domain/diagnostic records live
-in `models.py`; settings and route policy in `config.py`; exception definitions and
-the factory in `exceptions.py`. Transport/parser/scheduler/service modules own
-behavior, with private worker and queue state beside their implementation.
+## Service and accounts
 
 ```python
-from librus_python_api import (
-    AccountCredentials,
-    LibrusService,
-    StudentInformation,
-)
+from librus_python_api import AccountCredentials, LibrusService
 
-
-async def profile(login: str, password: str) -> StudentInformation:
-    credentials = AccountCredentials(login=login, password=password)
-    async with LibrusService({"account": credentials}) as service:
-        return await service.account("account").student_information()
+async with LibrusService(
+    {"parent": AccountCredentials(login=..., password=...)}
+) as service:
+    identity = await service.account("parent").identity()
 ```
 
-Construction/import performs no network I/O, credential discovery, environment
-proxy lookup, or logging configuration. The service creates transports lazily,
-owns every account/session/parser worker, and is event-loop local. It must not
-be reused across loops. `aclose()` is idempotent and joins actual work, including
-when callers cancel repeatedly. Cleanup can outlast an operation deadline while
-bounded parser threads finish, because Python threads cannot be preempted.
+- Construction does no I/O and reads no environment variables. Transports are
+  created lazily. A service belongs to one event loop.
+- Use one service per process for all accounts, so every call shares one traffic
+  budget. Separate processes need their own coordination.
+- `AccountCredentials(login, password, expected_owner_id=None,
+  expected_student_id=None)`. The optional IDs are checked after login; a
+  mismatch, or an identity change inside a session, raises `AccessDeniedError`.
+- `aclose()` is idempotent and joins all owned work. Calls after closing raise
+  `ClosedError`.
+- `service.snapshot()` reports active, queued and dispatched requests.
 
-Use one long-lived service for all accounts/tools in a process. Every configured
-login has a distinct security context, even when parent/student logins represent
-the same student. Independent processes need external quota coordination.
-Optional `expected_owner_id` and `expected_student_id` on credentials verify the
-configured identity. A changed identity inside an established session is denied.
-Multi-child switching and persistent cookie import/export are unsupported.
+Every read accepts `budget: RequestBudget | None` and `max_age_seconds: float`
+(default `0.0`, at most `3600`).
 
-`AccountClient.identity()` returns frozen `Identity(owner, student, observation)`.
-`owner` is the login owner; `student` is the represented student, not the cache key.
-`student_information()` returns frozen `StudentInformation` with identity, name,
-class, register number, tutor, school, lucky number, and profile observation.
-IDs are bounded strings. Optional person names can be `None`; required profile
-fields cannot silently disappear. Observations include the login alias, aware UTC
-time, source operation, and session generation. Reprs omit personal fields.
+## Budgets, caching and coalescing
 
-Gateway User records may omit Id and supply the explicit Account.UserId reference.
-The owner remains Account.Id; missing or conflicting represented-user references
-fail instead of being inferred from names or owner identity.
+`RequestBudget(max_requests=32, timeout_seconds=120.0, max_response_bytes=4 MiB)`
+spans everything an operation does: queue wait, every login hop, redirects,
+recovery and every page. One budget may be shared by several calls, for example
+one summary across four logins. Requests are counted at dispatch and never
+refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError`.
 
-`LuckyNumber` explicitly distinguishes available from unavailable. Its `day` is
-`None` where the HTML marker supplies no evidenced civil date. Neither a missing
-number nor a missing date is replaced with zero or today's date. These records
-are library domain types, not MCP output schemas. Consumers serialize them
-explicitly rather than accidentally exposing all identity/provenance fields.
+- Fresh reads are the default. `max_age_seconds > 0` allows reuse from a
+  64-entry per-account result cache. A new login clears it.
+- Identical in-flight reads on one account share one request. Calls with
+  explicit budgets share only when they pass the same budget object. Cancelling
+  one waiter leaves others running; cancelling the last waiter cancels and joins
+  the work.
+- Window helpers (`grades_window`, `attendance_window`) filter the cached full
+  collection and add no requests.
 
-## Budgets, freshness, and coalescing
+## Configuration
 
-All account reads accept `budget: RequestBudget | None` and
-`max_age_seconds: float = 0.0`. A shared budget spans all selected account calls:
+- `SchedulerLimits`: 5 requests/second, burst 10, 2 active requests, 1 per
+  account, 32 queued (8 per account), 16 accounts, 32 concurrent operations
+  (8 per account). These are engineering defaults, not a published Librus quota.
+- `TransportLimits`: 30 s request and 10 s connect timeouts, 4 MiB bodies, 10
+  redirects, 128 cookies, 256 KiB parser input, 60 s cooldown (see Errors).
+- `OperationLimits`: the budget used when a call passes none.
+- `ConnectionSettings`: verified TLS context and explicit proxy only. Origins can
+  be overridden only with loopback addresses, for fixture servers.
+- `transport_factory`: an `AccountTransport` per login, owned and closed by the
+  service. It must honour the scheduler, budgets and destination checks.
+- `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
+  elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
+  `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
+  never affect results.
 
-```python
-import asyncio
-from librus_python_api import LibrusService, RequestBudget, StudentInformation
+All upstream routes and forms are fixed in `config.py` and documented in
+[contracts/upstream.openapi.yaml](contracts/upstream.openapi.yaml). There is no
+arbitrary-URL method.
 
+## Identity and profile
 
-async def profiles(
-    service: LibrusService, aliases: tuple[str, ...]
-) -> list[StudentInformation]:
-    budget = RequestBudget(max_requests=32, timeout_seconds=120.0)
-    return await asyncio.gather(
-        *(
-            service.account(alias).student_information(budget=budget)
-            for alias in aliases
-        )
-    )
-```
+- `identity()` returns `Identity(owner, student, observation)`. `owner` is the
+  login's own person; `student` is the represented student. The login already
+  reads it, so the first call costs no extra request.
+- `student_information()` returns `StudentInformation` with name, class, register
+  number, tutor, school and `lucky_number`. `LuckyNumber.availability` is
+  `UNAVAILABLE` when the page has none; no date is invented.
 
-Defaults: 32 requests, 120 seconds from budget construction including queue wait,
-and 4 MiB cumulative response bytes. Every actual dispatch consumes one request,
-including login steps, redirects, verification, and recovery. Failed dispatches
-are not refunded. Compressed responses conservatively charge both wire and
-inflated bytes; identity-encoded bodies are charged once. Limits stop new work
-with `LimitError`; no partial identity record is fabricated.
+Each result carries an `Observation(account, observed_at, session_generation,
+source)` with an aware UTC timestamp.
 
-Fresh reads are the default. An explicit age from zero through 3600 seconds allows
-reuse through a bounded 64-entry account result cache (fixed collections, numeric
-details, and subject-frequency selections). HTML date windows add no cache entry.
-Session invalidation clears results and the separate 256-entry lesson/subject
-metadata cache.
-TTL is checked against monotonic elapsed time at every read; older values are
-replaced on the next fetch. Cache hits still respect deadlines and cooldowns.
-Identical in-flight default-budget reads share work. Explicit-budget reads share
-only when the budget object is identical. One canceled waiter does not cancel
-other waiters; cancellation of the last waiter cancels and joins owned work.
-Global/per-account operation admission also bounds coalesced waiters and tasks
-waiting for an account's session lock. Session-changing operations are serialized.
+## Grades
 
-## Configuration and injection
+- `final_grades()` returns `FinalGrades` with one `SubjectGradeSummary` per
+  subject: `midterm`, `predicted_annual` and `annual`, each a
+  `GradeSummaryValue(availability, raw)`. Raw school text is kept as is.
+  `UNAVAILABLE` means the column is absent.
+- `grades(view=GradeView.ALL)` returns `Grades(identity, records, observation,
+  view)`. Selecting a view (`ALL`, `WEEK`, `LAST_LOGIN`) is one POST that changes
+  the filter shown in that login's session; it is never replayed. `records` has:
+  - `numeric`: `NumericGrade` with subject, raw symbol, civil `day`, semester,
+    `kind` (`GradeKind`), and the optional count flag, weight, category, teacher,
+    comment and tooltip `metadata`. Unknown weight or count is `None`, not zero.
+  - `descriptive`: `DescriptiveGrade`, including publications (`PUBLICATION`).
+  - `descriptive_summaries`: undated semester text, never in date windows.
+  - `averages`: `SchoolAverage` as school-provided text. Nothing is computed.
+- `grades_window(start, end)` filters the `ALL` collection to an inclusive window
+  of at most 366 days.
 
-- `SchedulerLimits`: five requests/second, shared burst ten, two active requests
-  globally, one per account, 32 queued globally/eight per account, 16 accounts, 32 operation
-  callers globally/eight per account. These are not Librus-approved quotas.
-- `TransportLimits`: 30-second total request and 10-second connect timeout,
-  4 MiB response bodies, ten redirect hops per chain, 128 cookies, 256 KiB parser
-  input, and 60-second cooldown. JSON nesting and HTML depth are capped at 32;
-  HTML nodes at 8192. Two parser workers are shared by the service.
-- `OperationLimits`: default policy for calls without a supplied budget.
-- `ConnectionSettings`: explicit verified TLS context and optional `SecretStr`
-  proxy URL. Automatic environment proxy discovery is disabled. Approved live
-  origins cannot be expanded; loopback overrides support fixture servers. Use
-  `localhost` for fixture cookie jars. Caller-owned SSL contexts are trusted
-  configuration and must not be weakened/mutated after validation.
-- `transport_factory`: an explicit typed `TransportFactory` creating a distinct
-  `AccountTransport` per login. Service ownership includes closure. Shared object
-  instances are rejected. Custom implementations must honor scheduler, budgets,
-  destination validation, isolation, and joined cancellation; Python code that
-  intentionally bypasses the boundary is outside the guarantee.
+The observation card ("Karta spostrzeżeń") shown on some grades pages is not
+read yet.
 
-Fixed routes, origins, authentication policies, and semantic profile labels live
-in `config.py`. No public arbitrary authenticated URL method exists. The
-[OpenAPI YAML](contracts/upstream.openapi.yaml) documents twenty enabled wire
-operations, including the summary GET and explicit grade/attendance-view POSTs.
-These include raw
-HTML, forms, origins, side effects, and evidence gaps.
+## Attendance
 
-## Final-grade summaries
+- `attendance(view=AttendanceView.ALL)` returns `Attendance` with
+  `AttendanceRecord`s (symbol, day, semester, type, teacher, period, excursion
+  flag, topic, subject, numeric `detail_id`, tooltip metadata) and the semesters
+  shown. The view POST is never replayed.
+- `attendance_window(start, end)` filters the `ALL` collection (at most 366 days).
+- `attendance_detail(detail_id)` takes a numeric string and returns ordered
+  `fields` and `notes`.
+- `gateway_attendance()` returns the JSON records with a strict `AttendanceKind`
+  per stable type ID; unknown IDs stay `UNKNOWN`.
+- `attendance_frequency()` returns per-semester and overall `FrequencyMeasure`
+  (attended, total, excluded and unknown counts, plus `ratio` in 0..1 or `None`).
+  Unknown types or an empty denominator give `ratio=None`, never 100 %.
+- `subject_frequency(start=None, end=None)` resolves lessons to subjects through
+  a 256-entry, one-hour metadata cache and returns one measure per subject ID.
 
-`await account.final_grades(budget=budget, max_age_seconds=0)` returns immutable
-`FinalGrades(identity, items, observation)`. Each `SubjectGradeSummary` has
-`subject`, `midterm`, `predicted_annual`, and `annual`. Each value is a
-`GradeSummaryValue(availability, raw)`:
+## Timetable
 
-- `AVAILABLE` preserves rendered text, including empty strings, `-`, grade
-  symbols, and descriptive labels. It does not assert that a grade is assigned.
-- `UNAVAILABLE` means the optional column is absent and has `raw=None`.
-
-The annual column is required. Missing/ambiguous tables or malformed subjects
-are parse errors, not partial collections. Bounds are 128 subjects, 64 expanded
-columns, and 1024 characters per value, in addition to the shared parser/budget
-bounds. The read makes one GET after authentication; it does not change grade
-filters or fetch individual-grade details. It reuses the same session, cache,
-coalescing, and bounded expiry-recovery policies as identity/profile reads.
-See [the grade summary contract/provenance](contracts/grades.md).
-
-## Individual grades, school averages, and date windows
-
-`await account.grades(view=GradeView.ALL)` returns immutable
-`Grades(identity, records, observation, view)`. `GradeView` is a strict enum with
-`ALL`, `WEEK`, and `LAST_LOGIN`. The last two are upstream selections, not locally
-computed dates or an inferred login timestamp. Each view has a separate cache and
-coalescing key; sessions and the scheduler remain shared within the account/service.
-`GradeRecords` contains tuples `numeric`, `descriptive`, `descriptive_summaries`,
-and `averages`:
-
-- `NumericGrade`: subject, raw symbol, civil `day`, semester (1/2), optional
-  count/weight/category/teacher/comment, inert upstream href, and preserved
-  tooltip metadata. `GradeKind` distinguishes current, period, annual, and their
-  explicit predicted kinds;
-  annual marks have semester zero. Only explicitly dated marks become records.
-  Grade symbols are not converted to numbers. Missing count
-  and weight are `None`, not false/zero. Explicit integer weights include zero.
-- `DescriptiveGrade`: subject, raw text, civil day, semester, optional teacher/
-  comment, metadata, kind, and an optional inert href. Descriptive-only rows and
-  linkless/nested entries are supported under their bounded row contract. Script
-  links are removed. Publication blocks preserve paragraphs, teacher, and civil
-  date; their kind is `PUBLICATION`. Multiple blocks are retained. Semester is
-  `None` if the title does not explicitly establish a period, never guessed as one.
-- `DescriptiveGradeSummary`: subject, semester (1/2), and undated plain text.
-  These summaries are preserved separately and never included in date windows.
-  A subject may have both numeric and descriptive families without duplicate averages.
-- `SchoolAverage`: subject, semester (1/2, or 0 for annual), and a
-  `GradeSummaryValue`. School text, empty strings, and unassigned markers are
-  preserved. Absent columns are unavailable; no average is calculated locally.
-
-Each fresh read sends one fixed-form POST selecting the requested view. This changes
-the view filter, not school records. It is never automatically replayed, even on
-proven expiry. Expiry clears session/cache state and applies the usual cooldown;
-a later explicit call may authenticate again. A cache hit makes no POST.
-Inline metadata needs no per-grade detail traffic and has the collection's
-account/session-scoped freshness. Hrefs are data only, never approved destinations.
-
-`await account.grades_window(start, end, max_age_seconds=60)` always uses `ALL`, validates plain
-`datetime.date` inputs before I/O and filters that same collection. Both endpoints
-are inclusive, with at most 366 civil days. It returns `GradeWindow` with numeric
-and descriptive tuples and the original collection observation; averages are
-not dated rows. There is no per-window cache or extra request. Ordering follows
-the upstream subject/semester/entry order, not a global chronological sort.
-
-Unknown dated-grade layouts and malformed publications fail rather than silently
-returning a partial collection. Source-informed fixture support is not populated
-live qualification. Actual account/layout coverage is recorded in `contracts/grades.md`
-and VERIFICATION.md for observed versus offline-only coverage.
-
-## Attendance collections and windows
-
-`await account.attendance(view=AttendanceView.ALL)` returns immutable
-`Attendance(identity, items, semesters, observation, view)`. The enum permits
-`ALL`, `WEEK`, and `LAST_LOGIN`, using fixed upstream forms distinct from grade
-forms. Each view has an independent account/session cache and coalescing key.
-One fresh read makes one non-replayed selection POST after authentication;
-an explicitly permitted cache hit makes no POST.
-
-Each `AttendanceRecord` preserves the raw `symbol`, civil `day`, explicitly
-labelled semester (1/2), optional raw `attendance_type`, `teacher`, integer
-`period`, boolean `excursion`, `topic`, `subject`, inert numeric `detail_id`,
-and tooltip `metadata`. Missing fields remain `None`, not false/zero. Unknown
-types are retained without fabricated presence classifications. `semesters`
-lists the displayed explicit sections in upstream order, including empty ones.
-Reversed sections and a single second-semester section do not change their meaning.
-
-`await account.attendance_window(start, end, max_age_seconds=60)` validates plain
-`datetime.date` inputs and at most 366 inclusive civil days before I/O, then
-filters the ALL collection. `AttendanceWindow` retains identity and the original
-observation with ordered matching items. It adds no window cache or detail traffic.
-Invalid/ambiguous layouts fail instead of returning partial or invented empty data.
-
-`await account.attendance_detail(detail_id)` accepts a bounded numeric string,
-never a URL. `AttendanceDetail` contains identity, ID, ordered label/value `fields`,
-separate full-width `notes`, and observation. Word boundaries and empty values are
-preserved; labels have trailing colons removed. Malformed fields fail, not partial
-maps. Bounds: 32 fields/notes and 1024 characters per rendered value.
-
-`await account.gateway_attendance()` returns `GatewayAttendance` with typed records:
-optional record ID, civil date, semester 1/2, raw type ID, strict `AttendanceKind`,
-lesson ID, and optional period. Unknown IDs stay `UNKNOWN`. This separate JSON
-source, not HTML symbols or labels, supplies frequency calculations.
-
-`await account.attendance_frequency()` returns `AttendanceFrequency` with first/
-second-semester and overall `FrequencyMeasure` values. Its explicit `overall`
-policy counts present, late, and excursion over all records. Measures expose
-attended/total/excluded/unknown counts and an unrounded `ratio` in 0..1. Unknown
-types or zero denominator yield `ratio=None`, intentionally different from apix's
-zero-denominator full-attendance marker.
-
-`await account.subject_frequency(start=None, end=None)` returns `SubjectFrequencies`
-with ordered, ID-bearing items. Civil-date bounds filter records before metadata
-resolution; two supplied bounds permit at most 366 inclusive days. Its `subject`
-policy counts present/late over present/late/absence/excused/exemption, excludes
-known other kinds, and never invents a ratio for unknown types or zero denominator.
-Consumers convert ratios to percentages and round explicitly. Distinct subject
-IDs are never merged by name.
-
-Numeric lesson/subject lookups use the same isolated session and shared scheduler,
-with response-ID matching, deduplication, and a 256-entry metadata cache with a
-one-hour TTL. Session changes invalidate it. Fresh records are still fetched when
-metadata is warm. Workloads permit at most 256 unique lessons/subjects; original
-request/deadline budgets can reject a large selection without partial success.
-
-Installed qualification completed populated collections, detail fields, overall
-frequency, and one-day subject frequency on one context. Last-login equality was
-empty coverage only. The comparison applied declared legacy defaults and
-zero-denominator markers without changing native domain results. See
-[the business/provenance matrix](contracts/attendance.md) for intentional baseline
-differences, consumer mapping responsibilities, bounds, and remaining gates.
-
-## Timetable weeks
-
-`await account.timetable(monday, max_age_seconds=0, budget=None)` requires a plain
-`datetime.date` Monday with a representable Sunday. It returns immutable
-`Timetable(identity, monday, days, observation)`. No current-week, locale weekday,
-or timezone is inferred: the consumer owns default-week selection and rendering.
-
-There are seven `TimetableDay` values with explicit civil dates. Each includes
-ordered `TimetablePeriod` values with numeric period, typed local `interval`,
-distinct `TimetableLesson` entries, ordered `TimetableChange` notices, and optional
-`next_recess`. Empty slots are retained; a valid all-empty grid is not a missing
-grid. Missing/ambiguous grids and unconsumed content fail, not partial success.
-
-Lessons preserve the bold subject and optional combined teacher/classroom text,
-normalizing rendered word boundaries/whitespace, not guessing teacher or room
-identities. Grouped lessons remain separate rather than joining with slashes.
-Notices preserve labels and optional complete ordered tooltip metadata, including
-unknown keys. No cancellation/substitution status is inferred from notice text;
-no scripts or notice links execute and no detail requests are made.
-
-`TimetableInterval` contains local `datetime.time` starts/ends. Lesson intervals
-are ordered and periods cannot overlap. A next-recess clock pair is preserved
-as reported, including equal or inverted clocks; it does not promise a positive
-duration or constrain the next lesson. These are civil clocks, not UTC instants.
-
-The exact `tydzien` Monday-through-Sunday form and route are centralized. Selection
-is a `select_view` POST and never automatically replayed, including session expiry.
-Cache/coalescing keys include Monday and login/session identity. The existing
-64-entry result cache, explicit freshness, shared traffic budgets, admission and
-joined cancellation apply. Inputs/forms validate before dispatch or credentials.
-
-Parser bounds: 32 periods, seven unique dates per row, 16 lessons and 16 notices
-per slot, 1024 rendered characters per field, 32 tooltip fields and 8192 raw
-tooltip characters, plus common tree/body limits. Named date/time attributes are
-read independent of insertion order. One/two equal numeric prefix markers are
-permitted; conflicting numbers fail. Only the exact repeated timetableEntryBox
-ID parser error is allowed for this parser; unrelated duplicate IDs still fail.
-
-One installed native/apix pair completed both populated weeks with equal date,
-time, number, recess, subject, weekday and change-notice projections. Combined
-teacher/classroom text differed in 29 periods per week. Subsequent same-response
-comparison in Chromium established 28 whitespace-only differences and one apix
-string inconsistent with rendered markup per week. Native matches all 91 slots
-after rendered-whitespace normalization. Preserve native text rather than
-reproduce the baseline discrepancy. Exact apix string parity is deliberately not
-the correctness criterion. The precise baseline transformation responsible for
-its one non-whitespace error is not established; subject-hyphen splitting is a
-separately reproduced baseline defect, not a proven cause of that live error.
-No consumer cutover is implied. See [the contract](contracts/timetable.md) and
-VERIFICATION.md for browser limitations and qualification scope.
+`timetable(monday)` takes a `date` that is a Monday and returns `Timetable` with
+seven `TimetableDay`s. Each `TimetablePeriod` has a number, a local-time
+`interval`, its `lessons` (subject and the combined teacher/classroom text),
+`changes` and the reported `next_recess`. A `TimetableChange` keeps the notice
+label (for example "zastępstwo") and its tooltip fields in order. The tooltip
+anchor may wrap the notice or sit inside it. No status is inferred from the
+label. The week selection is a POST that is never replayed.
 
 ## Announcements
 
-`await account.announcements(budget=None, max_age_seconds=0)` returns
-`Announcements(identity, items, observation)` through one fixed ordinary GET.
-It does not mark notices read, consume agenda events, follow notice links or fetch
-attachments. The existing bounded shared scheduler, isolated account lifecycle,
-cache/coalescing, parser workers and joined cancellation apply. Fresh reads are
-the default; explicit cache reuse makes no upstream request. Proven expiry can
-recover once within the original budget; denial, parse, throttle and maintenance
-errors are not an unbounded retry policy.
+`announcements()` returns `Announcement`s with title, author, raw `date_text`,
+typed `published_on`, full plain-text `content` and a `reference`. The page has
+no upstream ID, so `reference` is a SHA-256 fingerprint of the content scoped to
+the login. It stays stable across reordering and changes when the text changes.
+Nothing is marked as read.
 
-Each immutable `Announcement` has a complete title/author, original `date_text`,
-typed civil `published_on`, full plain `content`, and `reference`. Paragraph,
-list and BR boundaries become newlines; source whitespace is normalized while
-inline word joins are preserved. No inferred timezone or publication time.
-Missing required fields, unsupported date formats or malformed layout fail;
-an empty content field is not a missing collection. Recognized explicit empty
-markup returns zero items, not a fabricated notice or unavailable marker.
+## Agenda
 
-The HTML exposes no upstream ID on the qualified profile. References are
-versioned, length-framed SHA-256 content fingerprints scoped by configured alias.
-Unchanged canonical fields retain the reference across page/row reordering and
-session renewal; edits and alias changes alter it. Identical copies share a
-reference and remain separate entries. These are not upstream IDs, URLs, access
-tokens or arbitrary-detail capabilities. Keep login identity with references;
-do not merge independent security contexts using reference equality.
+- `agenda(year, month)` returns every civil day of the month with its
+  `AgendaEvent`s: full `text`, `title`, optional `subject`, `lesson_number` or
+  `at_time` when present, the complete tooltip as `metadata_text`, labelled
+  `metadata` and unlabelled `metadata_notes`. A multi-line description continues
+  the `Opis` field until the next known label.
+- `agenda_detail(reference)` takes the `SchoolReference` from an event of the
+  same login and returns `SchoolDetail(title, fields, notes)` with labels as
+  shown.
 
-Bounds: 256 items, 1024 title/author/date characters, 65536 content characters per
-item, 262144 total rendered characters, and existing common body/tree/depth and
-request/deadline/admission limits. Limits reject the collection, never truncate.
-One observed populated installed read and same-response apix/Chromium checks
-agree on all seven notices after whitespace normalization. Empty variants,
-reordered labels, richer content and broader roles have only offline proof or
-remain unqualified. Consumer legacy `description`/date string mapping is separate.
-See [the contract](contracts/announcements.md) and VERIFICATION.md.
+## Homework
 
-## Ordinary agenda and homework
-
-`await account.agenda(year, month)` requires explicit integers (2001..2100, 1..12)
-and returns `Agenda(identity, year, month, days, observation)`. Every civil day is
-retained, including empty days. Events preserve full multiline `text`, `title`,
-explicit span `subject` or `None`, recognized `lesson_number`/`at_time` or `None`,
-complete ordered `metadata_text`, label/value `metadata`, unlabelled
-`metadata_notes` and an optional account-bound `SchoolReference`.
-
-`await account.homework(start, end)` requires ordered plain `datetime.date` values
-with at most 371 inclusive civil days. No current-date default is inferred. It
-returns `Homework(identity, start, end, items, observation)` through one fixed
-all-subject/all-status selection. Each `HomeworkItem` contains lesson, teacher,
-subject, category, assigned/due `SchoolDateTime`, extra rendered columns and an
-optional reference. Raw strings accompany typed civil values; blank/`-` stays
-unavailable. No timezone, status or due-date ordering is guessed.
-
-`agenda_detail(reference)` and `homework_detail(reference)` accept the matching
-`SchoolReference` from that account, not arbitrary URLs or prefix/suffix strings.
-They return `SchoolDetail(identity, reference, title, fields, notes, observation)`
-with complete multiline values, original labels including colons, empty fields,
-optional heading and ancillary notes. Unknown labels remain available.
-
-```python
-from librus_python_api import AccountClient, SchoolDetail
-
-
-async def first_event_detail(account: AccountClient) -> SchoolDetail | None:
-    agenda = await account.agenda(2026, 10)
-    for day in agenda.days:
-        for event in day.events:
-            if event.reference is not None:
-                return await account.agenda_detail(event.reference)
-    return None
-```
-
-All four APIs accept `budget` and `max_age_seconds`. Cache keys include selection/
-reference and login context; there is no implicit detail fan-out. Selection POSTs
-never replay. Detail GETs retain single proven-expiry recovery within the original
-budget. References are inert typed data, not globally shared IDs or access tokens.
-Wrong-account/kind and nonnumeric references fail before authentication/dispatch.
-Recent/read-once events, submissions, downloads, consumer serialization and durable
-notification storage are excluded.
-
-Bounds and partial installed qualification are recorded in
-[the contract](contracts/school-reads.md). Populated homework, installed detail/
-homework live paths and a complete current-build live-family rerun remain pending.
-Original synthetic comparisons against external apix exercise all four APIs on
-installed artifacts, including populated homework/details. They establish offline
-business compatibility and classified departures, not live layout qualification.
+- `homework(start, end)` accepts an inclusive window of at most one calendar
+  month (for example 1 Sep to 1 Oct, or 31 Jan to 28 Feb). Upstream rejects
+  longer windows, so the library refuses them before any request. Each
+  `HomeworkItem` has `subject`, `teacher`, `topic`, `category`, `assigned_on`,
+  `due_on`, the raw `submission_status` (`None` when the school has no such
+  column), `marked_done_at` and a `reference`. Columns are mapped by their
+  header. Each date is checked against the weekday shown beside it.
+- `homework_detail(reference)` returns `SchoolDetail`. The web page pairs
+  opening a detail with a separate "mark as read" call; the library never makes
+  that call.
 
 ## Completed lessons
 
-`await account.completed_lessons_page(start, end, page=0)` returns
-`CompletedLessonsPage(identity, start, end, page, page_count, items, fingerprint,
-observation)`. The page is zero-based; `page_count` is a count, not a last-page
-index. Parse rows and pagination from one response; no separate count request.
+- `completed_lessons_page(start, end, page=0)` returns one zero-based page with
+  `page_count`, typed `CompletedLesson`s and a content `fingerprint`.
+- `completed_lessons(start, end, cursor=None, max_pages=4, limit=128)` reads up to
+  8 pages and 256 rows and returns a `next_cursor` (or `None` when finished).
+  Resume with the cursor, the same login and the same dates. A resumed page must
+  match its fingerprint; page-count drift or a repeated page raises `ParseError`.
+  Cursors are not snapshots.
 
-`await account.completed_lessons(start, end, cursor=None, max_pages=4, limit=128)`
-returns `CompletedLessons(identity, start, end, items, pages_fetched, next_cursor,
-observation)`. The explicit inclusive civil window spans at most 371 days.
-Limits are 1..8 fetched pages and 1..256 returned rows. Both APIs accept `budget`
-and `max_age_seconds`, defaulting to fresh retrieval. Selection POSTs never replay.
-The entire batch shares one account admission/lock and original request/deadline/
-body budget. Mid-batch errors fail the operation rather than return partial rows.
+Windows span at most 371 days. Where the school has disabled the view, both
+calls raise `ViewDisabledError`.
 
-`CompletedLesson` preserves raw/typed date and lesson number, weekday, combined
-subject/teacher text, subject, optional teacher, multiline topic, opaque Z value,
-attendance symbol and an optional fixed-namespace attendance detail ID. No teacher
-is fabricated when only a subject is present. Attendance detail retrieval is an
-explicit separate call on that same account, not automatic fan-out.
+## Errors
 
-```python
-from datetime import date
-from librus_python_api import AccountClient, CompletedLessons
+All errors subclass `LibrusError`. Each carries a closed `kind` and no upstream
+text. `error_for(kind)` builds one.
 
+| Error | Meaning |
+| --- | --- |
+| `InvalidInputError` | Rejected before any request, or upstream rejected the selection |
+| `CredentialsRejectedError` | Login and password refused |
+| `AccountActionRequiredError` | CAPTCHA, 2FA or another interactive step is required |
+| `SessionExpiredError` | Proven expiry that could not be recovered |
+| `AccessDeniedError` | Denied, or an unexpected redirect or identity |
+| `ViewDisabledError` | The school administrator disabled this view |
+| `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
+| `ParseError` | The page or JSON does not match the expected structure |
+| `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses |
+| `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
+| `LimitError` | A request, byte, item or queue bound was reached |
+| `ClosedError` | The service is closed |
 
-async def first_lesson_batch(account: AccountClient) -> CompletedLessons:
-    return await account.completed_lessons(
-        date(2026, 10, 1), date(2026, 10, 31), max_pages=2, limit=32
-    )
-```
+Recovery policy:
 
-Resume with `cursor=batch.next_cursor` and the same account/dates. `None` means
-completion. A mid-page cursor verifies re-fetched domain rows; a page-boundary cursor
-rejects immediate repeated pages. Count drift, wrong/clamped pages and repeats
-inside a batch fail with `ParseError`. This is not an upstream snapshot or stable
-sync watermark: insertions/reordering at already-consumed page boundaries are not
-fully detectable. Do not alter cursor fields to bypass drift errors.
-
-Live layouts and account roles remain unqualified. See
-[the contract](contracts/completed-lessons.md) for bounds and limitations.
-
-## Exceptions, retries, and diagnostics
-
-Catch specific classes from `librus_python_api.exceptions`, or their `LibrusError`
-base. `error_for(ErrorKind)` is the central redacted factory. The foundation
-`LibrusError(kind)` constructor uses the same registry. Kinds and messages never
-contain arbitrary response data, secrets, account aliases, or URLs.
-
-Enabled outcomes include `InvalidInputError`, `CredentialsRejectedError`,
-`AccountActionRequiredError`, `SessionExpiredError`, `AccessDeniedError`,
-`ThrottledError`, `MaintenanceError`, `ConnectionError`, `OperationTimeoutError`,
-`LimitError`, `ParseError`, `UnsupportedCapabilityError`, and `ClosedError`.
-Interactive CAPTCHA/2FA is unsupported and reported as required account action.
-Required-schema failures are parse errors, not empty success or source fallback.
-
-Tenacity permits at most two safe-read attempts for proven session expiry only.
-The initial login is outside retries. Recovery uses at most one fresh login and
-the original budget/deadline. 401 and exact approved login redirects establish
-expiry; arbitrary HTML/redirects do not. Denials, connection ambiguity, parser
-failures, throttles, and maintenance are not replayed. Failed authentication and
-denied operations and expiry persisting after recovery have scoped cooldowns.
-429/503 and Retry-After pause the shared
-scheduler without accumulating a resumed burst; server intervals are capped at
-24 hours to prevent untrusted timer overflow.
-
-Pass `diagnostic_sink=loguru_sink` from `librus_python_api.diagnostics` to opt in.
-The application owns Loguru sinks/pretty formatting/JSON serialization. Typed
-`DiagnosticEvent` contains operation, outcome, elapsed seconds, and labelled
-budget totals. Shared-budget totals can include other concurrent account work
-and must not be summed as per-operation traffic. Sink exceptions cannot change
-the retrieval outcome. No credentials, aliases, identities, URLs, response bodies,
-or exception objects are passed to the sink.
-
-## Consumer experiment and limitations
-
-The opt-in [consumer adapter PR](https://github.com/krzysztofbury/librus-mcp/pull/38)
-retains the 24-tool catalogue and legacy profile serialization. Its launcher owns
-the service; the production CLI/dependency selection remains unchanged. Missing
-lucky-number data fails explicitly until a legacy unavailable marker is evidenced.
-No native failure is replayed through the legacy backend.
-
-Other callback/account variants, profile layouts, summary variants and encodings
-remain unverified. Populated grade variants, broader attendance compatibility,
-GPA, remaining academic reads, and messaging/event operations,
-daily credentialed CI, PyPI, macOS/Windows qualification, and production backend
-migration are not part of this completed Linux local-first delivery.
+- Only a 401, or a redirect to an approved login route, proves expiry.
+- Safe GET reads then log in once more and retry once, within the same budget.
+- View-selection POSTs are never replayed.
+- A denial or unrecovered expiry starts a 60-second cooldown for that operation
+  on that login; a failed login starts one for the whole login.
+- 429 and 503 pause the whole scheduler, honouring `Retry-After` up to 24 hours.

@@ -1,4 +1,4 @@
-# Attendance business contract: 0.3.0.dev0
+# Attendance (0.3.0)
 
 This 0.3 development increment enables attendance collections/views/windows,
 numeric detail reads with fields/notes, gateway records, overall/semester ratios,

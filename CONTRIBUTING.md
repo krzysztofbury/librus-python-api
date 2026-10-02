@@ -1,332 +1,132 @@
 # Contributing to librus-python-api
 
-Thanks for your interest in contributing. This project is starting from an
-independent implementation rather than modifying or redistributing upstream
-`librus-apix` code.
+## Ground rules
 
-## Before contributing
+- Write original code, tests and fixtures. Do not copy source, tests, docs or
+  HTML from `librus-apix` or other projects. They are references for behaviour
+  only.
+- Never commit credentials, cookies, tokens, raw captured pages, or identifiable
+  student, teacher or school data. This is a public repository: content is in
+  English and fixtures are synthetic.
+- Ordinary tests and pull-request CI never contact Librus. Live access needs the
+  owner's explicit authorization (see [Live verification](#live-verification)).
+- Never send messages, consume read-once events or mark anything as read during
+  verification.
 
-- Open an issue to discuss a new public API or significant behavior change.
-- Write original code and tests. Do not submit copied third-party source,
-  tests, documentation, or HTML fixtures unless its provenance and license
-  have been reviewed for this MIT-licensed repository.
-- Never commit credentials, cookies, access tokens, school identifiers, or
-  identifiable student, teacher, or message data. Author synthetic fixtures from
-  independently established structural requirements; never commit raw captures.
-- Keep ordinary tests and pull-request CI offline. A separate owner-configured
-  daily/manual workflow may use real credentials for bounded login/read checks,
-  following [the live CI roadmap](TODO.md#p6-live---daily-credentialed-compatibility-check).
-  Never use real Librus for load tests, sends, or read-once verification.
-
-## Development workflow
-
-### Install commit checks
-
-Install the hooks once per clone before making commits:
+## Setup
 
 ```sh
+uv sync --locked
 uv tool install pre-commit==4.6.2
-pre-commit install --install-hooks
+pre-commit install --install-hooks   # needs Go for the Gitleaks hook
 ```
 
-The pinned Gitleaks hook builds with Go; install Go before initializing hook
-environments. Hooks block common credential/session files even when force-added,
-detect private keys and hardcoded secrets, check basic file hygiene, and reject
-commits directly to `main` or `master`. Use a feature branch for changes.
-The Gitleaks configuration extends its standard rules with literal-password
-checks, including short values and punctuation that token heuristics can miss.
+Hooks block credential and session files, private keys and hardcoded secrets,
+check file hygiene, and refuse commits to `main`. Manual scans:
 
 ```sh
-pre-commit run --all-files
 pre-commit run gitleaks-worktree --hook-stage manual
 pre-commit run gitleaks-history --hook-stage manual
 ```
 
-The normal Gitleaks hook scans staged changes, including when invoked with
-`--all-files`. The manual worktree command also checks untracked working files;
-the history command scans the locally available Git history. Scanner findings
-are redacted. Fix findings instead of creating a blanket secrets baseline.
-
-Keep real credentials and raw captures outside the checkout. `.env.example`
-may contain placeholders only. Automated detection cannot identify all personal
-school data or every password: independently anonymize fixtures and review the
-staged diff. Git hooks are local checks; each clone must install them.
-
-### Optional offline apix comparison
-
-Use an external, separately provenance-reviewed apix 1.5.3 installation. Do not
-copy its source or fixtures into this MIT repository, install it as a runtime
-dependency, or turn these synthetic comparisons into live qualification claims.
+## Checks
 
 ```sh
-LIBRUS_APIX_SITE_PACKAGES=/path/to/external/site-packages \
-  uv run --locked pytest tests/integration/test_school_reads_apix.py \
-    tests/integration/test_completed_lessons_apix.py -m integration
-```
-
-The tests feed original synthetic responses to unmodified business functions,
-verify installed source hashes, block non-loopback sockets/DNS, and exercise native
-public collection/detail reads on loopback. They require no real credentials and
-make no school requests. Default pytest deselects them; absent external configuration
-skips an explicitly selected comparison. Common-field parity, native additions,
-baseline defects and integrity-policy differences are separately asserted. Current
-results and limitations are in contracts/school-reads.md,
-contracts/completed-lessons.md and VERIFICATION.md.
-
-### Optional school-read harness preflight
-
-`scripts/qualify_school_reads.py` is a manual development utility, included in the
-sdist for reproducibility but not installed in the library wheel or invoked by CI.
-It is not a daily credentialed workflow. Before spending a fresh live scope, test
-its complete HTTP/rendered path using original loopback data:
-
-```sh
-LIBRUS_APIX_SITE_PACKAGES=/path/to/external/site-packages \
-  python -m pytest tests/integration/test_qualification_harness.py -m integration
-```
-
-Use an environment with the library, test dependencies, external apix 1.5.3,
-Playwright 1.58.0 and `/usr/bin/chromium`. School page scripts, service workers and
-external requests are blocked; browser automation evaluates independent DOM
-projections. This checks synthetic rendering, not the styled live school UI.
-
-Manual live execution requires a separately approved account, exact operations,
-windows, one-login scope and at most 24 requests. The harness currently has a fixed
-qualification plan; changing it requires both scope review and another offline
-preflight. The `--authorized` flag records operator intent, not permission by itself.
-Use an installed wheel outside the checkout, keep the private credential file
-outside Git with owner-only permissions, and allocate a new report path exclusively
-for that approved attempt. An unsuccessful run exits nonzero and cannot replay an
-existing report marker. Budget left after a stop never authorizes another login.
-
-Only allowlisted structure/reason counters and owning-code locations may be retained.
-Do not print raw exceptions or use private captures as fixtures. Apix differences
-are reported separately from native/browser agreement; unresolved counters are not
-parity evidence. Current live gates and the note-capability decision are recorded
-in VERIFICATION.md and contracts/behaviour-notes.md.
-
-### Evidence and live compatibility
-
-Passing synthetic tests establishes behavior against those fixtures, not that
-the assumed upstream contract exists. Self-review is not independent approval.
-Apply this checklist to each enabled operation family:
-
-1. Label evidence as source-informed, offline-tested, observed live, or still
-   unqualified. Offline development commits are valid checkpoints, not evidence
-   that the integration is live-compatible or ready for a production switch.
-2. Once explicitly authorized, qualify the smallest useful path early, before
-   expanding dependent features: install the built artifact outside the checkout,
-   authenticate, validate identity, and complete one allowed ordinary read with
-   independently checked output. If live access is unavailable, report the gate
-   as pending. Do not infer compatibility from tests, imports, or package builds.
-3. Agree account scope, exact operations, credential submissions, and total HTTP
-   budget before live work. Bound cumulative diagnostic traffic as well as each
-   run. Stop on failures; additional login/capture attempts require authorization
-   within the remaining budget. Do not bypass destination checks, silently fall
-   back to the old client, retry writes, or invoke read-once operations.
-4. Diagnose with allowlisted technical metadata and bounded in-memory replay.
-   Turn the established structural requirement into an original failing offline
-   regression before fixing it. Do not turn private responses into repo fixtures
-   or print live objects, assertion diffs, raw exceptions, or secret-file paths.
-   Credentials and school values must stay out of source, logs, and PR artifacts.
-5. Exercise the complete installed runtime path after the fix, not just its parser
-   or mocked transport. Record version/artifact, scope, request counts, result
-   parity, and the unsupported variants. An empty read is not populated coverage;
-   one successful account does not qualify all roles, layouts, or account types.
-6. Benchmark only completed equivalent operations. Record effective rate, burst,
-   concurrency, freshness, and import/pacing exclusions, separating cold and warm
-   runs and admission wait. Default-behavior comparisons with different traffic
-   policies are not matched-policy sustained-load comparisons. Traced Python
-   allocations are not whole-process RSS. Retain non-wins and historical settings;
-   rerun measurements after policy changes instead of relabeling old numbers.
-
-Keep ordinary CI offline. An authorized smoke complements deterministic offline
-failure/load tests; it does not justify uncontrolled school traffic or prove
-upstream capacity. See REVIEW.md for the failure analysis and TODO.md for pending
-qualification work. No credentialed release gate may silently pass without running.
-
-### Business compatibility gate
-
-For each feature family, treat the current librus-apix behavior as the business
-baseline, not as a source of code or copied fixtures. Review its public operation,
-current consumer expectations, and known edge flows before considering the family
-complete. Keep an explicit comparison in the family contract covering populated/
-empty results, scope and date semantics, grouping, corrections, descriptive data,
-missing values, filters, and side effects. Record every difference as an intentional
-library-contract choice, a consumer mapping responsibility, or an unresolved gap.
-Missing apix endpoints do not limit the library roadmap. Baseline defaults or bugs
-must not force fabricated data into the new domain model. Fixture parity and
-partial field parity cannot qualify unexercised business variants; performance
-claims must state the exact common outputs compared and any excluded differences.
-
-For authorized parser qualification, feed both implementations the same response
-bytes in memory whenever possible. Run the reference parser against an offline
-fixed-response client rather than fetching another school page or logging in
-again. This isolates parser differences from changing data and reduces traffic.
-Separate installed end-to-end evidence from offline reference replay; neither
-substitutes for the other.
-
-Before discarding private pages/results, classify every difference in memory:
-exact match, presentation-only normalization, deliberate domain/consumer mapping,
-factual disagreement, or unresolved. Retain only redacted counts and semantic
-categories, never raw values, captures, assertion diffs, or personal identifiers.
-When parsers disagree, independently check the rendered school content, not just
-the baseline's output. A network-disabled browser can render the same markup;
-state missing external styles/scripts and do not call that a full live UI check.
-Prefer correct rendered semantics over reproducing a reference-client bug.
-Capture enough safe causal diagnostics before closing the authorized session to
-avoid speculative fixes and unnecessary logins. If evidence remains insufficient,
-report the gap and obtain fresh authorization instead of replaying traffic.
-
-### Offline CI and package checks
-
-GitHub Actions runs `.github/workflows/ci.yml` on pull requests, pushes to `main`,
-and manual dispatch. Its quality job checks the lockfile, Ruff, formatting, strict
-mypy, repository hooks (including workflow lint), complete-history secret scanning,
-and known vulnerabilities in locked runtime and development dependencies.
-Python 3.13/3.14 Linux jobs run the portable suite from source, then rebuild and
-repeat it against wheel and sdist installations in separate environments outside
-the checkout. An import-location guard prevents accidental editable-source testing.
-Distributions, checksums, and JUnit reports are retained for seven days as GitHub
-artifacts, not uploaded to PyPI. Actions are SHA-pinned with read-only permissions
-and checkout credentials are not persisted. Weekly Dependabot updates cover Python
-dependencies through the uv ecosystem (manifest and lockfile) and action pins;
-updates still require review and CI.
-
-These are GitHub-hosted checks, not local-only tests. Dependency installation and
-auditing use external services; Librus requests use synthetic loopback fixtures.
-There are no school credentials, live requests, publishing steps, or implicit
-neighboring checkouts. Performance and consumer integration remain opt-in. A
-separate live workflow requires owner-configured accounts, operations, and budgets.
-GitHub branch protection and required checks are repository settings, not enabled
-by adding this workflow.
-
-To reproduce the quality/security commands after `uv sync --locked`:
-
-```sh
-uv lock --check
-uv run --locked pre-commit run --all-files --show-diff-on-failure
-uv run --locked pre-commit run gitleaks-history --hook-stage manual --all-files
-uv export --quiet --locked --no-emit-project --format requirements-txt --output-file /tmp/opencode/librus-audit-requirements.txt
-uv run --locked pip-audit --strict --disable-pip --require-hashes -r /tmp/opencode/librus-audit-requirements.txt
-```
-
-Only GitHub CI skips `no-commit-to-branch`; local commits retain that guard.
-
-The foundation uses `src/librus_python_api/`, Hatchling builds, and a committed
-`uv.lock`. Python 3.13 and 3.14 are the current local verification targets.
-Pydantic provides strict, frozen runtime validation. `aiohttp` implements the
-native transport. `lxml` parses bounded semantic HTML in joined workers. Tenacity
-owns the explicit safe-read recovery policy; Loguru diagnostics are opt-in.
-
-```sh
-uv sync --locked --python 3.14
-uv run --locked ruff check .
-uv run --locked ruff format --check .
-uv run --locked mypy
-uv run --locked python -m pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run pytest
 uv build --no-sources
 ```
 
-The default suite includes OpenAPI/catalogue validation and real transport,
-authentication, parser, and scheduler tests against original synthetic loopback
-fixtures. There is no separate transport experiment or contract-check CLI to run.
-All requests remain offline. Hardware-sensitive measurements and cross-repository
-integration are opt-in, not silently skipped release gates:
+CI (`.github/workflows/ci.yml`) runs these on Python 3.13 and 3.14, audits the
+locked dependencies, scans history for secrets, then rebuilds and reruns the
+suite against the installed wheel and the installed sdist outside the checkout.
+To reproduce the installed-artifact run locally:
 
 ```sh
-uv run --locked python -m pytest tests/performance/test_parser_resources.py -m performance
+uv export --quiet --locked --no-emit-project --format requirements-txt -o "$TMP/req.txt"
+uv venv "$TMP/venv" && uv pip install --python "$TMP/venv/bin/python" --require-hashes -r "$TMP/req.txt"
+uv pip install --python "$TMP/venv/bin/python" --no-deps dist/*.whl
+cd "$TMP" && PYTHONPATH=/path/to/checkout "$TMP/venv/bin/python" -m pytest /path/to/checkout/tests
 ```
 
-The performance test preserves the maximum-body memory/heartbeat checks outside
-the portable default suite. It records measurements as pytest properties; add
-`-o junit_family=xunit1 --junitxml=/tmp/opencode/parser-resources.xml` when a
-machine-readable measurement report is needed.
+`uv run pytest -m performance` runs the opt-in parser memory and heartbeat
+measurement.
 
-To repeat the suite on Python 3.13, use a separate environment so the primary
-environment is not replaced:
+## Where tests live
 
-```sh
-UV_PROJECT_ENVIRONMENT=/tmp/opencode/librus-python-api-py313 uv sync --locked --python 3.13
-UV_PROJECT_ENVIRONMENT=/tmp/opencode/librus-python-api-py313 uv run --locked python -m pytest
-```
+| Contract | Owner |
+| --- | --- |
+| Admission, coalescing, caching, session recovery, budgets, cancellation, wire forms, typed page notices, for every read | `tests/test_account_reads.py` |
+| Scheduler rate, queues, fairness, pauses | `tests/test_scheduler.py` |
+| Transport: cookies, body limits, redirects, statuses, form rules | `tests/test_transport.py` |
+| Login, identity, profile, diagnostics, close | `tests/test_identity.py` |
+| Parser semantics for one family | `tests/test_<family>.py` |
+| Route catalogue matches the OpenAPI contract | `tests/test_contracts.py` |
+| Live capture safety | `tests/test_live_capture.py` |
 
-Verify the wheel outside the checkout before handing off packaging changes:
+A new read goes into the tables in `tests/reads_support.py` and
+`tests/test_account_reads.py`; its family module covers only what is specific to
+that family. Fixtures copy the observed structure with invented values.
 
-```sh
-uv venv /tmp/opencode/librus-python-api-wheel --python 3.14
-uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python dist/*.whl
-cd /tmp/opencode
-/tmp/opencode/librus-python-api-wheel/bin/python -c 'from importlib.metadata import version; from importlib.resources import files; import librus_python_api as api; assert version("librus-python-api") == api.__version__; assert files("librus_python_api").joinpath("py.typed").is_file()'
-```
+## Live verification
 
-Use a fresh environment path for subsequent runs. This import/configuration
-smoke check alone is not an installed-client E2E read. The full offline suite and
-consumer integration test below exercise that gate. No PyPI upload or publishing CI
-is required for the 0.x deliveries. PyPI publication and publishing automation
-start at `1.0.0rc1`; local `librus-mcp` integration can use the exact built wheel
-before that candidate. Production consumer releases must still use PyPI artifacts.
+Synthetic tests prove behaviour against fixtures, not that Librus serves that
+structure. Every past live failure here came from a fixture written from
+assumptions or from apix's behaviour instead of from a real page. Apix agreeing
+with this library on a synthetic page proves nothing, because apix mislabels
+fields and returns `[]` for pages it does not recognize.
 
-To run the current offline suite against the installed wheel rather than the
-editable source package, export the locked dependencies without the project,
-install them in that separate environment, and run from outside the checkout:
+With the owner's authorization for a stated scope and request budget:
 
-```sh
-uv export --quiet --locked --no-emit-project --format requirements-txt --output-file /tmp/opencode/librus-python-api-wheel-requirements.txt
-uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python --require-hashes -r /tmp/opencode/librus-python-api-wheel-requirements.txt
-cd /tmp/opencode
-PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests
-```
+1. Capture. One login, an operation allowlist, a request cap, and raw pages
+   saved privately:
 
-Replace `/path/to/librus-python-api` with the checkout root, never its `src/`
-directory. This makes test fixtures available without replacing
-the installed library. Reinstall the wheel after rebuilding the same local version;
-check `librus_python_api.__file__` points into the separate environment.
+   ```sh
+   uv run python scripts/live_capture.py --secrets FILE --account N --out DIR
+   ```
 
-For the real MCP stdio identity/final-summary experiment, install the consumer adapter branch
-(`feat/native-identity-adapter`, closed unmerged PR #38) into that same environment. This is
-a retained local experiment, not a library-delivery prerequisite or authorization
-to modify the consumer. Its migration remains a separate task. Run outside the
-library checkout:
+   `DIR` must be new and outside the repository. Files are written 0600. The run
+   continues past failures, so one login shows every family's state.
+2. Cross-check offline. Chromium renders the same bytes independently, with
+   scripts and network disabled:
 
-```sh
-uv pip install --python /tmp/opencode/librus-python-api-wheel/bin/python /path/to/librus-mcp
-cd /tmp/opencode
-PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests/integration -m integration --mcp-checkout=/path/to/librus-mcp
-```
+   ```sh
+   uv run --with playwright python scripts/crosscheck.py DIR
+   ```
 
-The test uses original synthetic HTTP fixtures, four independent logins, real
-consumer field mapping, and MCP stdio. Its subprocess configuration explicitly
-replaces operator credentials with synthetic accounts and permits localhost
-destinations only. Expected scoped denials are redacted non-successes. No live
-school requests or production notification/filesystem state are used. Selecting
-integration without a valid adapter checkout is an actionable test failure.
+3. For each failure, read the captured page, write an original fixture with the
+   same structure and invented values, add a failing test, then fix.
+4. Rerun the capture on the fixed build and record the results in
+   [VERIFICATION.md](VERIFICATION.md).
+5. Delete the capture directory.
 
-The paired summary parser measurement requires the same consumer dependency and
-checkout setup. It uses new synthetic markup, never live responses:
+Rules that past mistakes earned:
 
-```sh
-PYTHONPATH=/path/to/librus-python-api /tmp/opencode/librus-python-api-wheel/bin/python -m pytest /path/to/librus-python-api/tests/performance -m performance --mcp-checkout=/path/to/librus-mcp -o junit_family=xunit1 --junitxml=/tmp/opencode/librus-performance.xml
-```
+- Look at the actual page before reasoning about a failure. Counters and
+  structure summaries collected while discarding the bytes cost three logins
+  and diagnosed nothing.
+- Run the whole read surface, not only the family being worked on. A full smoke
+  found broken profile, timetable and agenda parsing that earlier family-only
+  runs had missed.
+- An empty result is not populated coverage. A page that parses is not a
+  correct page; compare counts and rendered text.
+- Typed outcomes beat guesses. A disabled view, a rejected date range and an
+  unknown notice are different from an empty list.
+- Green CI proves the offline checks. Report a live gate as pending until it
+  has actually run.
 
-See BENCHMARKS.md for the distinction between traced parser allocations, total
-process RSS, upstream traffic, and limiter latency.
+## Adding an endpoint
 
-Also install the built `dist/*.tar.gz` in a separate environment and
-run the same public-boundary suite to qualify the sdist build path. Record hashes
-with `sha256sum` and review installed metadata for MIT, `py.typed`, Python support,
-and runtime dependencies. See VERIFICATION.md for the actual local results.
-
-Keep network paths in `config.py` and add the matching wire contract in
-`contracts/upstream.openapi.yaml` for every endpoint. See the
-[contract authoring and Bruno guide](contracts/README.md). Reuse existing
-clients' concepts and documented flows, not their implementation or fixtures.
-
-Use a branch for your change and open a pull request against `main`. Include
-the checks you ran and any behavior that could not be verified without live
-Librus access.
+1. Add the route to `ENDPOINTS` in `src/librus_python_api/config.py`, with its
+   side effect, retry safety and evidence level, and any form builder.
+2. Add the matching operation to `contracts/upstream.openapi.yaml`.
+3. Add a public method on `AccountClient` that validates input and passes one
+   `fetch` to `_read`.
+4. Add the operation to the shared read tables, then the family parser tests.
+5. Capture and cross-check it live before calling it verified.
 
 ## Security
 
-Do not disclose vulnerabilities or sensitive school data in public issues.
-Follow [SECURITY.md](SECURITY.md) for private reporting.
+Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

@@ -1,16 +1,31 @@
-# Foundation design and evidence
+# Design
 
 ## Implementation boundary
 
 This is source-informed original work, not a clean-room implementation. Existing
-clients provide behavioral references, not source/tests/fixtures to transplant.
-All current HTTP fixtures are independently authored synthetic examples.
+clients provide behavioural references, not source, tests or fixtures to copy.
+All HTTP fixtures are independently authored. Live behaviour is recorded in
+VERIFICATION.md, and each route in `config.py` carries its evidence level.
 
-The installed package currently provides configuration, errors, request budgets,
-admission scheduling, and a scope-preserving native transport. It does not yet
-provide live compatibility evidence. The account-service API is implemented and
-tested offline. Fixed routes and OpenAPI paths
-are evidence-labelled; source-informed routes are not live observations.
+## Read path
+
+```text
+AccountClient.<read>()   validate input, build the fixed form, describe one fetch
+  _read                  admission limits, coalescing of identical in-flight reads
+  _execute               budget deadline, diagnostics event
+  _cached                per-login lock, cooldowns, result cache
+  _authenticated         login if needed; one re-login for a proven expiry on a
+                         retry-safe endpoint, never for a view-selection POST
+  fetch -> _page         transport request, status and media-type checks,
+                         pure parser in the bounded parser pool
+  AiohttpTransport       form rules, destination checks, body limits
+  RequestScheduler       shared rate, burst, concurrency and queues
+```
+
+Parsers are pure functions of the response bytes. `parsers.parse_page` turns
+known page notices (a view disabled by the school, a rejected date range) into
+typed errors before any family parser runs. Shared HTML helpers are in
+`markup.py`; family parsers live in their own modules.
 
 ## Dependencies
 
@@ -105,9 +120,9 @@ fixture-only rate settings are not recommended live tuning values.
 
 Fault tests cover queue overflow, shared-budget exhaustion, waiting/active
 deadlines, cancellation near rate admission, paused resumption, close/rejection,
-and cross-event-loop budget rejection. The public identity and installed-MCP
-workloads add offline authentication/parser/integration proof. None claim populated
-live Librus parsing or a speedup over the existing client.
+and cross-event-loop budget rejection. `tests/test_account_reads.py` checks the
+read path for every operation over real loopback HTTP. None of this claims a
+speedup over the existing client.
 
 ## Authentication research direction
 

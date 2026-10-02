@@ -1,155 +1,92 @@
 # librus-python-api
 
-An independent Python library for accessing Librus Synergia. The project is in
-local-first development stage: an async account service supports bounded login,
-typed identity, and student-information reads against offline fixture servers.
-The local-first `0.2.0` delivery adds final summaries, inline numeric/descriptive grades,
-raw school averages, explicit upstream views, dated period marks, descriptive
-publications, and inclusive date windows. 0.2.0 is grades-only; attendance and the
-remaining school reads belong to 0.3.0. The current `0.3.0.dev0` increment adds
-attendance collections, upstream views, date windows, details, and explicit overall/
-subject ratios. One bounded installed comparison completed; broader roles/layouts
-and populated last-login remain unqualified. Explicit timetable weeks are now
-implemented and complete two-week installed retrieval on one profile. Chromium
-validation confirms native teacher/classroom text; differences from apix are
-whitespace normalization and one baseline string inconsistent with rendered text.
-Announcement reads now preserve full bounded plain text, author, civil date and
-account-scoped content references; one populated installed read agrees with
-same-response apix and Chromium semantics. Wider announcement layouts remain
-unqualified. Ordinary agenda/homework collections and details are implemented
-with explicit selections and account-bound references. Installed qualification is
-partial; populated live homework and its details remain unqualified. Original
-synthetic comparisons against unmodified apix cover these missing live variants,
-including the complete installed offline collection/detail path.
-Completed lessons now support typed page reads and bounded resumable batches;
-their source-informed HTML layouts have offline proof only.
-Qualification and delivery status
-are recorded in VERIFICATION.md, not inferred from this scope adjustment.
-Bounded login/identity/summary/current-grade live qualification has passed for a narrow
-observed variant. General compatibility is unverified; nothing is published to PyPI.
+An independent, typed, async Python client for Librus Synergia, built to replace
+`librus-apix` as the backend of [librus-mcp](https://github.com/krzysztofbury/librus-mcp).
 
-The first intended consumer is
-[librus-mcp](https://github.com/krzysztofbury/librus-mcp). This repository will
-own the HTTP client, authentication, parsing, bounded collection reads, and
-typed domain results. The MCP server will continue to own its tools, account
-configuration, user-facing response contracts, and durable notification state.
+One `LibrusService` manages several independent Librus logins under a shared,
+bounded traffic policy and returns immutable, typed results. A parent login and
+a student login stay separate security contexts even when they belong to the
+same student.
 
-## Primary use case
+Status: `0.3.0`, local-first. Nothing is published to PyPI yet; publication
+starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
-Let MCP fetch school data through a small async, typed API using several
-independent Librus logins. Optimize for fewer upstream requests, predictable
-latency, and enforced security boundaries rather than maximum parallelism.
+## What it reads
 
-One service should manage isolated account clients under a shared rate,
-concurrency, queue, and request budget. Reuse sessions and reference data,
-coalesce identical safe reads within an account, and expose typed results and
-failures. A student login and a parent login remain distinct even when they
-refer to the same student; their permissions and data may differ. MCP chooses
-which accounts to query and combines the results. The library owns bounded
-retrieval, not summary generation or automatic cross-account merging.
+| Family | Calls | Live status (0.3.0) |
+| --- | --- | --- |
+| Identity, profile | `identity`, `student_information` | Verified on two student contexts |
+| Grades | `final_grades`, `grades`, `grades_window` | Verified on two student contexts |
+| Attendance | `attendance`, `attendance_window`, `attendance_detail`, `gateway_attendance`, `attendance_frequency`, `subject_frequency` | Verified on two student contexts |
+| Timetable | `timetable` (explicit week) | Verified on two contexts, including substitution notices |
+| Announcements | `announcements` | Verified on two student contexts |
+| Agenda | `agenda`, `agenda_detail` | Verified on two contexts, two months each |
+| Homework | `homework`, `homework_detail` | Verified: populated and empty |
+| Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
 
-The `0.x` deliveries are local-first. Verify built artifacts and the integration
-offline, including local `librus-mcp` adapter tests. PyPI publication and publishing
-automation are deferred until `1.0.0rc1`. A dedicated daily
-credentialed compatibility check remains planned, not configured or running.
-See [the implementation roadmap](TODO.md).
+"Verified" means a live page from the current build was parsed and, for school
+reads, timetable and profile, compared with Chromium's independent rendering of
+the same bytes. It is not a claim about every school's layout. Details and
+remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-## Current implementation
+Messages, attachments, notifications and sending belong to `0.4.0`. Behaviour
+notes stay unsupported until a populated page has been observed
+([decision](contracts/behaviour-notes.md)).
 
-- Python 3.13 and 3.14 package skeleton with an MIT license and `py.typed`.
-- Central typed route catalogue in `src/librus_python_api/config.py`, frozen
-  Pydantic limit configuration, and closed error categories. The catalogue
-  records fixed, evidence-labelled login, identity, and HTML profile routes.
-- Shared async scheduler with bounded global/per-account admission, token-bucket
-  rate/burst limits, round-robin fairness, shared request/deadline budgets, and
-  joined cancellation/closure. This is service-local, not a distributed quota.
-- [OpenAPI YAML and endpoint evidence requirements](contracts/README.md), with
-  an offline check preventing route/contract drift. Import the YAML into Bruno
-  for explicit manual validation; its default destination is loopback.
-- Real transport/service tests with isolated synthetic logins, same-name scoped
-  cookies, body/deadline bounds, and joined cancellation. Optional parser-resource
-  and consumer stdio tests live alongside the portable offline suite.
-- GitHub-hosted CI for Python 3.13/3.14 on Linux: quality/security checks and the
-  portable suite against source, installed wheel, and installed sdist. Build
-  artifacts are retained for inspection, not published to PyPI.
-- [Grade reads](contracts/grades.md) with explicit column availability,
-  preserved school values, bounded semantic HTML parsing, and shared account
-  lifecycle/budgets. Grade-view POSTs have explicit filter side effects and no
-  automatic replay; windows reuse its collection cache. Business compatibility
-  against apix is tracked separately from numeric parity and performance.
-  The consumer migration remains a separate task; its adapter experiment is closed.
-- [Attendance reads](contracts/attendance.md) with explicit semesters, unknown
-  metadata, numeric details/notes, isolated views, cached windows, gateway records,
-  bounded metadata reuse, and explicit ratio policies.
-  This is a development increment, not completed 0.3.0 school-read coverage.
-- [Timetable weeks](contracts/timetable.md) with explicit civil dates, seven days,
-  distinct lesson entries, raw change notices, reported recess clocks, isolated
-  week caches, and selection POST non-replay. Two-week runtime qualification
-  completed; browser-validated teacher/classroom differences are documented
-  intentional departures from exact apix strings, not a native correctness gap.
-- [Announcements](contracts/announcements.md) with full multiline plain text,
-  authors, raw/typed civil dates and explicitly content-addressed account references.
-  Ordinary GETs reuse shared budgets and isolated sessions/caches; no mark-read,
-  link traversal or event consumption is enabled.
-- [Agenda/homework](contracts/school-reads.md) with complete civil months, full
-  event/tooltip text, explicit assignment windows, split raw/typed date-time cells,
-  account-bound details and non-replayed selection POSTs. Recent/read-once agenda,
-  submissions and attachments are excluded.
-- [Completed lessons](contracts/completed-lessons.md) with same-response row/page
-  metadata, explicit date windows, typed records, bounded batches and account/window
-  cursors. Shared operation budgets and POST non-replay cover the entire batch;
-  pagination drift fails explicitly. There is no transactional snapshot guarantee.
+## Example
 
-The public `LibrusService` owns isolated account clients, coalesced safe reads,
-account/session-scoped freshness, Tenacity-bounded session recovery, parser workers,
-and deterministic cleanup. Inputs/configuration, immutable results, specific
-exceptions, and opt-in Loguru diagnostics are typed. Ordinary tests remain offline;
-bounded owner-authorized live qualification is documented separately.
-The local `0.1.0` delivery is qualified on Linux/Python 3.13 and 3.14, including
-the installed wheel and a real four-login MCP stdio adapter experiment.
-See [API usage and policies](API.md), [verification evidence](VERIFICATION.md),
-and the [phase review](REVIEW.md). This does not enable production backend
-migration, credentialed CI, PyPI, or general live compatibility claims.
-See [the comparison](BENCHMARKS.md) for measured performance benefits and non-wins.
+```python
+import asyncio
+from datetime import date
 
-## Local installation
+from librus_python_api import AccountCredentials, LibrusService
+
+
+async def main() -> None:
+    accounts = {
+        "parent": AccountCredentials(login="...", password="..."),
+        "student": AccountCredentials(login="...", password="..."),
+    }
+    async with LibrusService(accounts) as service:
+        parent = service.account("parent")
+        homework = await parent.homework(date(2026, 9, 1), date(2026, 9, 30))
+        for item in homework.items:
+            print(item.subject, item.topic, item.due_on, item.marked_done_at)
+
+
+asyncio.run(main())
+```
+
+See [API.md](API.md) for every call, its result types and its limits.
+
+## Guarantees
+
+- **Bounded traffic.** Every request, including each login hop, passes one
+  service-wide scheduler: 5 requests/second with a burst of 10, two active
+  requests, one per account, bounded queues. Budgets cap requests, bytes and
+  time per operation.
+- **No silent partial data.** Unrecognized layouts raise typed errors instead
+  of returning empty or partial results. A view disabled by the school is
+  `ViewDisabledError`, not an empty list.
+- **No unsafe replays.** View-selection POSTs are never replayed. Safe reads
+  recover a proven session expiry with at most one new login. Credentials are
+  never resubmitted by a retry policy.
+- **Isolation.** Each login has its own cookies, session, cache and cooldowns.
+- **Redaction.** Errors carry a closed kind only: no response bodies, URLs,
+  aliases or secrets. Result reprs omit personal fields.
+
+## Installation (local)
 
 ```sh
 uv build --no-sources
 uv pip install dist/*.whl
 ```
 
-The supported public entry point is `LibrusService`. Supply credentials explicitly,
-reuse one service across accounts/tools, and close it with an async context manager.
-Enabled development reads are `identity()`, `student_information()`,
-`final_grades()`, `grades()`, `grades_window()`, `attendance()`, and
-`attendance_window()`, `attendance_detail()`, `gateway_attendance()`,
-`attendance_frequency()`, `subject_frequency()`, explicit-week `timetable()`, and
-`announcements()`, `agenda()`, `agenda_detail()`, `homework()`, `homework_detail()`,
-`completed_lessons_page()` and `completed_lessons()`.
-Version 0.3.0.dev0 is a local-only development build,
-not a published PyPI release.
+## Contributing
 
-## Development principles
-
-- Implement the integration independently. Do not copy code, tests, or parser
-  fixtures from `librus-apix` or other third-party implementations.
-- Treat Librus responses as untrusted. Bound requests, response bodies,
-  pagination, and concurrency; reject malformed data explicitly.
-- Isolate each account's cookies and session. Do not log credentials, tokens,
-  private messages, or student information.
-- Preserve read-once schedule events and never retry a message send without an
-  explicit delivery-safety policy.
-- Use synthetic or properly anonymized fixtures for ordinary automated tests.
-  Credentialed live checks belong only in the explicitly configured daily/manual
-  workflow, never in pull-request tests or load tests against Librus.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for runnable local setup, validation, and
-build commands, and [TODO.md](TODO.md) for the remaining implementation work.
-
-The roadmap covers typed contracts, async transport, JSON/HTML coverage, PyPI
-releases, and a backward-compatible migration of `librus-mcp`. It also separates
-reusable library work from MCP-specific changes in the consumer's 2.0 roadmap.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, the test layout and
+the live verification workflow. Repository content is English and contains no
+private or school data.
 
 ## License
 

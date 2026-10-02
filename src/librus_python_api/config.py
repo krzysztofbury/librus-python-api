@@ -191,7 +191,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/informacja",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "final_grades",
@@ -313,7 +313,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/moje_zadania/podglad/{id}",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
         )
     }

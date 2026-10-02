@@ -16,26 +16,10 @@ variants are labelled separately; none are claimed live-verified. Unknown
 redirect routes fail closed. Do not infer an endpoint schema from a similarly
 named third-party operation.
 
-0.2.0 is grades-only. Other academic reads move to 0.3.0, messaging to 0.4.0.
-Observed grade-view forms and unqualified populated layouts are distinguished in
-grades.md; an exercised route is not proof of every response variant.
-The 0.3.0.dev0 attendance routes include explicit details and gateway metadata
-for frequency. Narrow installed evidence covers one context; source-informed and
-offline-only alternatives remain distinct from populated qualification.
-Timetable installed retrieval completed on one profile/two weeks, with exact
-teacher/classroom text validated against the same markup in network-disabled
-Chromium. Intentional departures from incorrect/unnormalized baseline strings
-are explicit; observed routes do not imply universal domain parity.
-One populated installed announcement read agrees with same-response apix/browser
-semantics. Full body text is not limited to grade-sized values; content references
-are explicit account-scoped fingerprints, not nonexistent upstream IDs. Empty
-and alternate layouts remain source-informed/offline-only.
-Agenda/homework has populated agenda/detail and empty-homework discovery evidence,
-but installed-family qualification remains partial. Observed endpoints do not
-imply populated homework or a completed installed details path.
-Completed lessons add the twenty-fifth route/OpenAPI operation, with same-response
-pagination and bounded resumable batches. Evidence is source-informed/offline only;
-no populated live pages, role/layout coverage or upstream snapshot is implied.
+Each family contract records what has been observed live and what is
+source-informed only. [VERIFICATION.md](../VERIFICATION.md) holds the live
+results for the current release. An exercised route is not proof of every
+response variant.
 
 ## Adding an endpoint
 

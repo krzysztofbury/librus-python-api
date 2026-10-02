@@ -1,11 +1,9 @@
-# Completed lessons: 0.3.0.dev0
+# Completed lessons (0.3.0)
 
-This increment adds ordinary completed-lesson reads, not message/event consumption,
-consumer migration or publication. The central HTML route and selection form are
-source-informed business requirements. Original implementation and fixtures contain
-no copied third-party source, captures or identifiable records. The initial
-increment was offline-only. Later explicitly authorized installed qualification
-attempts stopped without qualifying the live lesson layout; see the evidence below.
+Calls: `completed_lessons_page` and `completed_lessons`. The route and form are
+source-informed. Fixtures are original. A page whose notice says the school
+disabled the view ("Ten widok został wyłączony przez administratora szkoły.")
+raises `ViewDisabledError`.
 
 ## Public domain and wire contract
 
@@ -81,30 +79,16 @@ cannot all be detected. Persisted cursors should not be treated as reliable sync
 watermarks. Explicit cache reuse serves prior results; fresh resumed reads remain
 the default. Consumer serialization/persistence is a separate task.
 
-## Evidence and qualification
+## Evidence
 
-The 2026-10-02 qualification follow-up reached one first-page POST in each of two
-separately authorized installed-wheel attempts. Both responses had no decorated
-table or pagination span. The first stopped with `AttributeError`; the second
-stopped with `ParseError`. No successful native/apix/browser comparison, explicit
-empty lesson result, pagination or resume was established. A third reordered attempt
-stopped in agenda comparison before reaching lessons. Raw pages were discarded.
+On 2026-10-02, all four available logins (two students, each with two logins)
+returned the disabled-view notice for every requested window, including a past
+window and one ending in the future. The earlier `AttributeError` and
+`ParseError` stops were this notice. The page had no lesson table because the
+view is switched off; nothing was wrong with the request. apix returns `[]` for
+the same page.
 
-An original commented-markup regression independently reproduces an attribute
-error in empty-marker discovery. Comments are now excluded from attribute reads;
-recognized records and empty pages keep their semantics, while unknown commented
-pages produce `ParseError`. This offline bug and fix do not prove the cause of the
-discarded first live failure or explain why the live lesson layout was absent.
-
-The original parser/service tests own visible fields, pagination integrity, exact
-forms, four-login isolation/coalescing, page/batch cache distinction, maximum bounds,
-resume drift, POST non-replay, cumulative budgets and later-page cleanup. Optional
-apix comparisons feed identical original bytes to unmodified baseline business
-functions with external sockets/DNS blocked and distribution hashes checked.
-They distinguish common fields from fabricated teachers/dates, BR word joins and
-whitespace-sensitive baseline counts. They do not qualify rendered live school data.
-
-No JSON parity, live populated/empty pages, account roles, school-specific symbols,
-live date/layout variants, sustained live performance or consumer readiness is
-claimed. Those require fresh bounded authorization, identical-response native/apix
-comparison and independent rendered school-content validation. See VERIFICATION.md.
+A populated page, pagination and resume have therefore never been observed
+live. The row and pagination rules above come from source-informed requirements
+and original fixtures. Verify them on an account with the view enabled before
+relying on them (see [TODO.md](../TODO.md)).

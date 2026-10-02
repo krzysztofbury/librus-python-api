@@ -57,16 +57,12 @@ ownership is explicit, and native failures never trigger legacy HTTP fallback.
 
 ## Verification owners
 
-`tests/test_final_grades.py` owns summary parsing, malformed/unassigned/variant
-fixtures, bounds, public wire requests, account isolation, scoped denials, cache
-reuse, and shared-budget expiry recovery. Existing transport/scheduler/identity
-tests continue to own common lifecycle, cancellation, decompression, and rate
-guarantees rather than duplicating them for each endpoint.
-
-The opt-in `tests/integration/test_mcp_reads.py` workload is parameterized for
-identity and final summaries. It owns real MCP stdio serialization, legacy optional
-column mapping, four independent logins for the same represented student, and
-one scoped denial. Ordinary GitHub CI remains independent of the consumer checkout.
+`tests/test_final_grades.py` owns summary parsing, malformed, unassigned and
+variant fixtures, bounds, scoped denial cooldowns and cache invalidation after a
+re-login. `tests/test_account_reads.py` owns the shared read guarantees for every
+operation: isolation, coalescing, caching, budgets, expiry recovery and wire
+forms. The MCP stdio experiment from closed PR #38 was retired with that branch;
+MCP serialization is proven again during the consumer migration.
 All committed fixtures are synthetic. A bounded authorized summary observation
 and in-memory parity check qualified a narrow layout, not all accounts. See
 BENCHMARKS.md for measured gains, non-wins, and methodological limits.
@@ -196,3 +192,14 @@ each authentication; sequential equality is sample evidence, not proof of identi
 historical-login semantics. View caches never claim that upstream state is immutable.
 This is a documented local-first grade delivery, not complete account/layout or
 sustained-load qualification. Other school reads are outside 0.2.0.
+
+## Observation card (not read)
+
+Observed on 2026-10-02 on both student contexts: the grades page can contain a
+separate table headed "KARTA SPOSTRZEŻEŃ". Each row has a coloured marker, a
+free-text observation, an area (for example "OBSZAR I POZYTYWNE"), points, a
+date and a type such as "Bieżąca". Detail links use
+`/przegladaj_oceny/szczegoly/ksztaltujace/<id>`. `grades()` does not read this
+table, and apix does not either. Every real grade box on those pages became a
+record. The page also contains one hidden template box (detail ID `000000`),
+which is correctly ignored.

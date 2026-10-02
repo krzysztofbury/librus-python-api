@@ -1,35 +1,28 @@
-# Behaviour-note capability decision: 0.3.0.dev0
+# Behaviour notes (0.3.0)
 
-Decision: defer public behaviour-note support, default off. Do not provide an API
-that fabricates populated records, silently returns an empty list on unknown markup,
-or delegates to a consumer-specific parser. Consumer migration remains separately
-authorized and must acknowledge this capability gap before claiming full parity.
+Decision: no public behaviour-note read yet. It stays off until a populated
+page has been observed, so the library never returns invented records or turns
+an unrecognized page into an empty list.
 
-## Evidence and provenance
+## Evidence
 
-- The unmodified external apix 1.5.3 package has no behaviour-note operation.
-- Read-only consumer discovery identifies an ordinary candidate GET and documents
-  only empty-state live evidence. Its populated parser assumptions are not an
-  independent observation of populated school records. No consumer implementation,
-  fixture or captured markup is copied into this library.
-- The combined follow-up authorized one ordinary probe per attempt, but all three
-  attempts stopped before reaching it. No new live empty or populated note evidence
-  was collected, and the probe was not retried independently.
+- apix has no behaviour-note operation. The consumer's parser was written from
+  assumptions about populated pages, not from an observed one.
+- On 2026-10-02 the internal `behaviour_notes_probe` GET (`/uwagi`) was read live
+  for both students. Each returned the explicit empty marker "Brak uwag" with no
+  note table. An empty page says nothing about the populated layout.
 
-## Internal qualification boundary
+## Probe
 
-The central `behaviour_notes_probe` GET and matching twenty-sixth OpenAPI operation
-exist only for explicitly authorized manual discovery. An original offline loopback
-case verifies the exact wire path and shared request budget; the optional full
-Chromium preflight verifies structural empty-state classification. This is not a
-public note capability or populated parser qualification. The probe does not retry,
-send messages, mark content read, consume read-once events or alter notification state.
+`behaviour_notes_probe` exists only for authorized discovery through
+`scripts/live_capture.py`. It is not a public method. It shares the scheduler and
+budgets, is never retried, and has no side effects. Its OpenAPI operation
+documents the route.
 
-The manual harness accepts only its fixed destination, one probe request and the
-original shared traffic/body/deadline budgets. It retains structural counts and the
-fixed decision, never note values, identifiers or raw HTML. An explicit empty marker
-does not qualify populated records. Unknown or contradictory structure stops.
+## To enable
 
-To revisit the decision, obtain fresh account/operation/login/request authorization,
-independently establish populated rendered semantics, author original parser/wire
-fixtures and typed results, and separately coordinate the consumer capability impact.
+1. Capture a populated page with the live workflow in
+   [CONTRIBUTING.md](../CONTRIBUTING.md#live-verification).
+2. Write an original fixture with that structure, plus typed records and a
+   parser with failing-first tests.
+3. Add the public read to the shared read tables, and coordinate the MCP impact.

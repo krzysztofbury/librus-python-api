@@ -1,4 +1,4 @@
-# Announcement reads: 0.3.0.dev0
+# Announcements (0.3.0)
 
 `await account.announcements()` is one ordinary HTML collection GET, not a
 mark-read operation, agenda/event consumption, attachment request, or consumer
