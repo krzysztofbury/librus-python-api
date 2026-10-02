@@ -60,7 +60,8 @@ dependency, or turn these synthetic comparisons into live qualification claims.
 
 ```sh
 LIBRUS_APIX_SITE_PACKAGES=/path/to/external/site-packages \
-  uv run --locked pytest tests/integration/test_school_reads_apix.py -m integration
+  uv run --locked pytest tests/integration/test_school_reads_apix.py \
+    tests/integration/test_completed_lessons_apix.py -m integration
 ```
 
 The tests feed original synthetic responses to unmodified business functions,
@@ -69,7 +70,8 @@ public collection/detail reads on loopback. They require no real credentials and
 make no school requests. Default pytest deselects them; absent external configuration
 skips an explicitly selected comparison. Common-field parity, native additions,
 baseline defects and integrity-policy differences are separately asserted. Current
-results and limitations are in contracts/school-reads.md and VERIFICATION.md.
+results and limitations are in contracts/school-reads.md,
+contracts/completed-lessons.md and VERIFICATION.md.
 
 ### Evidence and live compatibility
 

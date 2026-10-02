@@ -484,6 +484,53 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /zrealizowane_lekcje:
+    post:
+      operationId: completed_lessons
+      tags: [CompletedLessons]
+      summary: Select a bounded explicit date window and zero-based lesson page
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Independently authored HTML and loopback fixtures from reviewed business requirements; no live school response or credentialed qualification.
+      description: |
+        Selection POST is never automatically replayed, including proven expiry.
+        Rows and pagination are parsed together from one response, without a
+        separate page-count request. Raw HTML is not a normalized JSON schema.
+        Exactly one decorated table or explicit msgEmptyTable marker is required.
+        Pagination is one-based current/total display with a zero-based wire page.
+        Missing pagination means a single page only; wrong/clamped page, malformed
+        or contradictory empty metadata fail. At most 1000 pages and 256 rows/page.
+        Dates are explicit inclusive civil windows of at most 371 days. Rows must
+        fall within that window. Each row has date/weekday markers and five data
+        cells. Preserve multiline topic, combined subject/teacher text, opaque Z
+        value and attendance symbol. Numeric attendance references reuse the fixed
+        attendance-detail namespace; no arbitrary URL or script execution.
+        Batches fetch at most eight pages and 256 items, sharing a single original
+        deadline/request/body budget, account lock and global scheduler. Cursors
+        bind account/window, page/offset, count and a domain page fingerprint.
+        Changed mid-page data, count drift and repeated pages fail instead of
+        silently returning partial rows. Not a transactional upstream snapshot.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [data1, data2, filtruj_id_przedmiotu, numer_strony1001, porcjowanie_pojemnik1001]
+              properties:
+                data1: {type: string, format: date}
+                data2: {type: string, format: date}
+                filtruj_id_przedmiotu: {type: string, enum: ['-1']}
+                numer_strony1001: {type: string, pattern: '^[0-9]{1,3}$'}
+                porcjowanie_pojemnik1001: {type: string, enum: ['1001']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Attendances:
     get:
       operationId: gateway_attendance

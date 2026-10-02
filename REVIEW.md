@@ -3,6 +3,37 @@
 The initial phase review below is historical offline evidence. Current live
 qualification and performance evidence are in VERIFICATION.md and BENCHMARKS.md.
 
+## Completed-lessons implementing-agent review
+
+Safety: the new selection POST never replays, including failures after a successful
+first page. One admitted account operation owns the whole batch under the same lock,
+deadline/request/body budget and global scheduler (TigerStyle #2: Bounded loops,
+#6: Positive and negative space, #12: Full error handling). Page count/current-page
+metadata are checked alongside rows; clamped/repeated/drifting responses fail rather
+than silently drop lessons. Typed cursors validate account/window and numeric/hash
+bounds before any login. All new functions stay at most 70 lines (#9: Function length).
+
+Performance: parse rows and metadata once per response, with no separate count
+request or preceding page-zero fetch during a later-page resume (#14: Batching).
+Mid-page resume deliberately re-fetches one page for integrity. Cache/coalescing
+keys distinguish pages and batches, cursor positions, dates and explicit limits;
+state remains per-login even for one represented student. No live speedup/RSS or
+snapshot guarantee is inferred from loopback results.
+
+Test ownership: parser cases own observable record/text/integrity semantics; public
+loopback cases separately own forms, pagination traffic, lifecycle and multi-account
+isolation. Plausible regressions include treating a count as a last index, stopping
+on a short page, resetting a later-page budget, replaying an expired POST or reusing
+a cursor on another account. External-apix cases have the distinct business-baseline
+boundary. No production export/flag/injection seam was added solely for tests.
+Original fixture and implementation ownership is independent of reviewed business
+references; unmodified external baseline Python hashes are verified before replay.
+
+Remaining risks are explicit in contracts/completed-lessons.md: strict source-informed
+HTML shapes are not observed live, ambiguous subject/teacher text is preserved,
+and already-consumed page-boundary changes can evade cursor checks. This is an
+implementing-agent review, not independent approval or completed live qualification.
+
 ## Retrospective: offline confidence before live compatibility
 
 ### What failed

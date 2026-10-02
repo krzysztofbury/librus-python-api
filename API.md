@@ -409,6 +409,48 @@ Original synthetic comparisons against external apix exercise all four APIs on
 installed artifacts, including populated homework/details. They establish offline
 business compatibility and classified departures, not live layout qualification.
 
+## Completed lessons
+
+`await account.completed_lessons_page(start, end, page=0)` returns
+`CompletedLessonsPage(identity, start, end, page, page_count, items, fingerprint,
+observation)`. The page is zero-based; `page_count` is a count, not a last-page
+index. Parse rows and pagination from one response; no separate count request.
+
+`await account.completed_lessons(start, end, cursor=None, max_pages=4, limit=128)`
+returns `CompletedLessons(identity, start, end, items, pages_fetched, next_cursor,
+observation)`. The explicit inclusive civil window spans at most 371 days.
+Limits are 1..8 fetched pages and 1..256 returned rows. Both APIs accept `budget`
+and `max_age_seconds`, defaulting to fresh retrieval. Selection POSTs never replay.
+The entire batch shares one account admission/lock and original request/deadline/
+body budget. Mid-batch errors fail the operation rather than return partial rows.
+
+`CompletedLesson` preserves raw/typed date and lesson number, weekday, combined
+subject/teacher text, subject, optional teacher, multiline topic, opaque Z value,
+attendance symbol and an optional fixed-namespace attendance detail ID. No teacher
+is fabricated when only a subject is present. Attendance detail retrieval is an
+explicit separate call on that same account, not automatic fan-out.
+
+```python
+from datetime import date
+from librus_python_api import AccountClient, CompletedLessons
+
+
+async def first_lesson_batch(account: AccountClient) -> CompletedLessons:
+    return await account.completed_lessons(
+        date(2026, 10, 1), date(2026, 10, 31), max_pages=2, limit=32
+    )
+```
+
+Resume with `cursor=batch.next_cursor` and the same account/dates. `None` means
+completion. A mid-page cursor verifies re-fetched domain rows; a page-boundary cursor
+rejects immediate repeated pages. Count drift, wrong/clamped pages and repeats
+inside a batch fail with `ParseError`. This is not an upstream snapshot or stable
+sync watermark: insertions/reordering at already-consumed page boundaries are not
+fully detectable. Do not alter cursor fields to bypass drift errors.
+
+Live layouts and account roles remain unqualified. See
+[the contract](contracts/completed-lessons.md) for bounds and limitations.
+
 ## Exceptions, retries, and diagnostics
 
 Catch specific classes from `librus_python_api.exceptions`, or their `LibrusError`

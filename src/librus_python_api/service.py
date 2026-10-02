@@ -27,6 +27,10 @@ from librus_python_api.attendance_frequency import (
     summarize_frequency,
 )
 from librus_python_api.budget import RequestBudget
+from librus_python_api.completed_lessons import (
+    parse_completed_lessons,
+    validate_selection,
+)
 from librus_python_api.config import (
     ATTENDANCE_MAX_WINDOW_DAYS,
     ATTENDANCE_METADATA_CACHE_SIZE,
@@ -41,6 +45,7 @@ from librus_python_api.config import (
     SchedulerLimits,
     TransportLimits,
     agenda_form,
+    completed_lessons_form,
     homework_form,
     timetable_form,
 )
@@ -60,6 +65,12 @@ from librus_python_api.models import (
     AttendanceView,
     AttendanceViewSelection,
     AttendanceWindow,
+    CompletedLesson,
+    CompletedLessons,
+    CompletedLessonsCursor,
+    CompletedLessonsPage,
+    CompletedLessonsPageSelection,
+    CompletedLessonsSelection,
     DetailReference,
     DiagnosticEvent,
     FinalGrades,
@@ -116,6 +127,8 @@ type _ReadResult = (
     | Agenda
     | Homework
     | SchoolDetail
+    | CompletedLessonsPage
+    | CompletedLessons
 )
 
 
@@ -397,6 +410,44 @@ class AccountClient:
             end,
             tuple(row for row in result.items if start <= row.day <= end),
             result.observation,
+        )
+
+    async def completed_lessons_page(
+        self,
+        start: date,
+        end: date,
+        *,
+        page: int = 0,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> CompletedLessonsPage:
+        completed_lessons_form(start, end, page)
+        return cast(
+            CompletedLessonsPage,
+            await self._read(
+                "completed_lessons",
+                budget,
+                max_age_seconds,
+                CompletedLessonsPageSelection(start, end, page),
+            ),
+        )
+
+    async def completed_lessons(
+        self,
+        start: date,
+        end: date,
+        *,
+        cursor: CompletedLessonsCursor | None = None,
+        max_pages: int = 4,
+        limit: int = 128,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> CompletedLessons:
+        selection = CompletedLessonsSelection(start, end, cursor, max_pages, limit)
+        validate_selection(selection, self._alias)
+        return cast(
+            CompletedLessons,
+            await self._read("completed_lessons", budget, max_age_seconds, selection),
         )
 
     async def agenda(
@@ -767,6 +818,11 @@ class AccountClient:
         if operation == "subject_frequency":
             assert isinstance(view, AttendanceDateSelection)
             return await self._subject_frequencies(budget, view)
+        if operation == "completed_lessons":
+            if isinstance(view, CompletedLessonsSelection):
+                return await self._completed_batch(view, budget)
+            assert isinstance(view, CompletedLessonsPageSelection)
+            return await self._fetch_lesson_page(view, budget)
         selection: RequestForm = None
         if operation == "grades":
             assert isinstance(view, GradeView)
@@ -808,6 +864,100 @@ class AccountClient:
             != expected
         ):
             raise LibrusError(ErrorKind.PARSE)
+
+    async def _fetch_lesson_page(
+        self,
+        selection: CompletedLessonsPageSelection,
+        budget: RequestBudget,
+    ) -> CompletedLessonsPage:
+        assert self._identity is not None
+        response = await self._transport.request(
+            "completed_lessons", budget, form=selection
+        )
+        self._validate_read_response(response)
+        self._require_content_type(response, "text/html")
+        items, count, fingerprint = await self._service._parsers.run(
+            lambda body: parse_completed_lessons(
+                body,
+                selection.start,
+                selection.end,
+                selection.page,
+            ),
+            response.body,
+            budget,
+        )
+        return CompletedLessonsPage(
+            self._identity,
+            selection.start,
+            selection.end,
+            selection.page,
+            count,
+            items,
+            fingerprint,
+            self._observation("completed_lessons"),
+        )
+
+    async def _completed_batch(
+        self,
+        selection: CompletedLessonsSelection,
+        budget: RequestBudget,
+    ) -> CompletedLessons:
+        assert self._identity is not None
+        cursor = selection.cursor
+        page, offset = (cursor.page, cursor.offset) if cursor else (0, 0)
+        count = cursor.page_count if cursor else None
+        seen = {cursor.fingerprint} if cursor and not cursor.offset else set()
+        items: list[CompletedLesson] = []
+        next_cursor = None
+        for fetched in range(1, selection.max_pages + 1):
+            result = await self._fetch_lesson_page(
+                CompletedLessonsPageSelection(selection.start, selection.end, page),
+                budget,
+            )
+            if count is not None and count != result.page_count:
+                raise LibrusError(ErrorKind.PARSE)
+            count = result.page_count
+            if (
+                cursor
+                and fetched == 1
+                and offset
+                and cursor.fingerprint != result.fingerprint
+            ):
+                raise LibrusError(ErrorKind.PARSE)
+            if result.fingerprint in seen or (offset and offset >= len(result.items)):
+                raise LibrusError(ErrorKind.PARSE)
+            seen.add(result.fingerprint)
+            take = min(len(result.items) - offset, selection.limit - len(items))
+            items.extend(result.items[offset : offset + take])
+            offset += take
+            if offset == len(result.items):
+                if page + 1 == count:
+                    break
+                page, offset = page + 1, 0
+            if (
+                offset
+                or len(items) == selection.limit
+                or fetched == selection.max_pages
+            ):
+                next_cursor = CompletedLessonsCursor(
+                    self._alias,
+                    selection.start,
+                    selection.end,
+                    page,
+                    offset,
+                    count,
+                    result.fingerprint,
+                )
+                break
+        return CompletedLessons(
+            self._identity,
+            selection.start,
+            selection.end,
+            tuple(items),
+            fetched,
+            next_cursor,
+            self._observation("completed_lessons"),
+        )
 
     async def _school_result(
         self,
