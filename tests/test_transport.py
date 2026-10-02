@@ -276,3 +276,40 @@ def test_status_classification_does_not_attach_private_body(
                 await transport.aclose()
 
     asyncio.run(scenario())
+
+
+CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
+
+
+@pytest.mark.parametrize(
+    "endpoint,form",
+    [
+        ("attendance", CREDENTIALS),  # credentials only go to the login submission
+        ("grades", CREDENTIALS),
+        ("login_submit", {"login": "fixture", "pass": "fixture-secret"}),
+        ("timetable", None),  # a view-changing POST always carries its form
+        ("agenda", {"rok": 2026}),
+        ("identity", {"fixture": "value"}),  # a GET never carries a form body
+        ("agenda", {"rok": "2026", "miesiac": "10", "extra": "1"}),  # unknown field
+        ("timetable", {"rok": "2026"}),  # another endpoint's field
+        ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
+        ("grades", {}),  # empty form
+    ],
+)
+def test_mismatched_forms_are_rejected_before_dispatch(
+    endpoint: str, form: object
+) -> None:
+    async def scenario() -> None:
+        async with RequestScheduler(("a",), limits=SchedulerLimits()) as scheduler:
+            transport = AiohttpTransport(
+                "a", scheduler, ConnectionSettings(), TransportLimits()
+            )
+            try:
+                with pytest.raises(LibrusError) as failure:
+                    await transport.request(endpoint, RequestBudget(), form=form)  # type: ignore[arg-type]
+                assert failure.value.kind == ErrorKind.INVALID_INPUT
+                assert scheduler.snapshot().requests_dispatched == 0
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())

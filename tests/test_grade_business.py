@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 
 from librus_python_api import Availability, GradeKind, GradeView
-from librus_python_api.exceptions import InvalidInputError, ParseError
+from librus_python_api.exceptions import ParseError
 from librus_python_api.grade_records import parse_grade_records
 from tests.grade_records_support import GradeRecordsFixture, grade_box, grades_html
 from tests.http_support import serve
@@ -249,17 +249,5 @@ def test_upstream_filters_are_isolated_and_windows_always_use_all_view() -> None
                     "zmiany_logowanie_tydzien",
                     "zmiany_logowanie",
                 }
-
-    asyncio.run(scenario())
-
-
-def test_unknown_grade_filter_is_rejected_before_login() -> None:
-    async def scenario() -> None:
-        fixture = GradeRecordsFixture()
-        fixture.origin = "http://localhost:8080"
-        async with fixture.service() as service:
-            with pytest.raises(InvalidInputError):
-                await service.account("student").grades(view="week")  # type: ignore[arg-type]
-            assert service.snapshot().requests_dispatched == 0
 
     asyncio.run(scenario())

@@ -48,7 +48,6 @@ from librus_python_api.models import (
     Observation,
     Person,
     SchoolAverage,
-    SchoolDateTime,
     SchoolDetail,
     SchoolReference,
     StudentInformation,
@@ -64,7 +63,7 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.3.0.dev0"
+__version__ = "0.3.0"
 
 __all__ = [
     "CompletedLesson",
@@ -81,7 +80,6 @@ __all__ = [
     "AgendaEvent",
     "Homework",
     "HomeworkItem",
-    "SchoolDateTime",
     "SchoolDetail",
     "SchoolReference",
     "Announcements",

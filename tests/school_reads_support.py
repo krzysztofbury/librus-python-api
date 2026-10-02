@@ -36,30 +36,81 @@ def agenda_html(year: int = 2026, month: int = 10, cell: str | None = None) -> s
     return "<html><body><!-- Fixture comment -->" + "".join(days) + "</body></html>"
 
 
-def homework_html(identifier: str = "456", extra: str = "") -> str:
-    values = (
-        "Fixture topic",
-        "Fixture Teacher",
-        "Fixture Biology",
-        "Fixture practice",
-        "2026-09-01",
-        "08:15",
-        "2026-10-03",
-        "12:30",
-    )
-    cells = "".join("<td>" + escape(value) + "</td>" for value in values)
+HOMEWORK_FILTERS = (
+    '<table class="decorated filters medium center"><tr><td>Data</td>'
+    '<td><input name="dataOd" value="2026-09-28"></td></tr></table>'
+)
+HOMEWORK_HEADER = (
+    "<thead><tr><td><a>Przedmiot</a></td><td><a>Nauczyciel</a></td>"
+    "<td><a>Temat</a></td><td><a>Kategoria</a></td>"
+    '<td colspan="2"><a>Data zadania</a></td>'
+    '<td colspan="2"><a>Termin wykonania</a></td>'
+    '<td class="tiny"> Status przesyłania rozwiązania <br> <br> '
+    '<a><img title="Fixture refresh"></a> <br> </td>'
+    '<td class="big">Opcje</td></tr></thead>'
+)
+
+
+def homework_row(
+    identifier: str = "456",
+    topic: str = "Fixture topic",
+    assigned: tuple[str, str] = ("2026-09-16", "śr."),
+    due: tuple[str, str] = ("2026-09-17", "czw."),
+    options: str = "",
+) -> str:
+    """Observed column order; due date sits in a layout div, weekdays apart."""
+    plain = ("Fixture Biology", "Fixture Teacher", topic, "Fixture category")
     return (
-        '<html><body><table class="myHomeworkTable decorated"><thead><tr>'
-        "<th>Fixture columns</th></tr></thead><tbody>"
-        '<tr class="line0">'
-        + cells
-        + '<td><!-- Fixture comment --><input type="button" '
-        "onclick=\"open('/moje_zadania/podglad/"
+        f'<tr class="line1" id="homework_{identifier}">'
+        + "".join(f'<td class=" bold">{escape(value)}</td>' for value in plain)
+        + f"<td>{assigned[0]}</td><td>{assigned[1]}</td>"
+        + f'<td> <div class="left">{due[0]}</div> <div class="left"> </div> </td>'
+        + f"<td>{due[1]}</td><!-- status --><td> - </td><!-- //status -->"
+        + '<td><input type="button" value="Podgląd" onclick=" checkAsRead('
         + identifier
-        + "')\">"
-        + extra
-        + "</td></tr></tbody></table></body></html>"
+        + "); otworz_w_nowym_oknie('/moje_zadania/podglad/"
+        + identifier
+        + "','o1',650,600); \">"
+        + '<input type="button" onclick="showConfirmQuestion(1, 2);" '
+        + 'value="Fixture mark done">'
+        + options
+        + "</td></tr>"
     )
+
+
+def homework_html(identifier: str = "456", rows: str | None = None) -> str:
+    body = homework_row(identifier) if rows is None else rows
+    return (
+        "<html><body><h2>Zadania domowe</h2>"
+        + HOMEWORK_FILTERS
+        + '<table class="decorated myHomeworkTable">'
+        + HOMEWORK_HEADER
+        + "<tbody>"
+        + body
+        + '</tbody><tfoot><tr><td colspan="10"> </td></tr></tfoot>'
+        + "</table></body></html>"
+    )
+
+
+def warning_html(message: str, empty: str | None = None) -> str:
+    """Observed page-level information box; empty markers can sit beside it."""
+    return (
+        '<html><body><h2 class="inside">Fixture view</h2>'
+        '<div class="warning-box information"><div class="warning-head">'
+        '<div class="warning-title">Informacja</div></div>'
+        f'<div class="warning-content">{message}</div>'
+        '<div class="warning-buttons"></div></div>'
+        + (f'<p class="msgEmptyTable">{empty}</p>' if empty else "")
+        + "</body></html>"
+    )
+
+
+HOMEWORK_EMPTY = (
+    "<html><body>" + HOMEWORK_FILTERS + '<p class="msgEmptyTable">Brak wpisów</p>'
+    "</body></html>"
+)
+VIEW_DISABLED = "Ten widok został wyłączony przez administratora szkoły."
+RANGE_REJECTED = "Wybrano nieprawidłowy zakres daty."
 
 
 def detail_html(
@@ -93,7 +144,6 @@ class SchoolReadsFixture(SchoolFixture):
         self.detail_gets: list[tuple[str, str, str]] = []
         self.status: dict[str, int] = {}
         self.bodies: dict[str, str] = {}
-        self.detail_expiry = 0
         self.wait: asyncio.Event | None = None
         self.started = asyncio.Event()
 
@@ -154,9 +204,6 @@ class SchoolReadsFixture(SchoolFixture):
         login = self.record(request)
         assert not request.query and not await request.read()
         self.detail_gets.append((kind, login, request.match_info["id"]))
-        if self.detail_expiry:
-            self.detail_expiry -= 1
-            return web.Response(status=401)
         return self.response(kind + "_detail", detail_html(kind))
 
     async def agenda_detail(self, request: web.Request) -> web.Response:

@@ -2,17 +2,16 @@
 
 import re
 from dataclasses import dataclass, field
-from datetime import date
 from typing import Literal, cast
 
 from lxml import html
 
+from librus_python_api import markup
 from librus_python_api.config import (
     GRADE_AVERAGE_HEADERS,
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_CURRENT_HEADER,
     GRADE_EMPTY_MARKERS,
-    GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_RECORDS,
     GRADE_MAX_SUBJECTS,
@@ -22,18 +21,9 @@ from librus_python_api.config import (
     GRADE_PUBLICATION_DATE_LABEL,
     GRADE_PUBLICATION_PERIOD_LABELS,
     GRADE_PUBLICATION_TEACHER_LABEL,
-    GRADE_WEEKDAY_LABELS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import (
-    _cells,
-    _locate,
-    _rows,
-    _span,
-    _subject_rows,
-    _summary,
-    _text,
-)
+from librus_python_api.grade_parsers import _locate, _subject_rows, _summary
 from librus_python_api.models import (
     Availability,
     DescriptiveGrade,
@@ -44,7 +34,7 @@ from librus_python_api.models import (
     NumericGrade,
     SchoolAverage,
 )
-from librus_python_api.parsers import parse_html_document
+from librus_python_api.parsers import parse_page
 
 
 def _label(title: str) -> str:
@@ -54,68 +44,29 @@ def _label(title: str) -> str:
 def _layout(table: html.HtmlElement) -> tuple[list[int], dict[int, int]]:
     current: list[int] = []
     averages: dict[int, int] = {}
-    for row in _rows(table):
+    for row in markup.rows(table):
         if next(row.iterancestors("thead"), None) is None:
             continue
-        cells = _cells(row)
-        if not any(_text(c) == GRADE_CURRENT_HEADER for c in cells):
+        cells = markup.cells(row)
+        if not any(markup.text(c) == GRADE_CURRENT_HEADER for c in cells):
             continue
         if current:
             raise LibrusError(ErrorKind.PARSE)
         position = GRADE_BODY_PREFIX_COLUMNS
         for cell in cells:
-            if _text(cell) == GRADE_CURRENT_HEADER:
-                if _span(cell) != 1:
+            if markup.text(cell) == GRADE_CURRENT_HEADER:
+                if markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
                 current.append(position)
             period = GRADE_AVERAGE_HEADERS.get(_label(cell.get("title", "")))
             if period is not None:
-                if period in averages or _span(cell) != 1:
+                if period in averages or markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
                 averages[period] = position
-            position += _span(cell)
+            position += markup.colspan(cell)
     if len(current) != 2:
         raise LibrusError(ErrorKind.PARSE)
     return current, averages
-
-
-def _metadata(element: html.HtmlElement) -> dict[str, str]:
-    title = element.get("title", "")
-    if len(title) > GRADE_MAX_METADATA_LENGTH:
-        raise LibrusError(ErrorKind.LIMIT)
-    result: dict[str, str] = {}
-    chunks = re.split(r"<br\s*/?>|\n", title, flags=re.I)
-    if len(chunks) > GRADE_MAX_METADATA_FIELDS:
-        raise LibrusError(ErrorKind.LIMIT)
-    for chunk in chunks:
-        if not chunk.strip():
-            continue
-        # Tooltips are HTML strings inside HTML attributes. Parse markup only
-        # where present; apply the same bounded document rules to that tree.
-        rendered = (
-            _text(parse_html_document(chunk.encode()))
-            if "<" in chunk
-            else " ".join(chunk.split())
-        )
-        key, separator, value = rendered.partition(":")
-        key, value = key.strip(), value.strip()
-        if not separator or not key or key in result:
-            raise LibrusError(ErrorKind.PARSE)
-        result[key] = value
-    return result
-
-
-def _day(value: str | None) -> date:
-    failed = False
-    match = re.fullmatch(r"([0-9]{4}-[0-9]{2}-[0-9]{2})(?: \(([^()]+)\))?", value or "")
-    if match is None or (match[2] is not None and match[2] not in GRADE_WEEKDAY_LABELS):
-        raise LibrusError(ErrorKind.PARSE)
-    try:
-        return date.fromisoformat(match[1])
-    except ValueError:
-        failed = True
-    assert failed
-    raise LibrusError(ErrorKind.PARSE)
 
 
 def _numeric(
@@ -124,14 +75,14 @@ def _numeric(
     semester: Literal[0, 1, 2],
     kind: GradeKind = GradeKind.CURRENT,
 ) -> NumericGrade:
-    metadata = _metadata(element)
+    metadata = markup.tooltip_fields(element)
     counts = metadata.get("Licz do średniej")
     if counts is not None and counts.casefold() not in ("tak", "nie"):
         raise LibrusError(ErrorKind.PARSE)
     weight = metadata.get("Waga")
     if weight is not None and not re.fullmatch(r"[0-9]{1,4}", weight):
         raise LibrusError(ErrorKind.PARSE)
-    raw = _text(element)
+    raw = markup.text(element)
     if not raw:
         raise LibrusError(ErrorKind.PARSE)
     href = element.get("href")
@@ -140,7 +91,7 @@ def _numeric(
     return NumericGrade(
         subject,
         raw,
-        _day(metadata.get("Data")),
+        markup.civil_date(metadata.get("Data")),
         semester,
         None if counts is None else counts.casefold() == "tak",
         None if weight is None else int(weight),
@@ -160,14 +111,14 @@ def _descriptive(
     semester: Literal[0, 1, 2],
     kind: GradeKind = GradeKind.CURRENT,
 ) -> DescriptiveGrade:
-    metadata = _metadata(box)
-    raw = _text(element)
+    metadata = markup.tooltip_fields(box)
+    raw = markup.text(element)
     if not raw:
         raise LibrusError(ErrorKind.PARSE)
     return DescriptiveGrade(
         subject,
         raw,
-        _day(metadata.get("Data")),
+        markup.civil_date(metadata.get("Data")),
         semester,
         metadata.get("Nauczyciel"),
         metadata.get("Komentarz"),
@@ -223,14 +174,18 @@ def _entries(
     require_empty_marker: bool = True,
 ) -> None:
     boxes = _boxes(cell)
-    if not boxes and require_empty_marker and _text(cell) not in GRADE_EMPTY_MARKERS:
+    if (
+        not boxes
+        and require_empty_marker
+        and markup.text(cell) not in GRADE_EMPTY_MARKERS
+    ):
         if (
             not descriptive
             or period == 0
             or any(isinstance(node.tag, str) for node in cell)
         ):
             raise LibrusError(ErrorKind.PARSE)
-        raw = _text(cell)
+        raw = markup.text(cell)
         if len(raw) > GRADE_MAX_METADATA_LENGTH:
             raise LibrusError(ErrorKind.LIMIT)
         collection.descriptive_summaries.append(
@@ -279,14 +234,14 @@ def _descriptive_row(cells: list[html.HtmlElement]) -> bool:
     return (
         len(cells) in (4, 6)
         and {"micro", "center", "screen-only"} <= set(cells[0].get("class", "").split())
-        and all(_span(cell) == 1 for cell in cells)
+        and all(markup.colspan(cell) == 1 for cell in cells)
     )
 
 
 def _read_descriptive_row(
     cells: list[html.HtmlElement], collection: _Collection
 ) -> None:
-    subject = _text(cells[1])
+    subject = markup.text(cells[1])
     collection.subject(subject, descriptive=True)
     for period in (1, 2):
         _entries(cells[period + 1], subject, period, collection, descriptive=True)
@@ -299,10 +254,10 @@ def _read_descriptive_row(
 
 def _period_columns(table: html.HtmlElement) -> dict[tuple[int, GradeKind], int]:
     result: dict[tuple[int, GradeKind], int] = {}
-    for row in _rows(table):
-        cells = _cells(row)
+    for row in markup.rows(table):
+        cells = markup.cells(row)
         if next(row.iterancestors("thead"), None) is None or not any(
-            _text(c) == GRADE_CURRENT_HEADER for c in cells
+            markup.text(c) == GRADE_CURRENT_HEADER for c in cells
         ):
             continue
         position = GRADE_BODY_PREFIX_COLUMNS
@@ -318,10 +273,10 @@ def _period_columns(table: html.HtmlElement) -> dict[tuple[int, GradeKind], int]
                     GradeKind.PREDICTED_PERIOD,
                 )
             if period is not None:
-                if (period, kind) in result or _span(cell) != 1:
+                if (period, kind) in result or markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
                 result[(period, kind)] = position
-            position += _span(cell)
+            position += markup.colspan(cell)
     return result
 
 
@@ -338,13 +293,15 @@ def _read_numeric_table(table: html.HtmlElement, collection: _Collection) -> Non
             continue
         subject = _summary(cells, fields, width).subject
         collection.subject(subject)
-        columns = [cell for cell in cells for _ in range(_span(cell))]
+        columns = [cell for cell in cells for _ in range(markup.colspan(cell))]
         for period in (1, 2, 0):
             index = means.get(period)
             value = (
                 GradeSummaryValue(Availability.UNAVAILABLE, None)
-                if index is None or _span(columns[index]) != 1
-                else GradeSummaryValue(Availability.AVAILABLE, _text(columns[index]))
+                if index is None or markup.colspan(columns[index]) != 1
+                else GradeSummaryValue(
+                    Availability.AVAILABLE, markup.text(columns[index])
+                )
             )
             collection.averages.append(SchoolAverage(subject, period, value))
         if columns[current[0]] is columns[current[1]] and _boxes(columns[current[0]]):
@@ -371,11 +328,11 @@ def _read_numeric_table(table: html.HtmlElement, collection: _Collection) -> Non
 
 
 def _read_publications(table: html.HtmlElement, collection: _Collection) -> None:
-    rows = list(_rows(table))
+    rows = list(markup.rows(table))
     for index, row in enumerate(rows):
         headers = [
             cell
-            for cell in _cells(row)
+            for cell in markup.cells(row)
             if cell.tag == "th"
             and list(cell.iter("strong"))
             and GRADE_PUBLICATION_DATE_LABEL in cell.text_content()
@@ -388,10 +345,10 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
         titles = list(header.iter("strong"))
         if len(titles) != 1:
             raise LibrusError(ErrorKind.PARSE)
-        title = _text(titles[0])
-        info = _text(header)
+        title = markup.text(titles[0])
+        info = markup.text(header)
         date_info = info.partition(GRADE_PUBLICATION_DATE_LABEL)[2].strip()
-        day = _day(date_info[:10])
+        day = markup.civil_date(date_info[:10])
         if len(date_info) > 10 and date_info[10] not in (" ", ",", ")"):
             raise LibrusError(ErrorKind.PARSE)
         teacher_info = info.partition(GRADE_PUBLICATION_TEACHER_LABEL)[2].strip()
@@ -404,7 +361,7 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
         if len(matching) > 1:
             raise LibrusError(ErrorKind.PARSE)
         paragraphs = list(rows[index + 1].iter("p"))
-        raw = "\n".join(_text(paragraph) for paragraph in paragraphs).strip()
+        raw = "\n".join(markup.text(paragraph) for paragraph in paragraphs).strip()
         if not title or not raw:
             raise LibrusError(ErrorKind.PARSE)
         if len(raw) > GRADE_MAX_METADATA_LENGTH:
@@ -428,7 +385,7 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
 
 
 def parse_grade_records(body: bytes) -> GradeRecords:
-    document = parse_html_document(body)
+    document = parse_page(body)
     collection = _Collection()
     numeric_tables = []
     tables = list(document.iter("table"))
@@ -437,8 +394,8 @@ def parse_grade_records(body: bytes) -> GradeRecords:
             continue
         if any(
             next(row.iterancestors("thead"), None) is not None
-            and any(_text(c) == GRADE_CURRENT_HEADER for c in _cells(row))
-            for row in _rows(table)
+            and any(markup.text(c) == GRADE_CURRENT_HEADER for c in markup.cells(row))
+            for row in markup.rows(table)
         ):
             numeric_tables.append(table)
     if len(numeric_tables) > 1:
@@ -448,8 +405,8 @@ def parse_grade_records(body: bytes) -> GradeRecords:
         if table in numeric_tables:
             _read_numeric_table(table, collection)
         else:
-            for row in _rows(table):
-                cells = _cells(row)
+            for row in markup.rows(table):
+                cells = markup.cells(row)
                 if _descriptive_row(cells):
                     _read_descriptive_row(cells, collection)
                 elif (

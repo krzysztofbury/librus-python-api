@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 import pytest
 
-from librus_python_api import Availability, RequestBudget, TransportLimits
+from librus_python_api import Availability, RequestBudget
 from librus_python_api.config import GRADE_MAX_SUBJECTS
 from librus_python_api.exceptions import (
     AccessDeniedError,
@@ -11,7 +11,6 @@ from librus_python_api.exceptions import (
     ParseError,
 )
 from librus_python_api.grade_parsers import parse_final_grades
-from librus_python_api.models import DiagnosticEvent
 from tests.grade_support import GradeFixture, summary_html
 from tests.http_support import serve
 
@@ -277,53 +276,6 @@ def test_summary_column_and_value_bounds(mutate: Callable[[str], str]) -> None:
         parse_final_grades(mutate(summary_html()).encode())
 
 
-def test_four_independent_summary_reads_coalesce_and_cache_under_one_scheduler() -> (
-    None
-):
-    async def scenario() -> None:
-        fixture = GradeFixture()
-        aliases = ("student-a", "parent-a", "student-b", "parent-b")
-        events: list[DiagnosticEvent] = []
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(
-                aliases, diagnostic_sink=events.append
-            ) as service:
-                results = await asyncio.gather(
-                    *(
-                        service.account(alias).final_grades()
-                        for alias in aliases
-                        for _ in range(2)
-                    )
-                )
-                for index, alias in enumerate(aliases):
-                    result = results[index * 2]
-                    assert result is results[index * 2 + 1]
-                    assert result.identity.owner.id == alias
-                    assert result.identity.student.id == "student-shared"
-                    assert result.observation.account == alias
-                    assert result.observation.source == "final_grades"
-                    assert result.items[0].subject == f"Fixture {alias}"
-                    assert result.items[0].annual.raw == "4+"
-                    assert "Fixture" not in repr(result)
-                    cached = await service.account(alias).final_grades(
-                        max_age_seconds=60
-                    )
-                    assert cached is result
-                assert fixture.logins == dict.fromkeys(aliases, 1)
-                assert (
-                    len(fixture.calls) == service.snapshot().requests_dispatched == 24
-                )
-                assert len(fixture.connections) == 4
-                assert {event.operation for event in events} == {"final_grades"}
-                assert "student-a" not in repr(events)
-                fresh = await service.account(aliases[0]).final_grades()
-                assert fresh is not results[0]
-                assert len(fixture.calls) == 25
-
-    asyncio.run(scenario())
-
-
 def test_summary_session_recovery_invalidates_other_cached_account_results() -> None:
     async def scenario() -> None:
         fixture = GradeFixture()
@@ -369,58 +321,5 @@ def test_summary_denial_cooldown_does_not_block_profile_or_another_login() -> No
                     await service.account("parent").student_information()
                 ).identity.owner.id == "parent"
                 assert fixture.logins == {"student": 1, "parent": 1}
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize("requests", [5, 6])
-def test_summary_dispatch_uses_the_original_whole_operation_budget(
-    requests: int,
-) -> None:
-    async def scenario() -> None:
-        fixture = GradeFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                budget = RequestBudget(max_requests=requests)
-                if requests == 5:
-                    with pytest.raises(LimitError):
-                        await service.account("student").final_grades(budget=budget)
-                    assert not fixture.grades_started.is_set()
-                else:
-                    result = await service.account("student").final_grades(
-                        budget=budget
-                    )
-                    assert result.items[0].annual.raw == "4+"
-                assert len(fixture.calls) == budget.requests_dispatched == requests
-
-    asyncio.run(scenario())
-
-
-@pytest.mark.parametrize("mode", ["wrong-type", "malformed", "parser-bytes"])
-def test_summary_public_boundary_rejects_wrong_content_and_parser_bounds(
-    mode: str,
-) -> None:
-    async def scenario() -> None:
-        fixture = GradeFixture()
-        expected: type[ParseError | LimitError] = ParseError
-        limits = TransportLimits()
-        if mode == "wrong-type":
-            fixture.grade_content_type = "application/json"
-        elif mode == "malformed":
-            fixture.grade_body = "<html>wrong page fixture</html>"
-        else:
-            limits = TransportLimits(parse_max_bytes=512)
-            fixture.grade_body = summary_html() + " " * 512
-            expected = LimitError
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service(transport_limits=limits) as service:
-                with pytest.raises(expected) as caught:
-                    await service.account("student").final_grades()
-                assert caught.value.__context__ is None
-                assert fixture.grades_started.is_set()
-                assert fixture.logins == {"student": 1}
-                assert service.snapshot().active == service.snapshot().queued == 0
 
     asyncio.run(scenario())

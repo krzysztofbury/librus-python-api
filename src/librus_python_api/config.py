@@ -5,6 +5,7 @@ records source-informed routes with explicit offline/live evidence separation.
 There is intentionally no public arbitrary authenticated URL interface.
 """
 
+import calendar
 import re
 import ssl
 from collections.abc import Mapping
@@ -27,6 +28,7 @@ from pydantic import (
 )
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.models import AttendanceView, GradeView
 
 HttpMethod = Literal["GET", "POST"]
 
@@ -189,7 +191,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/informacja",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "final_grades",
@@ -311,7 +313,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/moje_zadania/podglad/{id}",
                 SideEffect.NONE,
                 True,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
         )
     }
@@ -321,6 +323,7 @@ PROFILE_LABELS = MappingProxyType(
     {
         "Uczeń": "name",
         "Imię i nazwisko": "name",
+        "Imię i nazwisko ucznia": "name",
         "Klasa": "class_name",
         "Numer w dzienniku": "register_number",
         "Nr w dzienniku": "register_number",
@@ -360,7 +363,6 @@ GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32
 GRADE_MAX_WINDOW_DAYS = 366
-GRADE_WEEKDAY_LABELS = frozenset({"pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz."})
 GRADE_PERIOD_HEADERS = MappingProxyType(
     {
         "Ocena śródroczna z pierwszego okresu": 1,
@@ -451,9 +453,43 @@ SCHOOL_MAX_TOTAL_TEXT_LENGTH = 262144
 SCHOOL_MAX_DETAIL_FIELDS = 64
 SCHOOL_MAX_FIELD_LENGTH = 1024
 SCHOOL_MAX_TOOLTIP_LENGTH = 8192
-SCHOOL_MAX_TOOLTIP_FIELDS = 32
+# Tooltips carry one line per <br>; a long description can span dozens.
+SCHOOL_MAX_TOOLTIP_LINES = 256
+# Observed agenda tooltip labels. Lines after "Opis" continue the description
+# until the next label, so numbered description lines never become fields.
+AGENDA_TOOLTIP_LABELS = frozenset({"Nauczyciel", "Opis", "Data dodania"})
+AGENDA_DESCRIPTION_LABEL = "Opis"
 HOMEWORK_MAX_COLUMNS = 32
-HOMEWORK_MAX_WINDOW_DAYS = 371
+# Observed header labels. Date columns span two cells: a date and its weekday.
+HOMEWORK_COLUMNS = MappingProxyType(
+    {
+        "Przedmiot": "subject",
+        "Nauczyciel": "teacher",
+        "Temat": "topic",
+        "Kategoria": "category",
+        "Data zadania": "assigned",
+        "Termin wykonania": "due",
+        "Status przesyłania rozwiązania": "submission_status",
+        "Opcje": "options",
+    }
+)
+HOMEWORK_DONE_PATTERN = (
+    r"Zadanie oznaczono jako wykonane \(([0-9]{4}-[0-9]{2}-[0-9]{2}), "
+    r"([0-9]{2}:[0-9]{2})\)"
+)
+HOMEWORK_MARK_DONE_HANDLER = (
+    r"\s*showConfirmQuestion\(\s*[0-9]{1,64}\s*,\s*[0-9]{1,64}\s*\);?\s*"
+)
+WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
+# Observed page-level notices shown instead of the requested content.
+PAGE_NOTICES = MappingProxyType(
+    {
+        "Ten widok został wyłączony przez administratora szkoły.": (
+            ErrorKind.VIEW_DISABLED
+        ),
+        "Wybrano nieprawidłowy zakres daty.": ErrorKind.INVALID_INPUT,
+    }
+)
 COMPLETED_LESSONS_MAX_WINDOW_DAYS = 371
 COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
 COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256
@@ -461,6 +497,20 @@ COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
+
+
+def grade_view_form(view: GradeView) -> dict[str, str]:
+    """The grade page's view selector; selecting a view changes upstream state."""
+    if not isinstance(view, GradeView):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {GRADE_VIEW_FIELDS[view.value]: "1"}
+
+
+def attendance_view_form(view: AttendanceView) -> dict[str, str]:
+    if not isinstance(view, AttendanceView):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    key, value = ATTENDANCE_VIEW_FORMS[view.value]
+    return {key: value}
 
 
 def agenda_form(year: int, month: int) -> dict[str, str]:
@@ -473,11 +523,18 @@ def agenda_form(year: int, month: int) -> dict[str, str]:
     return {"rok": str(year), "miesiac": f"{month:02d}"}
 
 
+def _one_month_after(day: date) -> date:
+    year, month = (day.year + 1, 1) if day.month == 12 else (day.year, day.month + 1)
+    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+
+
 def homework_form(start: date, end: date) -> dict[str, str]:
+    """The upstream form accepts at most one calendar month per selection."""
     if (
         type(start) is not date
         or type(end) is not date
-        or not (0 <= (end - start).days < HOMEWORK_MAX_WINDOW_DAYS)
+        or start.year > 9998
+        or not start <= end <= _one_month_after(start)
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     return {
@@ -512,6 +569,28 @@ def completed_lessons_form(start: date, end: date, page: int) -> dict[str, str]:
         "numer_strony1001": str(page),
         "porcjowanie_pojemnik1001": "1001",
     }
+
+
+# Field names each view-selection POST may carry; the transport rejects others.
+FORM_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
+    {
+        "grades": frozenset(GRADE_VIEW_FIELDS.values()),
+        "attendance": frozenset(key for key, _ in ATTENDANCE_VIEW_FORMS.values()),
+        "timetable": frozenset({TIMETABLE_WEEK_FIELD}),
+        "agenda": frozenset({"rok", "miesiac"}),
+        "homework": frozenset({"dataOd", "dataDo", "przedmiot", "status"}),
+        "completed_lessons": frozenset(
+            {
+                "data1",
+                "data2",
+                "filtruj_id_przedmiotu",
+                "numer_strony1001",
+                "porcjowanie_pojemnik1001",
+            }
+        ),
+    }
+)
+FORM_MAX_VALUE_LENGTH = 64
 
 
 # Source-informed stable type-ID policy, never inferred from names or symbols.

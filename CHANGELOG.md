@@ -1,83 +1,56 @@
 # Changelog
 
-## 0.3.0.dev0 - School reads development
+## 0.3.0 - School reads
 
-- Fix completed-lesson empty-marker discovery on HTML comments without weakening
-  unknown-layout rejection. Original regression fails before the fix.
-- Add an offline-tested one-shot installed qualification harness, privacy-safe
-  reason/structure/code-location diagnostics and Chromium projections. Correct its
-  agenda projection for calendars inside outer layout tables. Live attempts stopped;
-  completed lessons and the remaining agenda/homework live gates remain pending.
-- Record default-off public behaviour-note support and an internal non-replayed,
-  budgeted ordinary-read probe with its centralized OpenAPI operation. Populated
-  note evidence, consumer migration and publication remain separate work.
+Local-first release; not published to PyPI.
 
-- Add immutable completed-lesson page and bounded-batch APIs with explicit civil
-  date windows, same-response pagination and account/window continuation cursors.
-  Preserve topic boundaries, optional teacher/number and numeric attendance details.
-- Ship the twenty-fifth centralized route/OpenAPI operation with original parser/
-  loopback/lifecycle tests and synthetic external-apix comparison. Whole-batch shared
-  budgets, isolated caching/coalescing, non-replayed POSTs and joined cleanup apply.
-  Live pagination/layouts remain unqualified; no consumer switch or publication.
+### Added
 
-- Add ordinary agenda month and homework window APIs with full event/tooltip text,
-  immutable civil dates/clocks, explicit unavailable values and account-bound
-  detail references. Preserve unknown detail fields and notes.
-- Ship four additional centralized OpenAPI operations with original parser/wire/
-  lifecycle proof. Selection POSTs never replay; shared limits, isolated caching,
-  safe detail recovery and joined cancellation remain in force.
-- Record populated agenda/detail and empty-homework discovery, partial installed
-  agenda qualification and unresolved tooltip comparison. Populated homework,
-  installed details/homework and a complete family rerun remain unqualified.
-  No read-once events, submissions, attachments, consumer switch or publication.
-- Add opt-in synthetic apix comparison for populated homework/details and missing
-  agenda variants. All four public APIs complete on installed artifacts over
-  loopback; common fields match and baseline/native departures are explicit.
-  Native production code is unchanged; this is not populated live qualification.
+- Attendance: views, date windows, details, gateway records, and overall and
+  per-subject frequency with explicit ratio policies.
+- Timetable: explicit weeks with typed days, periods, lessons, notices and
+  recesses.
+- Announcements with full text and account-scoped content references.
+- Agenda months and details. Homework windows and details.
+- Completed-lesson pages and bounded resumable batches.
+- `ViewDisabledError` for views the school has switched off, on every page.
+- `scripts/live_capture.py` (one login, allowlist, request cap, private 0600
+  captures outside any Git work tree) and `scripts/crosscheck.py` (offline Chromium
+  comparison).
 
-- Add typed ordinary announcement reads with full bounded multiline plain text,
-  author, raw/typed civil date and account-alias-scoped content references rather
-  than fabricated upstream IDs. Preserve duplicates; edits change references.
-- Ship the twentieth route/OpenAPI operation and original parser/wire/lifecycle
-  tests. Reuse shared budgets, isolated caching, proven-expiry safe-read recovery
-  and joined cancellation. Unknown/missing markup is not an empty collection.
-- Complete populated installed qualification against identical-response offline
-  apix and network-disabled Chromium, with only whitespace differences. Record
-  the same-response classification rule in CONTRIBUTING.md. No consumer switch,
-  publication, richer-layout or empty-profile qualification is implied.
+### Changed (breaking for 0.3.0.dev0 users)
 
-- Add explicit timetable weeks with immutable days/periods, distinct lessons,
-  raw change notices/metadata, local clock values and separately reported recess
-  pairs. Reuse bounded account/week caches, shared budgets, and POST non-replay.
-- Ship the nineteenth centralized OpenAPI operation and original timetable tests.
-  Permit only the timetable-specific repeated slot ID repair. Protect matching
-  mirrored number markers and zero/inverted reported recesses with regressions.
-- Complete installed timetable retrieval for two populated weeks and cached reuse
-  on one context. Dates/times/numbers/recesses/subjects/notices match apix's legacy
-  projection. Subsequent same-response Chromium diagnosis confirms native
-  teacher/classroom values in all slots; 28 differences per week are whitespace
-  and one baseline string does not match rendered text. Preserve correct native
-  output rather than emulate apix; exact-string parity is not claimed.
-- Add original regression cases for multiline/nonbreaking-space lesson rendering
-  and hyphens inside subject, teacher and room text. No production parser change
-  was required to resolve the teacher/classroom correctness gate.
+- `HomeworkItem` now matches the live page: `subject`, `teacher`, `topic`,
+  `category`, `assigned_on`, `due_on`, `submission_status`, `marked_done_at` and
+  `reference`. `lesson`, `assigned`, `due`, `extra_cells` and `SchoolDateTime`
+  are removed.
+- `homework()` accepts at most one calendar month, the upstream limit.
+- `AccountTransport.request` takes a plain string form for view POSTs, limited
+  to that endpoint's known field names. The selection wrapper types are removed.
 
-- Add immutable attendance records, strict all/week/last-login views, and inclusive
-  civil-date windows over the account's all-view collection cache.
-- Preserve unknown metadata and raw custom types, use explicit 1/2 semester labels,
-  and expose only inert validated numeric detail identifiers.
-- Add original parser and real loopback HTTP regressions for completeness, fixed
-  forms, isolation/coalescing, budgets, non-replay, and cancellation.
-- Ship the centralized POST and matching evidence-labelled OpenAPI contract.
-  Details/notes, gateway records, overall/semester and subject ratio policies now
-  accompany bounded account-scoped metadata reuse. Other 0.3 families remain pending.
-- Protect numeric semester headings, full-width detail content, and strict JSON
-  boolean-semester rejection with original regressions. Preserve ancillary rows
-  as separate notes rather than guessing captions or silently dropping text.
-- Complete one installed native/apix attendance pair under explicit authorization;
-  populated collections/detail/frequency match the declared legacy projection.
-  Empty last-login and zero-denominator mapping are not populated/full-domain parity.
-  No PyPI publication or consumer migration is included.
+### Fixed
+
+Each fix was found on live pages:
+
+- Homework columns were mislabeled and weekday cells parsed as clocks, so every
+  populated list failed.
+- A homework range rejected upstream was reported as an empty list.
+- The student profile failed on the current name label.
+- Timetable substitution notices wrapped in their tooltip anchor failed.
+- Long agenda descriptions exceeded the tooltip line cap, and their numbered
+  lines became bogus fields.
+- From review: text beside a wrapped timetable notice and unknown homework
+  handlers now fail instead of being dropped.
+
+### Internal
+
+- One typed fetch per operation through a single read path, replacing two
+  string-dispatched chains.
+- Shared HTML helpers moved to `markup.py`.
+- The shared read guarantees are tested once for every operation
+  (`tests/test_account_reads.py`). 32 duplicated per-family tests, the apix
+  parity suites and the tests that needed closed PR #38 were removed.
+- The `mcp` development dependency was removed.
 
 ## 0.2.0 - Local-first grade coverage
 

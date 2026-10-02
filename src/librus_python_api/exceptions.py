@@ -19,6 +19,7 @@ __all__ = [
     "ThrottledError",
     "UnknownDeliveryError",
     "UnsupportedCapabilityError",
+    "ViewDisabledError",
     "error_for",
 ]
 
@@ -30,6 +31,7 @@ class ErrorKind(StrEnum):
     SESSION_EXPIRED = "session_expired"
     ACCESS_DENIED = "access_denied"
     UNSUPPORTED_CAPABILITY = "unsupported_capability"
+    VIEW_DISABLED = "view_disabled"
     THROTTLED = "throttled"
     MAINTENANCE = "maintenance"
     CONNECTION = "connection"
@@ -88,6 +90,10 @@ class UnsupportedCapabilityError(LibrusError):
     pass
 
 
+class ViewDisabledError(LibrusError):
+    """The school administrator has switched this Synergia view off."""
+
+
 class ThrottledError(LibrusError):
     pass
 
@@ -127,6 +133,7 @@ _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
     ErrorKind.SESSION_EXPIRED: SessionExpiredError,
     ErrorKind.ACCESS_DENIED: AccessDeniedError,
     ErrorKind.UNSUPPORTED_CAPABILITY: UnsupportedCapabilityError,
+    ErrorKind.VIEW_DISABLED: ViewDisabledError,
     ErrorKind.THROTTLED: ThrottledError,
     ErrorKind.MAINTENANCE: MaintenanceError,
     ErrorKind.CONNECTION: ConnectionError,

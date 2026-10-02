@@ -1,346 +1,101 @@
 # TODO
 
-## Goal and baseline
+## Goal
 
-Primary goal: a secure, economical async API through which MCP queries multiple
-independent Librus logins and combines their results. Minimize upstream requests,
-enforce shared traffic budgets, return validated types, and verify the actual
-integration end to end, including
-a small daily credentialed CI check. The work packages below define the public
-acceptance criteria; supporting research in `docs/` is local and untracked.
+Replace `librus-apix` in [librus-mcp](https://github.com/krzysztofbury/librus-mcp)
+with this independently implemented, MIT-licensed library, published on PyPI,
+while preserving the MCP v1.7.0 public contract. The library gives MCP a small,
+typed async API over several independent Librus logins with shared, bounded
+traffic. MCP chooses accounts, combines results and owns its tools and state.
 
-Replace `librus-apix==1.5.2` in `librus-mcp` with an independently implemented,
-MIT-licensed `librus-python-api` distributed through PyPI. Preserve the MCP
-v1.7.0 public contract while removing its dependence on private upstream
-sessions, parsers, and notification types.
+Rules that hold for every release:
 
-Research date: 2026-09-29. The local `docs/ECOSYSTEM_REVIEW.md`
-compares all seven requested packages and records regression requirements
-R01-R17 with current consumer source/test owners. Research, repository
-documentation, commit checks, and a local package foundation exist today.
-The local-first 0.1.0 identity delivery is complete. Later operation families,
-live qualification, publishing, and full consumer cutover below remain pending.
+- 0.x releases are local-first. PyPI publication and its automation start at
+  `1.0.0rc1`.
+- Ordinary tests and CI stay offline. Live checks need explicit authorization
+  and follow the workflow in [CONTRIBUTING.md](CONTRIBUTING.md#live-verification).
+  The scheduled credentialed CI (P6-live) is planned, not running.
+- A family is "verified" only after a live page from the current build has been
+  checked. Record missing access as pending, never as passed.
+- Consumer (`librus-mcp`) changes are a separately authorized task.
 
-Current delivery: `0.1.0` packaging, typed route/error configuration,
-OpenAPI catalogue tests and shared
-request admission/budgets verified with a saturated four-account HTTP workload.
-The native scope-preserving HTTP transport and evidence-labelled OpenAPI routes
-are implemented. The public service, coalesced safe reads, account-scoped freshness,
-authentication, typed identity/profile, bounded Tenacity recovery, and redacted
-Loguru diagnostics are implemented and tested offline. Installed-artifact and
-real MCP stdio adapter qualification are complete on Linux. See VERIFICATION.md
-for measurements, exact proof commands, and explicit live/platform limitations.
+## Releases
 
-**Local-first scope adjustment:** develop and verify `0.x` using local wheel/
-sdist builds and offline runtime tests, including local `librus-mcp` integration.
-PyPI publication and its CI automation are deferred until `1.0.0rc1`, not required
-for the earlier local deliveries and not marked complete.
-The daily credentialed workflow remains planned separately. No live verification
-is authorized merely by documenting its future workflow.
-
-Repository hygiene is configured separately from the library milestones:
-pre-commit checks block common private files and scan staged secrets; manual
-worktree/history scans are available. See CONTRIBUTING for hook installation.
-
-The local `docs/MCP_OWNERSHIP_MAP.md` assigns all 18 current MCP
-2.0 roadmap items and existing consumer extensions to their intended owners.
-Library foundations should be built now; MCP's breaking interface changes
-remain a separately released follow-up, not a prerequisite for replacement.
-
-**Recommended first delivery:** package skeleton, transport and typed errors,
-then a shared-budget multi-account service with authentication and student
-information through a real consumer adapter and a local fixture server. Add
-the daily live check once this slice can safely use configured test credentials.
-Prove this slice before porting every endpoint. Ship centralized route metadata
-and a matching OpenAPI YAML contract with each implemented operation, including
-HTML scraping routes, evidence gaps, and explicit side effects.
-
-## Versioned delivery plan
-
-Versions below are planned release boundaries, not published packages. Group
-related implementation, documentation, and verification into useful releases;
-do not issue a version for each commit or checkbox. Each release should contain
-multiple focused commits and can span several PRs. A larger cohesive release is
-preferable to shipping disconnected foundations as separate versions.
-
-P0-P9 below remain the detailed acceptance checklist. The version plan assigns
-that work to releases; it does not replace the checklist or defer security,
-typing, and E2E proof until the end. Complete each phase's requirements for the
-operations enabled in that release, then extend them with later capabilities.
-
-| Target | Related work delivered together | Detailed scope |
+| Version | Scope | State |
 | --- | --- | --- |
-| `0.1.0` | Locally installable secure async account service, authentication, identity, and offline proof | P0; core P1/P2; P3 identity; initial P6; local artifact subset of P7; identity adapter experiment from P8 |
-| `0.2.0` | Grades, school averages, final summaries, upstream views, and date windows | Grade subset of P1/P3; corresponding P6 and local artifacts; business baseline and explicit qualification limits |
-| `0.3.0` | Remaining academic and school-information reads | Attendance, timetable, agenda/homework, announcements, completed lessons; P4 notes evidence decision; corresponding P6 |
-| `0.4.0` | Messaging, attachment streaming, and notification primitives with explicit side effects | Remaining message P1/P3; P4 content/attachments; P5; corresponding P6; consumer migration separately authorized |
-| `1.0.0rc1` | Complete MCP replacement candidate and representative qualification | Full P6; migration-ready P7; P8 implementation, installed-artifact proof, and rollback rehearsal |
-| `1.0.0` | Stable library contract and coordinated backward-compatible MCP backend cutover | Final P7/P8 release gates and supported API documentation |
-| MCP `2.0.0` | Consumer-facing contract, packaging, configuration, and resource changes | P9 and ownership-map A01-A18; separate consumer version line |
+| `0.1.0` | Account service, login, identity, profile, scheduler, budgets | Done |
+| `0.2.0` | Grades: summaries, records, views, windows | Done |
+| `0.3.0` | Attendance, timetable, announcements, agenda, homework, completed lessons; behaviour-note decision | Done, with the gaps below |
+| `0.4.0` | Messages, attachment streams, notification primitives, sending | Next |
+| `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
+| `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
+| MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
 
-Release order is sequential. P6 acceptance and local P7 artifact checks run for
-every delivery, not only the release candidate. PyPI publishing gates start at
-`1.0.0rc1`. During 0.x development, document
-breaking library API changes in minor-release migration notes; reserve patches
-for compatible fixes. After 1.0, use semantic versioning for the supported public
-API. Release candidates use Python-compatible versions such as `1.0.0rc1`.
+P0-P9 below are the detailed acceptance checklist for 1.0. Each release
+completes their requirements for the operations it enables. Live evidence for
+each release is in [VERIFICATION.md](VERIFICATION.md).
 
-### 0.1.0 - Local-first secure account service and identity
+### 0.3.0 follow-ups
 
-First useful release: MCP can use public async methods to authenticate and read
-identity through independent login-scoped clients under one shared scheduler.
-
-- [x] Group packaging, provenance, transport selection, public lifecycle, typed
-  identity/errors/references, and consumer contract inventory into the foundation.
-  Design the domain conventions now; implement later endpoint records with their
-  endpoint release instead of shipping unused model-only versions.
-- [x] Deliver account isolation, session reuse, coalesced authentication, scoped
-  cookies, destination validation, safe recovery, and redacted errors together.
-- [x] Enforce shared rate/burst/concurrency/queue limits and bounded attempts,
-  bodies, deadlines, parsing, and cancellation from the first network operation.
-  Introduce safe-read coalescing and account-scoped cache infrastructure here;
-  domain-specific metadata caches follow in 0.2.0.
-- [x] Complete identity retrieval and the public-service/MCP adapter experiment,
-  including the four-independent-login fixture-server workload from P6. Capture
-  initial request-count and lifecycle measurements before widening coverage.
-- [x] Build wheel/sdist and verify a clean local installation through a real
-  fixture-server identity read. Publishing automation and PyPI installation
-  evidence are deferred to P7 at `1.0.0rc1`; a bare skeleton is not a functional
-  milestone. Exercise the consumer adapter with the exact local built artifact.
-- [x] Document remaining live authentication/identity evidence gaps. P6-live is
-  enabled separately after owner setup; it is not a local-first release gate.
-  A later academic check must not be claimed from identity verification alone.
-
-Suggested commit groups: package/contracts; scheduler/transport; authentication/
-identity; adapter/E2E evidence; local artifacts/documentation. These
-are review boundaries within one release, not five versions.
-
-Local delivery gate: usable typed identity API, enforced combined traffic bounds
-and login isolation, installed-wheel offline E2E proof, and explicit live
-verification status. Daily live CI/PyPI gates remain deferred and incomplete.
-Local gates are satisfied on Linux/Python 3.13 and 3.14. Consumer experiment PR #38
-was closed without merging; its retained branch is optional local test material.
-Default production backend migration remains a separate task.
-
-### 0.2.0 - Grade coverage
-
-Release scope was narrowed to grades by the owner. Attendance and every other
-school-read family move to 0.3.0; communication moves to 0.4.0. This is not a
-claim that postponed features have been implemented. Grade completion means
-the declared business contracts, original offline failures/variants, installed
-artifacts, and explicit live qualification status, not every possible school layout.
-
-The local-first version is `0.2.0`, with `final_grades()`, `grades()`, and
-`grades_window()`. It includes all/week/last-login views, descriptive-only rows,
-multiple publications, dated period/annual/predicted-annual records, and separate
-undated descriptive summaries. Missing metadata stays unknown. See contracts/grades.md
-for declared compatibility and VERIFICATION.md for actual execution evidence.
-The bounded four-context comparison used 94 of 128 allowed requests. Three contexts
-completed installed comparisons; the second had an initial native parser failure
-followed by successful installed-parser replay without new native traffic. Populated
-dated descriptions/publications/corrections/averages and a second-context full
-runtime rerun remain explicitly unqualified. Other school reads are outside 0.2.0.
-
-#### Compatibility lessons and remaining gates
-
-See REVIEW.md for the retrospective and CONTRIBUTING.md for the evidence checklist.
-Offline commits and green CI must not be promoted into live compatibility claims.
-
-The long-term consumer remains librus-mcp, but its migration is a separate task.
-This repository owns the library implementation and qualification; consumer code,
-dependency pins, backend defaults, commits, and PRs must not change without explicit
-authorization for that project. Read-only consumer references and local integration
-experiments are permitted. The earlier consumer adapter experiment was closed
-without merging; it is not a prerequisite or deliverable for this grade slice.
-
-- [x] Diagnose the initial native live failures and protect exact login continuations,
-  explicit represented-user ID references, stray closing tags, and empty summary
-  spacers with independently authored offline regressions.
-- [x] Complete the installed-artifact bounded login/identity/summary path with
-  output parity, without changing the production consumer backend.
-- [x] Replace the provisional one-request/second policy with five requests/second
-  and shared burst ten. Verify default-policy four-account admission and cooldowns
-  offline, then rerun the bounded live comparison. Preserve old benchmark settings
-  and non-wins in BENCHMARKS.md; do not infer upstream capacity from light traffic.
-- [ ] Apply an early authorized installed-path smoke to each new operation family
-  before marking it live-qualified. Record missing access as pending, not passed.
-- [ ] Establish a bounded account-role/layout coverage matrix with populated,
-  empty, missing-column, and unsupported-state evidence. Do not extrapolate from
-  one account; do not expand credential scope without explicit authorization.
-- [ ] Compare the native service against the optimized consumer with identical
-  freshness and traffic policies on representative offline multi-account workloads.
-  Investigate higher fixed RSS separately from lower parser allocation pressure.
-- [ ] Implement the owner-configured P6-live drift check with offline-proven report
-  redaction and explicit non-success for missing credentials or unexecuted checks.
-  Any local credentialed harness must use a cumulative approved diagnostic budget,
-  retain private replay only in memory, and never publish school captures.
-
-Depends on 0.1.0. Deliver grade reads as one coherent feature set with shared
-parsing, metadata preservation, upstream views, and bounded collection caching.
-
-- [x] Implement declared grade-family business flows against librus-apix with
-  original fixtures. Explicitly document intentional differences and unqualified
-  populated variants; numeric parity is not full-family live qualification.
-- [x] Complete grades/windows/final grades, typed school averages, descriptive
-  entries/publications, upstream all/week/last-login views, and dated period marks.
-- [x] Add bounded inline metadata reuse/caching, session invalidation, and measured
-  warm/cold request reduction under the common scheduler. Record performance
-  and completeness limits for the four-login workload; no per-grade lookup traffic.
-- [x] Build/install wheel and sdist and exercise offline HTTP runtime paths on
-  Python 3.13/3.14. Maintain no-replay, cancellation, isolation, and bounds proof.
-
-Academic adapter implementation, MCP qualification, and consumer release belong
-to the separately authorized migration task, not implicit library development.
-Daily credentialed CI remains separately owner-configured, not silently enabled
-or a prerequisite for a local-first grade release. PyPI and consumer migration
-remain separate gates.
-
-Suggested commit groups: grade contracts/models; views/parser business gaps;
-offline and installed qualification; library release evidence.
-
-Release gate: grade coverage and documented consumer-contract compatibility, with
-measured request budgets and no fabricated success for missing capabilities.
-Local gates are satisfied for the documented Linux scope. Remote delivery status
-is separate from these local checks. No PyPI publication or consumer switch occurred.
-
-### 0.3.0 - Remaining academic and school-information coverage
-
-Depends on 0.2.0. These families are not part of grade delivery. The current
-`0.3.0.dev0` increment implements offline-tested attendance collections, strict
-upstream views, cached civil-date windows, details/notes, gateway records, and
-overall/per-subject ratios with bounded metadata reuse. See contracts/attendance.md
-for business differences, provenance, and narrow live qualification. A completed
-installed native/apix pair qualified populated collections/detail/frequency on one
-context; populated last-login, custom types, and wider roles remain pending.
-This is not completed 0.3.0 coverage.
-
-- [x] Attendance collection/views/windows with explicit semesters, unknown raw
-  metadata, inert detail IDs, account isolation, fixed forms, and non-replayed POSTs.
-- [x] Attendance/windows/details/frequency contracts, with explicit ratio units,
-  preserved unknown types, bounded metadata reuse, and installed proof.
-- [ ] Broader attendance role/layout qualification, populated last-login, custom
-  type metadata semantics, and full-year subject-resolution qualification.
-- [x] Ordinary agenda/details and homework/details with typed explicit month/window
-  selections, full text/metadata, account-bound numeric references, central
-  non-replayed wire forms and original parser/service proof.
-- [ ] Complete installed agenda/homework/details qualification: current-month agenda
-  has partial rendered proof; previous-month comparison stopped on an unclassified
-  baseline tooltip difference. Installed live details/homework and populated live homework
-  remain pending. Discovery alone is not installed qualification.
-- [x] Compare unobserved populated homework/details and agenda variants against
-  external unmodified apix with original synthetic responses; exercise all four
-  installed public APIs offline and classify representation/integrity departures.
-- [x] Completed lessons with typed records, same-response page metadata and bounded
-  resumable batches; original parser/wire/lifecycle proof and installed artifacts.
-- [ ] Qualify live completed-lesson pagination, populated/empty pages and broader
-  role/date/layout variants under fresh authorization. Cursors are not snapshots.
-  The combined follow-up stopped twice on first-page lesson responses and once in
-  agenda comparison; no live lesson layout or complete family rerun is qualified.
-- [x] Explicit timetable week API, typed days/slots/lessons/notices/recesses,
-  centralized non-replayed forms, nineteen-operation wire catalogue, original
-  offline fixtures, and installed two-week runtime retrieval on one context.
-- [x] Resolve timetable teacher/classroom correctness with same-response Chromium
-  checks: native matches all slots; document whitespace and incorrect baseline
-  string departures rather than changing native to reproduce them.
-- [ ] Obtain populated timetable group/replacement-tooltip and broader role proof.
-- [x] Announcements with complete bounded text, author, raw/typed civil date,
-  content-scoped references, central ordinary GET/OpenAPI, isolated cache/budgets,
-  original fixtures and populated installed same-response apix/browser qualification.
-- [ ] Broader announcement roles/empty/rich layouts and alternate date/ID variants.
-- [ ] Bounded pagination/reference mapping, metadata reuse, account capabilities,
-  original populated/empty/error fixtures, and installed-artifact proof per family.
-- [ ] Apply the apix business compatibility gate and separately authorized live
-  qualification to each enabled family; do not expand routine drift traffic.
-- [x] Record the behaviour-note capability decision: public support deferred,
-  default off until independently observed populated semantics exist. The internal
-  ordinary GET probe is offline-tested, not a public capability or live evidence.
-  See contracts/behaviour-notes.md; consumer migration still needs gap acceptance.
-
-Consumer migration remains a separately authorized task, not an implicit adapter
-deliverable in this release.
+- [ ] Completed lessons: verify a populated page and pagination live on an
+  account whose school has the view enabled. All four available logins show it
+  disabled.
+- [ ] Behaviour notes: implement the public read once a populated page is
+  observed ([decision](contracts/behaviour-notes.md)).
+- [ ] Grades page observation card ("Karta spostrzeżeń", formative assessments):
+  design a typed read. It is shown on both observed students' pages.
+- [ ] Broaden coverage: other schools and roles, populated last-login views,
+  custom attendance types, full-year subject-frequency resolution, parallel
+  group lessons in the timetable, empty and rich announcement layouts, and
+  populated descriptive grades and publications.
+- [ ] Homework windows longer than one month: decide whether the library should
+  split them into monthly requests or leave that to the consumer.
 
 ### 0.4.0 - Communication and notification safety
 
-Depends on 0.3.0. Group messaging subsystem work with the operations whose
-security and delivery semantics depend on it.
-
-- [ ] Deliver received/sent message lists, bounded pagination, recipient discovery,
-  full-message content, and source-bound references. Keep mark-read effects
-  explicit and message bodies out of ordinary list retrieval.
-- [ ] Deliver attachment metadata and credential-free bounded download streams
-  with the MCP atomic-publication integration and cancellation proof from P4.
-- [ ] Deliver the read-once schedule/checkpoint interface and adapt notification
-  records while preserving MCP-owned seen state, hashes, replay, and migrations.
-- [ ] Deliver validated single-attempt sending and typed unknown-delivery results
-  together with MCP confirmation/token integration. Exercise these paths offline;
-  do not widen daily CI to sends, mark-read content, or event consumption.
-- [ ] Complete the corresponding library and consumer regression evidence and
-  expose only public supported APIs to the adapter. Keep experimental notes
-  governed by the evidence decision made in 0.3.0.
-
-Suggested commit groups: messaging session/lists; content/streams; checkpoint/
-notification adapters; send/confirmation integration; failure-path qualification.
-
-Release gate: all required operation families have implementations or explicitly
-documented experimental capability gaps, and the side-effect boundaries hold
-through actual library/consumer runtime paths. Full migration qualification is
-the next milestone.
+- [ ] Received/sent message lists, bounded pagination, recipient discovery,
+  full-message content and source-bound references. Keep mark-read effects
+  explicit and message bodies out of list retrieval.
+- [ ] Attachment metadata and credential-free bounded download streams, with the
+  MCP atomic-publication integration and cancellation proof from P4.
+- [ ] The read-once schedule/checkpoint interface, and adapting notification
+  records while MCP keeps its seen state, hashes, replay and migrations.
+- [ ] Validated single-attempt sending with typed unknown-delivery results, plus
+  MCP confirmation and token integration. Exercise offline only; never widen the
+  daily check to sends, mark-read content or event consumption.
+- [ ] Library and consumer regression evidence for these paths, exposing only
+  public supported APIs to the adapter.
 
 ### 1.0.0rc1 - Complete replacement qualification
 
-Depends on 0.4.0. This is the integration/hardening release, not an additional
-endpoint tranche. Further candidates (`rc2`, etc.) address qualification findings.
-
-- [ ] Finish P8 across every required consumer operation and remove `librus-apix`
-  imports, private patches, duplicated recovery, and obsolete dependencies in
-  the migration branch. Preserve notification storage and file-publication owners.
-- [ ] Complete R01-R17 proof mapping, the declared Python/platform matrix,
-  installed-library/MCP stdio checks, and representative P6 comparisons with
-  numeric acceptance thresholds. Resolve safety regressions before promotion.
-- [ ] Reconcile the notes evidence gap explicitly: no supported operation may
-  silently disappear. If parity is unavailable, record the default-off capability
-  limitation and approve that consumer impact before calling the migration ready.
+- [ ] Finish P8 for every required consumer operation and remove `librus-apix`
+  imports, private patches, duplicated recovery and obsolete dependencies in the
+  migration branch. Keep the notification storage and file-publication owners.
+- [ ] Complete the R01-R17 proof map, the declared Python/platform matrix,
+  installed-library and MCP stdio checks, and representative P6 comparisons with
+  numeric acceptance thresholds.
+- [ ] Reconcile the notes gap explicitly. No supported operation may silently
+  disappear; an unavailable feature is a recorded, approved default-off gap.
 - [ ] Publish the candidate and qualify the consumer against that exact PyPI
-  artifact, including existing state/spool readability and downgrade behavior.
-- [ ] Complete authorized bounded account-type live checks, API/migration docs,
-  release notes, dependency review, and the rollback procedure. Record remaining
-  live evidence gaps without treating empty data as populated parser coverage.
-
-Suggested commit groups: complete adapter/cutover cleanup; compatibility/state
-verification; performance fixes; packaging/platform fixes; migration/release docs.
-
-Release gate: a migration-ready candidate and tested consumer branch with no
-hidden upstream dependency, no unresolved required-contract failure, and current
-redacted live evidence. A candidate does not authorize production cutover alone.
+  artifact, including existing state and spool readability and downgrade.
+- [ ] Authorized account-type live checks, API and migration docs, release notes,
+  dependency review and a rollback procedure.
 
 ### 1.0.0 - Stable API and consumer cutover
 
-Depends on an accepted release candidate. Promotion may reuse the qualified
-feature set; it does not need artificial extra implementation commits.
-
-- [ ] Freeze and document the supported public API, limits, account ownership,
-  error/capability semantics, and compatibility policy. Close candidate findings.
-- [ ] Publish and verify the final library artifact, then rerun installed-artifact
-  acceptance against that exact stable version before releasing its consumer.
-- [ ] Release a backward-compatible MCP 1.x update pinned to the tested library;
-  choose its next available version from the actual consumer release state.
-  Keep library and consumer versions independent.
-- [ ] Verify the consumer's public `uvx` installation, dependency graph, CLI and
-  contract; publish migration/rollback instructions and retain daily drift checks.
-
-Release gate: PyPI-backed library and consumer installations use supported APIs,
-preserve the agreed MCP 1.x behavior, and satisfy P7/P8 without `librus-apix`.
+- [ ] Freeze and document the supported API, limits, account ownership, error
+  and capability semantics, and compatibility policy.
+- [ ] Publish the final artifact and rerun installed acceptance against it before
+  releasing the consumer.
+- [ ] Release a backward-compatible MCP 1.x pinned to the tested library, and
+  verify its public `uvx` installation, dependency graph, CLI and contract.
 
 ### MCP 2.0.0 - Separate consumer modernization
 
-Depends on the completed backend cutover. Group P9 into consumer PRs for typed
-wire contracts, deprecated-tool removal, packaging/tooling, configuration/state
-migration, and attachment resources. Release those related breaking changes as
-one documented consumer major version, with its own prerelease if needed.
-
-- [ ] Complete the ownership map's A01-A18 consumer work and migration guidance.
-- [ ] Reuse the established library APIs; change the library version only when
-  its own public contract or implementation changes, not to match the MCP major.
+- [ ] Complete ownership-map items A01-A18 in consumer PRs (typed wire contracts,
+  deprecated-tool removal, packaging, configuration and state migration,
+  attachment resources), released as one documented major version.
+- [ ] Change the library version only when its own contract changes.
 
 ## Architecture and ownership
 
@@ -376,31 +131,31 @@ to finish every domain model before the first endpoint or to wait until P6/P7
 
 Dependencies: none. Regression coverage: R01-R17 inventory.
 
-- [ ] Record independent implementation provenance and dependency licenses.
+- [x] Record independent implementation provenance and dependency licenses.
   Treat external implementations as research references, not material to copy.
   Retain consumer fixtures/tests in their existing repository; write new library
   fixtures independently. Do not claim this source-informed effort is clean-room.
 - [ ] Decide distribution `librus-python-api` and import `librus_python_api`;
   confirm PyPI availability/ownership before release. Do not shadow `librus`,
   `librus_apix`, or `src`, and do not depend on upstream as a hidden fallback.
-- [ ] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
+  Status: names decided and used; PyPI ownership is confirmed in P7.
+- [x] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
   bundled license, `py.typed`, and a single package-version source. Select and
   test supported Python versions; Python 3.14 compatibility is mandatory for
   the consumer. Claim older-version support only if exercised in the declared
   verification matrix.
-  Local 0.1.0 progress: builds, checks, and installed-client/adapter reads are
-  verified on Linux/3.13/3.14. GitHub-hosted CI also verifies this matrix; other
-  platforms remain pending. PyPI ownership is still a separate release gate.
+  Verified on Linux with Python 3.13 and 3.14, from source and installed
+  artifacts, locally and in GitHub CI. Other platforms are tracked in P6.
 - [x] Choose one async transport after a small lifecycle/cookie/cancellation
   spike. Prefer evaluating `aiohttp`, already used by the consumer; do not add
   parallel `requests` and async implementations by default.
   Selected `aiohttp` after a loopback experiment, now retired in favor of real
   transport/service tests. The 0.1.0 account
   transport and login/identity network paths are implemented and tested offline.
-- [ ] Define public async client ownership, `aclose`/context-manager behavior,
+- [x] Define public async client ownership, `aclose`/context-manager behavior,
   explicit limits/proxy/TLS configuration, and an injectable transport boundary.
   Construction/import must do no network I/O or implicit environment discovery.
-- [ ] Design one service-level lifecycle for all consumer accounts/tools, with
+- [x] Design one service-level lifecycle for all consumer accounts/tools, with
   account-scoped typed clients. MCP selects logins, operations, date ranges,
   and freshness and combines their results; the service handles scheduling and
   shared budgets. No summary/batch endpoint, private patches, or manual cookie
@@ -408,12 +163,12 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Create a per-operation contract matrix: account types, source endpoint,
   requested fields, result types, capability status, pagination, side effects,
   retry safety, and evidence confidence. Include every row in P3-P5.
-- [ ] Keep upstream routes centralized in `config.py` and maintain importable
+  Status: every enabled read has its route, side effect, retry safety and
+  evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.0.
+- [x] Keep upstream routes centralized in `config.py` and maintain importable
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
-  provenance and live gaps. The initial empty contract/checker is implemented;
-   nine login/identity wire contracts are populated. Later contracts accompany
-   their own operation slices.
+  provenance and live gaps. 26 operations, checked by `tests/test_contracts.py`.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -437,19 +192,28 @@ Dependencies: P0.
   agenda, homework, announcements, messages, recipients, attachments, and notes.
   Keep MCP/Pydantic wire models out of the library API. Prefer typed dataclasses
   with explicit runtime validation at parse boundaries; document serialization.
+  Status: done for every 0.1-0.3 family; messages, recipients, attachments and
+  notes are pending.
 - [ ] Define typed page results with items, continuation, truncation reason,
   source identity, and detected-change information. Never imply that an offset
   cursor freezes upstream data. Bind continuation to account/query/source.
+  Status: completed lessons have bound cursors with page fingerprints; message
+  pages are pending.
 - [ ] Normalize IDs without conflating distinct sources: retain opaque IDs where
   evidenced, distinguish display IDs from valid legacy detail references, and
   reject URL/path injection. Numeric legacy routes remain strictly numeric.
+  Status: done for every enabled route (numeric references, account-bound
+  `SchoolReference`); message IDs are pending.
 - [ ] Model empty success, unsupported capability, unpublished data, permission
   denial, incomplete data, and parse failure separately. Required-field failures
   must not silently become `[]`, zero, or a fabricated record.
-- [ ] Define account provenance, observation times, freshness, completeness, and
+  Status: empty markers, `ViewDisabledError`, `UnsupportedCapabilityError`,
+  `AccessDeniedError`, `LimitError` and `ParseError` are distinct; unpublished
+  data (for example an unpublished timetable) is not modelled yet.
+- [x] Define account provenance, observation times, freshness, completeness, and
   typed operation failures. An account failure must not invalidate another's
   session/results; MCP owns partial-summary policy and cross-account merging.
-- [ ] Define typed exceptions for invalid input, rejected credentials, required
+- [x] Define typed exceptions for invalid input, rejected credentials, required
   account action/captcha, session expiry, access denial, throttling, maintenance,
   connection/timeout, response limits, parsing, and uncertain delivery.
   Error messages and attached diagnostics must exclude secret/raw response data.
@@ -457,10 +221,15 @@ Dependencies: P0.
   raw grade strings, missing grades, and explicit attendance units. Preserve
   school-provided averages where available; derived averages need documented
   weighting and grade-symbol rules, not assumptions from another school.
+  Status: civil dates and local clocks are never converted, raw grades and
+  school averages are kept, and ratios are explicit; a `Europe/Warsaw` policy is
+  needed for message timestamps in 0.4.0.
 - [ ] Start with `scope`, typed detail/event references, integer calendar inputs,
   normalized field names, and ID-bearing record collections. Prefer an explicit
   ratio domain type; keep presentation conversion in MCP. Support A01-A08
   without inheriting legacy tool names or dynamic display-name dictionaries.
+  Status: typed references, integer calendar inputs, ID-bearing collections and
+  `FrequencyMeasure` exist; `scope` is not implemented.
 
 Exit: valid and invalid independent examples exercise actual validation, and
 the proposed records can be mapped to existing MCP outputs without data loss.
@@ -481,49 +250,54 @@ their broad checkboxes are not blanket claims from the identity slice.
   identity without using student identity as the cache/security key. Isolate
   messaging session state too. Multi-child switching inside one login is not
   assumed or required for the initial four-login use case.
-- [ ] Implement explicit session ownership and deterministic resource cleanup.
+  Status: done and verified live on four logins; messaging session isolation
+  comes with 0.4.0.
+- [x] Implement explicit session ownership and deterministic resource cleanup.
   Public injection must not require consumers to replace `_session` or clone
   private fields. Preserve all cookie restrictions and duplicate names.
-- [ ] Independently validate the current login handshake, bounded redirect
+- [x] Independently validate the current login handshake, bounded redirect
   allowlist, proxy behavior, and authenticated terminal state. Do not reuse the
   obsolete password-grant path solely because historical packages used it.
-- [ ] Coalesce concurrent authentication; allow at most one reauthentication for
+- [x] Coalesce concurrent authentication; allow at most one reauthentication for
   a proven safe operation. Distinguish bad credentials, expired session,
   persistent endpoint denial, maintenance, and confirmed throttling. Apply
   cooldowns once at the library owner boundary, with consumer-equivalent defaults.
-- [ ] Recognize unsupported interactive authentication as an explicit outcome.
+- [x] Recognize unsupported interactive authentication as an explicit outcome.
   Do not loop, mislabel it as a parser failure, or promise CAPTCHA/2FA support.
-- [ ] Enforce connection/read and whole-operation deadlines, including queue
+- [x] Enforce connection/read and whole-operation deadlines, including queue
   wait, redirects, authentication recovery, body streaming, and pagination.
   A slow-drip response must not run indefinitely by resetting an idle timeout.
 - [ ] Bound bytes before parsing for HTML/JSON and attachments. Cover absent or
   misleading Content-Length, chunked bodies, decompression, cumulative redirect
   bodies, malformed encodings, and cancellation while waiting for bytes.
-- [ ] Bound parser CPU/memory and measure event-loop responsiveness on maximum
+  Status: done for HTML and JSON; attachment streams come with 0.4.0.
+- [x] Bound parser CPU/memory and measure event-loop responsiveness on maximum
   accepted bodies. An asyncio deadline cannot preempt synchronous parsing;
   if parsing is offloaded, bound workers and account for their actual completion
   without letting them mutate session state after cancellation.
-- [ ] Bound global and per-account active requests AND queued tasks. Share the
+- [x] Bound global and per-account active requests AND queued tasks. Share the
   global budget across clients without sharing authentication state. Decide
   which proven-safe reads may overlap; serialize session-changing operations.
-- [ ] Enforce shared request rate and burst limits in addition to concurrency.
+- [x] Enforce shared request rate and burst limits in addition to concurrency.
   Count login steps, redirects, retries, bootstraps, lookups, and page reads at
   dispatch. Use fair admission, bounded waits, and service-wide backoff where
   appropriate. Test that multiple account clients cannot multiply the budget.
-- [ ] Set explicit service account/queue limits and per-operation attempt/page/
+- [x] Set explicit service account/queue limits and per-operation attempt/page/
   byte/deadline budgets with conservative defaults. Allow MCP to share a total
   retrieval budget across its calls. Exhaustion stops new dispatch and returns
   a typed incomplete/limit result. No Librus-approved rate is currently known.
-- [ ] Coalesce identical safe in-flight reads within account/query/session scope;
+- [x] Coalesce identical safe in-flight reads within account/query/session scope;
   reuse sessions and reference caches across summaries. Define waiter cancellation
   and freshness behavior; never share account data or coalesce side-effecting work.
-- [ ] Classify retries by operation semantics, not GET/POST. Bounded backoff and
+- [x] Classify retries by operation semantics, not GET/POST. Bounded backoff and
   Retry-After handling apply only to safe retryable operations. Never replay a
   send or read-once event request after an ambiguous result.
-- [ ] Prove cancellation closes/releases resources and cannot leave requests
+  Retry safety is per endpoint, and `Endpoint` rejects any route that has a side
+  effect yet is marked retry-safe.
+- [x] Prove cancellation closes/releases resources and cannot leave requests
   mutating a session later. Do not remove MCP's thread-worker protections before
   the corresponding paths use the new native async implementation.
-- [ ] Provide redacted diagnostics: endpoint class, status, elapsed time, counts,
+- [x] Provide redacted diagnostics: endpoint class, status, elapsed time, counts,
   error kind. No credential/token repr, response body excerpts, or signed URLs.
 
 Exit: a local HTTP fixture server proves isolation, lifecycle, bounded work,
@@ -548,30 +322,34 @@ and relevant account-variant fixtures before its adapter becomes the default.
 | Completed lessons | list and bounded-page tools | Retain an independently implemented HTML route unless JSON parity is demonstrated for topic, attendance reference, teacher, and pagination. |
 | Message lists | received/sent/page/all-pages/bounded `get_messages` | Assess legacy and separate JSON subsystems independently. Prove sent-folder support, ID mapping, unread status, and stable source selection; do not eagerly fetch bodies. |
 
-- [ ] Implement the identity slice first, including an MCP adapter experiment
+- [x] Implement the identity slice first, including an MCP adapter experiment
   and a fixture-server integration test. Record request count, session reuse,
   and exact field coverage before widening scope.
 - [ ] Complete the remaining slices using separate fetching and pure parsing.
   Parse each response once and return pagination metadata with its rows.
-- [ ] For HTML, locate semantic page/table markers and map verified headers.
+  Status: all slices except message lists are done and verified live
+  (VERIFICATION.md).
+- [x] For HTML, locate semantic page/table markers and map verified headers.
   Handle documented span variants explicitly; reject ambiguous layouts. Avoid
   whole-document positional XPath and guessing empty success from missing tables.
-- [ ] For JSON, validate envelopes, nested references, required values, and
+- [x] For JSON, validate envelopes, nested references, required values, and
   endpoint-specific variants. Bound IDs, list sizes, nesting/decoding work;
   preserve justified optional/unknown fields without silently skipping bad rows.
 - [ ] Implement bounded page/offset continuation and ID deduplication. Cover page
   zero, repeated/clamped pages, overlaps, short/oversized pages, and empty ranges.
   Cursor translation may require retaining the legacy endpoint during migration.
-- [ ] Support current scope/date filtering semantics. Label client-side filtering
+  Status: done for completed lessons; message pagination is pending.
+- [x] Support current scope/date filtering semantics. Label client-side filtering
   separately from upstream bounds; do not approximate `last_login` with a date
   window or lose events because authentication changed its reference point.
-- [ ] Fetch needed metadata in bounded bulk or deduplicated per-ID requests.
+- [x] Fetch needed metadata in bounded bulk or deduplicated per-ID requests.
   Add per-account bounded TTL caches, invalidation on account/session changes,
   and explicit freshness rules. Do not cache changing attendance as reference data.
-- [ ] Define unknown attendance-type behavior using verified metadata. Never
+- [x] Define unknown attendance-type behavior using verified metadata. Never
   classify an unknown type as present or return 100% merely for lack of evidence.
-- [ ] Keep JSON-to-HTML fallback explicit, capability-scoped, and budgeted. A
+- [x] Keep JSON-to-HTML fallback explicit, capability-scoped, and budgeted. A
   schema failure must surface; it must not silently change data source or IDs.
+  There is no fallback: each read has one source and its failures are typed.
 
 Exit: all enabled ordinary reads map to the existing MCP contract; parser and
 transport tests protect real behavior rather than supplying prebuilt results.
@@ -653,7 +431,7 @@ Dependencies: each completed slice; full run before P8.
 - [ ] Compare old/new request counts, connection reuse, elapsed-time distribution,
   peak memory, and active/queued work. Set numeric acceptance thresholds after
   recording baseline measurements. A quiet live account is not a load test.
-- [ ] Prove cache capacity, TTL expiry, invalidation, and account isolation.
+- [x] Prove cache capacity, TTL expiry, invalidation, and account isolation.
   Verify a warm cache skips metadata requests but still fetches fresh records.
 - [ ] Use targeted mutation/property tests for critical guards: account isolation,
   bounded queues/bodies/pages, send non-retry, checkpoint ordering, and redirect

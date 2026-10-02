@@ -2,61 +2,25 @@
 
 import re
 from typing import Literal, cast
-from urllib.parse import urlsplit
 
 from lxml import html
 
+from librus_python_api import markup
 from librus_python_api.config import (
     ATTENDANCE_DETAIL_MAX_FIELDS,
-    ATTENDANCE_DETAIL_PATH_PREFIX,
     ATTENDANCE_EMPTY_MARKERS,
     ATTENDANCE_MAX_RECORDS,
     ATTENDANCE_SEMESTER_LABELS,
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_VALUE_LENGTH,
-    UPSTREAM_ORIGINS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import _cells, _rows, _text
-from librus_python_api.grade_records import _day, _metadata
 from librus_python_api.models import (
     AttendanceDetailContent,
     AttendanceRecord,
     AttendanceRecords,
 )
-from librus_python_api.parsers import parse_html_document
-
-
-def _detail_id(element: html.HtmlElement) -> str | None:
-    script = element.get("onclick", "")
-    if len(script) > GRADE_MAX_METADATA_LENGTH:
-        raise LibrusError(ErrorKind.LIMIT)
-    match = re.fullmatch(
-        r"\s*otworz_w_nowym_oknie\(\s*(['\"])([^'\"\\\s]+)\1"
-        r"""(?:\s*,\s*(?:'[^'\\\r\n]*'|"[^"\\\r\n]*"|[0-9]{1,6})){1,4}"""
-        r"\s*\)\s*;?\s*",
-        script,
-    )
-    if match is None:
-        return None
-    failed = False
-    target = None
-    try:
-        target = urlsplit(match[2])
-    except ValueError:
-        failed = True
-    if failed or target is None:
-        return None
-    if target.query or target.fragment or target.username or target.password:
-        return None
-    if target.scheme or target.netloc:
-        expected = urlsplit(UPSTREAM_ORIGINS["synergia"])
-        if (target.scheme, target.netloc) != (expected.scheme, expected.netloc):
-            return None
-    if not target.path.startswith(ATTENDANCE_DETAIL_PATH_PREFIX):
-        return None
-    identifier = target.path[len(ATTENDANCE_DETAIL_PATH_PREFIX) :]
-    return identifier if re.fullmatch(r"[0-9]{1,64}", identifier) else None
+from librus_python_api.parsers import parse_page
 
 
 def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceRecord:
@@ -67,7 +31,7 @@ def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceReco
         raise LibrusError(ErrorKind.LIMIT)
     holder = html.Element("span")
     holder.set("title", re.sub(r"</b>\s*(?=<b[ >])", "</b>\n", title, flags=re.I))
-    fields = _metadata(holder)
+    fields = markup.tooltip_fields(holder)
     if any(
         max(len(key), len(value)) > GRADE_MAX_VALUE_LENGTH
         for key, value in fields.items()
@@ -79,12 +43,12 @@ def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceReco
     excursion = fields.get("Czy wycieczka")
     if excursion is not None and excursion.casefold() not in ("tak", "nie"):
         raise LibrusError(ErrorKind.PARSE)
-    symbol = _text(element)
+    symbol = markup.text(element)
     if not symbol:
         raise LibrusError(ErrorKind.PARSE)
     return AttendanceRecord(
         symbol,
-        _day(fields.get("Data")),
+        markup.civil_date(fields.get("Data")),
         semester,
         fields.get("Rodzaj"),
         fields.get("Nauczyciel"),
@@ -92,24 +56,24 @@ def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceReco
         None if excursion is None else excursion.casefold() == "tak",
         fields.get("Temat zajęć"),
         fields.get("Lekcja"),
-        _detail_id(element),
+        markup.attendance_detail_id(element),
         tuple(fields.items()),
     )
 
 
 def _plain_cell_is_layout(cell: html.HtmlElement) -> bool:
-    value = _text(cell)
+    value = markup.text(cell)
     if value in ATTENDANCE_EMPTY_MARKERS or re.fullmatch(r"[0-9]{1,2}", value):
         return True
     # Civil day labels in grid cells do not create attendance records.
     if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?: \([^()]+\))?", value):
-        _day(value)
+        markup.civil_date(value)
         return True
     return False
 
 
 def parse_attendance(body: bytes) -> AttendanceRecords:
-    document = parse_html_document(body)
+    document = parse_page(body)
     tables = [
         table
         for table in document.iter("table")
@@ -128,10 +92,10 @@ def parse_attendance(body: bytes) -> AttendanceRecords:
     semesters: list[Literal[1, 2]] = []
     semester: Literal[1, 2] | None = None
     items: list[AttendanceRecord] = []
-    for row in _rows(table):
+    for row in markup.rows(table):
         if next(row.iterancestors("thead"), None) is not None:
             continue
-        cells = _cells(row)
+        cells = markup.cells(row)
         if not cells or any(c.get("rowspan", "1") != "1" for c in cells):
             raise LibrusError(ErrorKind.PARSE)
         headings = [
@@ -141,7 +105,7 @@ def parse_attendance(body: bytes) -> AttendanceRecords:
             if len(headings) != 1 or list(row.iter("a")):
                 raise LibrusError(ErrorKind.PARSE)
             period = ATTENDANCE_SEMESTER_LABELS.get(
-                _text(headings[0]).casefold().rstrip(":")
+                markup.text(headings[0]).casefold().rstrip(":")
             )
             if period is None or period in semesters:
                 raise LibrusError(ErrorKind.PARSE)
@@ -167,7 +131,7 @@ def parse_attendance(body: bytes) -> AttendanceRecords:
 
 
 def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
-    document = parse_html_document(body)
+    document = parse_page(body)
     containers = [
         node
         for node in document.iter("div")
@@ -181,7 +145,7 @@ def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
     for row in containers[0].iter("tr"):
         if not {"line0", "line1"}.intersection(row.get("class", "").split()):
             continue
-        cells = _cells(row)
+        cells = markup.cells(row)
         table = next(row.iterancestors("table"), None)
         if table is None:
             raise LibrusError(ErrorKind.PARSE)
@@ -193,7 +157,7 @@ def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
             and cells[0].get("colspan") == "2"
             and cells[0].get("rowspan", "1") == "1"
         ):
-            notes.append(_text(cells[0]))
+            notes.append(markup.text(cells[0]))
             if len(fields) + len(notes) > ATTENDANCE_DETAIL_MAX_FIELDS:
                 raise LibrusError(ErrorKind.LIMIT)
             continue
@@ -207,10 +171,10 @@ def parse_attendance_detail(body: bytes) -> AttendanceDetailContent:
             )
         ):
             raise LibrusError(ErrorKind.PARSE)
-        label = _text(cells[0]).rstrip(":")
+        label = markup.text(cells[0]).rstrip(":")
         if not label or label in fields:
             raise LibrusError(ErrorKind.PARSE)
-        fields[label] = _text(cells[1])
+        fields[label] = markup.text(cells[1])
         if len(fields) + len(notes) > ATTENDANCE_DETAIL_MAX_FIELDS:
             raise LibrusError(ErrorKind.LIMIT)
     if not fields or len(tables) != 1:

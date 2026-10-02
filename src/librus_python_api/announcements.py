@@ -4,8 +4,9 @@ import hashlib
 import re
 from datetime import date
 
-from lxml import etree, html
+from lxml import html
 
+from librus_python_api import markup
 from librus_python_api.config import (
     ANNOUNCEMENT_EMPTY_CLASSES,
     ANNOUNCEMENT_EMPTY_MARKERS,
@@ -17,38 +18,13 @@ from librus_python_api.config import (
     ANNOUNCEMENT_TABLE_CLASSES,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.grade_parsers import _cells, _rows
 from librus_python_api.models import Announcement
-from librus_python_api.parsers import parse_html_document
-
-
-def _text(element: html.HtmlElement, limit: int, *, multiline: bool = False) -> str:
-    parts: list[str] = []
-    for event, node in etree.iterwalk(element, events=("start", "end", "comment")):
-        if node.tag in {"script", "style", "iframe", "object", "embed", "form"}:
-            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        if node.tag in {"br", "p", "div", "li"}:
-            parts.append("\n")
-        if event == "start" and isinstance(node.tag, str) and node.text:
-            parts.append(re.sub(r"\s+", " ", node.text))
-        if event in {"end", "comment"} and node is not element and node.tail:
-            parts.append(re.sub(r"\s+", " ", node.tail))
-    rendered = "".join(parts)
-    value = (
-        "\n".join(
-            line for raw in rendered.splitlines() if (line := " ".join(raw.split()))
-        )
-        if multiline
-        else " ".join(rendered.split())
-    )
-    if len(value) > limit:
-        raise LibrusError(ErrorKind.LIMIT)
-    return value
+from librus_python_api.parsers import parse_page
 
 
 def _label(cell: html.HtmlElement) -> str | None:
     return ANNOUNCEMENT_LABELS.get(
-        _text(cell, ANNOUNCEMENT_MAX_FIELD_LENGTH).rstrip(":").casefold()
+        markup.text(cell, ANNOUNCEMENT_MAX_FIELD_LENGTH).rstrip(":").casefold()
     )
 
 
@@ -62,7 +38,7 @@ def _empty(document: html.HtmlElement) -> bool:
     if len(markers) > 1:
         raise LibrusError(ErrorKind.PARSE)
     return bool(markers) and (
-        _text(markers[0], ANNOUNCEMENT_MAX_FIELD_LENGTH).rstrip(".").casefold()
+        markup.text(markers[0], ANNOUNCEMENT_MAX_FIELD_LENGTH).rstrip(".").casefold()
         in ANNOUNCEMENT_EMPTY_MARKERS
     )
 
@@ -73,8 +49,8 @@ def _tables(document: html.HtmlElement) -> list[html.HtmlElement]:
         classes = set(table.get("class", "").split())
         labels = {
             _label(cell)
-            for row in _rows(table)
-            for cell in _cells(row)
+            for row in markup.rows(table)
+            for cell in markup.cells(row)
             if cell.tag == "th"
         } - {None}
         known = ANNOUNCEMENT_TABLE_CLASSES <= classes
@@ -93,9 +69,9 @@ def _fields(table: html.HtmlElement) -> dict[str, str]:
     if len(list(table.iter("table"))) != 1:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     fields: dict[str, str] = {}
-    for row in _rows(table):
+    for row in markup.rows(table):
         key: str | None
-        cells = _cells(row)
+        cells = markup.cells(row)
         if next(row.iterancestors("thead"), None) is not None:
             if len(cells) != 1 or cells[0].tag != "td" or "title" in fields:
                 raise LibrusError(ErrorKind.PARSE)
@@ -113,7 +89,7 @@ def _fields(table: html.HtmlElement) -> dict[str, str]:
                 for c in cells
             ):
                 raise LibrusError(ErrorKind.PARSE)
-        elif _text(row, ANNOUNCEMENT_MAX_FIELD_LENGTH):
+        elif markup.text(row, ANNOUNCEMENT_MAX_FIELD_LENGTH):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         else:
             continue
@@ -124,7 +100,7 @@ def _fields(table: html.HtmlElement) -> dict[str, str]:
             if key == "content"
             else ANNOUNCEMENT_MAX_FIELD_LENGTH
         )
-        fields[key] = _text(cell, limit, multiline=key == "content")
+        fields[key] = markup.text(cell, limit, multiline=key == "content")
     if fields.keys() != {"title", "author", "date_text", "content"}:
         raise LibrusError(ErrorKind.PARSE)
     if any(not fields[key] for key in ("title", "author", "date_text")):
@@ -157,7 +133,7 @@ def _reference(account: str, fields: dict[str, str]) -> str:
 def parse_announcements(body: bytes, account: str) -> tuple[Announcement, ...]:
     if not isinstance(account, str) or not account or len(account) > 80:
         raise LibrusError(ErrorKind.INVALID_INPUT)
-    document = parse_html_document(body)
+    document = parse_page(body)
     tables, empty = _tables(document), _empty(document)
     if empty and tables:
         raise LibrusError(ErrorKind.PARSE)

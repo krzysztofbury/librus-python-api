@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.3.0.dev0
+  version: 0.3.0
   license:
     name: MIT
   description: |
@@ -494,8 +494,9 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Independently authored HTML and loopback fixtures from reviewed business requirements; no live school response or credentialed qualification.
+      x-evidence-note: Populated pages are not observed. On every available account (four logins, two student contexts) the page shows the notice "Ten widok został wyłączony przez administratora szkoły." The row layout below is source-informed with original fixtures.
       description: |
+        A page notice that the school disabled this view is ViewDisabledError.
         Selection POST is never automatically replayed, including proven expiry.
         Rows and pagination are parsed together from one response, without a
         separate page-count request. Raw HTML is not a normalized JSON schema.
@@ -540,7 +541,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Read-only consumer requirements identify this candidate route; no public library note API or populated semantics are claimed.
+      x-evidence-note: Observed live on two student contexts as an explicit "Brak uwag" empty page. No populated page has been observed, so no public note API or record semantics are claimed.
       description: |
         Internal manual qualification route only, requiring separate explicit live
         account/operation/request/login authorization. Shared transport scheduler,
@@ -684,7 +685,7 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Original fixtures from reviewed apix/consumer requirements and bounded two-week discovery on one context; populated installed comparison is recorded separately in VERIFICATION.md.
+      x-evidence-note: Observed and compared with Chromium on two student contexts, including substitution notices whose tooltip anchor wraps the notice element. See VERIFICATION.md.
       description: |
         Fixed week-selection form only. A plain civil date must be a Monday with
         a representable Sunday. Selecting the view is not replayed after errors,
@@ -698,6 +699,8 @@ paths:
         data-time_from and data-time_to attributes read by name, not attribute order.
         Dates must cover each requested civil weekday exactly once; times are
         local HH:MM values; lesson start must precede end and periods are chronological.
+        A plan-lekcji-info notice takes its tooltip fields from an anchor inside it
+        or from an anchor wrapping it (observed for substitutions, "zastępstwo").
         Recess clocks are preserved as reported, including zero/inverted pairs;
         they are not a computed duration, inferred gap, or ordering constraint.
         At most 32 periods, 16 lesson blocks and 16 change notices per slot.
@@ -790,12 +793,20 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Authorized discovery observed explicit empty markup only; populated and installed public-API live qualification remain pending.
+      x-evidence-note: Observed populated and empty pages on two student contexts and compared with Chromium. The one-month limit is stated by the page and enforced by its date picker; a two-month window returned the range notice.
       description: |
-        Explicit inclusive dataOd/dataDo window, at most 371 civil days;
-        fixed all-subject/all-status -1 filters.
+        Explicit inclusive dataOd/dataDo window of at most one calendar month
+        (dataDo no later than the same day of the next month, clamped to its last
+        day). Upstream answers a longer window with the notice "Wybrano
+        nieprawidłowy zakres daty." next to an empty marker; that notice is
+        InvalidInputError, never an empty list. Fixed all-subject/all-status -1
+        filters. Columns are mapped by header label: Przedmiot, Nauczyciel, Temat,
+        Kategoria, Data zadania (date and weekday cells), Termin wykonania (date
+        and weekday cells), Status przesyłania rozwiązania and Opcje. The options
+        cell holds the preview link, a mark-done button that is never invoked,
+        and an optional "Zadanie oznaczono jako wykonane (date, time)" marker.
         No submissions, read-once agenda or attachments. Never replay the selection
-        POST. Empty success requires recognized explicit homework markup.
+        POST. Empty success requires the explicit empty marker and no notice.
       security: [{SessionCookie: []}]
       requestBody:
         required: true
@@ -822,10 +833,11 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: true
-      x-evidence: source_informed
-      x-evidence-note: Source-informed fixed numeric preview namespace; original detail fixtures and qualification tracked separately.
+      x-evidence: independently_observed
+      x-evidence-note: Observed on a live assignment already marked done and compared with Chromium. Fields observed are Zajęcia edukacyjne, Temat, Kategoria, Data udostępnienia, Termin wykonania and Treść.
       description: |
-        Read a fixed numeric preview only. Bound and preserve full label/value text
+        Read a fixed numeric preview only. The web UI pairs opening a preview with
+        a separate checkAsRead call, which the library never makes. Bound and preserve full label/value text
         and ancillary notes. No resource links/forms/scripts are invoked. Safe
         recovery is limited to proven expiry within the original shared budget.
       parameters: [{$ref: '#/components/parameters/NumericId'}]
@@ -892,13 +904,15 @@ paths:
         config.py. Arbitrary table positions are not a supported fallback.
         A luckyNumber element can supply a number without an evidenced civil
         date; never invent today's date. Missing lucky-number markup is explicit
-        unavailability. Header variants and actual live layout remain unverified.
+        unavailability. The observed page labels the student's name "Imię i
+        nazwisko ucznia" and also lists the login owner's own rows (name, login,
+        masked password), which are never read as student fields.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: true
-      x-evidence: source_informed
-      x-evidence-note: Source-informed route/required fields/lucky-number marker; independently authored semantic-label fixtures, not copied layouts or live captures.
+      x-evidence: independently_observed
+      x-evidence-note: Observed on two student contexts and compared with Chromium; independently authored fixtures with the observed labels.
       security: [{SessionCookie: []}]
       responses:
         '200':

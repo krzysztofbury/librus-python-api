@@ -42,7 +42,6 @@ class SchoolFixture:
         self.dispatch_times: list[float] = []
         self.logins: dict[str, int] = {}
         self.profile_status: dict[str, int] = {}
-        self.identity_status: dict[str, int] = {}
         self.expire_profile: dict[str, int] = {}
         self.challenge = False
         self.malformed_identity = False
@@ -116,8 +115,6 @@ class SchoolFixture:
         login = self.record(request)
         if not login:
             return web.Response(status=401)
-        if login in self.identity_status:
-            return web.Response(status=self.identity_status[login])
         if self.identity_mode == "html":
             return web.Response(
                 text="<html>unexpected page</html>", content_type="text/html"

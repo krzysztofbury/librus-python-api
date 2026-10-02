@@ -1,734 +1,107 @@
-# Local verification history
+# Verification
 
-## Combined school-read qualification follow-up (0.3.0.dev0)
+What has actually been run, and what has not. Earlier per-increment logs are
+in the Git history of this file.
 
-On 2026-10-02, three separately authorized installed-wheel attempts each dispatched
-10 of at most 24 HTTP requests and submitted credentials once. Nine requests per
-attempt covered the approved authentication/identity path; one was a school read.
-Total new accounting is 30/72 requests across three exhausted one-login scopes.
-Unused request allowance does not authorize another login. Earlier family traffic
-accounting remains separate. The fixed reports in `release-evidence/` contain only
-technical counters/classifications, not account aliases, credentials or school data.
+## 0.3.0 (2026-10-02)
 
-| Attempt | School read reached | Stop | Qualification result |
-| --- | --- | --- | --- |
-| Initial | Completed-lessons first page | AttributeError | No successful comparison |
-| Replacement | Completed-lessons first page | ParseError | No successful comparison |
-| Reordered | Current-month agenda | Browser event-count mismatch | No successful comparison |
+### Offline
 
-Both lesson responses had zero decorated tables and pagination spans. Their private
-bytes were discarded. Native/apix/browser lesson parity, explicit empty semantics,
-live pagination/resume and layout cause are not established. The reordered attempt
-stopped before previous-month agenda, details, homework and notes. No earlier live
-tooltip discrepancy is resolved, and no current-build full live rerun is claimed.
-
-Original offline tests reproduce two distinct defects: comments crash lesson
-empty-marker scanning, and outer layout-table ancestors make the browser comparator
-drop agenda events. Both fail before their corresponding fixes. These synthetic
-reproductions do not establish the causes of discarded live failures. Unknown lesson
-markup still fails explicitly. The harness now keeps failed bytes in memory until
-fixed structural/code-location diagnostics finish, exits nonzero on unsuccessful
-runs, and refuses an existing report marker before any possible credential access.
-
-508 portable tests pass on source Python 3.13/3.14 and installed wheel/sdist on each
-interpreter. All four installed environments pass dependency consistency and
-version/MIT/typing/import-location checks. Forty existing original-response apix
-comparisons pass on each installed artifact; unchanged external BeautifulSoup
-warnings remain visible. One installed-wheel Python 3.14 real-HTTP/Chromium preflight
-passes all school-read families, lesson resume and the synthetic empty notes probe,
-including commented lesson markup and an agenda inside an outer layout table.
-These are offline checks, not rendered live data or sustained-load qualification.
-
-The default suite deselects 45 opt-in cases. Earlier consumer/performance workloads
-were not rerun. The twenty-sixth route/OpenAPI operation is an internal ordinary
-notes probe with offline wire/budget proof, not a public note API. Public note support
-is explicitly deferred pending populated evidence (contracts/behaviour-notes.md).
-Consumer code is unchanged, no package was published, and all task-owned temporary
-builds/environments were cleaned. Current-build live gates remain pending.
-Ruff/format, strict mypy, lock validation, repository hooks, worktree secret scanning
-and the locked dependency audit pass. No known vulnerabilities were reported by
-that audit; this is not a general security guarantee.
-
-## Completed-lessons increment (0.3.0.dev0)
-
-On 2026-10-02, 488 portable tests pass on source Python 3.13/3.14 and on both
-installed wheel and installed sdist for each interpreter. Fifty new cases own
-completed-lesson fields/pagination, explicit empty/malformed layouts, exact forms,
-date/page/row bounds, maximum batches, mid-page/page-boundary resume, drift/repeat
-rejection, four concurrent independent login contexts, cache/coalescing distinction,
-POST non-replay and cumulative request/body/deadline/closure/cancellation paths.
-The new loopback cases exercise both public APIs through actual aiohttp, not
-injected domain results. These are offline runtime checks, not live load evidence.
-
-Forty opt-in external-apix comparisons pass on source Python 3.13 and all four
-installed-artifact environments: the existing 34 school-read cases plus six new
-completed-lesson cases. The new cases cover common fields/long topic text and
-classified departures for missing teachers, BR boundaries, reordered date classes
-and pagination whitespace. Unmodified apix 1.5.3 invents a teacher from a lone
-subject and a fallback date for reordered classes, concatenates BR-separated words,
-and reports zero pages for an ordinary-space count it cannot parse. Native values
-follow the original synthetic contract, not these baseline defaults. Existing apix
-BeautifulSoup deprecation warnings remain visible. No baseline source/fixture was
-copied, and synthetic disagreement is not rendered live school-content proof.
-
-Installed metadata checks confirm 0.3.0.dev0, MIT, Python >=3.13, py.typed and bundled
-license. Dependency consistency checks pass for all four installs. Artifacts and
-temporary environments were created in one task-owned scratch invocation and
-cleaned on exit; nothing was published. Ruff/format and strict mypy pass. Default
-pytest deselects 44 opt-in cases (40 apix plus the prior four integration/performance
-cases); those prior consumer/performance paths were not rerun for this increment.
-Lock validation, worktree secret scanning and the locked dependency audit pass;
-no known vulnerabilities were found at this check, not a security guarantee.
-
-The twenty-fifth route/OpenAPI operation is source-informed with no live requests
-or real credential submissions. Completed-lesson populated/empty pages, live
-pagination variants, account roles and rendered school semantics remain unqualified.
-Cursors detect mid-page changes/count drift/repeated pages, not all same-count
-insertions across consumed page boundaries; no transactional snapshot or reliable
-sync watermark is claimed. Wider earlier-family live gaps remain unchanged.
-Consumer migration, behaviour-note evidence decision, credentialed CI and PyPI are
-separate gates. See contracts/completed-lessons.md for the exact policy.
-
-Initial 0.1.0 check: 2026-09-30, Linux. No live Librus requests were made then. Fixtures are
-independently authored synthetic examples, not copied HTML or credentialed captures.
-
-## Proof matrix
-
-| Boundary | Proof and local acceptance |
+| Check | Result |
 | --- | --- |
-| Import/configuration | Strict frozen input limits, no credential/environment discovery, redacted construction failures, approved origins/TLS |
-| Transport | Real aiohttp HTTP/cookie scope/isolation, foreign/auth-only redirect rejection, declared/chunked/inflated/cumulative body bounds, status classification, slow-body cleanup |
-| Shared traffic | Four-account saturated scheduler workload; combined token bucket, global peak two/per-account peak one, bounded queues, shared budgets, pause/resume, repeated cancellation |
-| Authentication | Original portal/form/cookie/redirect fixture, one POST, cookie plus parsed Me terminal verification, rejection/challenge/missing-cookie/malformed/loop failures |
-| Identity/profile | Required envelopes/IDs and semantic labels, explicit missing lucky number, parent/student owner separation, immutable provenance, failed account isolation |
-| Recovery | Tenacity two-attempt safe reads, one reauthentication, original budget, no replay of denials/ambiguous failures, shared throttle/maintenance pause |
-| Freshness/coalescing | Three callers/login collapse to one cold profile flight, explicit-budget identity rules, TTL expiry, invalidation, survivor/last-waiter cancellation |
-| Parser resources | Maximum-body probe with eight 256 KiB jobs, two workers, heartbeat and traced-memory measurements; actual thread completion joined after repeated cancellation |
-| Consumer | Unchanged 24 default/28 all-feature catalog snapshots; real native identity adapter through stdio, legacy text JSON and structuredContent parity, scoped denial |
-| Artifacts | Wheel and sdist installed outside source checkout; public-boundary suites and exact-wheel stdio probe, runtime metadata, py.typed/license contents |
-
-The enabled subset of R01-R04/R05-R06/R10/R17 is owned by the transport, scheduler,
-and identity tests above. Academic record regressions, notification/state ownership,
-message delivery, attachment publication, and remaining R07-R16 coverage are not
-claimed by an identity-only release. Existing consumer regression owners remain
-in place; its full migration has not been performed.
-
-## Results and measurements
-
-- Library suite: 122 offline tests on Python 3.13 and 3.14, plus installed artifacts.
-- Consumer branch: 570 offline tests, including existing stdio schemas/annotations.
-- Ruff, formatting, strict mypy, OpenAPI/catalogue parity, and commit checks pass.
-- Exact 0.1.0 wheel installed in a fresh Python 3.14 environment: 122 tests and
-  the real stdio probe pass. The sdist build installed in a separate Python 3.13
-  environment also passes 122 tests. Installed metadata confirms version 0.1.0,
-  MIT, Python >=3.13, py.typed, and six declared runtime dependencies.
-- The locked runtime dependency set was audited with pip-audit: no known
-  vulnerabilities found at this check. This is database-based evidence, not a
-  security guarantee or a claim about the consumer's remaining legacy dependencies.
-- Real installed-library stdio workload: four login contexts, one shared represented
-  student, three callers per context, and one profile denial. Exactly 28 cold
-  requests, three warm requests, four reused TCP connections, one login per context,
-  and combined 25 requests/second with burst two. Example elapsed time: 1.92 seconds.
-- Maximum-body parser probe example: eight 262144-byte jobs in 0.105 seconds,
-  maximum sampled heartbeat delay 0.011 seconds, traced peak 1648651 bytes.
-  Thresholds: total under ten seconds, heartbeat under 250 ms, traced peak under
-  32 MiB. Tracemalloc is not process RSS; these are local regression measurements.
-- No old-backend comparison or live performance improvement is claimed. Fast
-  fixture settings are not recommended live tuning values.
-
-Reproduce using CONTRIBUTING.md and pytest: the default suite owns OpenAPI and
-transport verification, `tests/performance` owns opt-in resource measurements,
-and `tests/integration` owns opt-in consumer stdio verification in the installed
-artifact environment. Expected
-denied-account MCP calls return redacted error text rather than success/empty data.
-The consumer adapter is draft PR #38 and remains opt-in.
-Final distribution checksums are recorded in `release-evidence/0.1.0.sha256`,
-outside the sdist inputs to avoid a self-referential archive checksum.
-These checksums and the 122-test counts above describe the initial qualified
-0.1.0 artifacts. The subsequent tools/model ownership cleanup retains their
-behavioral proof with 121 default tests plus one performance and one integration
-test; the retired experiment's duplicate-cookie case is in the real transport test.
-
-## GitHub-hosted CI
-
-[CI run 36721820811](https://github.com/krzysztofbury/librus-python-api/actions/runs/36721820811)
-passed on 2026-09-30 for commit `95261910b7c7582cceb6155d42f5fea6523730fc`
-in [PR #2](https://github.com/krzysztofbury/librus-python-api/pull/2).
-All three Ubuntu 24.04 jobs passed: quality/security and Python 3.13/3.14.
-Each Python job passed 121 portable tests against source, installed wheel, and
-installed sdist. Logs confirm imports from separate site-packages directories.
-Metadata/license/py.typed and dependency consistency checks passed, and both
-distribution/report artifacts were uploaded. The quality job passed workflow
-lint, repository hooks, full-history secrets, and the locked runtime/development
-vulnerability audit. No live Librus requests or publishing occurred. These are
-PR execution results, not evidence that the workflow has merged onto `main`.
-The hardware-sensitive and cross-repository tests remain explicitly opt-in.
-
-## 0.2.0.dev0 final-summary increment
-
-The first academic increment is a development build, not a completed 0.2.0
-release. On Linux/Python 3.13 and 3.14, 159 portable tests pass, including 38 new
-final-summary cases. The exact built wheel passes all 162 tests when the opt-in
-parser-resource and two real MCP stdio workloads are selected. A separately
-installed sdist passes the 159-test portable suite on Python 3.13. The consumer
-adapter checkout passes 573 tests; its Ruff/formatting and Bandit checks pass.
-Library Ruff/formatting, strict mypy, and ten-operation OpenAPI parity pass.
-
-The final-summary stdio workload keeps 24 default tools and exercises four login
-contexts representing one student, three callers/context, one denial, optional
-columns, and a two-subject result. It preserves one text block per summary and
-the legacy structured result wrapper. Cold reads cost 28 requests, warm reads
-three, with four reused connections and one login/context, under the shared
-25 requests/second fixture budget. No school service or production state is used.
-
-These tests own the new summary boundary. Common transport/cancellation/recovery
-tests remain in place without being duplicated wholesale for another endpoint.
-Tests also reproduced and fixed loss of word boundaries at HTML BR/paragraph
-elements while preserving inline grade symbols. The implementation/fixtures are
-original and source-informed; they do not establish live layout compatibility.
-See `contracts/grades.md` for scope and provenance. The consumer backend stays
-explicitly opt-in with no legacy fallback or production dependency change.
-
-## Current compatibility/performance increment
-
-The development wheel's bounded authorized login, identity, and final-summary
-path now completes, with consumer-mapped summary parity. This uncovered exact
-PerformLogin/Grant continuations, the explicit Account.UserId reference variant,
-stray closing tags, and an empty full-width spacer. Original offline regressions
-protect each variant and corresponding unsupported states. No live response,
-identifier, credential, or school value enters repository fixtures.
-
-After form reuse, the simplified four-login fixture uses 24 cold requests rather
-than 28, retaining three warm requests and one denial. Live comparative observations
-and same-page memory-only replay are documented in BENCHMARKS.md, including the
-historically slower cold login and higher total process RSS. General live account
-compatibility and multi-account performance remain pending.
-
-The current suite has 174 portable tests plus four opt-in integration/performance
-cases. The installed wheel exercises real MCP stdio and the paired synthetic
-parser measurement; ordinary GitHub CI remains offline.
-
-The revised default policy is five requests/second with a shared ten-token burst.
-The new token-clock regression failed with the previous default, then passed with
-the revised default. Four-account HTTP tests exercise both default and explicit
-policies beyond burst capacity, checking the shared envelope and unchanged peak
-concurrency. Existing 429/503 service tests now use default scheduler settings
-and still prove cross-account cooldown and no replay. Pause/no-resume-burst,
-queue, cancellation, and budget regressions remain in place.
-
-An explicitly authorized rerun exercised the installed development wheel through
-one login and three fresh summary reads per implementation. Outputs matched;
-native cold retrieval was 949 ms versus 973 ms for the baseline, with 0.4 ms
-admission wait instead of the earlier eight-second token delay. BENCHMARKS.md
-retains both samples and documents the distinction between burst qualification,
-offline saturation proof, and still-unqualified upstream sustained capacity.
-
-## 0.2.0.dev0 inline-grade checkpoint
-
-Historical checkpoint, superseded by the grades-only acceptance below.
-
-The library now provides `grades()` and inclusive `grades_window()` with frozen
-numeric/descriptive/average records, original parsing fixtures, and the explicit
-view-selection POST contract. This is a development checkpoint, not completed
-grade-family or 0.2.0 coverage. Business differences and gaps against unmodified
-librus-apix 1.5.3 are recorded in contracts/grades.md.
-
-The portable suite passes 219 tests on Linux/Python 3.13 and 3.14. The separately
-installed wheel (3.14) and sdist (3.13) exercise the public grade path through
-original loopback HTTP fixtures outside the source checkout. Coverage includes
-numeric symbols, inline descriptive records, school average availability, inclusive
-window validation, fixed POST form, original combined budgets, default-policy
-four-login coalescing/isolation/cache reuse, and last-waiter cancellation. POST
-401/login redirect/403/429/503 responses never replay credentials or the view
-request. Credential forms are rejected on the grade route before dispatch.
-Unknown nonempty/current or separate grade/publication layouts do not fabricate
-empty or partial success. Existing shared transport/recovery tests remain intact.
-
-Authorized discovery used ten requests, one login and one view POST, against a
-20-request cap. It exercised the source transport path, not an installed public
-grade read. The response remained in memory for parser work. Original regressions
-exposed the ISO-only date assumption, lxml comment handling, and the `Brak ocen`
-empty-cell marker before the fixes. Installed parser replay then completed, with
-common numeric fields matching the unmodified baseline. The response was discarded.
-
-A separately authorized installed-runtime comparison used one login and three
-fresh all-view POSTs per implementation, 16 requests each/32 combined as caps.
-Both completed with 12 HTTP requests each, 24 combined. The native cached date
-window issued no extra request. Subject, raw symbol, civil day, semester, category,
-and teacher matched for the observed populated numeric variant; no descriptive
-entries or populated numeric averages were present. Full record parity is not
-claimed because native preserves unknown metadata and raw/unavailable averages.
-BENCHMARKS.md records cold/warm CPU/latency, requests, connection reuse, higher
-native RSS, same-page replay measurements, and exclusions. Private school records
-crossed only process memory/private pipes and were discarded; retained results are
-redacted metrics. No consumer source, dependency pin, PR, or default backend changed.
-
-Ruff, formatting, strict mypy, and thirteen-operation OpenAPI/catalogue parity
-pass. No credentialed CI, PyPI publication, push, merge, or consumer migration is
-claimed by this local checkpoint. Populated descriptive/average/correction and
-other account variants, separate publication layouts, dated end-period metadata,
-and upstream week/last-login filters remain grade-family gates.
-
-## 0.2.0 local-first grade acceptance
-
-0.2.0 is grades-only. Attendance and the remaining school reads move to 0.3.0;
-communication moves to 0.4.0. The declared grade contracts are implemented, not a
-claim of complete upstream layout or sustained-load coverage. No PyPI publication,
-daily credentialed CI, or production consumer migration is part of this delivery.
-
-Original offline regressions extend the grade suite with descriptive-only rows,
-nested correction spans, period/annual/predicted-annual metadata, multiple publication
-blocks, paragraph preservation, explicit/unknown semesters, strict view validation,
-view-specific coalescing/cache reuse, and all-view date windows. Undated descriptive
-semester text is a separate immutable summary, never assigned an invented date.
-The same subject can appear in numeric and descriptive families without duplicated
-averages; duplicate rows within a family remain failures. Existing traffic/error/
-cancellation/expiry regressions continue to exercise the real loopback runtime.
-
-The newly authorized installed comparison covered four independent login contexts
-under a 128-request combined cap and a 16-request per implementation/context cap.
-It dispatched 94 requests: three completed native/apix pairs at 12 requests each,
-plus a native second-context failure at ten requests and a completed twelve-request
-apix run. No automatic retry, read-once schedule request, message operation, capture,
-or private normalized-record persistence was used. Runs were sequential and paced.
-
-All three completed runtime comparisons matched the private legacy numeric projection
-in all/week/last-login views. Missing native metadata was mapped to baseline defaults
-only for comparison, not in domain results. Dated descriptive collections and numeric
-averages were empty, so their equality is not populated qualification. The final
-context exercised populated undated descriptive summaries using the updated installed
-client; baseline omission is an intentional documented difference.
-
-The second context's failure exposed undated descriptive cells and overlapping subject
-families. Independently authored regressions failed before each fix. Its approved apix
-read supplied memory-only response bodies for the updated installed native parser:
-all three views then passed with common numeric parity, and the final-summary parser
-also passed. This is not a successful second-context full runtime rerun. The replay
-helper was closed and private response data discarded. A new runtime run requires
-new bounded authorization. Populated dated descriptions, publication/correction/period
-marks, numeric averages, role/layout extremes, and sustained capacity remain unqualified.
-
-Week/last-login forms were independently exercised; sequential last-login parity
-cannot prove identical historical-login state because authentication changes that
-state. BENCHMARKS.md retains CPU, latency, request, connection, RSS, and sample limits,
-including slower native latency in some views and higher whole-process RSS.
-
-Final portable suites passed 236 tests each on source Python 3.13 and 3.14,
-installed wheel Python 3.14, and installed sdist Python 3.13. The installed runs
-started outside the checkout and exercised the full portable suite, including
-real loopback authentication/view POSTs, windows, cache/isolation, and cancellation.
-The four optional integration/performance tests were deselected; the grade consumer
-migration is not implemented or implied by an old optional adapter checkout.
-
-Commands: `uv run --locked pytest`, `uv run --locked --python 3.13 pytest`,
-`uv build --no-sources`, then installed-environment `python -m pytest` with only
-the original test directory on PYTHONPATH. Ruff, format checks, strict mypy,
-thirteen-operation contracts, repository hooks, and `git diff --check` pass.
-Redacted worktree secret scanning also passed, including untracked grade files.
-Built distributions are local version 0.2.0, not published packages.
-
-## 0.3.0.dev0 attendance collection increment
-
-Historical first checkpoint; superseded by the detail/frequency qualification below.
-
-2026-10-01, Linux. This development increment enables attendance collections,
-strict upstream views, and cached civil-date windows. Detail/frequency and the
-remaining 0.3 school-read families are not implemented. The route, forms, and
-tooltip concepts are source-informed; semantic semester labels and all fixtures
-are independently authored synthetic requirements, not observed live captures.
-No live Librus request, consumer edit, PyPI publication, or merge occurred.
-
-- 276 portable tests pass on source Python 3.13/3.14, separately installed wheel
-  Python 3.14, and separately installed sdist Python 3.13. The four optional
-  consumer/performance cases remain deselected. Installed suites run outside
-  the checkout with an import-location guard; metadata confirms 0.3.0.dev0,
-  MIT, Python >=3.13, six runtime dependencies, license files, and py.typed.
-- Forty attendance cases exercise original populated/empty/malformed parsers,
-  explicit reversed/single-second-semester grouping, raw custom types, unknown
-  optional metadata, BR/bold tooltips, value/collection bounds, and inert references.
-  Distinct view responses protect form-to-selection mapping; date windows include
-  an excluded record and an empty selection, not only an all-record self-comparison.
-- Actual loopback HTTP exercises login, fixed attendance forms, three-view cache
-  reuse, four independent coalesced login contexts, request exhaustion, last-waiter
-  cancellation, and no replay after 401/login redirect/403/429/503. Existing
-  scheduler/transport suites continue to verify saturated shared budgets, cleanup,
-  cooldowns, and destination guards rather than duplicating every lower-level test.
-- Original regressions failed before guards for dated entries outside the grid,
-  nested-table double counting, control-character URL normalization, nonliteral
-  script arguments, and oversized plain tooltip values. They pass after the fixes.
-- Ruff, formatting, strict mypy, lock consistency, fourteen-operation OpenAPI
-  parity, repository hooks, redacted worktree/history secret scans, dependency
-  consistency, and diff checks pass. The locked runtime/development dependency
-  audit reports no known vulnerabilities at this check, not a security guarantee.
-
-Reproduce with the portable/source and installed-artifact commands in
-CONTRIBUTING.md. See contracts/attendance.md for the business matrix, intentional
-semester/missing-value differences, and unresolved detail/type/frequency gates.
-Installed attendance live smoke, populated role/layout qualification, and a
-completed equivalent apix comparison remain pending fresh bounded authorization.
-No attendance speedup or upstream sustained-capacity claim is made.
-
-### Separate Dependabot review
-
-PR #3 updates mypy/OpenAPI-validator/Ruff constraints but not uv.lock, so hosted
-CI fails at lock validation before lint or tests. Read-only review plus an isolated
-local worktree experiment refreshed its lock: mypy 2.3.1, openapi-spec-validator
-0.9.0, and Ruff 0.16.9. Its existing 174 portable tests pass on Python 3.13/3.14;
-lint and strict mypy pass. Ruff's new Markdown formatting flags API.md Python
-examples; after local formatting, its format check passes too. These checks
-describe the bot branch's older feature set, not the attendance increment.
-
-No fix was pushed to the bot branch and PR #3 was not merged. It needs both lock
-refresh and Markdown formatting before reconsideration. The repository currently
-configures the pip ecosystem; GitHub now documents a dedicated uv ecosystem.
-Review switching that configuration separately so future updates maintain uv.lock,
-then qualify the generated PR instead of assuming the configuration fixes it.
-
-## 0.3.0.dev0 detail/frequency and installed attendance qualification
-
-2026-10-01, Linux. `attendance_detail()`, `gateway_attendance()`,
-`attendance_frequency()`, and `subject_frequency()` now implement the documented
-detail and ratio contracts. Raw type IDs remain available; standard classification
-is source-informed, never inferred from HTML labels. Unknown types and zero
-denominators make the ratio unavailable with explicit counts. Subject results use
-numeric lesson/subject references, account-scoped bounded metadata, and shared
-traffic/deadline/request budgets. Consumers own percentage/rounding and legacy
-zero-denominator mapping. See contracts/attendance.md.
-
-305 portable tests pass on source Python 3.13/3.14, the separately installed wheel
-on Python 3.14, and separately installed sdist on Python 3.13. The four optional
-consumer/performance cases remain deselected. Installed runs start outside the
-checkout with import-location guards; metadata/license/typing and dependency
-consistency pass. Ruff, formatting, strict mypy, eighteen-operation contracts,
-lock checks, repository hooks, redacted secret scans, dependency audit, and diff
-checks pass. No known locked-dependency vulnerabilities were reported at this
-check, not a security guarantee.
-
-The original offline suite protects separate overall/
-subject denominators, unknown and zero states, strict JSON/dates/references,
-duplicate IDs, metadata response-ID matching, real HTTP details/gateway/resolution,
-login isolation, session/TTL invalidation, cache capacity and budget exhaustion.
-The boolean-semester case failed before an explicit validator because strict
-Pydantic Literal validation still accepted True as 1. Existing shared transport/
-scheduler and collection cancellation/non-replay proof remains in place.
-
-Bounded installed checks used one approved context only. Three stopped native
-attempts cost 10, 13, and 13 requests. Original regressions then protected numeric
-`Okres 1/2` headings and full-width detail text. A guessed close-button-only
-exception still failed: the correct contract preserves ancillary text as separate
-notes rather than guessing captions or omitting non-field content. No school
-capture or identifiable fixture was incorporated.
-
-Two authorized baseline runs completed at 29 requests each; the final installed
-native run completed at 25. The successful final pair therefore used 54 requests.
-Total qualification/diagnostics used 119 of the explicitly revised cumulative
-160-request ceiling. Each fresh client run was capped at 32 requests, credentials
-were submitted once per run, and every failed run stopped rather than replaying
-login/view requests. Baseline token refresh and asynchronous metadata calls were
-included in the guard counts. No read-once, send, other-account, or consumer call
-was allowed.
-
-All/week populated attendance and populated detail fields matched the declared
-legacy projection. Last-login matched but was empty, not populated qualification.
-Overall frequency and populated per-subject frequency for one observed civil day
-matched. The comparison converted native ratios to legacy rounded percentages,
-used legacy optional defaults only in the projection, and mapped one observed
-zero-denominator unavailable semester to the baseline's full-attendance marker.
-Native domain results retained unknown/unavailable states and detail notes.
-Sequential authentication changes historical-login state, so filter equality is
-not proof of identical historical state. Full-year subject resolution, custom
-types, second-semester populated layouts, and wider roles remain unqualified.
-
-Private comparison records crossed only process pipes/local restricted memory IPC.
-The helper was closed and discarded them after comparison; only redacted metrics
-remain. The full updated installed runtime, not parser replay alone, completed.
-BENCHMARKS.md records the successful pair, non-wins, incomplete baseline connection
-instrumentation, and policy/sample limits. No PyPI publication, live CI, consumer
-modification, or merge of the attendance PR is implied.
-
-## Timetable increment: offline proof and installed runtime
-
-2026-10-01, Linux/Python 3.13/3.14. Explicit Monday-week selection now returns typed
-identity-bearing timetable days/periods, distinct lessons, complete raw change
-metadata, local clocks and optional reported recess pairs. The nineteenth wire
-operation and fixed form share the normal budgets, isolated lifecycle and
-non-replayed selection behavior. Consumer strings/default-week policy remain
-outside the library. No consumer code or credentials/captures were committed.
-
-349 portable tests pass on source Python 3.13/3.14, separately installed wheel
-Python 3.14, and separately installed sdist Python 3.13; four opt-in consumer/
-performance cases remain deselected. The increment adds 44 original timetable
-cases. Installed import-location, version, license, requirements, typing marker
-and dependency consistency checks pass. Ruff, format, strict mypy, lock and
-nineteen-operation contract checks, hooks, worktree/history secret scans, dependency
-audit and diff checks pass locally. No known locked-dependency vulnerabilities
-were reported, not a security guarantee. Hosted CI status is separate evidence.
-
-Original fixtures establish named date/time attributes, exactly seven unique
-civil dates per row, period ordering, blanks, grouped lessons, notices, optional
-metadata, recess association, format/tree/content limits and fail-closed layouts.
-Loopback HTTP proves different week keys, four-login isolation/coalescing, cache
-reuse, request/form/credential guards, original budget exhaustion, expiry/denial/
-throttle/maintenance non-replay and cancellation cleanup. Tests also prove the
-specific repeated timetableEntryBox ID exception does not allow unrelated
-duplicate IDs. Strict HTML parsing otherwise remains unchanged.
-
-Discovery used one approved context and two ordinary timetable weeks, 11 requests.
-Three stopped installed-native attempts used 10 requests each. The first diagnosis
-only captured tags/attribute names, not period-number semantics. A speculative
-numeric-only fix still rejected the mirrored prefix. A focused baseline run used
-11 requests, established two numeric prefix cells, and completed both weeks.
-Original failing-before-fix cases then protected matching mirror values and
-reported recess clocks whose end is not later than their start. Recess values are
-not a validated duration; do not reject all timetable data over that assumption.
-
-The final installed native and unmodified apix 1.5.3 each completed both populated
-weeks, 11 requests/client. Native cached-week reuse dispatched no additional POST.
-The final pair cost 22 requests; cumulative qualification used 74 of the explicitly
-revised 96-request cap, including stopped runs and superseded baseline diagnosis.
-Each approved login was submitted once; failing runs stopped before further reads.
-Only authentication/identity and the two ordinary timetable weeks were allowed.
-No read-once schedule operations, messages, other accounts, or automatic replays.
-
-The explicit legacy projection matched date, start/end, weekday, period number,
-next recess, subject and change notices in both weeks. Both weeks were populated;
-only the current week had notices, without replacement-tooltip metadata. Combined
-teacher/classroom text differed in 29 periods per week. The comparison therefore
-did not pass full field parity. Native rendered-boundary/whitespace normalization
-and baseline subject-hyphen splitting differ by design, but that first retained
-evidence did not classify the particular live differences. The follow-up below
-resolves native correctness without claiming exact baseline-string parity.
-
-Private captures/records remained in memory/process pipes/restricted local IPC
-and were discarded. The memory helper closed. A failed/superseded attempt is not
-part of a successful timing sample; parser support alone is not installed proof.
-BENCHMARKS.md records the final completed retrieval pair and its parity limit.
-Wider profiles/layouts, groups, replacement tooltip metadata, wholly empty weeks,
-locale/encoding and sustained capacity remain unqualified. No consumer migration,
-PyPI publication, live CI or merge is implied by this development increment.
-
-### Teacher/classroom follow-up: same-response browser validation
-
-Two separately authorized installed-native runs each retrieved both populated
-weeks and reused the cached current week, 11 requests per run and 22 of the fresh
-40-request cap total. Each run submitted credentials once; no automatic replay,
-baseline login, interactive browser login, or broader endpoint/account access.
-Both parsers consumed identical response bytes, not separately fetched pages.
-Unmodified apix 1.5.3 parsed them through an offline fixed-response client; its
-two week-selection calls per run caused no HTTP requests. Each page was also
-rendered in Chromium 152 with page JavaScript disabled and external requests
-blocked. Only markup and inline styles were available, not the complete live
-stylesheet/script environment. No screenshots, pages or private values were saved.
-
-In both runs and both weeks, native subjects and teacher/classroom values matched
-normalized browser text in every one of 91 slots per week. Native/apix differed
-in 29 teacher/classroom strings per week: 28 differed only in whitespace, and one
-apix string disagreed with rendered teacher/classroom text. Native agreed with
-the browser in that slot as well. All other projected fields matched on the same
-response. Empty slots are included in the 91; there were 29 populated lesson
-blocks per week. Thus the prior unresolved native-correctness gate is resolved:
-retain correct native rendered text, not a byte-for-byte baseline discrepancy.
-
-The external diagnostic initially tried to identify the one baseline disagreement
-as subject-hyphen contamination; its exact-pattern check did not establish that
-cause. Its conservative category-based qualification flag remained false, despite
-all native/browser text matching. The evidence supports an incorrect baseline
-string, not that precise transformation. Do not claim a specific live hyphen bug.
-Independent synthetic replay does demonstrate a separate baseline defect: hyphens
-inside bold subjects can leak subject text into teacher/classroom extraction.
-Native removes the complete subject prefix, so it does not reproduce this defect.
-
-Three new original parser-boundary cases exercise line breaks/newlines, nonbreaking
-spaces and subject/teacher/room hyphens against explicit expected strings. They
-already pass on the existing native parser; there was no native bug to fix and no
-production code or test-only seam was added. Chromium also agrees with native on
-original whitespace and subject-hyphen synthetic cases where apix disagrees.
-The change corrects the compatibility criterion and documents observed intentional
-departures; it does not pretend a passing-before-change native test was a fixed
-native regression. Broader roles/layouts and consumer migration remain separate.
-
-Only redacted semantic counts were retained. Private pages/results stayed in
-memory and were discarded when each process/browser closed. Total timetable
-investigation traffic, including the earlier 74-request work, is 96 requests;
-this fresh scope's 22/40 accounting is separate from that earlier authorization.
-
-## Announcements increment: same-response installed qualification
-
-2026-10-01, Linux. `AccountClient.announcements()` is an ordinary bounded GET,
-with typed immutable full-text notices, author, raw/typed civil date and account-
-alias-scoped content references. It reuses shared rate/concurrency/queue/body/
-request/deadline limits, isolated session cache/coalescing, joined parser workers
-and cancellation, and at most one proven-expiry safe-read recovery. No mark-read,
-agenda consumption, detail/attachment/link/script execution or consumer change.
-The twentieth OpenAPI operation matches the central route and evidence policy.
-
-Original markup/wire fixtures protect full text above 1024 characters, explicit
-line boundaries and inline joins, semantic field reordering, stable content
-references/scope/edit behavior, duplicate retention, empty/missing distinctions,
-malformed fields/dates/spans, unknown/active/nested content and item/field/aggregate
-bounds. Loopback tests demonstrate four independent login isolation/coalescing,
-fresh/cache semantics, expiry cache invalidation/recovery, finite error handling,
-original budget exhaustion, credential/form guards, failed-parse non-caching and
-joined cancellation cleanup. Existing scheduler tests own global traffic capacity.
-
-One fresh 32-request scope authorized two runs, each at most 16 HTTP requests,
-one credential submission and 120 seconds on the same context. Discovery and
-installed-native qualification each complete with ten requests, 20/32 total.
-Only authentication/identity and the ordinary announcement page were allowed.
-There were no failed runs, extra logins, automatic replay or expanded accounts.
-The populated page has seven announcements, including two bodies above 1024
-characters; there are no table IDs or numeric notice links. Do not fabricate IDs.
-
-Each run also feeds its identical response bytes to unmodified apix 1.5.3 through
-an offline fixed-response client and network-disabled Chromium 152. Neither
-comparison adds school requests or logins. Chromium uses markup/inline styles,
-not external styles or scripts; this is rendered-text validation, not a full
-interactive live UI. All seven native titles/authors/date texts/full contents
-match normalized browser and baseline text. Three baseline titles and seven body
-strings differ only in whitespace; native/browser body line formatting differs
-without losing words. Categories/counts were computed before discarding private
-pages/results; no captures, personal values, screenshots or raw diffs were saved.
-Installed cache reuse returns the same result and makes zero additional requests.
-
-The parser accepts only valid ISO civil dates, keeps original date text and full
-bounded multiline plaintext, and exposes content references without implying
-upstream IDs or resolvable URLs. References do not merge account caches/security
-contexts. Native production code and fixtures are independently authored; apix/
-consumer are read-only requirements/comparison references, not dependencies or
-copied code. Empty markers and aliases remain source-informed/offline-only.
-
-380 portable tests pass on source Python 3.13/3.14, installed wheel Python 3.14 and
-installed sdist Python 3.13; four opt-in consumer/performance cases remain
-deselected. This increment adds 31 original announcement cases. Ruff/format,
-strict mypy, twenty-operation contracts, lock, hooks, secret scans, installed
-metadata/license/typing/import-location and dependency consistency/audit checks
-pass locally. Hosted checks are separate remote evidence. See BENCHMARKS.md for
-traffic proof and the absence of a matched live-baseline network timing claim.
-
-Wider roles, wholly empty live pages, reordered/aliased/richer layouts, alternate
-date formats or future upstream IDs remain unqualified. No independent approval,
-full 0.3 coverage, consumer cutover, publishing or owner-configured live CI is
-implied. CONTRIBUTING.md now requires identical-response offline reference replay
-and in-memory difference classification before private records are discarded.
-
-## Agenda/homework increment: partial installed qualification
-
-2026-10-01, Linux. Four public APIs now implement ordinary month/window reads and
-matching account-bound numeric details. All share bounded scheduling, isolated
-cache/coalescing and joined cancellation. Selection POSTs never replay; details
-retain one proven-expiry safe-read recovery within the original budget. No consumer
-files, recent/read-once operations, assignment submissions or attachments changed.
-The catalogue has 24 matching OpenAPI operations. Homework detail remains
-source-informed; the other three routes have observed discovery evidence.
-
-Original fixtures protect complete civil months including leap years, explicit
-empty markers, split raw/typed assignment dates/clocks, full detail content and
-notes, unsafe/foreign references, malformed/active content, item/field/aggregate
-bounds, four independent login contexts, exact forms, selection cache keys,
-non-replay, detail expiry recovery, original budgets and joined cancellation.
-An original failing-before-fix case found that subjectless multiline events could
-use an explanatory second line as title; only a recognized header now skips the
-first line. This edge fix has offline proof, not a completed live rerun.
-
-### Authorization and outcomes
-
-The fresh initial scope allowed two one-login runs, 24 requests each, 48 total,
-120 seconds per run. Only authentication/identity, current/previous agenda month
-selection, one homework window and at most two returned details per family were
-allowed. Replacement logins required separate explicit approval; unused requests
-did not authorize replay. All private pages/records were discarded in memory.
-
-| Run | Requests | Result |
-| --- | ---: | --- |
-| Initial discovery | 10 | Current month retrieved; local comment-node reference scanner failed with TypeError; no more reads |
-| Authorized replacement discovery | 14 | Two populated months (5/13 events), two returned agenda details (8/7 fields), explicit empty homework; same-response baseline/browser structural checks |
-| Installed qualification | 10 | Current month parsed; tooltip presentation reconstruction mismatch stopped comparisons |
-| Authorized final replacement | 11 | Current month's 5 events match normalized Chromium text, subjects, references and full tooltip text; previous month parsed but comparison stopped on an unclassified baseline tooltip difference |
-
-Total: 45/48 requests, four credential submissions, no automatic replay. Installed
-detail and homework paths were not reached. Discovery is not installed public-API
-qualification, and empty homework is not populated assignment/detail evidence.
-No further login is authorized within this scope, despite unused allowance.
-
-Comparison helpers were exercised offline with original markup before live runs.
-The comment-node TypeError was reproduced offline before fixing its guard.
-An intermediate-note/colon-spacing case reproduced the first tooltip comparator's
-loss of order when reconstructing fields followed by notes; the precise live
-cause was not established. Full ordered `metadata_text` now protects that
-presentation boundary. The later unclassified baseline difference remains open;
-it is not evidence of a confirmed native parser bug or full baseline parity.
-
-Chromium renders identical captured markup/inline styles with page scripts and
-external requests disabled. It is not an interactive or fully styled school
-login. Offline apix replay adds no school requests. Current-month differences
-include baseline subject/default inference and title extraction; native full text
-matches browser rendering, but complete serialized parity and precise causes of
-all title differences are not claimed. The current month's cached reuse made no
-additional HTTP request.
-
-438 portable tests pass on source Python 3.13/3.14, installed wheel Python 3.14
-and installed sdist Python 3.13, including 58 new school-read cases; four opt-in
-cases remain deselected. Ruff/format, strict mypy, 24-operation contract parity,
-lock, changed-file hooks, untracked worktree secret scan and locked dependency
-audit pass. Both installed environments pass dependency consistency checks.
-Installed-wheel metadata/license/typing/import-location checks and an executable
-four-public-API loopback smoke pass without school traffic. The sdist is installed
-outside the checkout and exercises the same public loopback paths in its suite.
-No hosted CI run, package publication, production switch or independent reviewer
-approval is claimed.
-See contracts/school-reads.md and REVIEW.md for remaining qualification and lessons.
-
-### Offline apix follow-up for missing live variants
-
-34 opt-in original-response comparisons pass with unmodified external apix 1.5.3
-on source Python 3.14, installed wheel Python 3.14 and installed sdist Python 3.13.
-`tests/integration/test_school_reads_apix.py` verifies baseline source against its
-installed RECORD hashes, blocks external socket/DNS access, and uses a fixed-response
-client rather than constructing an authenticated baseline client. Its public-path
-case executes all four native APIs against actual aiohttp loopback routes and feeds
-the identical returned bytes to apix. Common assignment fields/raw dates/references
-and plain/empty/long detail values match; intentional differences are classified
-in contracts/school-reads.md. No production library code changed in this follow-up.
-
-The comparison explicitly covers populated homework with multiple ordered rows,
-missing clocks/dates and extra columns, populated homework and agenda details,
-long/BR/paragraph values, duplicate/missing/active details, empty agenda, optional
-subjects, clocks, punctuation, metadata notes/trailing breaks and alternate BR tags.
-It also identifies baseline failures on reordered homework classes/linkless rows,
-loss of double-quoted references and word boundaries, and silent duplicate-label
-overwrite. Native integrity/optional-state policies are not weakened for parity.
-
-Network-disabled Chromium 152 validates installed native rendered text in 14
-original positive cases: six agenda cells/tooltips, six detail pages and two
-homework rows. This is independent rendering of synthetic markup, not additional
-live data. The baseline comparison emits six external BeautifulSoup deprecation
-warnings, retained without patching its source. No network performance/RSS claim.
-
-The default suite still passes 438 tests, with 38 opt-in cases deselected (the
-existing four plus these 34 comparisons). Ruff/format and strict mypy pass.
-No school requests or real credential submissions were made; the historical 45/48
-live-request count is unchanged. Complete installed *offline* collection/detail
-comparison is now exercised; installed *live* paths and populated homework/details
-remain pending. Unknown historical live tooltip differences are not retrospectively
-assigned a cause from similar synthetic cases. The new comparison suite is opt-in
-and does not add apix as a library or ordinary-CI dependency.
-
-## Explicitly pending
-
-- Independently observed live authentication, callback/account variants, and
-  populated JSON/HTML/profile encoding/layout compatibility. The conservative
-  route/label allowlist can reject real variants until they are independently
-  evidenced. Third-party flow requirements are not live qualification.
-- Interactive CAPTCHA/2FA, multi-child switching, and unavailable lucky-number
-  legacy marker parity. No fabricated civil date or unavailable string is returned.
-- macOS/Windows installed-artifact/platform qualification.
-- Owner-configured bounded daily credentialed CI, PyPI publication beginning at
-  1.0.0rc1, complete consumer migration, and a production backend default switch.
-- Populated grade variants, the failed context's full runtime rerun, and other academic, messaging,
-  attachments, send, and read-once event operation slices.
-
-The six local-first 0.1.0 gates are satisfied for the documented Linux scope.
-Library PR #1 is merged. Consumer experiment PR #38 is closed, unmerged; no package or
-consumer release has been published. GitHub CI is defined in
-`.github/workflows/ci.yml`; its remote run results are separate from the local
-0.1.0 evidence above. Credentialed compatibility and publishing remain deferred.
+| `pytest` from source, Python 3.14 | 622 passed (1 opt-in performance case deselected) |
+| Installed wheel and sdist, Python 3.13 and 3.14, run outside the checkout | 622 passed in each of the four environments; imports resolve to the installed package |
+| Ruff, format, strict mypy (src, tests, scripts) | Clean |
+| OpenAPI and route catalogue parity | Pass, 26 operations |
+
+Distribution checksums are in `release-evidence/0.3.0.sha256`, kept outside
+the sdist inputs so the archive does not checksum itself.
+
+The shared read suite (`tests/test_account_reads.py`) was checked against
+planted regressions. Replaying a POST after expiry fails 6 cases. Disabling
+coalescing fails 13. Caching failed reads fails 13.
+
+### Live
+
+The owner authorized live use of the configured accounts. Every run used
+`scripts/live_capture.py`: one credential submission per run, an operation
+allowlist, a request cap, and no sends, read-once events, mark-read calls or
+attachments. Raw pages stayed in private 0600 scratch directories outside the
+repository and were deleted afterwards.
+
+Total for 0.3.0: 12 logins and 216 requests over four logins (two students,
+each with two logins).
+
+The final smoke ran through the installed 0.3.0 wheel on one login per student:
+
+| Read | Student A | Student B |
+| --- | --- | --- |
+| identity, student_information | OK, matches Chromium | OK, matches Chromium |
+| final_grades, grades | 26 subjects, 17 grades | 11 subjects, 6 grades |
+| attendance, attendance_detail | 10 records | 1 record |
+| attendance_frequency, subject_frequency (one day) | OK, 125 gateway rows | OK, 112 gateway rows |
+| timetable | 91 slots match Chromium, including substitution notices | 91 slots match Chromium |
+| announcements | 7 items | 7 items |
+| agenda, two months, plus one detail | 5 and 13 events and the detail match Chromium | 3 and 3 events and the detail match Chromium |
+| homework | Empty month matches Chromium | Empty month matches Chromium |
+| completed_lessons_page | `ViewDisabledError` | `ViewDisabledError` |
+| behaviour notes page | Explicit empty | Explicit empty |
+| Requests | 28 | 28 |
+
+"Matches Chromium" means `scripts/crosscheck.py` compared the parser's output
+with Chromium's rendering of the same bytes: every event, tooltip text,
+reference, detail field, timetable slot and notice tooltip, and profile field.
+
+Grade, attendance and announcement counts were checked against the raw page
+structure. On both students, every real grade box became a record. The
+remaining boxes are a hidden template row and the observation card (see gaps).
+
+Populated homework was verified on an earlier capture of the same build: 2
+assignments (one marked done) and their detail page match Chromium. The
+one-month window boundary was confirmed live: 1 Sep to 1 Oct is accepted and
+1 Sep to 31 Oct is rejected.
+
+### Defects found live and fixed
+
+Each one had a failing test, written from an original fixture with the observed
+structure, before its fix.
+
+| Family | Live behaviour | Before | Now |
+| --- | --- | --- | --- |
+| Homework | Columns: subject, teacher, topic, category, date and weekday, due date and weekday, status, options | Mislabeled fields; weekday parsed as clock; every populated list failed | Header-mapped columns, weekday check, status and done marker |
+| Homework | Ranges longer than one month answered with "Wybrano nieprawidłowy zakres daty." and an empty marker | Reported as an empty list | Rejected up front; the notice is `InvalidInputError` |
+| Completed lessons | "Ten widok został wyłączony przez administratora szkoły." on all four logins | `ParseError` | `ViewDisabledError`, on every page parser |
+| Profile | Name label "Imię i nazwisko ucznia" | `ParseError` | Parsed; the login owner's rows are ignored |
+| Timetable | Substitution notice wrapped in its tooltip anchor | `UnsupportedCapabilityError` | Notice metadata read from the wrapping anchor |
+| Agenda | 33-line meeting description | `LimitError`; with a larger cap, numbered lines became bogus fields | One `Opis` field until the next known label; 256-line cap |
+
+The profile, timetable and agenda failures also occur on the previous `main`.
+They were found only because the final smoke covered every family, not only the
+0.3 ones.
+
+## Gaps
+
+- **Completed lessons, populated.** Every available login shows the view
+  disabled by its school, so no populated layout or pagination has been seen
+  live. The parser follows source-informed requirements with original fixtures.
+- **Behaviour notes.** Both students have an explicit empty page. Public support
+  stays deferred ([decision](contracts/behaviour-notes.md)).
+- **Observation card.** The grades page can include "Karta spostrzeżeń", a table
+  of formative assessments. It is not read yet, and apix does not read it either.
+- **Coverage breadth.** Two students at the observed schools. Other schools,
+  account roles, last-login views, custom attendance types and populated
+  descriptive grades are unverified.
+- **Not run in 0.3.0.** The scheduled credentialed CI, macOS and Windows, PyPI,
+  and the `librus-mcp` migration.
+
+## Earlier releases
+
+- **0.1.0** (2026-09-30): login, identity and profile, with transport, scheduler
+  and budget proof offline. Installed artifacts were verified on Linux with
+  Python 3.13 and 3.14. A four-login MCP stdio experiment (closed PR #38)
+  completed offline. First GitHub CI run:
+  [36721820811](https://github.com/krzysztofbury/librus-python-api/actions/runs/36721820811).
+  Checksums are in `release-evidence/0.1.0.sha256`.
+- **0.2.0**: grades. A bounded four-context live comparison used 94 of 128
+  allowed requests. See [contracts/grades.md](contracts/grades.md) and
+  [BENCHMARKS.md](BENCHMARKS.md).

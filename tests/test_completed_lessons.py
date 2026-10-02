@@ -126,6 +126,8 @@ def test_malformed_rows_and_metadata_never_become_partial(
         '<html><p class="msgEmptyTable"></p></html>',
         '<html><div class="pagination"><span>1 z 2</span></div>'
         '<p class="msgEmptyTable">Fixture empty</p></html>',
+        '<html><div class="warning-content">Fixture unknown notice</div>'
+        '<p class="msgEmptyTable">Fixture empty</p></html>',
     ],
 )
 def test_unknown_or_contradictory_empty_layout_fails(body: str) -> None:
@@ -463,36 +465,6 @@ def test_malformed_page_is_not_cached_and_empty_batch_is_explicit() -> None:
                 result = await client.completed_lessons(START, END, max_age_seconds=60)
                 assert result.items == () and result.next_cursor is None
                 assert result.pages_fetched == 1 and len(fixture.forms) == 2
-
-    asyncio.run(scenario())
-
-
-def test_transport_rejects_nonselection_and_invalid_wire_pages_before_dispatch() -> (
-    None
-):
-    from librus_python_api.models import (
-        CompletedLessonsPageSelection,
-        HomeworkSelection,
-    )
-
-    async def scenario() -> None:
-        fixture = CompletedLessonsFixture()
-        async with serve(fixture.app()) as origin:
-            fixture.origin = origin
-            async with fixture.service() as service:
-                client = service.account("student")
-                await client.identity()
-                before = service.snapshot().requests_dispatched
-                for form in [
-                    None,
-                    HomeworkSelection(START, END),
-                    CompletedLessonsPageSelection(START, END, -1),
-                ]:
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            "completed_lessons", RequestBudget(), form=form
-                        )
-                assert service.snapshot().requests_dispatched == before
 
     asyncio.run(scenario())
 

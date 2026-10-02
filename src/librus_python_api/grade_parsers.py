@@ -3,8 +3,9 @@
 import re
 from collections.abc import Iterator
 
-from lxml import etree, html
+from lxml import html
 
+from librus_python_api import markup
 from librus_python_api.config import (
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_INLINE_DETAIL_LABEL,
@@ -20,46 +21,7 @@ from librus_python_api.models import (
     GradeSummaryValue,
     SubjectGradeSummary,
 )
-from librus_python_api.parsers import parse_html_document
-
-
-def _text(element: html.HtmlElement) -> str:
-    # Render block/line boundaries, but keep inline grade symbols together.
-    # The shared document parser has already bounded this tree's nodes/depth.
-    parts: list[str] = []
-    for event, node in etree.iterwalk(element, events=("start", "end", "comment")):
-        if node.tag in ("br", "p", "div", "li"):
-            parts.append(" ")
-        if event == "start" and isinstance(node.tag, str) and node.text:
-            parts.append(node.text)
-        if event in ("end", "comment") and node is not element and node.tail:
-            parts.append(node.tail)
-    value = " ".join("".join(parts).split())
-    if len(value) > GRADE_MAX_VALUE_LENGTH:
-        raise LibrusError(ErrorKind.LIMIT)
-    return value
-
-
-def _cells(row: html.HtmlElement) -> list[html.HtmlElement]:
-    return [item for item in row if item.tag in ("td", "th")]
-
-
-def _span(cell: html.HtmlElement) -> int:
-    value = cell.get("colspan", "1")
-    if not re.fullmatch(r"[1-9][0-9]{0,2}", value):
-        raise LibrusError(ErrorKind.PARSE)
-    span = int(value)
-    if span > GRADE_MAX_COLUMNS:
-        raise LibrusError(ErrorKind.LIMIT)
-    if cell.get("rowspan", "1") != "1":
-        raise LibrusError(ErrorKind.PARSE)
-    return span
-
-
-def _rows(table: html.HtmlElement) -> Iterator[html.HtmlElement]:
-    for row in table.iter("tr"):
-        if next(row.iterancestors("table"), None) is table:
-            yield row
+from librus_python_api.parsers import parse_page
 
 
 def _summary_field(cell: html.HtmlElement) -> str | None:
@@ -73,8 +35,8 @@ def _summary_field(cell: html.HtmlElement) -> str | None:
 def _header(row: html.HtmlElement) -> tuple[dict[str, int], int]:
     fields: dict[str, int] = {}
     position = GRADE_BODY_PREFIX_COLUMNS
-    for cell in _cells(row):
-        span = _span(cell)
+    for cell in markup.cells(row):
+        span = markup.colspan(cell)
         if position + span > GRADE_MAX_COLUMNS:
             raise LibrusError(ErrorKind.LIMIT)
         field = _summary_field(cell)
@@ -93,12 +55,12 @@ def _locate(
     for table in document.iter("table"):
         if not {"decorated", "stretch"} <= set(table.get("class", "").split()):
             continue
-        for row in _rows(table):
+        for row in markup.rows(table):
             if next(row.iterancestors("thead"), None) is None:
                 continue
             # Group-heading rows can span the entire table. Only the row with
             # an annual summary title defines the body alignment contract.
-            if not any(_summary_field(cell) == "annual" for cell in _cells(row)):
+            if not any(_summary_field(cell) == "annual" for cell in markup.cells(row)):
                 continue
             fields, width = _header(row)
             candidates.append((table, fields, width))
@@ -130,12 +92,12 @@ def _summary(
 ) -> SubjectGradeSummary:
     if len(cells) < GRADE_BODY_PREFIX_COLUMNS:
         raise LibrusError(ErrorKind.PARSE)
-    subject = _text(cells[1])
-    if not subject or _span(cells[0]) != 1 or _span(cells[1]) != 1:
+    subject = markup.text(cells[1])
+    if not subject or markup.colspan(cells[0]) != 1 or markup.colspan(cells[1]) != 1:
         raise LibrusError(ErrorKind.PARSE)
     columns: list[html.HtmlElement] = []
     for cell in cells:
-        span = _span(cell)
+        span = markup.colspan(cell)
         if span > 1 and subject not in GRADE_MERGED_SUBJECTS:
             raise LibrusError(ErrorKind.PARSE)
         if len(columns) + span > GRADE_MAX_COLUMNS:
@@ -148,7 +110,7 @@ def _summary(
         # A single merged value cannot mean two different summary fields.
         raise LibrusError(ErrorKind.PARSE)
     values = {
-        name: GradeSummaryValue(Availability.AVAILABLE, _text(columns[index]))
+        name: GradeSummaryValue(Availability.AVAILABLE, markup.text(columns[index]))
         for name, index in fields.items()
     }
     absent = GradeSummaryValue(Availability.UNAVAILABLE, None)
@@ -163,10 +125,10 @@ def _summary(
 def _subject_rows(
     table: html.HtmlElement, width: int
 ) -> Iterator[list[html.HtmlElement]]:
-    for row in _rows(table):
+    for row in markup.rows(table):
         if next(row.iterancestors("thead"), None) is not None:
             continue
-        cells = _cells(row)
+        cells = markup.cells(row)
         if not cells:
             raise LibrusError(ErrorKind.PARSE)
         if list(row.iter("table")):
@@ -175,17 +137,21 @@ def _subject_rows(
             continue
         # An empty full-width layout spacer is not an unassigned subject. Keep
         # this exception narrow: content or a different width remains malformed.
-        if len(cells) == 1 and _span(cells[0]) == width and not _text(cells[0]):
+        if (
+            len(cells) == 1
+            and markup.colspan(cells[0]) == width
+            and not markup.text(cells[0])
+        ):
             continue
         # Expanded inline detail labels are not subjects. Recognize this narrow
         # source-informed variant, never discard arbitrary malformed subject rows.
-        if len(cells) > 1 and _text(cells[1]) == GRADE_INLINE_DETAIL_LABEL:
+        if len(cells) > 1 and markup.text(cells[1]) == GRADE_INLINE_DETAIL_LABEL:
             continue
         yield cells
 
 
 def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
-    table, fields, width = _locate(parse_html_document(body))
+    table, fields, width = _locate(parse_page(body))
     items: list[SubjectGradeSummary] = []
     subjects: set[str] = set()
     for cells in _subject_rows(table, width):
