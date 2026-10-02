@@ -12,6 +12,7 @@ import json
 import sys
 from collections.abc import Callable
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,8 @@ from playwright.async_api import Page, async_playwright
 
 from librus_python_api.completed_lessons import parse_completed_lessons
 from librus_python_api.exceptions import LibrusError
+from librus_python_api.messages import parse_messages
+from librus_python_api.models import MessageFolder
 from librus_python_api.parsers import parse_profile
 from librus_python_api.school_reads import (
     parse_agenda,
@@ -78,7 +81,32 @@ TIMETABLE_DOM = r"""() => [...document.querySelectorAll('td#timetableEntryBox')]
 PROFILE_DOM = """() => Object.fromEntries([...document.querySelectorAll('tr')]
  .filter(r => r.children.length === 2)
  .map(r => [r.children[0].innerText.replace(/:$/, '').trim(),
-  r.children[1].innerText]))"""
+   r.children[1].innerText]))"""
+
+MESSAGES_DOM = r"""() => {
+ const table = document.querySelector('table.decorated.stretch');
+ if (!table) throw Error('mailbox table absent');
+ const headers = [...table.tHead.rows[0].cells].map(c=>c.innerText.trim());
+ const sender = headers.indexOf('Nadawca'), recipient = headers.indexOf('Adresat');
+ const role = sender === -1 ? recipient : sender;
+ const subject = headers.indexOf('Temat');
+ const sent = headers.findIndex(t=>t.startsWith('Wysłano'));
+ const read = headers.indexOf('Przeczytano');
+ const rows = [...table.tBodies].flatMap(b=>[...b.rows]);
+ const empty = rows.length === 1 && rows[0].cells.length === 1 &&
+  rows[0].innerText.trim() === 'Brak wiadomości';
+ const pagination = [...document.querySelectorAll('div.pagination > span')]
+  .map(n=>n.innerText);
+ return {empty, pagination, rows: empty ? [] : rows.map(r=>({
+   correspondent:r.cells[role].innerText, subject:r.cells[subject].innerText,
+   timestamp:r.cells[sent].innerText,
+   links:[r.cells[role],r.cells[subject]].map(c=>c.querySelector('a').getAttribute('href')),
+   unread:sender === -1 ? null :
+    Number(getComputedStyle(r.cells[subject]).fontWeight) >= 700,
+   attachment:!!r.cells[1].querySelector('img'),
+   recipient_read_status:read === -1 ? null : r.cells[read].innerText,
+ }))};
+}"""
 
 
 def normalized(value: str | None) -> str:
@@ -198,7 +226,48 @@ def check_profile(body: bytes, form: Form, view: Any) -> str:
     return "profile fields"
 
 
+def check_messages(folder: MessageFolder, body: bytes, form: Form, view: Any) -> str:
+    items, count, _ = parse_messages(
+        body, folder, int(form["numer_strony105"]), "crosscheck"
+    )
+    if len(items) != len(view["rows"]) or (not items) != view["empty"]:
+        raise AssertionError("mailbox row count/empty marker differs")
+    for item, row in zip(items, view["rows"], strict=True):
+        fields = [
+            item.correspondent,
+            item.subject,
+            item.timestamp.raw,
+            item.recipient_read_status,
+        ]
+        rendered = [
+            row["correspondent"],
+            row["subject"],
+            row["timestamp"],
+            row["recipient_read_status"],
+        ]
+        if list(map(normalized, fields)) != list(map(normalized, rendered)):
+            raise AssertionError("mailbox visible fields differ")
+        if item.unread != row["unread"] or item.has_attachment != row["attachment"]:
+            raise AssertionError("mailbox rendered flags differ")
+        for link in row["links"]:
+            parts = link.split("/")
+            if parts[4] != item.reference.identifier or parts[3] != (
+                "5" if folder is MessageFolder.RECEIVED else "6"
+            ):
+                raise AssertionError("mailbox reference differs")
+    if not view["pagination"] and count != 1:
+        raise AssertionError("mailbox page count differs")
+    return (
+        f"{len(items)} messages, {count} pages; visible fields/references/flags agree"
+    )
+
+
 CHECKS: dict[str, tuple[str, Callable[[bytes, Form, Any], str]]] = {
+    "messages_received": (
+        MESSAGES_DOM,
+        partial(check_messages, MessageFolder.RECEIVED),
+    ),
+    "messages_sent": (MESSAGES_DOM, partial(check_messages, MessageFolder.SENT)),
     "agenda": (AGENDA_DOM, check_agenda),
     "agenda_detail": (DETAIL_DOM, check_detail),
     "homework_detail": (DETAIL_DOM, check_detail),
@@ -222,6 +291,8 @@ async def check_directory(page: Page, directory: Path) -> bool:
             detail = compare(body, entry["form"] or {}, await page.evaluate(script))
         except LibrusError as error:
             detail = f"typed {type(error).__name__}"
+            if entry["endpoint"].startswith("messages_"):
+                passed = False
         except AssertionError as error:
             passed = False
             detail = f"MISMATCH {error}"

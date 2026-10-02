@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0 - Ordinary message lists
+
+Local-first feature release; not published to PyPI. Communication is split into
+separate versions; sending remains plan-only.
+
+- `MessageFolder`, immutable summary/reference/timestamp records and
+  `messages_page` / `messages` under the shared account/budget/read boundary.
+- Bounded zero-based pagination and account/folder-bound cursors with seen IDs,
+  overlap deduplication, page/mid-page drift checks and explicit truncation reasons.
+- School wall-time timestamps retain raw text and the `Europe/Warsaw` policy,
+  without inventing UTC offsets or DST folds. Recipient-read status is not inbox
+  unread status.
+- Fixed pagination forms, including on the URL shared upstream with sending.
+  Send, recipient, subject/body and upload fields are rejected before dispatch.
+  No content opens, mark-read, deletes, downloads, sends or read-once calls.
+- Private bounded list discovery/installed smoke tooling, offline identical-byte
+  apix comparison and independent Chromium visible-field/reference/flag checks.
+- Live-derived regressions for the blank footer and benign legacy-mailbox banner.
+  Full bounded concurrent mailboxes, budgets, continuation and malformed layouts
+  are exercised offline with original fixtures.
+- Populated received and empty sent lists qualified on one login. Populated sent,
+  multi-page metadata, attachment flags, other roles and newer mailbox layouts
+  remain pending, not silently promoted by synthetic tests.
+
 ## 0.3.0 - School reads
 
 Local-first release; not published to PyPI.

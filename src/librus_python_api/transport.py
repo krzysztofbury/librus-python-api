@@ -20,6 +20,8 @@ from librus_python_api.config import (
     ENDPOINTS,
     FORM_FIELDS,
     FORM_MAX_VALUE_LENGTH,
+    MESSAGE_MAX_PAGE_COUNT,
+    MESSAGE_PAGE_FIELDS,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
@@ -92,6 +94,15 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
                 for key, value in form.items()
             )
         )
+        if valid and endpoint.operation_id in {"messages_received", "messages_sent"}:
+            assert isinstance(form, Mapping)
+            page = form.get("numer_strony105", "")
+            valid = (
+                set(form) == MESSAGE_PAGE_FIELDS
+                and form.get("porcjowanie_pojemnik105") == "105"
+                and re.fullmatch(r"0|[1-9][0-9]{0,3}", page) is not None
+                and int(page) < MESSAGE_MAX_PAGE_COUNT
+            )
     else:
         valid = form is None
     if not valid:

@@ -1,4 +1,4 @@
-# Public API (0.3.0)
+# Public API (0.4.0)
 
 Everything public is exported from `librus_python_api`; exceptions live in
 `librus_python_api.exceptions`. Results are frozen dataclasses. Their reprs omit
@@ -171,6 +171,51 @@ Nothing is marked as read.
 
 Windows span at most 371 days. Where the school has disabled the view, both
 calls raise `ViewDisabledError`.
+
+## Message lists
+
+`MessageFolder.RECEIVED` (default) and `MessageFolder.SENT` are distinct selections.
+Pass the enum, not a string.
+
+- `messages_page(folder=MessageFolder.RECEIVED, page=0)` returns `MessagesPage`
+  with `identity`, `folder`, zero-based `page`, `page_count`, `items`, a page
+  `fingerprint` and `observation`. Exactly one fixed pagination POST after login;
+  no separate page-count request. Page indices are 0..999; at most 50 rows/page.
+- `messages(folder=MessageFolder.RECEIVED, cursor=None, max_pages=4, limit=128)`
+  returns `Messages` with `items`, `pages_fetched`, `duplicates_skipped`,
+  `next_cursor`, `truncation_reason` and provenance. Limits are 1..8 pages and
+  1..256 unique rows per call. A complete batch has no cursor/reason; bounded
+  continuation records `item_limit` or `page_limit`. Errors on any later page
+  discard the batch, never return an apparently complete partial list.
+- Resume with the same account alias and folder. `MessagesCursor` also carries
+  the page, offset, page count, fingerprint and up to 2,000 already returned IDs.
+  Duplicate IDs across pages are skipped, not across accounts or folders.
+  Duplicate IDs within one page fail. Changed mid-page content, changed page
+  counts, clamped/repeated pages and pages containing only seen IDs fail with
+  `ParseError`. History capacity exhaustion is `LimitError`. A cursor is not a
+  mailbox snapshot: page-boundary changes with unchanged counts can still move
+  records. Restart explicitly when drift is detected. It is not an authorization
+  token and is not designed as a durable notification checkpoint.
+
+Each `MessageSummary` carries:
+
+- An inert `MessageReference(folder, identifier, account)`, extracted from
+  matching numeric row links. No arbitrary URL is exposed or followed.
+- `correspondent` (sender for received, addressee for sent), `subject`,
+  `timestamp`, `has_attachment`, and `unread` for received mail. Sent `unread` is
+  `None`, not a guess from recipient status. `recipient_read_status` keeps the
+  sent column's text; received mail has `None`.
+- `MessageTimestamp(local, raw, timezone="Europe/Warsaw")` keeps school civil
+  time and the normalized displayed timestamp. `local` is intentionally naive:
+  the page supplies no UTC offset or DST fold. Do not infer a UTC instant.
+
+Each text field is bounded to 4,096 characters, total page text to 256 KiB,
+in addition to shared body/parser/request limits. No body or attachment fetch,
+mark-read, delete, send or read-once operation occurs. Pagination changes the
+selected mailbox view, so its POST is never replayed, including after expiry.
+Page and batch caches are separate and fresh by default.
+
+Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
 ## Errors
 

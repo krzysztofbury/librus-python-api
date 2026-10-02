@@ -31,6 +31,7 @@ from librus_python_api.config import (
     ATTENDANCE_RESULT_CACHE_SIZE,
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
+    MESSAGE_MAX_CURSOR_IDS,
     SESSION_COOKIE,
     AccountCredentials,
     ConnectionSettings,
@@ -42,6 +43,7 @@ from librus_python_api.config import (
     completed_lessons_form,
     grade_view_form,
     homework_form,
+    message_page_form,
     timetable_form,
 )
 from librus_python_api.diagnostics import DiagnosticSink
@@ -49,6 +51,8 @@ from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredE
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
+from librus_python_api.messages import parse_messages
+from librus_python_api.messages import validate_selection as validate_message_selection
 from librus_python_api.models import (
     Agenda,
     Announcements,
@@ -71,6 +75,11 @@ from librus_python_api.models import (
     Homework,
     Identity,
     LoginSubmission,
+    MessageFolder,
+    Messages,
+    MessagesCursor,
+    MessagesPage,
+    MessageSummary,
     Observation,
     OperationName,
     RequestForm,
@@ -663,6 +672,53 @@ class AccountClient:
             max_age_seconds,
         )
 
+    async def messages_page(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        page: int = 0,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> MessagesPage:
+        """One explicit mailbox page; no body open, mark-read or send."""
+        message_page_form(folder, page)
+        operation: Literal["messages_received", "messages_sent"] = (
+            "messages_received" if folder is MessageFolder.RECEIVED else "messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> MessagesPage:
+            return await self._message_page(folder, page, budget)
+
+        return await self._read(
+            (operation, "page", page), fetch, budget, max_age_seconds
+        )
+
+    async def messages(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        cursor: MessagesCursor | None = None,
+        max_pages: int = 4,
+        limit: int = 128,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Messages:
+        """Bounded, deduplicated continuation under one account operation/budget."""
+        validate_message_selection(folder, cursor, max_pages, limit, self._alias)
+        operation: Literal["messages_received", "messages_sent"] = (
+            "messages_received" if folder is MessageFolder.RECEIVED else "messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> Messages:
+            return await self._message_batch(folder, cursor, max_pages, limit, budget)
+
+        return await self._read(
+            (operation, "batch", cursor, max_pages, limit),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
     # Shared read machinery.
 
     async def _school_detail(
@@ -909,6 +965,103 @@ class AccountClient:
         return Observation(self._alias, datetime.now(UTC), self._generation, source)
 
     # Multi-request reads.
+
+    async def _message_page(
+        self, folder: MessageFolder, page: int, budget: RequestBudget
+    ) -> MessagesPage:
+        operation = "messages_" + folder.value
+        items, count, fingerprint = await self._page(
+            operation,
+            budget,
+            lambda body: parse_messages(body, folder, page, self._alias),
+            form=message_page_form(folder, page),
+        )
+        return MessagesPage(
+            self._session_identity(),
+            folder,
+            page,
+            count,
+            items,
+            fingerprint,
+            self._observation(operation),
+        )
+
+    async def _message_batch(
+        self,
+        folder: MessageFolder,
+        cursor: MessagesCursor | None,
+        max_pages: int,
+        limit: int,
+        budget: RequestBudget,
+    ) -> Messages:
+        page, offset = (cursor.page, cursor.offset) if cursor else (0, 0)
+        count = cursor.page_count if cursor else None
+        history = list(cursor.seen_ids) if cursor else []
+        seen = set(history)
+        fingerprints = {cursor.fingerprint} if cursor and not offset else set()
+        items: list[MessageSummary] = []
+        duplicates = 0
+        next_cursor = None
+        for fetched in range(1, max_pages + 1):
+            result = await self._message_page(folder, page, budget)
+            drifted = (
+                cursor is not None
+                and fetched == 1
+                and offset > 0
+                and cursor.fingerprint != result.fingerprint
+            )
+            if (
+                (count is not None and count != result.page_count)
+                or drifted
+                or result.fingerprint in fingerprints
+                or (offset and offset >= len(result.items))
+                or (
+                    result.items
+                    and offset == 0
+                    and all(r.reference.identifier in seen for r in result.items)
+                )
+            ):
+                raise LibrusError(ErrorKind.PARSE)
+            count = result.page_count
+            fingerprints.add(result.fingerprint)
+            while offset < len(result.items) and len(items) < limit:
+                item = result.items[offset]
+                offset += 1
+                if item.reference.identifier in seen:
+                    duplicates += 1
+                    continue
+                if len(seen) >= MESSAGE_MAX_CURSOR_IDS:
+                    raise LibrusError(ErrorKind.LIMIT)
+                seen.add(item.reference.identifier)
+                history.append(item.reference.identifier)
+                items.append(item)
+            if offset == len(result.items):
+                if page + 1 == count:
+                    break
+                page, offset = page + 1, 0
+            if offset or len(items) == limit or fetched == max_pages:
+                next_cursor = MessagesCursor(
+                    self._alias,
+                    folder,
+                    page,
+                    offset,
+                    count,
+                    result.fingerprint,
+                    tuple(history),
+                )
+                break
+        return Messages(
+            self._session_identity(),
+            folder,
+            tuple(items),
+            fetched,
+            duplicates,
+            next_cursor,
+            ("item_limit" if len(items) == limit else "page_limit")
+            if next_cursor
+            else None,
+            self._observation("messages_" + folder.value),
+        )
 
     async def _lesson_page(
         self, start: date, end: date, page: int, budget: RequestBudget

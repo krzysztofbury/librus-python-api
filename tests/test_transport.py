@@ -294,6 +294,27 @@ CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
         ("timetable", {"rok": "2026"}),  # another endpoint's field
         ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
         ("grades", {}),  # empty form
+        (
+            "messages_sent",
+            {
+                "numer_strony105": "0",
+                "porcjowanie_pojemnik105": "105",
+                "wyslij": "Fixture",
+            },
+        ),
+        ("messages_sent", {"numer_strony105": "0"}),
+        (
+            "messages_received",
+            {"numer_strony105": "0", "porcjowanie_pojemnik105": "106"},
+        ),
+        (
+            "messages_received",
+            {"numer_strony105": "1000", "porcjowanie_pojemnik105": "105"},
+        ),
+        (
+            "messages_received",
+            {"numer_strony105": "-1", "porcjowanie_pojemnik105": "105"},
+        ),
     ],
 )
 def test_mismatched_forms_are_rejected_before_dispatch(

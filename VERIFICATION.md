@@ -3,6 +3,78 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.0 (2026-10-02) - Message lists only
+
+### Offline
+
+| Check | Result |
+| --- | --- |
+| Complete suite from source, Python 3.13 and 3.14 | 697 passed in both environments; one opt-in performance case deselected |
+| Installed wheel and sdist, Python 3.13 and 3.14, outside the checkout | 697 passed in each of four environments; installed imports, metadata, MIT license and `py.typed` checked |
+| Ruff, format, strict mypy | Clean |
+| Repository hooks, untracked-inclusive secret scan, locked dependency audit | Pass; no known vulnerabilities |
+| OpenAPI / route catalogue parity | Pass, 28 operations |
+| Full bounded mailbox workload | Four concurrently requested independent 250-row mailboxes, five pages each, 40 total login/list requests; warm batch reuse dispatches none |
+
+The shared read suite was extended for both mailbox folders, covering exact
+wire forms, account isolation, caching/coalescing, expiry, no POST replay,
+throttling, maintenance, notices, budgets and cancellation. Family tests own
+summary semantics, numeric references, explicit empty sent/received pages,
+header/row/date validation, limits, overlap deduplication, bounded continuation,
+mid-page drift, repeated/clamped/non-progress pages and later-page failure.
+Capture-scope tests execute discovery and installed-smoke flows on loopback,
+reject send fields, unapproved pages/operations and a second login, and enforce
+actual-attempt/list caps. No external code or fixtures were copied.
+
+### Live and identical-byte replay
+
+Fresh approval covered two attempts on one configured login, each capped at 24
+requests and ten fixed received/sent pagination POSTs on pages 0..2. Identity was
+allowed. Recipients, content opens, mark-read, downloads, sends, deletes and
+read-once events were excluded. There was no automatic login replay.
+
+| Attempt | Login submissions | Actual HTTP requests | Result |
+| --- | --- | --- | --- |
+| Early installed-route discovery | 1 | 11 | Populated received and explicit-empty sent page zero captured |
+| Installed 0.4.0 wheel public smoke | 1 | 14 | Page, bounded batch, mid-page resume and zero-request warm page cache passed |
+| Total | 2 | 25 of 48 allowed | Approval exhausted; unused requests do not authorize another login |
+
+The final received page had two rows, one read and one unread; sent was explicitly
+empty. Chromium, with networking and scripts disabled, independently checked
+every visible summary field, numeric reference, computed unread/attachment flag
+and empty marker in all seven captured list responses. The separately installed
+MIT-licensed apix 1.5.3 pure parsers received the exact same bytes; there were zero
+comparable summary-field mismatches. Neither replay used a live client.
+
+The live smoke exercised the installed library, not checkout imports. Final
+package documentation was updated afterwards; all library package bytes were
+compared with the live-smoke wheel and were identical. Rebuilt artifacts were
+qualified offline. Distribution checksums are in `release-evidence/0.4.0.sha256`;
+sanitized live accounting is in `release-evidence/0.4.0-messages.json`.
+
+Private captures were 0600 under a task-owned 0700 directory outside Git and
+deleted after replay. No raw page, private assertion dump, screenshot, record ID
+or message text is retained.
+
+### Live-derived corrections and gaps
+
+The first offline replay failed despite green synthetic tests: the real table
+has a blank footer, and both folders show a benign legacy-module banner. Four
+original regressions failed before the parser was corrected to read `tbody`
+only and allow that exact information banner. Unknown notices still fail.
+
+- Populated sent rows, multi-page metadata/continuation, attachment indicators,
+  other account roles and the newer mailbox layout have no live evidence yet.
+- Full mailboxes and pagination/drift limits were exercised offline. The small
+  live mailbox is not load verification or a performance-improvement claim.
+- Recipient discovery, full content, streams, notification checkpoints and
+  sending are not implemented in 0.4.0. Their separate versions and sending
+  approval plan are in [contracts/messages.md](contracts/messages.md).
+- Earlier school-read families were fully regression-tested offline, not rerun
+  live outside this approval. Their 0.3.0 evidence and follow-ups remain below.
+- No consumer migration, credentialed CI, macOS/Windows check, push,
+  hosted PR qualification or PyPI publication was performed in this increment.
+
 ## 0.3.0 (2026-10-02)
 
 ### Offline

@@ -26,7 +26,12 @@ Rules that hold for every release:
 | `0.1.0` | Account service, login, identity, profile, scheduler, budgets | Done |
 | `0.2.0` | Grades: summaries, records, views, windows | Done |
 | `0.3.0` | Attendance, timetable, announcements, agenda, homework, completed lessons; behaviour-note decision | Done, with the gaps below |
-| `0.4.0` | Messages, attachment streams, notification primitives, sending | Next |
+| `0.4.0` | Received/sent message lists and bounded continuation | Done locally, with message-layout gaps below |
+| `0.4.1` | Recipient groups and recipients | Next |
+| `0.4.2` | Full message content, explicit read side effects, attachment metadata | Planned |
+| `0.4.3` | Bounded attachment streams | Planned |
+| `0.4.4` | Notification/checkpoint primitives | Planned |
+| Sending (version TBD) | Validated one-attempt delivery | Plan and approve before implementation |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -51,20 +56,31 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Homework windows longer than one month: decide whether the library should
   split them into monthly requests or leave that to the consumer.
 
-### 0.4.0 - Communication and notification safety
+### 0.4.x - Separate communication features
 
-- [ ] Received/sent message lists, bounded pagination, recipient discovery,
-  full-message content and source-bound references. Keep mark-read effects
-  explicit and message bodies out of list retrieval.
-- [ ] Attachment metadata and credential-free bounded download streams, with the
+- [x] 0.4.0: received/sent message lists, bounded pagination and source-bound
+  references. Keep message bodies out of list retrieval. Installed live smoke
+  and same-byte Chromium/apix replay completed on one login. Populated sent
+  rows, multi-page metadata, attachment flags, other roles and the newer mailbox
+  layout remain live-unqualified; original offline proofs are not live evidence.
+- [ ] 0.4.1: recipient discovery. Obtain a fresh bounded live authorization.
+- [ ] 0.4.2: full-message content and attachment metadata. Audit mark-read effects
+  before enabling any content read; use a separately approved message selection.
+- [ ] 0.4.3: credential-free bounded download streams, with the
   MCP atomic-publication integration and cancellation proof from P4.
-- [ ] The read-once schedule/checkpoint interface, and adapting notification
+- [ ] 0.4.4: the read-once schedule/checkpoint interface, and adapting notification
   records while MCP keeps its seen state, hashes, replay and migrations.
-- [ ] Validated single-attempt sending with typed unknown-delivery results, plus
+- [ ] Sending (version TBD): approve the plan in
+  [contracts/messages.md](contracts/messages.md#featureversion-sequence) before
+  implementing validated single-attempt sending with typed unknown-delivery results, plus
   MCP confirmation and token integration. Exercise offline only; never widen the
   daily check to sends, mark-read content or event consumption.
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
+
+Each version is independently qualified and packaged locally. No sending or
+live read-once operation is authorized by this sequence. Consumer migration,
+credentialed CI and publication keep their separate approval gates.
 
 ### 1.0.0rc1 - Complete replacement qualification
 
@@ -164,11 +180,11 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   requested fields, result types, capability status, pagination, side effects,
   retry safety, and evidence confidence. Include every row in P3-P5.
   Status: every enabled read has its route, side effect, retry safety and
-  evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.0.
+   evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.x.
 - [x] Keep upstream routes centralized in `config.py` and maintain importable
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
-  provenance and live gaps. 26 operations, checked by `tests/test_contracts.py`.
+   provenance and live gaps. 28 operations, checked by `tests/test_contracts.py`.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -192,18 +208,18 @@ Dependencies: P0.
   agenda, homework, announcements, messages, recipients, attachments, and notes.
   Keep MCP/Pydantic wire models out of the library API. Prefer typed dataclasses
   with explicit runtime validation at parse boundaries; document serialization.
-  Status: done for every 0.1-0.3 family; messages, recipients, attachments and
-  notes are pending.
+  Status: done for every 0.1-0.3 family and message summaries; recipients,
+  content, attachments and notes are pending.
 - [ ] Define typed page results with items, continuation, truncation reason,
   source identity, and detected-change information. Never imply that an offset
   cursor freezes upstream data. Bind continuation to account/query/source.
-  Status: completed lessons have bound cursors with page fingerprints; message
-  pages are pending.
+  Status: completed lessons and messages have bound cursors and fingerprints;
+  message batches include seen IDs and explicit truncation reasons.
 - [ ] Normalize IDs without conflating distinct sources: retain opaque IDs where
   evidenced, distinguish display IDs from valid legacy detail references, and
   reject URL/path injection. Numeric legacy routes remain strictly numeric.
   Status: done for every enabled route (numeric references, account-bound
-  `SchoolReference`); message IDs are pending.
+  `SchoolReference` and folder/account-bound numeric `MessageReference`).
 - [ ] Model empty success, unsupported capability, unpublished data, permission
   denial, incomplete data, and parse failure separately. Required-field failures
   must not silently become `[]`, zero, or a fabricated record.
@@ -222,8 +238,9 @@ Dependencies: P0.
   school-provided averages where available; derived averages need documented
   weighting and grade-symbol rules, not assumptions from another school.
   Status: civil dates and local clocks are never converted, raw grades and
-  school averages are kept, and ratios are explicit; a `Europe/Warsaw` policy is
-  needed for message timestamps in 0.4.0.
+  school averages are kept, and ratios are explicit. Message timestamps retain
+  school wall time, raw displayed text and `Europe/Warsaw`, without guessing an
+  offset or DST fold.
 - [ ] Start with `scope`, typed detail/event references, integer calendar inputs,
   normalized field names, and ID-bearing record collections. Prefer an explicit
   ratio domain type; keep presentation conversion in MCP. Support A01-A08
@@ -250,8 +267,9 @@ their broad checkboxes are not blanket claims from the identity slice.
   identity without using student identity as the cache/security key. Isolate
   messaging session state too. Multi-child switching inside one login is not
   assumed or required for the initial four-login use case.
-  Status: done and verified live on four logins; messaging session isolation
-  comes with 0.4.0.
+  Status: ordinary account isolation verified live on four logins; message-list
+  isolation exercised offline on four independent full mailboxes. Message live
+  qualification covers one login only.
 - [x] Implement explicit session ownership and deterministic resource cleanup.
   Public injection must not require consumers to replace `_session` or clone
   private fields. Preserve all cookie restrictions and duplicate names.
@@ -270,7 +288,7 @@ their broad checkboxes are not blanket claims from the identity slice.
 - [ ] Bound bytes before parsing for HTML/JSON and attachments. Cover absent or
   misleading Content-Length, chunked bodies, decompression, cumulative redirect
   bodies, malformed encodings, and cancellation while waiting for bytes.
-  Status: done for HTML and JSON; attachment streams come with 0.4.0.
+  Status: done for HTML and JSON; attachment streams come with 0.4.3.
 - [x] Bound parser CPU/memory and measure event-loop responsiveness on maximum
   accepted bodies. An asyncio deadline cannot preempt synchronous parsing;
   if parsing is offloaded, bound workers and account for their actual completion
@@ -335,10 +353,11 @@ and relevant account-variant fixtures before its adapter becomes the default.
 - [x] For JSON, validate envelopes, nested references, required values, and
   endpoint-specific variants. Bound IDs, list sizes, nesting/decoding work;
   preserve justified optional/unknown fields without silently skipping bad rows.
-- [ ] Implement bounded page/offset continuation and ID deduplication. Cover page
+- [x] Implement bounded page/offset continuation and ID deduplication. Cover page
   zero, repeated/clamped pages, overlaps, short/oversized pages, and empty ranges.
   Cursor translation may require retaining the legacy endpoint during migration.
-  Status: done for completed lessons; message pagination is pending.
+  Status: done for completed lessons and message lists; populated live message
+  pagination remains a recorded coverage gate, not inferred from fixtures.
 - [x] Support current scope/date filtering semantics. Label client-side filtering
   separately from upstream bounds; do not approximate `last_login` with a date
   window or lose events because authentication changed its reference point.

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.3.0
+  version: 0.4.0
   license:
     name: MIT
   description: |
@@ -919,6 +919,68 @@ paths:
           $ref: '#/components/responses/Html'
         default:
           $ref: '#/components/responses/Failure'
+  /wiadomosci/1/5:
+    post:
+      operationId: messages_received
+      summary: Select one received-message list page without opening a message
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized populated received page zero; fixed pagination form, original fixtures and identical-byte Chromium/apix replay. Live multi-page behavior remains unqualified. See contracts/messages.md.
+      description: |
+        One zero-based list page, no separate page-count GET or content fan-out.
+        Changes only the selected mailbox page. Does not mark messages read,
+        delete, send, fetch attachments or consume notification events. Shared
+        request/body/deadline and scheduler limits apply. No POST replay.
+        Unknown/disabled/denied pages never silently become an empty list.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [numer_strony105, porcjowanie_pojemnik105]
+              properties:
+                numer_strony105: {type: string, pattern: '^(0|[1-9][0-9]{0,2})$'}
+                porcjowanie_pojemnik105: {type: string, enum: ['105']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /wiadomosci/1/6:
+    post:
+      operationId: messages_sent
+      summary: Select one sent-message list page with pagination fields only
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized explicit empty sent page zero and its seven-column header; original populated fixtures are source-informed, not live qualification. See contracts/messages.md.
+      description: |
+        The upstream URL also serves message sending, but this operation accepts
+        exactly the two pagination fields. Send/recipient/body/subject/upload
+        fields and credentials are rejected before dispatch. No sending API is
+        enabled. One zero-based sent-list page shares all global budgets and is
+        never replayed. No content opens, mark-read or attachment access occurs.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [numer_strony105, porcjowanie_pojemnik105]
+              properties:
+                numer_strony105: {type: string, pattern: '^(0|[1-9][0-9]{0,2})$'}
+                porcjowanie_pojemnik105: {type: string, enum: ['105']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
 components:
   securitySchemes:
     SessionCookie:

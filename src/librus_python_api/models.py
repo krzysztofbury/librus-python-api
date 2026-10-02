@@ -30,6 +30,8 @@ type OperationName = Literal[
     "homework",
     "homework_detail",
     "completed_lessons",
+    "messages_received",
+    "messages_sent",
 ]
 
 
@@ -73,6 +75,72 @@ class AttendanceView(StrEnum):
     ALL = "all"
     WEEK = "week"
     LAST_LOGIN = "last_login"
+
+
+class MessageFolder(StrEnum):
+    RECEIVED = "received"
+    SENT = "sent"
+
+
+@dataclass(frozen=True, slots=True)
+class MessageReference:
+    folder: MessageFolder
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageTimestamp:
+    """School wall time, not a guessed UTC instant or DST fold."""
+
+    local: datetime = field(repr=False)
+    raw: str = field(repr=False)
+    timezone: Literal["Europe/Warsaw"] = "Europe/Warsaw"
+
+
+@dataclass(frozen=True, slots=True)
+class MessageSummary:
+    reference: MessageReference = field(repr=False)
+    correspondent: str = field(repr=False)
+    subject: str = field(repr=False)
+    timestamp: MessageTimestamp = field(repr=False)
+    unread: bool | None
+    has_attachment: bool
+    recipient_read_status: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessagesCursor:
+    account: str = field(repr=False)
+    folder: MessageFolder
+    page: int
+    offset: int
+    page_count: int
+    fingerprint: str = field(repr=False)
+    seen_ids: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessagesPage:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    page: int
+    page_count: int
+    items: tuple[MessageSummary, ...] = field(repr=False)
+    fingerprint: str = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class Messages:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    items: tuple[MessageSummary, ...] = field(repr=False)
+    pages_fetched: int
+    duplicates_skipped: int
+    next_cursor: MessagesCursor | None = field(repr=False)
+    truncation_reason: Literal["item_limit", "page_limit"] | None
+    observation: "Observation"
 
 
 @dataclass(frozen=True, slots=True)

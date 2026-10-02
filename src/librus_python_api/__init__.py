@@ -44,6 +44,13 @@ from librus_python_api.models import (
     HomeworkItem,
     Identity,
     LuckyNumber,
+    MessageFolder,
+    MessageReference,
+    Messages,
+    MessagesCursor,
+    MessagesPage,
+    MessageSummary,
+    MessageTimestamp,
     NumericGrade,
     Observation,
     Person,
@@ -63,9 +70,16 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
+    "MessageFolder",
+    "MessageReference",
+    "MessageSummary",
+    "MessageTimestamp",
+    "Messages",
+    "MessagesCursor",
+    "MessagesPage",
     "CompletedLesson",
     "CompletedLessons",
     "CompletedLessonsCursor",

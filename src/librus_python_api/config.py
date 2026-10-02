@@ -28,7 +28,7 @@ from pydantic import (
 )
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import AttendanceView, GradeView
+from librus_python_api.models import AttendanceView, GradeView, MessageFolder
 
 HttpMethod = Literal["GET", "POST"]
 
@@ -95,7 +95,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.3 (independent client)"
+USER_AGENT = "librus-python-api/0.4 (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
@@ -315,6 +315,22 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "messages_received",
+                "POST",
+                "/wiadomosci/1/5",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "messages_sent",
+                "POST",
+                "/wiadomosci/1/6",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -497,6 +513,39 @@ COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
+MESSAGE_MAX_PAGE_COUNT = 1000
+MESSAGE_MAX_PAGE_ITEMS = 50
+MESSAGE_MAX_BATCH_PAGES = 8
+MESSAGE_MAX_BATCH_ITEMS = 256
+MESSAGE_MAX_CURSOR_IDS = 2000
+MESSAGE_MAX_FIELD_LENGTH = 4096
+MESSAGE_MAX_TOTAL_TEXT_LENGTH = 262144
+MESSAGE_EMPTY_TEXT = "Brak wiadomości"
+MESSAGE_INFORMATION_NOTICES = frozenset(
+    {
+        "Korzystasz ze starej wersji modułu Wiadomości, która nie jest już rozwijana "
+        "i nie zawiera wszystkich dostępnych funkcji. Przejdź do ustawień i włącz "
+        "opcję: Używaj nowego systemu wiadomości."
+    }
+)
+MESSAGE_HEADER_LABELS = MappingProxyType(
+    {MessageFolder.RECEIVED: "Nadawca", MessageFolder.SENT: "Adresat"}
+)
+MESSAGE_PAGE_FIELDS = frozenset({"numer_strony105", "porcjowanie_pojemnik105"})
+# References are inert data. No message-content route is enabled in this slice.
+MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
+    {MessageFolder.RECEIVED: "/wiadomosci/1/5/", MessageFolder.SENT: "/wiadomosci/1/6/"}
+)
+
+
+def message_page_form(folder: MessageFolder, page: int) -> dict[str, str]:
+    if (
+        not isinstance(folder, MessageFolder)
+        or type(page) is not int
+        or not 0 <= page < MESSAGE_MAX_PAGE_COUNT
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {"numer_strony105": str(page), "porcjowanie_pojemnik105": "105"}
 
 
 def grade_view_form(view: GradeView) -> dict[str, str]:
@@ -588,6 +637,8 @@ FORM_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
                 "porcjowanie_pojemnik1001",
             }
         ),
+        "messages_received": MESSAGE_PAGE_FIELDS,
+        "messages_sent": MESSAGE_PAGE_FIELDS,
     }
 )
 FORM_MAX_VALUE_LENGTH = 64
