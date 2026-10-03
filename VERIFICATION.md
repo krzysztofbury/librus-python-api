@@ -89,6 +89,34 @@ Consumer preview/confirmation, persistent attempts, crash recovery and manual
 reconciliation remain consumer-owned and separately authorized. MCP migration,
 credentialed CI, PR merge and PyPI publication were not performed.
 
+### Later recipient-only verification (2026-10-03)
+
+After implementation, the owner separately approved two bounded verification
+contexts on one selected login, with per-context ceilings of 32 and 16 requests
+and one credential submission each. The installed qualified 0.4.6 wheel used
+10 and 11 requests respectively. Both verified the same sender identity.
+No send attempt was prepared or executed, and no mailbox content, downloads,
+settings changes, deletes or read-once requests occurred. These were recipient
+discovery scopes, not live qualification of the send form or acknowledgement.
+
+The first context stopped because the privately specified directory caption
+did not exactly match either available council selector. Independent Chromium
+checked all eight displayed type labels on those same bytes. The owner then
+clarified the class-council selector and approved a fresh context. Its sole
+lookup returned the exact class-unavailable notice and no recipient labels,
+independently confirmed with Chromium scripts/networking disabled. The installed
+API returned UnsupportedCapabilityError, not an empty recipient success.
+
+The response does not establish that the represented student actually lacks a
+class; it establishes that this legacy selector/form did not resolve the intended
+class-qualified recipient. No numeric ID or class path was guessed. Unknown
+class/virtual-class selection remains a gap, and no alternative account, council
+or recipient was substituted. Unused requests authorize no rerun or widened scope.
+The two scopes total 21 requests and zero sends. Raw pages and temporary runner/
+wheel environments were deleted. Essential sender checks and the unresolved
+single-recipient plan remain in private owner-only state outside Git; only
+sanitized accounting is retained here and in the release-evidence sidecar.
+
 ## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
 
 ### Contracts, proofs and review
