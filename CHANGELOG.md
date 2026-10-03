@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Optional durable send workflows
+## 0.4.8 - Optional durable send workflows
 
 - Explicit optional SQLite store with private bounded files, versioned schema,
   cross-process transactions and cancellation-joined lifecycle, independent of MCP.

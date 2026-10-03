@@ -50,6 +50,9 @@ Proof gates: original public-API loopback sends, installed artifacts on Python
 3.13/3.14, actual process crash and competing-process claims, durable save faults,
 maximum accepted load, queue saturation, symlink/corruption refusal, configured-
 login/backend binding and repeated cancellation at claim/send/final-save boundaries.
+These offline gates passed for 0.4.8; exact counts, hashes, limitations and review
+lessons are recorded in [../VERIFICATION.md](../VERIFICATION.md). Live qualification
+and any MCP integration remain separate, not implied by local storage proofs.
 
 ## 0.4.9: durable notification prerequisites
 

@@ -108,7 +108,7 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.7"
+__version__ = "0.4.8"
 
 __all__ = [
     "AccountContext",

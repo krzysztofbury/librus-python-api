@@ -35,6 +35,7 @@ Rules that hold for every release:
 | `0.4.5` | Broader recipient selection and message-layout coverage | Implemented: choice discovery, selection-bound references, anonymous targets, sent receipts and observed received pagination; broader gaps remain |
 | `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
 | `0.4.7` | Explicit modern identity, council discovery and single-use JSON sending | Implemented; offline qualification recorded in VERIFICATION.md; positive acknowledgements and sole-recipient live send remain gated |
+| `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -139,7 +140,7 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
 | S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
-| S2 | Persistent send attempts and recovery, proposed 0.4.8 | API optional persistence layer; configured-login/backend/exact-payload-bound durable confirmation, atomic single-use claims, crash/uncertainty recovery without replay, bounded private storage and cross-process fault proofs. MCP retains human approval and wire mapping only |
+| S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
 | S3 | Persistent notifications and checkpoint replay, proposed 0.4.9 | API optional persistence layer; canonical identities, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before consume and competing-process proofs. MCP maps old formats without maintaining another engine |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
 | S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |

@@ -3,7 +3,7 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
-## Optional send persistence (2026-10-03) - Source qualification
+## 0.4.8 (2026-10-03) - Optional durable send workflows, offline qualification
 
 The superseding ownership decision puts reusable durable workflows in the API's
 explicit optional layer. MCP configuration, human approval, tool schemas and wire
@@ -14,8 +14,11 @@ below is historical and superseded by [contracts/persistence.md](contracts/persi
 
 - Independently authored SQLite schema, storage implementation and original
   fixtures; no GPL consumer helpers or upstream material transferred.
-- Source on Python 3.13.15/3.14.7: 1,185 passed, one opt-in performance case
-  deselected. Ruff lint/format, strict typing and repository hooks pass.
+- Source and installed wheel/sdist on Python 3.13.15/3.14.7: each 1,185 passed,
+  one opt-in performance case deselected. Ruff lint/format, strict typing,
+  repository hooks and locked dependency audit pass. Installed imports resolve
+  inside their own environments; version/MIT metadata, license files, dependency
+  compatibility and `py.typed` checks pass.
 - Forty-four persistence cases use real disposable SQLite and public native
   attempts. Legacy acceptance/rejection/unknown/pre-dispatch outcomes and modern
   unknown/source-informed denial run through actual loopback HTTP, never live Librus.
@@ -42,9 +45,12 @@ below is historical and superseded by [contracts/persistence.md](contracts/persi
   recipient labels and token plaintext are absent from the actual database.
 
 No HTML/UI behavior or upstream wire layout changes in this slice; earlier same-
-byte browser semantics remain scoped to their original contracts. Installed
-wheel/sdist qualification and the separate 0.4.8 version commit are still pending
-at this source checkpoint. Notification storage/replay is the next separate slice;
+byte browser semantics remain scoped to their original contracts. Qualified local
+archives in `dist/0.4.8/` total 554,187 bytes; sanitized hashes and results are in
+`release-evidence/0.4.8-persistence-qualification.json`. Their documentation captures
+the pre-artifact source checkpoint; this final log supersedes its pending gate.
+Task-owned environments, databases, workers and other scratch are removed.
+Notification storage/replay is the next separate slice;
 manual reconciliation, MCP migration, live qualification, merge and publication
 remain outside this delivery. No live requests, credential submissions or sends.
 
