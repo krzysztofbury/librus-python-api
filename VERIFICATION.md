@@ -3,6 +3,31 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.11 (2026-10-03) - Offline S10 storage and session follow-ups
+
+Implementation is committed in separate storage, modern-session and edge-case
+slices after the remotely confirmed PR #13 merge. Pre/post review, retention
+trade-offs and regressions are recorded in `contracts/review-followups.md`.
+Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+pass 1,291 portable cases with one performance case deselected. Ruff lint/format,
+strict typing, all repository hooks, history secret scan and locked dependency
+audit pass, including representative multi-account and real process proofs.
+Ten repeated concurrent modern-send cases pass with one shared handoff, two fresh
+preflights and no replay. No independent agent/model review is claimed.
+
+Installed import locations, version/MIT/license/py.typed metadata and dependency
+compatibility checks pass. Both archives rebuild with identical hashes. Qualified
+archives are retained in `dist/0.4.11/` (620,140 bytes); sanitized hashes and results
+are in `release-evidence/0.4.11-s10-qualification.json`. Disposable databases,
+virtualenvs, reports and worker processes were cleaned. Archives contain the
+pre-final-evidence documentation checkpoint; this final record supersedes its
+pending installed gates. Current-head remote CI remains a separate PR gate.
+
+No live Librus traffic, credential
+submission, sends, read-once consumes, MCP code or production-state changes,
+merge or publication. The version-2 storage refusal is intentional; no silent
+migration/reset. Remaining 0.5 authentication/coverage/live/consumer gates are open.
+
 ## 0.4.10 (2026-10-03) - PR #13 review hardening
 
 Final offline source and installed-artifact qualification:

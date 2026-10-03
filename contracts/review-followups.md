@@ -103,7 +103,9 @@ Safety findings and boundaries:
   and the public malformed-send/legacy-read/rebind case pass.
 - Full source suite: 1,291 passed, one deselected. Existing representative
   multi-login mailbox/download/send/notification and competing-process proofs pass.
-  Installed source/wheel/sdist qualification remains the final release gate.
+  Source, installed wheel and installed sdist each pass all 1,291 portable cases
+  on Python 3.13.15/3.14.7. Metadata, dependency compatibility and reproducible
+  archive checks pass; final lint/format/typing/hooks/history scan/audit pass.
 
 All verification stays offline with independently authored fixtures. No independent
 agent/model review, live traffic, consumer mutation, merge or publication occurred.

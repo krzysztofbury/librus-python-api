@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.11 - Storage retention and communication review follow-ups
+
+Offline-only S10(a-i), on a separate branch after the 0.4.10 merge.
+
+- Explicit atomic `prune_seen` and `prune_send_history`, with no automatic age
+  expiry. Uncertain/live sends, staged deliveries and reservations remain protected;
+  accepted-send pruning needs explicit duplicate-risk opt-in. Retained raw replay
+  can recover seen saturation without another consume; acknowledged raw prefix IDs
+  remain protected until drain so archive imports preserve progress proof.
+- Both SQLite schemas and neutral notification archives advance to version 2.
+  Random durable per-store salts namespace persisted contexts, locks, raw digests
+  and batches. Archive import validates then rebinds to the target salt. Version-1
+  layouts refuse without reset or automatic migration; no production data changes.
+- Exact modern-launch-to-native-login redirects report SESSION_EXPIRED. Every warm
+  send freshly revalidates modern identity with one GET before its POST. Modern
+  expiry/permission/parse failures clear only modern state, preserving valid legacy
+  sessions. No modern read/send retry or replacement live authentication layout.
+- `StaleCursorError` distinguishes detected mailbox/lesson continuation drift from
+  malformed wire data. Full pager-less 50-row mailboxes refuse apparent completion.
+  Unsupported attachment redirect shapes no longer install permission cooldown;
+  foreign destinations and HTTP denials still fail closed.
+- Paused attachment demand waits have an independent finite idle timeout (15 s
+  default). Complete bounded send responses survive return-time deadline expiry;
+  local receipt parsing has its own bounded deadline without granting more HTTP.
+  External cancellation and incomplete-response UNKNOWN semantics remain intact.
+- Original public-native loopback/SQLite/process/load and deterministic deadline
+  regressions. Pre/post review is recorded in `contracts/review-followups.md`.
+  MCP migration, live qualification, merge and publication remain separate gates.
+
 ## 0.4.10 - PR #13 review hardening
 
 Fixes from an independent multi-agent review of the 0.4 series. Local-first;
