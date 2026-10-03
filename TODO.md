@@ -36,6 +36,8 @@ Rules that hold for every release:
 | `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
 | `0.4.7` | Explicit modern identity, council discovery and single-use JSON sending | Implemented; offline qualification recorded in VERIFICATION.md; positive acknowledgements and sole-recipient live send remain gated |
 | `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
+| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Planned: final 0.4 persistence prerequisite, not full compatibility closure |
+| `0.5.x` | Modern authentication, broader communication coverage and live qualification | Planned; explicit evidence/consent gates below |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -126,7 +128,7 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
 
-### Expanded 0.4 completion sequence
+### 0.4 persistence completion and deferred 0.5 sequence
 
 The owner approved completing the remaining communication work one slice at a
 time, including API-owned optional persistent send/notification workflows. Each slice
@@ -139,9 +141,19 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
-| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
 | S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
 | S3 | Persistent notifications and checkpoint replay, proposed 0.4.9 | API optional persistence layer; canonical identities, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before consume and competing-process proofs. MCP maps old formats without maintaining another engine |
+
+### 0.5 TODO - Compatibility and live communication qualification
+
+The owner deferred the remaining authentication, coverage and live qualification
+work to 0.5. Completing 0.4.9 closes the planned optional persistence prerequisites,
+not universal upstream compatibility or the separate MCP migration. No live
+authorization is created or renewed by moving these items.
+
+| Order | Work item | Owner and completion gate |
+| --- | --- | --- |
+| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
 | S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
 | S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
@@ -176,7 +188,7 @@ Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
 The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
-0.4.0-0.4.7 are implemented. Sending is offline-qualified only, with the
+0.4.0-0.4.8 are implemented; 0.4.9 completes persistence. Sending is offline-qualified only, with the
 one-recipient live gate still pending. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification

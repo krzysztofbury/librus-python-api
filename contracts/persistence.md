@@ -56,6 +56,46 @@ and any MCP integration remain separate, not implied by local storage proofs.
 
 ## 0.4.9: durable notification prerequisites
 
+Approved implementation plan: an explicit `NotificationStore` and native
+`NotificationWorkflow`, with a separate `notifications.sqlite3` in the selected
+private directory. Reuse independently authored SQLite/file/worker ownership
+primitives, not send schema or GPL consumer helpers. Existing 0.4.8 send databases
+remain unchanged and need no automatic migration. Core clients remain inert and
+storage-independent. Ordinary tests and qualification stay entirely offline.
+
+Serialize per configured-login context across processes using held OS locks,
+not expiring leases. Read selected ordinary categories first, then replay a
+pending raw envelope before any new consume. Reserve bounded checkpoint capacity
+and persist a consume-uncertainty marker before the read-once call. Persist the
+complete encoded body and original identity/observation/codec metadata before
+parsing. Malformed raw responses stay recoverable and block fresh consumption.
+An unresolved marker without raw data blocks another consume until an application
+explicitly accepts possible upstream loss; never expire it or infer safe replay.
+
+Use a two-phase delivery: return a durably staged native batch with a receipt;
+explicit acknowledgement atomically commits seen IDs and raw cursor/cleanup.
+Cancellation, process loss or failed acknowledgement preserves pending delivery
+for at-least-once replay without HTTP. This avoids marking items seen before a
+caller has even received them. It is not exactly-once notification delivery.
+Drain oversized accepted schedule batches in bounded event/byte slices, retaining
+the full envelope and cursor. Never reset unrequested-category seen state.
+
+Canonical identities are versioned, domain-specific, and independent of MCP.
+Schedule identity covers the three visible date/type/data fields, preserving the
+previous consumer's independently re-established canonical hash requirement.
+Other native identifiers need an explicit qualified old-to-new mapping; do not
+pretend arbitrary legacy IDs are compatible. Provide neutral bounded archive
+export/import, including raw progress and staged delivery, into an empty target
+only. Refuse incompatible versions/context, malformed data and implicit overwrite.
+MCP-specific file parsing/mapping and production migration remain deferred.
+
+Proof gates: real SQLite and public native loopback reads; requested-category and
+first-run behavior; raw preservation before parser faults; restart replay without
+credentials; save/ack faults and repeated cancellation; process kill before/after
+checkpoint; competing processes; maximum batches/bytes and shared saturation;
+neutral archive import/export and unchanged 0.4.8 send state. Qualify source,
+wheel and sdist on Python 3.13/3.14 in separate feature/version commits.
+
 Persist the complete account-bound encoded schedule envelope before any content
 decoding/parsing. Recover and drain existing raw checkpoints before another
 consume. Preserve malformed accepted responses for explicit diagnosis; do not
