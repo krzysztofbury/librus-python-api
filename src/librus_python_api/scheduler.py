@@ -76,7 +76,12 @@ class RequestScheduler:
         return loop
 
     async def run[T](
-        self, account: str, budget: RequestBudget, action: Callable[[], Awaitable[T]]
+        self,
+        account: str,
+        budget: RequestBudget,
+        action: Callable[[], Awaitable[T]],
+        *,
+        preserve_completed: bool = False,
     ) -> T:
         loop = self._bind_loop()
         state = self._accounts.get(account)
@@ -98,7 +103,8 @@ class RequestScheduler:
                 try:
                     await asyncio.wait((worker,))
                     result = worker.result()
-                    budget.remaining_seconds()
+                    if not preserve_completed:
+                        budget.remaining_seconds()
                     return result
                 except asyncio.CancelledError:
                     if not isinstance(worker, asyncio.Task) or not worker.cancelling():

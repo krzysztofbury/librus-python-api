@@ -381,6 +381,7 @@ class AccountClient:
             return await self._execute_modern_send(attempt, attempt.submission, budget)
         submission = attempt.submission
         encode_send_form(submission, self._alias)
+        deadline = asyncio.timeout(None)
 
         async def fetch(budget: RequestBudget, _: bool) -> SendResult:
             send = getattr(self._transport, "send_message", None)
@@ -396,15 +397,27 @@ class AccountClient:
                         del self._cache[key]
 
             response = await send(submission, budget, dispatched)
+            receipt_budget = self._receipt_budget(deadline)
             self._validate_read_response(response, HTML)
             status = await self._service._parsers.run(
-                parse_send_acknowledgement, response.body, budget
+                parse_send_acknowledgement, response.body, receipt_budget
             )
             return attempt._acknowledge(status)
 
         return await self._uncached(
-            "send_message", fetch, budget, authenticate=True, preserve_cancellation=True
+            "send_message",
+            fetch,
+            budget,
+            authenticate=True,
+            preserve_cancellation=True,
+            deadline=deadline,
         )
+
+    def _receipt_budget(self, deadline: asyncio.Timeout) -> RequestBudget:
+        """No further I/O: retain a complete receipt with bounded local parsing."""
+        seconds = self._service._transport_limits.request_timeout_seconds
+        deadline.reschedule(asyncio.get_running_loop().time() + seconds)
+        return RequestBudget(max_requests=1, timeout_seconds=seconds)
 
     def prepare_modern_send(
         self,
@@ -454,10 +467,7 @@ class AccountClient:
             self._modern_account = account
             return account
         except BaseException:
-            self._modern_account = None
-            clear = getattr(self._transport, "clear_modern_auth", None)
-            if callable(clear):
-                clear()
+            self._invalidate_modern()
             raise
 
     async def modern_identity(
@@ -534,12 +544,15 @@ class AccountClient:
         budget: RequestBudget | None,
     ) -> SendResult:
         encode_modern_send(submission, self._alias)
+        deadline = asyncio.timeout(None)
 
         async def fetch(budget: RequestBudget, _: bool) -> SendResult:
             send = getattr(self._transport, "send_modern_message", None)
             if not callable(send):
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            await self._modern_ready(budget)
+            # A bound cookie/account is not proof it is still valid. One fresh
+            # side-effect-free identity GET prevents avoidable UNKNOWN sends.
+            await self._modern_ready(budget, refresh=True)
 
             def dispatched() -> None:
                 attempt._dispatch(
@@ -549,17 +562,31 @@ class AccountClient:
                     if isinstance(key, tuple) and key[0] == "messages_sent":
                         del self._cache[key]
 
-            response = await send(submission, budget, dispatched)
-            if response.status in (400, 422):
-                if _media_type(response) != JSON:
-                    raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
-            else:
-                self._validate_read_response(response, JSON)
-            status = await self._service._parsers.run(
-                lambda body: parse_modern_send_response(body, response.status),
-                response.body,
-                budget,
-            )
+            try:
+                response = await send(submission, budget, dispatched)
+                receipt_budget = self._receipt_budget(deadline)
+                if response.status in (400, 422):
+                    if _media_type(response) != JSON:
+                        self._invalidate_modern()
+                        raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
+                else:
+                    self._validate_read_response(response, JSON)
+                status = await self._service._parsers.run(
+                    lambda body: parse_modern_send_response(body, response.status),
+                    response.body,
+                    receipt_budget,
+                )
+            except BaseException as error:
+                # UNKNOWN_DELIVERY is an unqualified receipt, not session expiry.
+                # A malformed body/transport/permission failure still clears it.
+                if (
+                    not isinstance(error, LibrusError)
+                    or error.kind is not ErrorKind.UNKNOWN_DELIVERY
+                ):
+                    self._invalidate_modern()
+                if isinstance(error, SessionExpiredError):
+                    error._messages_origin = True
+                raise
             return attempt._acknowledge(status)
 
         return await self._uncached(
@@ -568,6 +595,7 @@ class AccountClient:
             budget,
             authenticate=True,
             preserve_cancellation=True,
+            deadline=deadline,
         )
 
     # Public reads: validate input, then describe one fetch for _read.
@@ -689,6 +717,7 @@ class AccountClient:
         *,
         authenticate: bool,
         preserve_cancellation: bool = False,
+        deadline: asyncio.Timeout | None = None,
     ) -> T:
         """Own one independent operation, without caching or coalescing."""
         service = self._service
@@ -700,7 +729,7 @@ class AccountClient:
         actual.remaining_seconds()
         self._admit_operation()
         task = asyncio.create_task(
-            self._execute_uncached(operation, fetch, actual, authenticate)
+            self._execute_uncached(operation, fetch, actual, authenticate, deadline)
         )
         service._tasks.add(task)
         task.add_done_callback(service._tasks.discard)
@@ -735,11 +764,17 @@ class AccountClient:
         fetch: Fetch[T],
         budget: RequestBudget,
         authenticate: bool,
+        deadline: asyncio.Timeout | None = None,
     ) -> T:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         try:
-            async with asyncio.timeout(budget.remaining_seconds()):
+            if deadline is None:
+                deadline = asyncio.timeout(None)
+            async with deadline:
+                deadline.reschedule(
+                    asyncio.get_running_loop().time() + budget.remaining_seconds()
+                )
                 async with self._lock:
                     if authenticate:
                         self._check_cooldown("authentication")
@@ -1541,15 +1576,23 @@ class AccountClient:
             await self._authenticate(budget)
         try:
             return await fetch(budget, fresh_login)
-        except SessionExpiredError:
-            self._invalidate()
+        except SessionExpiredError as error:
+            modern_expired = error._messages_origin
+            if modern_expired:
+                self._invalidate_modern()
+            else:
+                self._invalidate()
             if not retry_safe:
                 raise
-        await self._authenticate(budget)
+        if not modern_expired:
+            await self._authenticate(budget)
         try:
-            return await fetch(budget, True)
-        except SessionExpiredError:
-            self._invalidate()
+            return await fetch(budget, not modern_expired)
+        except SessionExpiredError as error:
+            if error._messages_origin:
+                self._invalidate_modern()
+            else:
+                self._invalidate()
             raise
 
     async def _page[T](
@@ -1563,11 +1606,18 @@ class AccountClient:
         content_type: str = HTML,
     ) -> T:
         """One authenticated request whose body a pure parser turns into data."""
-        response = await self._transport.request(
-            endpoint, budget, form=form, reference_id=reference
-        )
-        self._validate_read_response(response, content_type)
-        return await self._service._parsers.run(parse, response.body, budget)
+        try:
+            response = await self._transport.request(
+                endpoint, budget, form=form, reference_id=reference
+            )
+            self._validate_read_response(response, content_type)
+            return await self._service._parsers.run(parse, response.body, budget)
+        except BaseException as error:
+            if ENDPOINTS[endpoint].origin == "messages":
+                self._invalidate_modern()
+                if isinstance(error, SessionExpiredError):
+                    error._messages_origin = True
+            raise
 
     def _check_cooldown(self, key: str) -> None:
         cooldown = self._cooldowns.get(key)
@@ -1580,6 +1630,16 @@ class AccountClient:
         self._cache.clear()
         self._metadata.clear()
         self._transport.clear_auth()
+
+    def _invalidate_modern(self) -> None:
+        self._modern_account = None
+        for key in tuple(self._cache):
+            if isinstance(key, tuple) and str(key[0]).startswith("modern_"):
+                del self._cache[key]
+        if self._transport_instance is not None:
+            clear = getattr(self._transport_instance, "clear_modern_auth", None)
+            if callable(clear):
+                clear()
 
     def _session_identity(self) -> Identity:
         assert self._identity is not None
@@ -1645,7 +1705,7 @@ class AccountClient:
                     and all(r.reference.identifier in seen for r in result.items)
                 )
             ):
-                raise LibrusError(ErrorKind.PARSE)
+                raise LibrusError(ErrorKind.STALE_CURSOR)
             count = result.page_count
             fingerprints.add(result.fingerprint)
             while offset < len(result.items) and len(items) < limit:
@@ -1742,7 +1802,7 @@ class AccountClient:
                 or result.fingerprint in seen
                 or (offset and offset >= len(result.items))
             ):
-                raise LibrusError(ErrorKind.PARSE)
+                raise LibrusError(ErrorKind.STALE_CURSOR)
             count = result.page_count
             seen.add(result.fingerprint)
             take = min(len(result.items) - offset, limit - len(items))

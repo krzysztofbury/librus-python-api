@@ -1034,6 +1034,7 @@ class TransportLimits(_ValidatedConfig):
     max_cookies: PositiveCount = 128
     parse_max_bytes: PositiveCount = 256 * 1024
     cooldown_seconds: PositiveFinite = 60.0
+    attachment_idle_timeout_seconds: PositiveFinite = 15.0
 
     @model_validator(mode="after")
     def validate_deadlines(self) -> Self:

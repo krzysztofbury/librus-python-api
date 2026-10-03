@@ -44,7 +44,7 @@ from librus_python_api.config import (
     encode_send_form,
     recipient_form,
 )
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.models import (
     AttachmentHeaders,
     LoginSubmission,
@@ -302,6 +302,10 @@ class AiohttpTransport:
             )
             if response.status != 302:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            if self._native_login_redirect(
+                response.url, response.headers.get("location", "")
+            ):
+                raise LibrusError(ErrorKind.SESSION_EXPIRED)
             url = self._modern_redirect(
                 response.url, response.headers.get("location", "")
             )
@@ -345,6 +349,25 @@ class AiohttpTransport:
             raise LibrusError(ErrorKind.ACCESS_DENIED)
         return url
 
+    def _native_login_redirect(self, previous: str, location: str) -> bool:
+        try:
+            target = urlsplit(urljoin(previous, location))
+            return (
+                bool(location)
+                and not (target.username or target.password or target.fragment)
+                and (
+                    URL(target.geturl()).origin()
+                    == URL(self._connection.synergia_origin)
+                    and target.path
+                    in (
+                        ENDPOINTS["login_callback"].path,
+                        ENDPOINTS["login_portal"].path,
+                    )
+                )
+            )
+        except ValueError:
+            return False
+
     async def send_modern_message(
         self,
         submission: ModernSendSubmission,
@@ -360,6 +383,7 @@ class AiohttpTransport:
                 self._account,
                 budget,
                 partial(self._send_exchange, payload, budget, dispatched, modern=True),
+                preserve_completed=True,
             )
         except aiohttp.ClientError:
             kind = ErrorKind.CONNECTION
@@ -385,6 +409,7 @@ class AiohttpTransport:
                 self._account,
                 budget,
                 partial(self._send_exchange, payload, budget, dispatched),
+                preserve_completed=True,
             )
         except aiohttp.ClientError:
             kind = ErrorKind.CONNECTION
@@ -725,6 +750,9 @@ class AiohttpTransport:
                 budget,
                 partial(self._exchange, endpoint, url, budget, form),
             )
+        except SessionExpiredError as error:
+            error._messages_origin = endpoint.origin == "messages"
+            raise
         except aiohttp.ClientError:
             kind = ErrorKind.CONNECTION
         except TimeoutError:

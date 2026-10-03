@@ -2,7 +2,10 @@
 
 import asyncio
 import contextvars
+import hashlib
+import hmac
 import os
+import secrets
 import sqlite3
 import stat
 from collections.abc import Callable, Coroutine, Iterator
@@ -32,6 +35,11 @@ _busy_timeout_seconds: contextvars.ContextVar[float | None] = contextvars.Contex
     "_busy_timeout_seconds", default=None
 )
 
+_STORE_META_SCHEMA = """CREATE TABLE store_metadata (
+    name TEXT PRIMARY KEY CHECK(name='context_salt'),
+    value BLOB NOT NULL CHECK(length(value)=32)
+)"""
+
 
 class _SQLiteStore:
     _filename = "state.sqlite3"
@@ -51,6 +59,25 @@ class _SQLiteStore:
         self._workflows: set[asyncio.Task[Any]] = set()
         self._close_task: asyncio.Task[None] | None = None
         self._file_identity: tuple[int, int] | None = None
+        self._context_salt: bytes | None = None
+
+    def context_identifier(self, context: str) -> str:
+        """Store-local context pseudonym; requires an explicitly opened store."""
+        if not self._opened or self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        return self._context_key(context)
+
+    def _context_key(self, context: str) -> str:
+        if type(context) is not str or len(context) != 64:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        try:
+            decoded = bytes.fromhex(context)
+        except ValueError:
+            raise LibrusError(ErrorKind.INVALID_INPUT) from None
+        if len(decoded) != 32 or context != decoded.hex():
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        assert self._context_salt is not None
+        return hmac.new(self._context_salt, decoded, hashlib.sha256).hexdigest()
 
     async def __aenter__(self) -> Self:
         await self.open()
@@ -283,9 +310,13 @@ class _SQLiteStore:
             if version == 0:
                 if connection.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone():
                     raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-                for sql in self._schema:
+                for sql in (_STORE_META_SCHEMA, *self._schema):
                     connection.execute(sql)
-                connection.execute("PRAGMA user_version=1")
+                connection.execute(
+                    "INSERT INTO store_metadata VALUES (?,?)",
+                    ("context_salt", secrets.token_bytes(32)),
+                )
+                connection.execute("PRAGMA user_version=2")
             self._validate_schema(connection)
             self._validate_contents(connection)
         if os.name == "posix":
@@ -302,7 +333,7 @@ class _SQLiteStore:
 
     def _validate_schema(self, connection: sqlite3.Connection) -> None:
         expected = []
-        for sql in self._schema:
+        for sql in (_STORE_META_SCHEMA, *self._schema):
             name = sql.split()[2]
             expected.extend(
                 [("table", name, sql), ("index", f"sqlite_autoindex_{name}_1", None)]
@@ -311,12 +342,24 @@ class _SQLiteStore:
             "SELECT type, name, sql FROM sqlite_master ORDER BY name LIMIT 32"
         ).fetchall()
         if (
-            connection.execute("PRAGMA user_version").fetchone()[0] != 1
+            connection.execute("PRAGMA user_version").fetchone()[0] != 2
             or connection.execute("PRAGMA page_size").fetchone()[0] != 4096
             or connection.execute("PRAGMA journal_mode").fetchone()[0] != "delete"
             or actual != sorted(expected, key=lambda row: row[1])
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        rows = connection.execute(
+            "SELECT name,value FROM store_metadata LIMIT 2"
+        ).fetchall()
+        if (
+            len(rows) != 1
+            or rows[0][0] != "context_salt"
+            or type(rows[0][1]) is not bytes
+            or len(rows[0][1]) != 32
+            or (self._context_salt is not None and self._context_salt != rows[0][1])
+        ):
+            raise LibrusError(ErrorKind.STORAGE)
+        self._context_salt = rows[0][1]
 
     def _validate_contents(self, connection: sqlite3.Connection) -> None:
         raise NotImplementedError

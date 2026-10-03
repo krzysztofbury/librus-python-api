@@ -137,7 +137,10 @@ class AttachmentStream(AsyncIterator[bytes]):
         self._ready.set()
 
     async def _pull(self) -> None:
-        await self._demand.wait()
+        async with asyncio.timeout(
+            self._client._service._transport_limits.attachment_idle_timeout_seconds
+        ):
+            await self._demand.wait()
         self._demand.clear()
 
     def _deliver(self, chunk: bytes) -> None:

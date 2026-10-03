@@ -553,8 +553,8 @@ def test_maximum_record_load_preserves_history_and_refuses_overflow(
         directory = tmp_path / "state"
         async with fixture.service() as service:
             client = service.account("student")
-            async with PersistenceStore(directory):
-                pass
+            async with PersistenceStore(directory) as initial:
+                stored_context = initial.context_identifier(client.context.identifier)
             # Populate the actual accepted schema with independent original
             # consumed history. No network is needed to qualify storage capacity.
             with sqlite3.connect(directory / "state.sqlite3") as connection:
@@ -563,7 +563,7 @@ def test_maximum_record_load_preserves_history_and_refuses_overflow(
                     [
                         (
                             f"{index:064x}",
-                            client.context.identifier,
+                            stored_context,
                             f"{index + 4096:064x}",
                             1,
                             301,

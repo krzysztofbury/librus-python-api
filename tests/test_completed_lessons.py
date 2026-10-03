@@ -13,6 +13,7 @@ from librus_python_api.exceptions import (
     AccessDeniedError,
     ClosedError,
     InvalidInputError,
+    LibrusError,
     LimitError,
     MaintenanceError,
     OperationTimeoutError,
@@ -293,8 +294,11 @@ def test_resume_drift_and_duplicate_pages_fail_without_silent_results(
                     fixture.bodies[page] = fixture.bodies[0].replace(
                         "Strona 1", "Strona 2"
                     )
-                with pytest.raises(ParseError):
+                with pytest.raises(LibrusError) as error:
                     await client.completed_lessons(START, END, cursor=first.next_cursor)
+                assert error.value.kind.value == (
+                    "parse" if change == "clamped" else "stale_cursor"
+                )
 
     asyncio.run(scenario())
 

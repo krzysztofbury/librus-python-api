@@ -1,0 +1,93 @@
+{
+  "version": "0.4.11",
+  "date": "2026-10-03",
+  "scope": "S10(a-i) storage retention, modern session recovery and communication edges; offline only",
+  "implementation_commit": "2aa756f3b64648c5b05bdf58fe83621ac62a4dfd",
+  "provenance": "independently authored implementation and original fixtures; no external source, tests or captures incorporated",
+  "review": {
+    "mode": "pair-programmer skill-guided pre/post self-review, then an independent pre-merge review",
+    "record": "contracts/review-followups.md",
+    "retention_decision": "explicit caller-selected atomic pruning, not automatic age expiry",
+    "late_findings_fixed": [
+      "raw checkpoint pruning guard prevented seen-capacity recovery without reconsume",
+      "acknowledged agenda prefix IDs must remain until raw drain to preserve archive import proof",
+      "ordinary unqualified UNKNOWN_DELIVERY is not session failure; malformed modern receipts still clear only modern state"
+    ],
+    "merge_review_findings_fixed": [
+      "foreign attachment destinations with unsupported encoding reported UNSUPPORTED_CAPABILITY instead of ACCESS_DENIED"
+    ]
+  },
+  "python_versions": [
+    "3.13.15",
+    "3.14.7"
+  ],
+  "source": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
+  "installed_wheel": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
+  "installed_sdist": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
+  "regressions_failed_before_fix": [
+    "exact modern launch redirects to native login reported ACCESS_DENIED instead of SESSION_EXPIRED",
+    "warm modern send skipped identity preflight and modern 401 invalidated valid legacy authentication",
+    "mailbox and lesson continuation drift reported PARSE rather than stale_cursor",
+    "full pager-less mailbox appeared complete",
+    "unsupported attachment route shape installed a permission cooldown",
+    "complete real loopback send receipt became UNKNOWN at return-time budget expiry",
+    "seen saturation with retained raw checkpoint refused explicit pruning",
+    "foreign attachment destination with query, fragment, percent or backslash lost its ACCESS_DENIED classification"
+  ],
+  "runtime_and_load_proof": [
+    "public native multi-account mailbox, attachment, send and notification wire/runtime paths under bounded shared budgets",
+    "real SQLite retention, context isolation, independent durable salts, persisted-byte inspection and old-schema refusal",
+    "pending/claimed/unknown send retention refusal, accepted-send duplicate-risk opt-in and atomic capacity reuse",
+    "raw saturation replay at zero and progressed cursors, no additional read-once request, prefix protection and archive import",
+    "modern 401/403/parse errors preserve native generation and avoid resubmitting legacy credentials",
+    "paused attachment consumer releases shared admission while long caller budget remains valid",
+    "complete legacy accepted and modern rejected receipts survive deadline expiry; local parse timeout and external cancellation stay bounded/joined",
+    "ten repeated concurrent modern-send cases: one handoff, two preflights, two separate POSTs and exact eleven-request budget",
+    "existing competing-process, crash, corruption, shutdown, save-fault and maximum-boundary proofs"
+  ],
+  "quality": {
+    "ruff_lint_and_format": true,
+    "strict_mypy": true,
+    "repository_hooks": true,
+    "history_secret_scan": true,
+    "locked_dependency_audit": true,
+    "installed_location_version_license_and_py_typed": true,
+    "installed_dependency_compatibility": true,
+    "reproducible_archive_hashes": true
+  },
+  "storage_schema_version": 2,
+  "notification_archive_version": 2,
+  "automatic_migration_or_reset": false,
+  "artifacts": [
+    {
+      "name": "librus_python_api-0.4.11-py3-none-any.whl",
+      "bytes": 118797,
+      "sha256": "8f0335d6621e2aed565d42ffabc42fae049924f56e8fa67b62f52c7b62aa04ff"
+    },
+    {
+      "name": "librus_python_api-0.4.11.tar.gz",
+      "bytes": 502445,
+      "sha256": "06e67cce962e7ecc505d66bdad2b9a21e2b927a04799b300a16e3054dc4e011b"
+    }
+  ],
+  "artifact_documentation_checkpoint": "pre-final-evidence documentation; final VERIFICATION.md supersedes pending installed gates",
+  "live_http_requests": 0,
+  "live_credential_submissions": 0,
+  "live_send_dispatches": 0,
+  "mcp_code_or_production_state_changed": false,
+  "published": false,
+  "remaining": [
+    "current-head remote PR CI",
+    "0.5 independently established live modern authentication layout, broader coverage and live qualification",
+    "separate MCP adapter and production-data migration qualification"
+  ]
+}

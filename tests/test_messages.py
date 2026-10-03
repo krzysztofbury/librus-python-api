@@ -13,7 +13,9 @@ from librus_python_api import (
     RequestBudget,
 )
 from librus_python_api.exceptions import (
+    ErrorKind,
     InvalidInputError,
+    LibrusError,
     LimitError,
     ParseError,
     SessionExpiredError,
@@ -196,6 +198,25 @@ def test_page_and_row_actual_maximum_boundaries() -> None:
         parse(messages_html(pagination=False), page=1)
 
 
+@pytest.mark.parametrize("folder", list(MessageFolder))
+def test_pagerless_full_mailbox_is_unsupported_not_silently_complete(
+    folder: MessageFolder,
+) -> None:
+    body = messages_html(
+        folder,
+        pagination=False,
+        rows="".join(message_row(str(100 + i), folder=folder) for i in range(50)),
+    )
+    with pytest.raises(UnsupportedCapabilityError):
+        parse(body, folder)
+    partial = messages_html(
+        folder,
+        pagination=False,
+        rows="".join(message_row(str(100 + i), folder=folder) for i in range(49)),
+    )
+    assert len(parse(partial, folder)[0]) == 49
+
+
 def test_midpage_resume_uses_one_budget_and_never_gets_separate_page_count() -> None:
     async def scenario() -> None:
         fixture = ReadsFixture()
@@ -325,9 +346,13 @@ def test_resume_integrity_and_later_page_failures_never_return_partial_success(
                     "text/html",
                 )
                 with pytest.raises(
-                    SessionExpiredError if change == "expiry" else ParseError
-                ):
+                    SessionExpiredError if change == "expiry" else LibrusError
+                ) as error:
                     await client.messages(cursor=first.next_cursor)
+                if change not in ("expiry", "clamped"):
+                    assert error.value.kind.value == "stale_cursor"
+                elif change == "clamped":
+                    assert error.value.kind is ErrorKind.PARSE
                 assert fixture.logins == {"student": 1}
                 assert service.snapshot().active == service.snapshot().queued == 0
 

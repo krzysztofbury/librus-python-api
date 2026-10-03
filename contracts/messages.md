@@ -14,10 +14,17 @@ legacy-module information banner is allowlisted; other warnings remain typed
 failures, not empty success. IDs must be numeric, folder-bound links on both
 correspondent and subject. `/f0` is an inert suffix, never a fetched URL.
 
-Page counts come from the same response. No pagination on page zero means one
-page, as observed on both folders. A requested nonzero page without metadata is
+Page counts come from the same response. No pagination on an empty or shorter
+page zero means one page, as observed on both folders. From 0.4.11 a full 50-row
+page without a pager is unsupported: completeness cannot be established.
+A requested nonzero page without metadata is
 not accepted as an empty range. Populated pagination is source-informed and
 checked with original fixtures, not live-qualified yet.
+
+From 0.4.11 changed page count/mid-page fingerprint, repeated pages or no-progress
+continuations raise `StaleCursorError` instead of `ParseError`. Invalid caller
+cursors remain INVALID_INPUT and malformed/clamped wire metadata remains PARSE.
+There is no automatic cursor restart, retry or partial-success return.
 
 Bounds, continuation, deduplication, timestamp and status semantics are specified
 in [API.md](../API.md#message-lists). All reads share the existing account-lock,

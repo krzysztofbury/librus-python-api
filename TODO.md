@@ -145,6 +145,7 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 | --- | --- | --- |
 | S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
 | S3 | Persistent notifications and checkpoint replay, 0.4.9 | Done offline: explicit native store/workflow, canonical identities, first-run/requested-category semantics, raw checkpoint before parsing, bounded replay before consume, two-phase acknowledgement, neutral archive and competing-process proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP old-format mapping remains a separate migration task |
+| S10 | Review follow-ups, 0.4.11 | Implemented offline: (a,b) modern expiry isolation and fresh pre-send identity GET; (c,d) explicit retention and salted version-2 disk/archive contexts; (e-i) stale-cursor kind, redirect-shape classification, full pager-less refusal, consumer idle timeout and completed-receipt deadline preservation. Source/wheel/sdist release qualification is recorded in VERIFICATION.md. No production migration, live authentication replacement or send authorization |
 
 ### 0.5 TODO - Compatibility and live communication qualification
 
@@ -161,7 +162,6 @@ authorization is created or renewed by moving these items.
 | S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
 | S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
 | S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
-| S10 | Review follow-ups deferred from 0.4.10 | Library; (a) modern launch redirect to the synergia login maps to SESSION_EXPIRED, not ACCESS_DENIED; (b) revalidate or clear the bound modern session before a modern send and after messages-origin errors, without discarding a valid legacy session on a modern 401; (c) explicit retention primitives: seen IDs per category default to the 4,096 maximum and terminal send rows are never pruned, so long-lived stores eventually refuse with LIMIT; (d) keyed or salted persisted context identifiers instead of an unsalted login hash; (e) a distinct stale-cursor error kind instead of PARSE; (f) attachment redirect shape mismatches as UNSUPPORTED_CAPABILITY, not ACCESS_DENIED with cooldown; (g) refuse a pager-less full page as single-page; (h) bounded idle wait for paused attachment consumers holding scheduler slots; (i) keep a completed send response when the budget deadline passes during return |
 | S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
 
 Live verification is evidence gathering, not permission to guess undocumented
@@ -193,6 +193,8 @@ credentialed CI and publication keep their separate approval gates.
 The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
 0.4.0-0.4.10 are implemented; 0.4.9 completes persistence and 0.4.10 applies review fixes. Sending is offline-qualified only, with the
 one-recipient live gate still pending. MCP migration is separate from this PR.
+The separately approved offline S10 follow-ups are implemented in 0.4.11 on a new
+branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live gates.
 
 ### 1.0.0rc1 - Complete replacement qualification
 

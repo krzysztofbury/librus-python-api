@@ -59,6 +59,11 @@ per login. Cache keys distinguish page selections from batch/cursor/limit select
 
 ## Continuation integrity and limitations
 
+From 0.4.11 detected sequence drift/repeated pages raise `StaleCursorError`
+(`kind=stale_cursor`), not `ParseError`. Malformed/clamped page metadata remains
+PARSE and invalid caller cursors remain INVALID_INPUT. Restart is explicit;
+the library never returns partial success or retries a selection.
+
 `CompletedLessonsCursor` binds account alias, explicit dates, next page/offset,
 page count and SHA-256 fingerprint of canonical domain rows. Fingerprints exclude
 HTML/CSRF noise. Cursors are immutable caller data, not access tokens, upstream IDs,
