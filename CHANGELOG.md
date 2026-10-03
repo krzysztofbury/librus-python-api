@@ -20,7 +20,9 @@ Offline-only S10(a-i), on a separate branch after the 0.4.10 merge.
 - `StaleCursorError` distinguishes detected mailbox/lesson continuation drift from
   malformed wire data. Full pager-less 50-row mailboxes refuse apparent completion.
   Unsupported attachment redirect shapes no longer install permission cooldown;
-  foreign destinations and HTTP denials still fail closed.
+  foreign destinations and HTTP denials still fail closed. Origin, scheme and
+  userinfo are checked before query, fragment, percent or backslash encoding, so
+  a foreign destination is ACCESS_DENIED even when its shape is also unsupported.
 - Paused attachment demand waits have an independent finite idle timeout (15 s
   default). Complete bounded send responses survive return-time deadline expiry;
   local receipt parsing has its own bounded deadline without granting more HTTP.

@@ -109,3 +109,22 @@ Safety findings and boundaries:
 
 All verification stays offline with independently authored fixtures. No independent
 agent/model review, live traffic, consumer mutation, merge or publication occurred.
+
+## Merge review
+
+An independent review of PR #14 before merge re-read the storage, modern-session
+and edge-case slices end to end. Confirmed: salts are created once under the
+initialising write lock and stored beside keyed identifiers, matching the
+documented limit (no protection from guessing by a salt holder); send pruning
+never removes claimed/unknown rows; seen pruning refuses staged or reserved
+contexts and protects the raw prefix; pre-send expiry stays NOT_DISPATCHED and a
+modern 401 leaves the legacy session intact; the completed-send deadline change
+grants no further HTTP.
+
+One defect: the attachment destination check rejected query, fragment, percent
+and backslash characters before origin/scheme/userinfo, so a foreign redirect
+such as `https://evil.invalid/GetFile/key?x=1` reported UNSUPPORTED_CAPABILITY
+instead of ACCESS_DENIED, contradicting `contracts/attachments.md`. Controls still
+fail first (ambiguous parsing); the remaining encoding checks now run only after
+the destination is proven official. Seven foreign-destination regressions failed
+before the reorder and pass after it; official-origin encoding stays unsupported.

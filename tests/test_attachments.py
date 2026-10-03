@@ -30,6 +30,39 @@ from librus_python_api.transport import AiohttpTransport
 from tests.attachments_support import queued, reference, rig
 
 
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://evil.invalid/GetFile/key?x=1",
+        "https://evil.invalid/GetFile/key%2f",
+        "https://evil.invalid/GetFile/key#fragment",
+        "https://evil.invalid#@sandbox.librus.pl/GetFile/key",
+        "https://user@sandbox.librus.pl/GetFile/key?x=1",
+        "https://sandbox.librus.pl\\@evil.invalid/GetFile/key",
+        "http://sandbox.librus.pl/GetFile/key?x=1",
+    ],
+)
+def test_foreign_destination_stays_denied_despite_unsupported_encoding(
+    location: str,
+) -> None:
+    # Origin, scheme and userinfo violations are permission failures even when
+    # the location also carries an unsupported query, fragment or encoding.
+    with pytest.raises(AccessDeniedError):
+        signed_attachment_key(location, ConnectionSettings())
+
+
+@pytest.mark.parametrize(
+    "suffix", ["key?x=1", "key#fragment", "key%2fextra", "key\\extra"]
+)
+def test_official_destination_with_unsupported_encoding_is_unsupported(
+    suffix: str,
+) -> None:
+    with pytest.raises(UnsupportedCapabilityError):
+        signed_attachment_key(
+            "https://sandbox.librus.pl/GetFile/" + suffix, ConnectionSettings()
+        )
+
+
 def test_unservable_controls_and_ambiguous_encoding_fail_before_url_normalization() -> (
     None
 ):

@@ -44,11 +44,12 @@ def validate_max_bytes(max_bytes: int) -> None:
 
 def signed_attachment_key(location: str, connection: ConnectionSettings) -> str:
     """Only an exact absolute official destination or explicitly configured loopback."""
+    # Controls make parsing ambiguous; other encoding characters are judged only
+    # after origin/scheme/userinfo, so a foreign destination is always a denial.
     if (
         type(location) is not str
         or not 1 <= len(location) <= ATTACHMENT_MAX_LOCATION_LENGTH
         or any(ord(c) <= 32 or ord(c) >= 127 for c in location)
-        or any(c in location for c in ("%", "\\", "?", "#"))
     ):
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     invalid = False
@@ -67,7 +68,11 @@ def signed_attachment_key(location: str, connection: ConnectionSettings) -> str:
             or target.password is not None
         ):
             invalid = True
-        elif not target.path.startswith(prefix) or suffix:
+        elif (
+            any(c in location for c in ("%", "\\", "?", "#"))
+            or not target.path.startswith(prefix)
+            or suffix
+        ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         else:
             key = target.path[len(prefix) :]
