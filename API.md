@@ -345,6 +345,22 @@ fallback is allowed. See [the send contract](contracts/sending.md).
 
 ## Optional durable sending
 
+### 0.4.11 format and explicit retention
+
+Storage schema version 2 uses a random salt created once per database. Persisted
+context identifiers are store-local HMAC-SHA256 pseudonyms, not the public
+`client.context.identifier` hash. `store.context_identifier(client.context.identifier)`
+returns that pseudonym only on an open store. Core clients remain storage-independent.
+Version-1 stores reject without modification; no automatic migration/reset.
+
+`await store.prune_send_history(context=client.context, identifiers=(...),
+allow_accepted=False)` returns the number of deleted rows. Use identifiers from
+`send_history`. The entire selection validates before deletion: foreign/missing
+IDs, live pending confirmations, CLAIMED and UNKNOWN rows reject. Expired pending,
+INVALIDATED, NOT_DISPATCHED and REJECTED rows are eligible. ACCEPTED rows require
+explicit `allow_accepted=True`, which removes protection against a new confirmation
+for an identical submission. No implicit expiry of consumed history or HTTP calls.
+
 Explicitly import `PersistenceStore`, `PersistenceLimits`, `SendConfirmation`,
 `DurableSendOutcome`, `DurableSendPhase` and `DurableSendRecord` from
 `librus_python_api.persistence`.
@@ -405,6 +421,20 @@ migration time.
 See [contracts/persistence.md](contracts/persistence.md).
 
 ## Optional durable notifications
+
+In 0.4.11, notification schema and neutral archive versions are 2. Export payloads
+carry the source salt and store-local identifiers, not the public context hash.
+Empty-target import validates the source namespace and rebinds to the target salt;
+receipts/events/progress remain unchanged, but export bytes differ across stores.
+Old version-1 archives explicitly reject. See the storage format decision in
+[contracts/persistence.md](contracts/persistence.md).
+
+`await store.prune_seen(context=client.context, category=NotificationCategory.GRADES,
+identifiers=(...))` explicitly forgets the selected seen IDs and returns the deleted
+count. It requires no raw checkpoint, uncertain reservation or pending delivery in
+that context. Foreign/missing/duplicate/invalid IDs reject atomically. Other
+categories and initialization/last receipt stay intact. Forgotten IDs can be
+notified again; no automatic school-year/age expiry is performed.
 
 Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
 `NotificationBatch`, `NotificationItem`, `NotificationState`, `NotificationSeen`,

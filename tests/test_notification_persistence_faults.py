@@ -423,9 +423,18 @@ def test_neutral_archive_roundtrip_staged_delivery_and_progress(tmp_path: Path) 
                     tmp_path / "copy", limits=limits
                 ) as copied:
                     await copied.import_archive(archive)
+                    copied_archive = await copied.export_archive(context=client.context)
+                    original_record = json.loads(archive.payload)
+                    copied_record = json.loads(copied_archive.payload)
+                    assert copied_record["state"] == original_record["state"]
                     assert (
-                        await copied.export_archive(context=client.context) == archive
+                        copied_record["raw"]["body"] == original_record["raw"]["body"]
                     )
+                    assert copied_record["raw"]["cursor"] == 1
+                    assert (
+                        copied_record["context_salt"] != original_record["context_salt"]
+                    )
+                    assert copied_record["context"] != original_record["context"]
                     replay = NotificationWorkflow(client, copied)
                     assert await replay.poll(categories=AGENDA) == staged
                     await replay.acknowledge(staged.receipt)
@@ -539,7 +548,7 @@ def test_invalid_archive_import_rolls_back_without_state_reset(
                     ).encode(),
                 )
                 if damage == "version":
-                    changed = replace(changed, version=2)
+                    changed = replace(changed, version=77)
                 if damage == "alias":
                     changed = replace(
                         changed, context=replace(client.context, alias="parent")

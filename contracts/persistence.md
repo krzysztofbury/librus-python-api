@@ -1,5 +1,39 @@
 # Optional API persistence: approved 0.4 extraction design
 
+## 0.4.11 retention and storage format decision
+
+S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native
+IDs lack trustworthy age metadata across all categories; silent expiry could
+re-notify old records or remove duplicate-send protection. `prune_seen` selects
+one context/category and exact IDs, requires raw/reservation/delivery recovery to
+be drained, preserves initialization and all other categories, and commits
+atomically. Forgotten IDs may be notified again. `prune_send_history` selects
+exact context-bound history identifiers; live pending, CLAIMED and UNKNOWN rows
+cannot be deleted. Expired unused confirmations and safe terminal rows can be
+removed. ACCEPTED pruning requires `allow_accepted=True`, explicitly permitting
+later duplicate confirmation for the same submission. No network is performed.
+SQLite reuses freed pages; pruning is logical, not secure erasure or VACUUM.
+
+Both database schemas advance to version 2, adding one random 32-byte context
+salt per store. SQL context keys, notification lock filenames, persisted batch
+contexts and raw digests use the store-local HMAC-SHA256 namespace. Public native
+`AccountContext` remains stable across password rotation and restarts; its unsalted
+in-memory fingerprint is not written into the store. `context_identifier` exposes
+the pseudonym for explicit diagnostics after opening, without credentials.
+Salts are created atomically under the database write lock and validated on every
+connection. This reduces cross-store correlation/precomputed hash reuse, not
+encryption or protection from low-entropy guessing by someone holding the salt.
+
+Neutral notification archives advance to version 2 and include the source salt.
+Empty-target import validates the exact source context/digests, then rebinds keys,
+raw links and staged batch context to the destination store salt, retaining receipt,
+seen state and progress. Payload bytes differ across stores while public replay
+is unchanged. Version-1 database/archive formats fail explicitly without reset
+or auto migration. Nothing is in production yet; old local stores must be kept
+for diagnosis or deliberately recreated by their owner. Once MCP stores real
+data, any future format change requires an explicit qualified migration and
+rollback path in addition to version refusal. This slice reads no production data.
+
 ## Ownership and provenance
 
 The owner clarified that MCP is a thin consumer and the API supplies reusable
