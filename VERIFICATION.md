@@ -3,6 +3,34 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.10 (2026-10-03) - PR #13 review hardening
+
+Final offline source and installed-artifact qualification:
+
+- Four independent agent reviewers covered transport/service/catalogue parity,
+  parsers and send acknowledgements against librus-apix 1.5.3 behaviour (read
+  only, nothing copied), durable storage, and test value plus capture-script
+  safety. No Critical finding. Fixed: post-consume checkpoint loss under another
+  context's write lock, post-dispatch outcome loss under contention, capture
+  transports able to send or consume, the legacy banner hiding send
+  acknowledgements, read-state cursor drift, archive cursor skipping, LIMIT after
+  a claim, fail-open aiohttp replay switch and missing concurrency/destination
+  tests. Nine lower-priority findings are tracked as TODO S10.
+- Every fix has a regression that failed before the change (listed in the
+  evidence file); real SQLite write locks are held from a second connection.
+- Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+  pass 1,253 portable tests (one performance test deselected). Ruff lint/format,
+  strict typing, repository hooks, history and worktree secret scans and the
+  locked dependency audit pass. Archives rebuild with identical hashes.
+- Route paths and form fields for lists, recipients and legacy sending match the
+  reference library; this repository is stricter on unknown notices, counters
+  and acknowledgement text. No browser or live trace was needed: no finding
+  depended on unobserved upstream behaviour.
+
+Qualified local archives are in `dist/0.4.10/`; sanitized hashes and results are
+in `release-evidence/0.4.10-review-qualification.json`. All HTTP traffic was
+loopback: zero live Librus requests, credentials, sends or read-once consumes.
+
 ## 0.4.9 (2026-10-03) - Optional durable notifications
 
 Final offline source and installed-artifact qualification:
