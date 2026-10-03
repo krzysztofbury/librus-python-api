@@ -83,7 +83,8 @@ class AccountActionRequiredError(LibrusError):
 
 
 class SessionExpiredError(LibrusError):
-    pass
+    # Library-private provenance only; never attach a URL, body or credentials.
+    _messages_origin = False
 
 
 class AccessDeniedError(LibrusError):

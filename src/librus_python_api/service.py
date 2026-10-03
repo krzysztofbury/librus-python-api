@@ -454,10 +454,7 @@ class AccountClient:
             self._modern_account = account
             return account
         except BaseException:
-            self._modern_account = None
-            clear = getattr(self._transport, "clear_modern_auth", None)
-            if callable(clear):
-                clear()
+            self._invalidate_modern()
             raise
 
     async def modern_identity(
@@ -539,7 +536,9 @@ class AccountClient:
             send = getattr(self._transport, "send_modern_message", None)
             if not callable(send):
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            await self._modern_ready(budget)
+            # A bound cookie/account is not proof it is still valid. One fresh
+            # side-effect-free identity GET prevents avoidable UNKNOWN sends.
+            await self._modern_ready(budget, refresh=True)
 
             def dispatched() -> None:
                 attempt._dispatch(
@@ -549,12 +548,24 @@ class AccountClient:
                     if isinstance(key, tuple) and key[0] == "messages_sent":
                         del self._cache[key]
 
-            response = await send(submission, budget, dispatched)
+            try:
+                response = await send(submission, budget, dispatched)
+            except BaseException as error:
+                self._invalidate_modern()
+                if isinstance(error, SessionExpiredError):
+                    error._messages_origin = True
+                raise
             if response.status in (400, 422):
                 if _media_type(response) != JSON:
                     raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
             else:
-                self._validate_read_response(response, JSON)
+                try:
+                    self._validate_read_response(response, JSON)
+                except BaseException as error:
+                    self._invalidate_modern()
+                    if isinstance(error, SessionExpiredError):
+                        error._messages_origin = True
+                    raise
             status = await self._service._parsers.run(
                 lambda body: parse_modern_send_response(body, response.status),
                 response.body,
@@ -1541,15 +1552,23 @@ class AccountClient:
             await self._authenticate(budget)
         try:
             return await fetch(budget, fresh_login)
-        except SessionExpiredError:
-            self._invalidate()
+        except SessionExpiredError as error:
+            modern_expired = error._messages_origin
+            if modern_expired:
+                self._invalidate_modern()
+            else:
+                self._invalidate()
             if not retry_safe:
                 raise
-        await self._authenticate(budget)
+        if not modern_expired:
+            await self._authenticate(budget)
         try:
-            return await fetch(budget, True)
-        except SessionExpiredError:
-            self._invalidate()
+            return await fetch(budget, not modern_expired)
+        except SessionExpiredError as error:
+            if error._messages_origin:
+                self._invalidate_modern()
+            else:
+                self._invalidate()
             raise
 
     async def _page[T](
@@ -1563,11 +1582,18 @@ class AccountClient:
         content_type: str = HTML,
     ) -> T:
         """One authenticated request whose body a pure parser turns into data."""
-        response = await self._transport.request(
-            endpoint, budget, form=form, reference_id=reference
-        )
-        self._validate_read_response(response, content_type)
-        return await self._service._parsers.run(parse, response.body, budget)
+        try:
+            response = await self._transport.request(
+                endpoint, budget, form=form, reference_id=reference
+            )
+            self._validate_read_response(response, content_type)
+            return await self._service._parsers.run(parse, response.body, budget)
+        except BaseException as error:
+            if ENDPOINTS[endpoint].origin == "messages":
+                self._invalidate_modern()
+                if isinstance(error, SessionExpiredError):
+                    error._messages_origin = True
+            raise
 
     def _check_cooldown(self, key: str) -> None:
         cooldown = self._cooldowns.get(key)
@@ -1580,6 +1606,16 @@ class AccountClient:
         self._cache.clear()
         self._metadata.clear()
         self._transport.clear_auth()
+
+    def _invalidate_modern(self) -> None:
+        self._modern_account = None
+        for key in tuple(self._cache):
+            if isinstance(key, tuple) and str(key[0]).startswith("modern_"):
+                del self._cache[key]
+        if self._transport_instance is not None:
+            clear = getattr(self._transport_instance, "clear_modern_auth", None)
+            if callable(clear):
+                clear()
 
     def _session_identity(self) -> Identity:
         assert self._identity is not None

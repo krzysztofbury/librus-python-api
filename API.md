@@ -241,6 +241,14 @@ Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts
 
 ## Modern messaging (0.4.7, offline-qualified only)
 
+0.4.11 revalidates bound modern identity with one fresh GET before each send.
+The initial handoff already includes that GET; subsequent sends cost one GET plus
+one POST. Expiry before dispatch raises `SessionExpiredError` and leaves
+NOT_DISPATCHED. An exact launch-to-native-login redirect is expiry, not denial.
+Messages-origin failures clear only modern binding/cookies/cache; valid legacy
+sessions stay usable. A later explicit modern call can rebind, but no modern
+read/send is automatically retried. A race after preflight can still yield UNKNOWN.
+
 - `modern_identity(*, budget=None, max_age_seconds=0)` returns `ModernIdentity`:
   native `identity`, modern `account` metadata and an `observation`. Modern owner
   ID and available names must match the native owner. Only ordinary school roles

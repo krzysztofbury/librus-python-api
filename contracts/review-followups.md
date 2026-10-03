@@ -48,5 +48,25 @@ Safety findings and boundaries:
   competing-process/crash/replay paths. Source suite: 1,269 passed, one deselected.
   Ruff and strict typing pass. Installed qualification is a final release gate.
 
-Modern-session and edge-case post-change reviews will be recorded in their own
-scoped commits. All verification stays offline with independently authored fixtures.
+## Modern-session slice post-change review
+
+- Exact modern-launch redirects to native login routes report SESSION_EXPIRED;
+  unsupported/foreign account handoffs remain denied and are never followed.
+- Every send verifies modern identity freshly under the same account operation
+  lock and shared request budget. A cold binding already performs this GET; a warm
+  binding costs exactly one additional GET. Preflight expiry/denial stops before
+  POST and preserves NOT_DISPATCHED. No write is retried.
+- Messages-origin expiry provenance is library-private and contains no URL/body.
+  It clears modern binding/cookies/cache only, not valid legacy identity/cookies.
+  Modern HTTP/validation failures also clear modern state. A proven native launch
+  expiry still invalidates native state. Existing modern read retry policies remain
+  unchanged: recovery occurs on a later explicit call, not implicit replay.
+- Original public two-origin regressions failed before the fixes for login redirect
+  classification, omitted warm preflight and legacy invalidation after a modern
+  401. They pass after the changes. Full source suite: 1,276 passed, one deselected;
+  Ruff/typing pass. Warm concurrent sends now budget their two distinct preflights.
+- A preflight cannot eliminate expiry between GET and POST. Post-dispatch errors
+  still retain UNKNOWN, clear the modern binding and never replay the message.
+
+The edge-case post-change review will be recorded in its own scoped commit. All
+verification stays offline with independently authored fixtures.

@@ -7,6 +7,23 @@ Successful modern recipient discovery does not qualify legacy lookup or sending.
 fallback, account-setting mutation or cross-backend ID reuse is implemented.
 No modern send or positive acknowledgement has been observed live.
 
+## 0.4.11 offline session recovery
+
+A launch redirect to an exact native login route reports SESSION_EXPIRED, not
+ACCESS_DENIED, without following it. Foreign origins, mismatched login/token/target
+and unsupported handoff shapes remain denied. This classification does not establish
+the still-unqualified replacement live handoff layout.
+
+Every modern send freshly verifies the existing side-effect-free modern identity
+GET before dispatch. Cold binding already includes this GET; a warm binding adds
+one GET to the caller's shared budget. Failure leaves NOT_DISPATCHED. Modern
+401/403 and transport/validation errors clear modern binding/cookies/cache without
+discarding a valid legacy session. A proven native launch expiry still expires
+native state. Existing retry-safe flags are unchanged: a later explicit call may
+rebind modern state, but this slice never automatically retries a modern read or
+write. Revalidation cannot prevent expiry between GET and POST; potential dispatch
+still means UNKNOWN until a definitive acknowledgement and is never replayed.
+
 ## Independently observed read-only discovery
 
 One separately approved account context used the qualified installed 0.4.6 wheel
