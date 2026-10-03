@@ -36,7 +36,7 @@ Rules that hold for every release:
 | `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
 | `0.4.7` | Explicit modern identity, council discovery and single-use JSON sending | Implemented; offline qualification recorded in VERIFICATION.md; positive acknowledgements and sole-recipient live send remain gated |
 | `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
-| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Implemented; source-qualified, installed artifact qualification pending; final 0.4 persistence prerequisite, not full compatibility closure |
+| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Implemented; 50 original notification fault/load cases, source/wheel/sdist qualified on Python 3.13/3.14; final 0.4 persistence prerequisite, not full compatibility closure |
 | `0.5.x` | Modern authentication, broader communication coverage and live qualification | Planned; explicit evidence/consent gates below |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
@@ -91,9 +91,10 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   token-scoped counts use typed categories. No orchestration/seen state/hashes.
 - [ ] Qualify read-once layouts on a dedicated test login with disposable events
   and separately approved recovery integration. Routine live checks exclude it.
-- [ ] API notification seen state, canonical hashes, pending replay and
-  migrations: now included in the expanded 0.4 delivery through the API's explicit
-  optional persistence layer. MCP receives only thin compatibility adapters.
+- [x] 0.4.9: API notification seen state, canonical identities, raw/pending replay,
+  explicit acknowledgement and neutral empty-target archive import/export through
+  the optional persistence layer. No automatic schema or production-state migration.
+  MCP's thin old-format compatibility adapter remains a separate migration task.
 - [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
   exact nonzero group forms qualified offline. Four independent contexts observe
   five named types, an anonymous target, unavailable class-dependent lookup,
@@ -142,7 +143,7 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
 | S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
-| S3 | Persistent notifications and checkpoint replay, 0.4.9 | Implemented offline: explicit native store/workflow, canonical identities, first-run/requested-category semantics, raw checkpoint before parsing, bounded replay before consume, two-phase acknowledgement, neutral archive and competing-process proofs. Source qualified; installed artifacts pending. MCP old-format mapping remains a separate migration task |
+| S3 | Persistent notifications and checkpoint replay, 0.4.9 | Done offline: explicit native store/workflow, canonical identities, first-run/requested-category semantics, raw checkpoint before parsing, bounded replay before consume, two-phase acknowledgement, neutral archive and competing-process proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP old-format mapping remains a separate migration task |
 
 ### 0.5 TODO - Compatibility and live communication qualification
 
@@ -188,7 +189,7 @@ Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
 The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
-0.4.0-0.4.8 are implemented; 0.4.9 completes persistence. Sending is offline-qualified only, with the
+0.4.0-0.4.9 are implemented; 0.4.9 completes persistence. Sending is offline-qualified only, with the
 one-recipient live gate still pending. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification

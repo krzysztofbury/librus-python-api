@@ -5,13 +5,16 @@ in the Git history of this file.
 
 ## 0.4.9 (2026-10-03) - Optional durable notifications
 
-Source checkpoint, before version/artifact qualification:
+Final offline source and installed-artifact qualification:
 
 - Explicit optional native `NotificationStore`/`NotificationWorkflow`, separate
   private SQLite database, no core storage requirement and no MCP implementation
   or production-state changes. Independently authored code and original fixtures.
-- Python 3.13.15 and 3.14.7 each pass 1,235 portable tests (one performance test
-  deselected); Ruff lint/format and strict typing pass. Fifty new notification
+- Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+  pass 1,235 portable tests (one performance test deselected). Ruff lint/format,
+  strict typing, repository hooks, history secret scan and locked dependency audit
+  pass. Installed imports resolve inside each environment; version/MIT metadata,
+  license files, `py.typed` and dependency compatibility checks pass. Fifty new notification
   cases exercise actual public-native loopback and real disposable SQLite.
 - Durable raw encoded bodies/metadata precede parsing; malformed markup, MIME,
   gzip and coding stay retained. An uncertain pre-checkpoint marker blocks fresh
@@ -47,9 +50,11 @@ Source checkpoint, before version/artifact qualification:
   review is claimed. No new HTML/UI layout, route or parser contract changes;
   existing independent same-byte/browser evidence retains its original scope.
 
-Installed wheel/sdist qualification and final sanitized artifact evidence remain
-pending at this source checkpoint. Source-test scratch/databases/workers were
-cleaned. All new HTTP traffic was loopback: zero live Librus requests, credentials
+Qualified local archives in `dist/0.4.9/` total 593,555 bytes; sanitized hashes
+and results are in `release-evidence/0.4.9-notification-qualification.json`. Their
+documentation captures the source checkpoint; this final log supersedes its
+pending installed gate. Task-owned environments, databases, workers and scratch
+were cleaned. All new HTTP traffic was loopback: zero live Librus requests, credentials
 or sends. POSIX context locks do not coordinate global traffic across independent
 processes. Delivery is at-least-once, not exactly-once or historical catch-up.
 Modern authentication, broader coverage and live qualification remain in the 0.5

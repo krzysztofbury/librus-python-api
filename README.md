@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.8`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.9`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
