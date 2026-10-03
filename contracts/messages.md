@@ -56,7 +56,7 @@ are deleted. Agreement with apix is not a correctness oracle.
 | `message_content` | Implemented in 0.4.2 | Explicit potential mark-read consent, full text and send/read civil timestamps; qualified only for an already-read received message |
 | Attachment indicator | `has_attachment` | Indicator only; separate native streams implemented in 0.4.3, not an apix capability |
 | Notification helpers / read-once events | Primitives implemented in 0.4.4 | Durable response handoff and local replay; consumer owns orchestration/persistence, live consume unqualified |
-| `send_message` | Plan-only | Separate approval gate; no live send in list qualification |
+| `send_message` | Implemented in 0.4.6 as `prepare_send` / `SendAttempt.execute` | Separate single-use write path; source-informed/offline-qualified only, no live send |
 
 Live qualification is limited to one login: a populated two-row received page
 and an explicitly empty sent page. Populated sent rows, multi-page metadata,
@@ -78,9 +78,9 @@ and populated sent pagination remain pending.
 
 Each version is independently tested and locally packaged. No consumer changes
 or PyPI publication are part of these increments.
-The 0.4 PR retains the separate increment commits. After 0.4.0-0.4.4, broaden
-coverage in 0.4.5, then implement sending as the final library increment in the
-same PR. This ordering does not authorize live discovery or sending.
+The 0.4 PR retains separate increment commits through 0.4.6. Sending is the
+final library increment after 0.4.5 coverage, with offline qualification only.
+This ordering does not authorize live discovery or sending.
 
 1. **0.4.0 - Lists:** ordinary received/sent summaries and bounded continuation.
 2. **0.4.1 - Recipient discovery:** source/account-bound groups and recipients,
@@ -100,8 +100,8 @@ same PR. This ordering does not authorize live discovery or sending.
    original fixtures and record live gaps honestly. Fresh bounded approval is
    needed for live discovery, including specific consent for received opens.
    This increment excludes sends, read-once consumption and consumer migration.
-7. **Sending - final increment in the same PR, version not assigned:** agree on
-   the contract and qualification scope before implementation. The proposed boundary is a
+7. **0.4.6 - Sending, final increment in the same PR:** the approved single-use
+    attempt contract is implemented in [sending.md](sending.md). The boundary is a
    validated unique account-bound recipient set, bounded subject/body, exactly
    one dispatch and typed accepted/rejected/unknown-delivery outcomes. Timeout,
    cancellation or an unknown response after dispatch must never cause replay,
@@ -115,7 +115,7 @@ same PR. This ordering does not authorize live discovery or sending.
    sender and the automation test, say that no reply is needed, and apologize for
    the unsolicited message. Keep the recipient and exact text outside this public
    repository. This case belongs to the separate sending increment, not 0.4.2;
-   it does not bypass offline fault tests, exact-recipient/sender verification or
+    it does not bypass offline fault tests, exact-recipient/sender verification or
    fresh bounded authentication/discovery approval. At most one send dispatch,
    with no retry or fallback after an ambiguous result.
 

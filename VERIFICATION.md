@@ -3,6 +3,92 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.6 (2026-10-03) - Single-use sending, offline only
+
+### Design, scope and evidence boundary
+
+Owner-approved single-use attempts freeze validated payloads locally and retain
+inspectable outcomes across cancellation. This is the final library increment
+in PR #13. Implementation approval did not authorize live discovery or sending:
+zero Librus requests and zero live send dispatches were made in this increment.
+The privately recorded one-recipient/one-message/one-dispatch qualification plan
+still requires exact sender/recipient/payload verification and fresh bounded
+approval. No group, extra, substitute or fallback recipient is allowed.
+
+The legacy send form and acknowledgement placement are source-informed, not
+independently observed live. Apix 1.5.3 remains a business reference only; no code
+or fixtures were copied. Public fixtures contain invented messages and IDs.
+Library acceptance does not prove delivery/read state, and no upstream
+idempotency or durable-outbox guarantee is claimed.
+
+### Offline qualification and review
+
+- Source, final installed wheel and final installed sdist each pass 1,061 tests
+  on Python 3.13.15 and 3.14.7; one opt-in performance case is deselected. Lint,
+  formatting, strict typing, hooks, worktree/history secret scans and locked
+  dependency audit pass. Built metadata, MIT license and py.typed are checked.
+- Route parity covers 36 explicit operation IDs on 35 distinct method/path
+  pairs. Sending is an explicit, independently validated OpenAPI request variant
+  on the sent-list URL, not an implicit catalogue alias. Missing/duplicate
+  variants, policy drift and invalid variant schemas fail validation. Generic
+  request cannot enter the send variant; pagination still permits only its own
+  exact two fields. No new arbitrary authenticated URL or form interface.
+- The public preparation/execute path proves exact repeated DoKogo fields and
+  fixed form values, preserved Unicode/line endings/order, immutable payloads,
+  field/count/control validation and a whole encoded-form byte boundary. Limits
+  are library policy, not observed upstream maxima. Distinct attempts do not
+  coalesce or reuse a send result; repeated/concurrent execution of the same
+  attempt cannot dispatch again.
+- Real loopback boundaries cover authentication, account-lock waiting, shared
+  scheduler waiting and HTTP dispatch. Cancellation, timeout and service shutdown
+  before dispatch retain NOT_DISPATCHED; after dispatch they retain UNKNOWN.
+  Joined completion prevents orphaned work, and terminal ACCEPTED/REJECTED
+  snapshots survive cancellation at worker completion. Closed service, invalid
+  budgets, exhausted auth/request budgets, denied credentials and saturated
+  operation/queue admission never falsely mark dispatch.
+- Disconnects before acknowledgement, partial response EOF, redirects, HTTP
+  errors, wrong MIME types, encoded response limits, parser-input limits and
+  response budgets never produce success or a retry. Session expiry invalidates
+  authentication without resubmitting credentials or sending again. Unknown and
+  contradictory markers remain uncertain; exact negative wording is not matched
+  as a positive substring. No sent-folder similarity heuristic is implemented.
+- Cache proofs invalidate sent-page and sent-batch results at potential dispatch,
+  including an unknown acknowledgement, without needlessly clearing received
+  summaries. Custom transport failures keep dispatch state and redact private
+  exception text/causes and diagnostics. Custom transports must uphold the
+  library-owned dispatch callback boundary; their actual network actions cannot
+  be independently inferred by the service.
+- Four isolated accounts representing the same synthetic student each submit a
+  maximum 50-recipient, 200-character subject, 15,000-character body under one
+  exact 24-request shared budget, with no account/session merging. These are
+  loopback fixtures, not permission to contact any additional live recipient.
+- Pair-programmer checklist self-review checked TigerStyle #2 bounded work,
+  #6 unsupported/negative space, #12 full failure handling and #13 explicit
+  transport defaults. It found that acknowledgement markup quoted inside a
+  message body could be mistaken for acceptance. An original regression failed
+  before the parser rejected message-content containers, then passed after the
+  correction. No independent subagent approval is claimed.
+- An optional inert apix comparison and real Chromium render use identical bytes
+  from three original acknowledgement fixtures, with scripts/networking disabled.
+  Native classifies accepted/rejected/unknown as designed; apix returns false for
+  all three, including the positive marker. This is a classified semantic
+  difference, not a fallback or live qualification. All final artifact suites
+  exercise actual installed public API loopback writes and their fault paths.
+
+### Retained artifacts and remaining gates
+
+Only sanitized `release-evidence/0.4.6*` and qualified local wheel/sdist archives
+in `dist/0.4.6/` are retained. Task-owned build/qualification environments and
+logs are deleted. No private live captures were created, and no message was sent.
+
+Live form compatibility, exact acknowledgement wording/placement and the
+single-recipient manual qualification remain pending. A missing/unknown success
+marker must not be broadened by guessing. Sender identity/recipient resolution
+and a fresh live budget remain required; the prior 0.4.5 allowance is exhausted.
+Consumer preview/confirmation, persistent attempts, crash recovery and manual
+reconciliation remain consumer-owned and separately authorized. MCP migration,
+credentialed CI, PR merge and PyPI publication were not performed.
+
 ## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
 
 ### Contracts, proofs and review

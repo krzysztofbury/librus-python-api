@@ -41,6 +41,7 @@ type OperationName = Literal[
     "notification_counts",
     "consume_schedule_events",
     "decode_schedule_events",
+    "send_message",
 ]
 
 
@@ -89,6 +90,28 @@ class AttendanceView(StrEnum):
 class MessageFolder(StrEnum):
     RECEIVED = "received"
     SENT = "sent"
+
+
+class SendStatus(StrEnum):
+    NOT_DISPATCHED = "not_dispatched"
+    UNKNOWN = "unknown"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True, slots=True)
+class SendSubmission:
+    recipients: tuple["RecipientReference", ...] = field(repr=False)
+    subject: str = field(repr=False)
+    body: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SendResult:
+    status: SendStatus
+    reason: ErrorKind | Literal["cancelled"] | None = None
+    identity: "Identity | None" = field(default=None, repr=False)
+    observation: "Observation | None" = field(default=None, repr=False)
 
 
 class NotificationCategory(StrEnum):

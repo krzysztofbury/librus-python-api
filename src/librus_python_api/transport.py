@@ -36,6 +36,7 @@ from librus_python_api.config import (
     Endpoint,
     SideEffect,
     TransportLimits,
+    encode_send_form,
     recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -45,6 +46,7 @@ from librus_python_api.models import (
     MessageAttachmentReference,
     RequestForm,
     ScheduleEventWire,
+    SendSubmission,
     TransportResponse,
 )
 from librus_python_api.scheduler import RequestScheduler
@@ -65,6 +67,13 @@ class AccountTransport(Protocol):
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+    ) -> TransportResponse: ...
+
+    async def send_message(
+        self,
+        submission: SendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
     ) -> TransportResponse: ...
 
     async def follow(
@@ -206,6 +215,7 @@ class AiohttpTransport:
         if endpoint.origin == "download" or endpoint_id in {
             "attachment_resolve",
             "consume_schedule_events",
+            "send_message",
         }:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
@@ -220,6 +230,60 @@ class AiohttpTransport:
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
         return await self._request(endpoint, url, budget, form)
+
+    async def send_message(
+        self,
+        submission: SendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse:
+        payload = encode_send_form(submission, self._account)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(self._send_exchange, payload, budget, dispatched),
+            )
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError, zlib.error):
+            kind = ErrorKind.PARSE
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _send_exchange(
+        self, payload: bytes, budget: RequestBudget, dispatched: Callable[[], None]
+    ) -> TransportResponse:
+        endpoint = ENDPOINTS["send_message"]
+        session = self._get_session()
+        proxy = self._connection.proxy_url
+        dispatched()
+        async with session.post(
+            self._url(endpoint),
+            data=payload,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"
+            },
+            allow_redirects=False,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            if len(session.cookie_jar) > self._limits.max_cookies:
+                session.cookie_jar.clear()
+                raise LibrusError(ErrorKind.LIMIT)
+            self._check_status(response)
+            body = await self._read_body(response, budget)
+            return TransportResponse(
+                response.status,
+                body,
+                str(response.url),
+                MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
+            )
 
     async def consume_schedule_events(
         self,

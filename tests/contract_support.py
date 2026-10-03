@@ -1,6 +1,7 @@
 """Test-owned OpenAPI validation and central route-catalogue parity helpers."""
 
 from collections.abc import Mapping
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -43,22 +44,44 @@ def check_contract(spec: dict[str, Any], endpoints: Mapping[str, Endpoint]) -> N
         raise ValueError("Path-item references are not supported")
     if spec["info"]["version"] != __version__:
         raise ValueError("Contract version differs from the package version")
-    expected: dict[tuple[str, str], Endpoint] = {}
+    expected: dict[tuple[str, str, str], Endpoint] = {}
     for name, endpoint in endpoints.items():
         if name != endpoint.operation_id:
             raise ValueError("Catalogue key differs from operation ID")
-        route = (endpoint.path, endpoint.method.lower())
+        route = (endpoint.path, endpoint.method.lower(), name)
         if route in expected:
             raise ValueError("Duplicate catalogue route")
         expected[route] = endpoint
-    actual = {
+    physical = {
         (path, method): operation
         for path, item in spec["paths"].items()
         for method, operation in item.items()
         if method in HTTP_METHODS
     }
-    if actual.keys() != expected.keys():
+    if physical.keys() != {(p, m) for p, m, _ in expected}:
         raise ValueError("OpenAPI paths/methods differ from the route catalogue")
+    actual = {}
+    for (path, method), operation in physical.items():
+        variants = operation.get("x-request-variants", [])
+        if not isinstance(variants, list):
+            raise ValueError("Request variants must be explicit operations")
+        for entry in [operation, *variants]:
+            if not isinstance(entry, dict) or not isinstance(
+                entry.get("operationId"), str
+            ):
+                raise ValueError("Request variant needs an operation ID")
+            variant_key = (path, method, entry["operationId"])
+            if variant_key in actual:
+                raise ValueError("Duplicate contract operation")
+            actual[variant_key] = entry
+            if entry is not operation:
+                variant_spec = deepcopy(spec)
+                variant_spec["paths"][path][method] = entry
+                OpenAPIV30SpecValidator(variant_spec).validate()
+    if actual.keys() != expected.keys():
+        raise ValueError(
+            "Contract metadata mismatch: undeclared request variant or operation"
+        )
     for route, endpoint in expected.items():
         operation = actual[route]
         required = {

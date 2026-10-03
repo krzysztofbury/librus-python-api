@@ -65,7 +65,14 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   through EOF/cleanup, await demand before each chunk, and close before returning.
   In 0.4.4 they also implement `consume_schedule_events`: complete encoded
   payload receipt must initiate/await checkpoint ownership inside the scheduled
-  worker before returning to the service, not after scheduler delivery.
+   worker before returning to the service, not after scheduler delivery.
+  In 0.4.6 implement `send_message(submission, budget, dispatched)`: validate and
+  encode the fixed send form before admission, invoke the library-owned synchronous
+  `dispatched` callback once immediately before entering the HTTP send, never
+  follow/retry, and join cancellation before returning. Missing methods are
+  unsupported, never a fallback to the generic `request` method. Custom transports
+  must uphold the callback boundary; the library cannot prove what a third-party
+  transport actually sends. Generic `request("send_message", ...)` is prohibited.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -224,6 +231,61 @@ selected mailbox view, so its POST is never replayed, including after expiry.
 Page and batch caches are separate and fresh by default.
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
+
+## Sending (0.4.6, offline-qualified only)
+
+`prepare_send(*, recipients: tuple[RecipientReference, ...], subject: str,
+body: str)` returns a `SendAttempt` without network access. It validates same-login
+recipient/type/selection references, unique recipient IDs, 1-50 recipients,
+1-200 subject characters, 1-15,000 body characters and a 64 KiB complete encoded
+form limit. Blank fields, invalid Unicode and unsupported control characters
+fail before I/O. Body TAB/CR/LF are preserved; subject controls are not accepted.
+Text, line endings and recipient order are never silently changed or truncated.
+
+`attempt.submission` is an immutable `SendSubmission(recipients, subject, body)`;
+its repr omits content. `attempt.used` becomes true when execution first starts,
+before any await. `await attempt.execute(budget=...)` consumes it even on
+pre-dispatch failure. Concurrent/repeated execution raises `InvalidInputError`
+without mutating the original outcome or dispatching again. No caching,
+coalescing, redirects, automatic retry, recipient lookup or send-time fallback.
+Normal bounded initial authentication is possible; expiry after the send never
+reauthenticates and replays the write.
+
+`attempt.outcome` is an immutable `SendResult(status, reason, identity,
+observation)` snapshot. Initially `status=SendStatus.NOT_DISPATCHED`. The
+snapshot remains provisional while execution is running: seeing NOT_DISPATCHED
+then is not permission to start another attempt. Await completion or joined
+cancellation before reconciliation. `used` means consumed, not completed. The
+dedicated scheduled HTTP boundary changes it to UNKNOWN; only a recognized
+acknowledgement changes it to ACCEPTED or REJECTED. Acceptance means upstream
+acceptance, not delivery or reading. HTTP status, redirects or sent-folder
+similarity alone cannot establish success. Form/acknowledgement shapes are
+source-informed, with original offline fixtures, not live-compatible claims.
+
+Pre-dispatch errors raise existing typed errors and retain NOT_DISPATCHED.
+Ordinary failures after the boundary return UNKNOWN with a closed `ErrorKind`
+reason, never raw exceptions/responses. Cancellation propagates
+`asyncio.CancelledError` after joined cleanup; inspect `attempt.outcome` afterwards.
+Its reason is `"cancelled"` unless a terminal acknowledgement was already
+established. Shutdown preserves these cancellation semantics for the send path.
+Sender identity/observation are bound at the potential-dispatch boundary, not
+invented for failures before it. Sent page/batch caches are invalidated there,
+including uncertain sends; unrelated received summaries remain cached unless
+session invalidation requires a full clear. Diagnostic `ok` means classified
+completion, not necessarily ACCEPTED; inspect the typed result.
+
+Attempts are process-local, not confirmation tokens, a durable outbox or
+upstream idempotency. Constructing another attempt can duplicate delivery; no
+automatic retry of UNKNOWN or cancelled attempts is safe. The consumer owns
+preview/confirmation, durable attempt records and any manual reconciliation.
+References are structural values, not proof of consent or intended identity.
+No attachment upload, reply, forward or scheduled-send API is introduced.
+
+No live send is authorized by installation or this API. Qualification remains
+separately gated to the one privately specified recipient, one approved message
+and at most one dispatch, after exact sender/recipient/payload verification and
+fresh bounded discovery approval. No additional/group/substitute recipient or
+fallback is allowed. See [the send contract](contracts/sending.md).
 
 ## Message content
 

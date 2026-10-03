@@ -46,6 +46,7 @@ from librus_python_api.config import (
     agenda_form,
     attendance_view_form,
     completed_lessons_form,
+    encode_send_form,
     grade_view_form,
     homework_form,
     message_page_form,
@@ -96,6 +97,7 @@ from librus_python_api.models import (
     RecipientGroupChoices,
     RecipientGroupReference,
     RecipientGroups,
+    RecipientReference,
     Recipients,
     RequestForm,
     ScheduleEventResponse,
@@ -104,6 +106,8 @@ from librus_python_api.models import (
     SchedulerSnapshot,
     SchoolDetail,
     SchoolReference,
+    SendResult,
+    SendSubmission,
     StudentInformation,
     SubjectFrequencies,
     SubjectFrequency,
@@ -130,6 +134,7 @@ from librus_python_api.school_reads import (
     parse_homework,
     parse_school_detail,
 )
+from librus_python_api.sending import SendAttempt, parse_send_acknowledgement
 from librus_python_api.timetable import parse_timetable
 from librus_python_api.transport import (
     AccountTransport,
@@ -324,6 +329,44 @@ class AccountClient:
             self._transport_instance = self._service._transport(self._alias)
         return self._transport_instance
 
+    def prepare_send(
+        self, *, recipients: tuple[RecipientReference, ...], subject: str, body: str
+    ) -> SendAttempt:
+        if self._service._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        submission = SendSubmission(recipients, subject, body)
+        encode_send_form(submission, self._alias)
+        return SendAttempt(self, submission)
+
+    async def _execute_send(
+        self, attempt: SendAttempt, budget: RequestBudget | None
+    ) -> SendResult:
+        encode_send_form(attempt.submission, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> SendResult:
+            send = getattr(self._transport, "send_message", None)
+            if not callable(send):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+            def dispatched() -> None:
+                attempt._dispatch(
+                    self._session_identity(), self._observation("send_message")
+                )
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_sent":
+                        del self._cache[key]
+
+            response = await send(attempt.submission, budget, dispatched)
+            self._validate_read_response(response, HTML)
+            status = await self._service._parsers.run(
+                parse_send_acknowledgement, response.body, budget
+            )
+            return attempt._acknowledge(status)
+
+        return await self._uncached(
+            "send_message", fetch, budget, authenticate=True, preserve_cancellation=True
+        )
+
     # Public reads: validate input, then describe one fetch for _read.
 
     async def notification_counts(
@@ -442,6 +485,7 @@ class AccountClient:
         budget: RequestBudget | None,
         *,
         authenticate: bool,
+        preserve_cancellation: bool = False,
     ) -> T:
         """Own one independent operation, without caching or coalescing."""
         service = self._service
@@ -470,14 +514,15 @@ class AccountClient:
             interrupted = await join_owned(task)
             self._release_operation()
             if (
-                not task.cancelled()
+                not preserve_cancellation
+                and not task.cancelled()
                 and (error := task.exception()) is not None
                 and isinstance(error, LibrusError)
                 and error.kind is ErrorKind.CHECKPOINT
             ):
                 raise LibrusError(ErrorKind.CHECKPOINT) from None
             if cancelled or interrupted:
-                if service._closed:
+                if service._closed and not preserve_cancellation:
                     raise LibrusError(ErrorKind.CLOSED) from None
                 raise asyncio.CancelledError
 

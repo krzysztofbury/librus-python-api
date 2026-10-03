@@ -80,6 +80,9 @@ from librus_python_api.models import (
     SchoolAverage,
     SchoolDetail,
     SchoolReference,
+    SendResult,
+    SendStatus,
+    SendSubmission,
     StudentInformation,
     SubjectFrequencies,
     SubjectFrequency,
@@ -91,11 +94,16 @@ from librus_python_api.models import (
     TimetableLesson,
     TimetablePeriod,
 )
+from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 
 __all__ = [
+    "SendAttempt",
+    "SendResult",
+    "SendStatus",
+    "SendSubmission",
     "RecipientGroupChoice",
     "RecipientGroupChoices",
     "MessageRecipientReceipt",

@@ -8,13 +8,14 @@ There is intentionally no public arbitrary authenticated URL interface.
 import calendar
 import re
 import ssl
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
 from types import MappingProxyType
 from typing import Annotated, Any, Literal, Self
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from pydantic import (
     BaseModel,
@@ -28,7 +29,13 @@ from pydantic import (
 )
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import AttendanceView, GradeView, MessageFolder
+from librus_python_api.models import (
+    AttendanceView,
+    GradeView,
+    MessageFolder,
+    RecipientReference,
+    SendSubmission,
+)
 
 HttpMethod = Literal["GET", "POST"]
 
@@ -361,6 +368,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "send_message",
+                "POST",
+                "/wiadomosci/1/6",
+                SideEffect.SEND_MESSAGE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
                 "recipient_groups",
                 "GET",
                 "/wiadomosci/2/6",
@@ -620,6 +635,12 @@ MESSAGE_MAX_CONTENT_LENGTH = 65536
 MESSAGE_MAX_ATTACHMENTS = 20
 MESSAGE_MAX_RECIPIENT_RECEIPTS = 256
 MESSAGE_MAX_RECEIPT_TEXT_LENGTH = 131072
+SEND_MAX_RECIPIENTS = 50
+SEND_MAX_SUBJECT_CHARACTERS = 200
+SEND_MAX_BODY_CHARACTERS = 15000
+SEND_MAX_REQUEST_BYTES = 64 * 1024
+SEND_ACCEPTED_TEXT = "Wiadomość została wysłana."
+SEND_REJECTED_TEXT = "Wiadomość nie została wysłana."
 ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 ATTACHMENT_CHUNK_BYTES = 64 * 1024
 ATTACHMENT_MAX_LOCATION_LENGTH = 2048
@@ -658,6 +679,58 @@ def recipient_form(group_type: str, *, selection_id: str = "0") -> dict[str, str
         "czyWirtualneKlasy": "false",
         "idGrupy": selection_id,
     }
+
+
+def encode_send_form(submission: SendSubmission, account: str) -> bytes:
+    """Exact bounded legacy send variant; text is never silently transformed."""
+    if (
+        not isinstance(submission, SendSubmission)
+        or type(submission.recipients) is not tuple
+        or not 1 <= len(submission.recipients) <= SEND_MAX_RECIPIENTS
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    for value, limit, whitespace in (
+        (submission.subject, SEND_MAX_SUBJECT_CHARACTERS, ""),
+        (submission.body, SEND_MAX_BODY_CHARACTERS, "\r\n\t"),
+    ):
+        if (
+            type(value) is not str
+            or not 1 <= len(value) <= limit
+            or not value.strip()
+            or any(
+                unicodedata.category(c) in {"Cc", "Cs"} and c not in whitespace
+                for c in value
+            )
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+    seen: set[str] = set()
+    fields = [("filtrUzytkownikow", "0"), ("idPojemnika", "")]
+    for reference in submission.recipients:
+        if (
+            not isinstance(reference, RecipientReference)
+            or reference.account != account
+            or type(reference.identifier) is not str
+            or re.fullmatch(r"[0-9]{1,64}", reference.identifier) is None
+            or reference.identifier in seen
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        recipient_form(reference.group_type, selection_id=reference.selection_id)
+        seen.add(reference.identifier)
+        fields.append(("DoKogo", reference.identifier))
+    fields.extend(
+        (
+            ("Rodzaj", "0"),
+            ("temat", submission.subject),
+            ("tresc", submission.body),
+            ("poprzednia", "5"),
+            ("fileStorageIdentifier", ""),
+            ("wyslij", "Wyślij"),
+        )
+    )
+    payload = urlencode(fields, encoding="utf-8", errors="strict").encode("ascii")
+    if len(payload) > SEND_MAX_REQUEST_BYTES:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return payload
 
 
 def message_page_form(folder: MessageFolder, page: int) -> dict[str, str]:

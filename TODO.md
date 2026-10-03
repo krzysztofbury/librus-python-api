@@ -32,7 +32,7 @@ Rules that hold for every release:
 | `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
 | `0.4.4` | Notification/checkpoint primitives | Done locally for count snapshots and offline checkpoint/replay; read-once live/consumer compatibility pending |
 | `0.4.5` | Broader recipient selection and message-layout coverage | Implemented: choice discovery, selection-bound references, anonymous targets, sent receipts and observed received pagination; broader gaps remain |
-| Sending (version TBD) | Validated one-attempt delivery | Final increment in the same 0.4 PR, after 0.4.5; plan and approve before implementation |
+| `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -97,11 +97,11 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   recipients, sent pagination, multiple-recipient receipt/status variants and
   richer/new layouts. No claimed universal layout coverage. Any new live scope
   requires fresh approval; received opens still need explicit mark-read consent.
-- [ ] Sending (version TBD), the final increment after 0.4.5 in the same PR:
-  approve the plan in
-  [contracts/messages.md](contracts/messages.md#featureversion-sequence) before
-  implementing validated single-attempt sending with typed unknown-delivery results, plus
-  MCP confirmation and token integration. Exercise offline only; never widen the
+- [x] 0.4.6, the final library increment in the same PR: approved single-use
+  attempt design implemented with typed uncertainty, exact fixed wire forms,
+  shared limits and offline cancellation/fault proofs. See
+  [contracts/sending.md](contracts/sending.md). MCP confirmation/token adapters
+  and persistent attempt state remain separate; never widen the
   daily check to sends, mark-read content or event consumption.
   Planned manual live test: at most one Polish automation-test message to one
   privately specified recipient, explicitly requiring no response and apologizing
@@ -116,8 +116,8 @@ Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
 The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
-0.4.0-0.4.5 are implemented, and sending is the
-last planned library increment. MCP migration is separate from this PR.
+0.4.0-0.4.6 are implemented. Sending is offline-qualified only, with the
+one-recipient live gate still pending. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification
 

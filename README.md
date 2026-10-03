@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.5`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.6`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -36,7 +36,10 @@ timetable, profile, messages and recipients were compared with Chromium's indepe
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Notification primitives do not own seen state or persistence. Sending is plan-only. Message-list live
+Notification primitives do not own seen state or persistence. Sending is implemented
+and offline-qualified only, through `prepare_send` and a single-use `SendAttempt`.
+No live message has been sent; form/acknowledgement compatibility remains pending.
+See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
 Content requires explicit potential mark-read consent; see
@@ -83,7 +86,7 @@ See [API.md](API.md) for every call, its result types and its limits.
 - **No silent partial data.** Unrecognized layouts raise typed errors instead
   of returning empty or partial results. A view disabled by the school is
   `ViewDisabledError`, not an empty list.
-- **No unsafe replays.** View-selection and content opens are never replayed.
+- **No unsafe replays.** View-selection, content opens and sends are never replayed.
   Hidden persistent-connection retries are disabled. Safe reads
   recover a proven session expiry with at most one new login. Credentials are
   never resubmitted by a retry policy.

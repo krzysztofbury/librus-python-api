@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.6 - Single-use sending attempts
+
+Local-first, offline qualification only. No live message sent or package published.
+
+- Local immutable payload preparation and single-use execution with inspectable
+  NOT_DISPATCHED, UNKNOWN, ACCEPTED and REJECTED outcomes.
+- Dedicated write transport, fixed repeated-recipient form, encoded-byte/field
+  limits and shared account/traffic budgets. No read cache/coalescing, replay,
+  redirects, recipient lookup or fallback backend.
+- Joined cancellation/shutdown preserve the attempt outcome. Unknown responses,
+  response loss, expired sessions and post-dispatch limits never imply rejection
+  or safe retry. Sent-list caches are conservatively invalidated at the boundary.
+- Source-informed send request variant documented separately from sent-list
+  pagination on the shared upstream URL, with validated OpenAPI parity.
+- Original loopback fault proofs, four-account full-payload workload and optional
+  inert same-byte Chromium/apix comparison. Live form/acknowledgement compatibility
+  and the one-recipient manual test remain separately approved future work.
+
 ## 0.4.5 - Recipient and mailbox coverage
 
 Local-first extension in the 0.4 PR; no sending or publication.
