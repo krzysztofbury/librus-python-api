@@ -79,6 +79,36 @@ bounded authorization. Modern mailbox content, attachments and reconciliation
 remain unsupported. Consumer migration, credentialed CI, merge and publication
 were not performed.
 
+### Later expanded-0.4 installed verification and narrow diagnosis
+
+The owner expanded the 0.4 delivery to include consumer-owned send/notification
+persistence and ordered completion gates. Full consumer backend migration, live
+sending, event consumption, merge and publication remain separately authorized.
+
+Two new separately approved scopes each allowed one credential submission and
+16 requests maximum. The installed qualified 0.4.7 wheel used ten requests in
+each scope. The first verified native sender/student identity, then rejected the
+modern launch redirect before a modern handoff or directory request. A separate
+launch-only diagnosis verified native identity again and confirmed HTTP 302,
+the expected HTTPS modern host, no query/fragment, and a ten-field path whose
+fixed layout does not match the implemented contract. No token URL was retained.
+The available redacted facts do not establish the replacement path literals;
+guessing a route or loosening the allowlist is not justified.
+
+Both scopes are closed with no rerun. There were zero modern handoffs, message
+preparations/sends, content opens, downloads, setting changes or read-once calls.
+S1 is blocked, not completed: the installed modern handoff/directory path is
+still live-unqualified. Native authentication used nine requests in these
+contexts, unlike the shorter synthetic fixture handshake. The strict boundary
+stopped safely but exposed a real compatibility gap requiring independently
+established redirect requirements and an original regression before a fix.
+
+Cumulative approved discovery/asset/verification scopes now total 74 HTTP
+requests and six credential submissions, with zero sends. Only sanitized facts
+are retained in `release-evidence/0.4.7-installed-modern-qualification.json`.
+Task-owned private identity captures and diagnostic runners are removed after
+inspection; older qualified archives are unchanged.
+
 ## 0.4.6 (2026-10-03) - Single-use sending, offline only
 
 ### Design, scope and evidence boundary

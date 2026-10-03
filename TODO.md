@@ -134,7 +134,7 @@ do not fabricate a library version or enable a default backend migration.
 
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
-| S1 | Installed modern authentication, identity and council verification | Library qualification; one separately approved login, one credential submission, 16 HTTP requests maximum, no send/content/read-once operations; stop on failure, no rerun |
+| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
 | S2 | Persistent send attempts and recovery | Consumer; account/backend/exact-payload-bound durable confirmation, atomic single-use claims, crash/uncertainty recovery without replay, bounded private storage and cross-process fault proofs |
 | S3 | Persistent notifications and checkpoint replay | Consumer; native raw-envelope adapter, canonical identities, existing-state compatibility, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before live consume and competing-process proofs |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
