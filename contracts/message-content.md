@@ -59,3 +59,32 @@ with independent Chromium rendering; the installed wheel streams that selected
 file. This closes that narrow metadata gap, not every handler/role/layout gap.
 The content method itself remains inert and never downloads automatically.
 See [the stream contract](attachments.md) for its separate limits and evidence.
+
+## 0.4.5 sent content and individual receipts
+
+Two independently captured sent opens show only subject/date metadata, without
+an `Adresat` row. A separate table has a one-cell `Przeczytano` heading spanning
+three columns, followed by two-cell recipient/date rows. Original invented
+fixtures protect this layout, missing/unknown values, mixed or duplicate receipt
+tables, incorrect spans and limits before a whole typed result can succeed.
+
+`correspondent=None` preserves the absent field. Ordered individual receipts
+preserve displayed recipient text and raw status, with a civil timestamp for
+reported dates and no timestamp for the source-informed `NIE` status. Equal
+labels are not merged; no upstream recipient ID or aggregate read time is
+invented. Existing received/global receipt behavior is unchanged. An absent
+individual table is not a claim that a message had no recipients.
+
+Individual receipt bounds are 256 rows, 4,096 characters per field and 128 KiB
+total text, plus existing whole-response/parser/operation budgets. Four maximum
+sent responses, including full bodies and attachment metadata, exercise the
+same exact shared 24-request budget as the existing received-content proof.
+
+Chromium independently checks metadata/body/receipt fields on identical private
+bytes with scripts/networking disabled. Apix 1.5.3 rejects the observed two-row
+metadata layout with ParseError; that is a classified capability difference,
+not a native fallback or proof that apix is the semantic oracle. The receipt
+and body semantics agree with the independent rendered evidence.
+
+No received content was opened in 0.4.5. Sent downloads, richer metadata,
+multiple-recipient live receipts and other read-status variants remain pending.

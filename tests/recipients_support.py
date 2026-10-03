@@ -40,3 +40,16 @@ def recipient_html(
         )
         + "</div></html>"
     )
+
+
+def choice_html(options: tuple[tuple[str, str, bool], ...] = ()) -> str:
+    """Observed empty selector plus independently invented populated options."""
+    choices = "".join(
+        f'<option value="{identifier}"{" disabled" if disabled else ""}>'
+        f"{escape(label)}</option>"
+        for identifier, label, disabled in options
+    )
+    return f"""<html><body><table><tr><td>
+    <select name="idGrupy" id="idGrupy"><option value="0"></option>{choices}</select>
+    <input type="button" value="Fixture choose"></td></tr></table>
+    <div><p class="msgEmptyTable">Wybierz grupę</p></div></body></html>"""

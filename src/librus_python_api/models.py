@@ -155,14 +155,24 @@ class AttachmentMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class MessageRecipientReceipt:
+    recipient: str = field(repr=False)
+    raw_status: str = field(repr=False)
+    read_timestamp: MessageTimestamp | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class MessageContentData:
     reference: MessageReference = field(repr=False)
-    correspondent: str = field(repr=False)
+    correspondent: str | None = field(repr=False)
     subject: str = field(repr=False)
     timestamp: MessageTimestamp = field(repr=False)
     read_timestamp: MessageTimestamp | None = field(repr=False)
     text: str = field(repr=False)
     attachments: tuple[MessageAttachment, ...] = field(repr=False)
+    recipient_receipts: tuple[MessageRecipientReceipt, ...] = field(
+        default=(), repr=False
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +221,7 @@ class Messages:
 class RecipientGroupReference:
     identifier: str = field(repr=False)
     account: str = field(repr=False)
+    selection_id: str = field(default="0", repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,12 +237,28 @@ class RecipientReference:
     identifier: str = field(repr=False)
     account: str = field(repr=False)
     group_type: str = field(repr=False)
+    selection_id: str = field(default="0", repr=False)
 
 
 @dataclass(frozen=True, slots=True)
 class Recipient:
     reference: RecipientReference = field(repr=False)
+    label: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupChoice:
+    reference: RecipientGroupReference = field(repr=False)
     label: str = field(repr=False)
+    available: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupChoices:
+    identity: "Identity" = field(repr=False)
+    group: RecipientGroupReference = field(repr=False)
+    items: tuple[RecipientGroupChoice, ...] = field(repr=False)
+    observation: "Observation"
 
 
 @dataclass(frozen=True, slots=True)

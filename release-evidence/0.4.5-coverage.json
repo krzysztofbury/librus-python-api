@@ -1,0 +1,59 @@
+{
+  "version": "0.4.5",
+  "date": "2026-10-03",
+  "offline": {
+    "source_tests_per_python": 981,
+    "installed_wheel_tests_per_python": 981,
+    "installed_sdist_tests_per_python": 981,
+    "python_versions": ["3.13", "3.14"],
+    "openapi_operations": 35,
+    "full_sent_accounts": 4,
+    "receipt_rows_per_full_sent_body": 256,
+    "shared_dispatches_for_full_sent_workload": 24,
+    "fixed_form_selection_and_cache_isolation": true,
+    "checklist_self_review": true,
+    "independent_subagent_approval": false
+  },
+  "live": {
+    "allowed_logins": 5,
+    "requests_per_login_cap": 32,
+    "discovery_requests": [20, 21, 20, 22],
+    "installed_smoke_requests": 22,
+    "used_logins": 5,
+    "used_requests": 105,
+    "sent_content_opens": 3,
+    "received_content_opens": 0,
+    "downloads_read_once_sends_deletes_settings_changes": 0,
+    "consumer_state_changes": false,
+    "observed_received_pages": 2,
+    "installed_received_rows": 56,
+    "installed_recipient_rows": 63,
+    "installed_unnamed_targets": 1,
+    "installed_unavailable_types": 1,
+    "populated_group_choices": 0,
+    "warm_cache_dispatches": 0
+  },
+  "comparison": {
+    "browser_responses": 60,
+    "browser_mismatches": 0,
+    "final_artifact_browser_replays": 4,
+    "final_library_matches_live_wheel": true,
+    "apix_version": "1.5.3",
+    "apix_common_mailbox_responses": 12,
+    "apix_common_mailbox_row_observations": 168,
+    "apix_common_named_recipient_responses": 25,
+    "apix_common_named_recipient_row_observations": 310,
+    "apix_common_field_mismatches": 0,
+    "anonymous_targets_omitted_by_apix": 5,
+    "sent_layouts_rejected_by_apix": 3
+  },
+  "gaps": [
+    "populated group choices and nonzero group dispatch",
+    "recursive and virtual-class selection",
+    "explicit empty-recipient success",
+    "sent pagination and newer mailbox layouts",
+    "multiple-recipient live receipts and richer read statuses",
+    "consumer migration, persisted-state compatibility and publication",
+    "sending design and separately approved live qualification"
+  ]
+}

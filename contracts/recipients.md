@@ -80,3 +80,40 @@ The strengthened parser is checked
 against every captured response with Chromium and the final installed artifact,
 without another credentialed call. This distinction is recorded, not called a
 second fresh live smoke of changed code.
+
+## 0.4.5 choice discovery and broader response layouts
+
+Four independent login contexts expose eight named types. Five return populated
+labelled checkbox lists; `sadmin` instead returns one matching pair of hidden
+`DoKogo`/`DoKogo_hid[]` numeric values without a displayed name. Native records
+preserve `label=None` for that exact shape, never fabricate a name or return an
+empty list. Page-level scripts remain inert. Unexpected visible data, controls,
+conflicting values or labels fail. Sending to an unnamed target is not authorized.
+
+The class-dependent parent-council type returned a class-unavailable UI notice
+on all contexts. It is a typed unsupported capability, not proof of zero
+recipients. Unknown notices/prompt states cannot silently coexist with a
+successful list of only recognizable rows.
+
+The `grupa` root displays a named `idGrupy` select, one blank value-zero option
+and a choose-group prompt on all contexts. `recipient_group_choices` returns
+its bounded nonzero choices; all observed option lists are empty. This is
+empty group discovery, not explicit empty-recipient success.
+
+Group/reference `selection_id` defaults to zero for compatibility. Positive
+numeric selections are allowed only for `grupa`; they preserve account/type/
+selection provenance in references and cache keys. The central five-field
+form still excludes recipient selections, credentials, body/subject and uploads,
+and fixes virtual-class selection to false. Root zero is never interpreted as
+all group members. Original loopback fixtures qualify populated choice parsing,
+selection wire forms, distinct caches and bounds, but nonzero dispatch and
+populated hierarchy are not observed live. No recursive or virtual-class
+selection is claimed. Availability metadata is not an authorization token.
+
+Independent Chromium checked every response. Apix agrees on common named
+recipient pairs and the eight type tokens; it loses the anonymous target and
+has no equivalent typed group-choice or unavailable-capability result. These
+are intentional semantic differences, not silently inherited omissions.
+Installed replay uses private independently rendered expectations through the
+public API; captures/expectations are deleted afterwards. Exact qualification
+and remaining gaps are in [VERIFICATION.md](../VERIFICATION.md).

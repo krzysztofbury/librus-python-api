@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.5 - Recipient and mailbox coverage
+
+Local-first extension in the 0.4 PR; no sending or publication.
+
+- Bounded group-choice discovery and account/type/selection-bound references,
+  fixed nonzero-group forms and isolated cache keys. Populated subgroup dispatch
+  is offline-qualified only; virtual classes remain disabled.
+- Preserve the observed unnamed hidden recipient as `label=None`; report a
+  class-unavailable notice as a typed capability error instead of an empty list.
+- Sent content with absent correspondent metadata and ordered individual read
+  receipts. No invented addressee, ID or aggregate timestamp; bounded whole results.
+- Four-account ordinary discovery adds independently checked received pagination,
+  five named recipient types, anonymous targets, empty group options and sent
+  content. Apix capability differences are classified rather than inherited.
+- Original failure regressions, maximum receipt/body workloads and private
+  Chromium expectations replayed against installed artifacts. Wider layouts,
+  explicit empty recipients and populated subgroup semantics remain pending.
+
 ## 0.4.4 - Notification and checkpoint primitives
 
 Local-first; no publication, sending or consumer migration. Read-once behavior

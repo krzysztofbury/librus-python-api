@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.4`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.5`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -23,15 +23,15 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Agenda | `agenda`, `agenda_detail` | Verified on two contexts, two months each |
 | Homework | `homework`, `homework_detail` | Verified: populated and empty |
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
-| Message lists | `messages_page`, `messages` | 0.4.3: page-zero received and sent rows, attachment/unread flags checked independently; pagination remains unqualified |
-| Recipient discovery | `recipient_groups`, `recipients` | 0.4.1: eight named groups; populated tutor, teacher and office lookups on one login, independently checked |
-| Message content | `message_content` | 0.4.3: already-read received content with one attachment; full text, read receipt and file reference independently checked |
+| Message lists | `messages_page`, `messages` | 0.4.5: one populated two-page received mailbox and page-zero sent rows; independent byte/browser comparison |
+| Recipient discovery | `recipient_groups`, `recipient_group_choices`, `recipients` | 0.4.5: four login contexts, five named types and an anonymous target; empty group options observed, populated selection remains offline-qualified |
+| Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
 | Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
 | Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
 | Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.4. School reads,
+not a claim that every family was called live again in 0.4.5. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).

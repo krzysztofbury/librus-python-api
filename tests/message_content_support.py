@@ -31,3 +31,20 @@ def attachment_html(
     return f"""<table><tr><td>{name}</td><td><img alt="download"
     onclick="window.location.href='/wiadomosci/pobierz_zalacznik/{message}/{identifier}';">
     </td></tr></table>"""
+
+
+def sent_content_html(
+    receipts: tuple[tuple[str, str], ...] = (
+        ("Fixture Office", "2026-10-03 09:00:00"),
+    ),
+) -> str:
+    """Original sent shape: no correspondent field, separate recipient receipts."""
+    rows = "".join(
+        f"<tr><td>{name}</td><td>{status}</td></tr>" for name, status in receipts
+    )
+    return f"""<html><body><table class="stretch"><tbody>
+    <tr><td>Temat</td><td>Fixture sent subject</td></tr>
+    <tr><td>Wysłano</td><td>2026-10-03 08:00:00</td></tr></tbody></table>
+    <div class="container-message-content">Fixture sent body<br>Second line</div>
+    <table class="stretch"><tbody><tr><td colspan="3">Przeczytano</td></tr>
+    {rows}</tbody></table></body></html>"""

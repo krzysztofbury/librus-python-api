@@ -142,7 +142,9 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
             )
         if valid and endpoint.operation_id == "recipients":
             assert isinstance(form, Mapping)
-            valid = form == recipient_form(form.get("typAdresata", ""))
+            valid = form == recipient_form(
+                form.get("typAdresata", ""), selection_id=form.get("idGrupy", "")
+            )
     else:
         valid = form is None
     if not valid:

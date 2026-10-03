@@ -15,10 +15,104 @@ from librus_python_api.exceptions import (
 )
 from librus_python_api.message_content import parse_message_content
 from tests.http_support import serve
-from tests.message_content_support import attachment_html, content_html
+from tests.message_content_support import (
+    attachment_html,
+    content_html,
+    sent_content_html,
+)
 from tests.reads_support import ReadsFixture
 
 REFERENCE = MessageReference(MessageFolder.RECEIVED, "101", "student")
+
+
+def test_sent_content_with_no_correspondent_preserves_ordered_individual_receipts() -> (
+    None
+):
+    ref = replace(REFERENCE, folder=MessageFolder.SENT)
+    data = parse_message_content(
+        sent_content_html(
+            (
+                ("Fixture Office", "2026-10-03 09:00:00"),
+                ("Same Fixture Name", "NIE"),
+                ("Same Fixture Name", "NIE"),
+            )
+        ).encode(),
+        ref,
+    )
+    assert data.correspondent is None and data.read_timestamp is None
+    assert data.subject == "Fixture sent subject"
+    assert data.timestamp.local == datetime(2026, 10, 3, 8)
+    assert data.text == "Fixture sent body\nSecond line"
+    assert [r.recipient for r in data.recipient_receipts] == [
+        "Fixture Office",
+        "Same Fixture Name",
+        "Same Fixture Name",
+    ]
+    stamp = data.recipient_receipts[0].read_timestamp
+    assert stamp is not None and stamp.local == datetime(2026, 10, 3, 9)
+    assert (
+        data.recipient_receipts[1].read_timestamp is None
+        and data.recipient_receipts[1].raw_status == "NIE"
+    )
+    assert "Fixture" not in repr(data.recipient_receipts[0])
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ('colspan="3"', 'colspan="2"'),
+        ("Fixture Office", ""),
+        ("2026-10-03 09:00:00", "2026-02-30 09:00:00"),
+        ("2026-10-03 09:00:00", "TAK"),
+        ("Fixture Office", "<script>unsafe()</script>"),
+        ("<td>Fixture Office</td>", '<td rowspan="2">Fixture Office</td>'),
+    ],
+)
+def test_sent_receipt_unknown_or_ambiguous_rows_fail_whole_content(
+    before: str, after: str
+) -> None:
+    with pytest.raises((ParseError, UnsupportedCapabilityError)):
+        parse_message_content(
+            sent_content_html().replace(before, after).encode(),
+            replace(REFERENCE, folder=MessageFolder.SENT),
+        )
+
+
+def test_duplicate_individual_receipts_or_mixed_global_receipt_are_rejected() -> None:
+    body = sent_content_html()
+    individual = body[
+        body.index('<table class="stretch"><tbody><tr><td colspan="3">') : body.index(
+            "</body>"
+        )
+    ]
+    for extra in (
+        individual,
+        '<table class="stretch"><tr><td>Przeczytano</td>'
+        "<td>2026-10-03 09:00:00</td></tr></table>",
+    ):
+        with pytest.raises(ParseError):
+            parse_message_content(
+                body.replace("</body>", extra + "</body>").encode(),
+                replace(REFERENCE, folder=MessageFolder.SENT),
+            )
+    with pytest.raises((ParseError, UnsupportedCapabilityError)):
+        parse_message_content(body.encode(), REFERENCE)
+
+
+@pytest.mark.parametrize(
+    "bound", ["MESSAGE_MAX_RECIPIENT_RECEIPTS", "MESSAGE_MAX_RECEIPT_TEXT_LENGTH"]
+)
+def test_sent_receipt_limits_are_errors_not_partial_results(
+    bound: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("librus_python_api.message_content." + bound, 1)
+    with pytest.raises(LimitError):
+        parse_message_content(
+            sent_content_html(
+                (("Fixture Office", "NIE"), ("Other fixture", "NIE"))
+            ).encode(),
+            replace(REFERENCE, folder=MessageFolder.SENT),
+        )
 
 
 def test_separate_read_receipt_table_is_not_ambiguous_message_metadata() -> None:
@@ -144,14 +238,28 @@ def test_received_opt_in_and_foreign_or_injected_references_fail_before_login() 
     asyncio.run(scenario())
 
 
-def test_four_independent_maximum_content_reads_share_one_bounded_budget() -> None:
+@pytest.mark.parametrize("folder", list(MessageFolder))
+def test_four_independent_maximum_content_reads_share_one_bounded_budget(
+    folder: MessageFolder,
+) -> None:
     async def scenario() -> None:
         fixture = ReadsFixture()
-        fixture.bodies["message_content_received"] = (
-            content_html(
-                content="x" * 65536,
-                attachments="".join(attachment_html(str(300 + i)) for i in range(20)),
-            ).encode(),
+        body = content_html(
+            content="x" * 65536,
+            attachments="".join(attachment_html(str(300 + i)) for i in range(20)),
+        )
+        if folder is MessageFolder.SENT:
+            body = (
+                sent_content_html(tuple((f"Fixture {i}", "NIE") for i in range(256)))
+                .replace("Fixture sent body<br>Second line", "x" * 65536)
+                .replace(
+                    "</body>",
+                    "".join(attachment_html(str(300 + i)) for i in range(20))
+                    + "</body>",
+                )
+            )
+        fixture.bodies["message_content_" + folder.value] = (
+            body.encode(),
             "text/html",
         )
         accounts = ("student", "parent", "other-student", "other-parent")
@@ -162,7 +270,7 @@ def test_four_independent_maximum_content_reads_share_one_bounded_budget() -> No
                 results = await asyncio.gather(
                     *(
                         service.account(alias).message_content(
-                            replace(REFERENCE, account=alias),
+                            replace(REFERENCE, account=alias, folder=folder),
                             allow_mark_read=True,
                             budget=budget,
                         )
@@ -170,12 +278,15 @@ def test_four_independent_maximum_content_reads_share_one_bounded_budget() -> No
                     )
                 )
                 assert budget.requests_dispatched == 24
-                assert fixture.count("message_content_received") == 4
+                assert fixture.count("message_content_" + folder.value) == 4
                 for alias, result in zip(accounts, results, strict=True):
                     assert result.identity.owner.id == alias
                     assert result.content.reference.account == alias
                     assert len(result.content.text) == 65536
                     assert len(result.content.attachments) == 20
+                    assert result.may_mark_read is (folder is MessageFolder.RECEIVED)
+                    if folder is MessageFolder.SENT:
+                        assert len(result.content.recipient_receipts) == 256
                     assert all(
                         a.reference.message.account == alias
                         for a in result.content.attachments

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.4
+  version: 0.4.5
   license:
     name: MIT
   description: |
@@ -94,7 +94,7 @@ paths:
       x-side-effect: mark_read
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Authorized already-read received open, label-pair metadata, separate read receipt and body independently checked on captured bytes; no populated attachments or sent content observed. Original HTTP proof prohibits replay.
+      x-evidence-note: Authorized already-read received content and 0.4.3 populated attachment metadata independently checked. Original HTTP proof prohibits replay; richer received layouts remain pending.
       parameters:
         - in: path
           name: id
@@ -114,8 +114,8 @@ paths:
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Existing sent-folder references; original offline HTTP proof only. Populated sent content remains live-unqualified.
+      x-evidence: independently_observed
+      x-evidence-note: Two 0.4.5 sent opens on independent login contexts observed subject/date metadata without an Adresat field and separate individual read receipts. Original fixtures and Chromium check these exact bytes; richer and sent-attachment layouts remain pending.
       parameters:
         - in: path
           name: id
@@ -1100,7 +1100,7 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Eight named group selectors observed and compared with Chromium/apix on identical bytes; subgroup lookup remains unsupported. See contracts/recipients.md.
+      x-evidence-note: Eight named group selectors observed on four independent 0.4.5 login contexts and checked against Chromium/apix. The group root is not a direct recipient lookup; separate choice discovery is supported. See contracts/recipients.md.
       description: |
         Opens a compose/selection view, not a message. No sends, body retrieval,
         mark-read or event consumption. Session selection is serialized and never
@@ -1112,17 +1112,20 @@ paths:
   /getRecipients:
     post:
       operationId: recipients
-      summary: Retrieve recipients for one explicitly selected group type
+      summary: Discover group choices or retrieve recipients for a typed selection
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Installed public lookup of tutor, teacher and office groups; labels, numeric IDs and checkbox linkage agree with Chromium and apix on identical bytes. Empty lists and other groups remain unqualified.
+      x-evidence-note: 0.4.5 observes five populated named types, one anonymous hidden target, one unavailable type and an empty group-option selector on four independent login contexts, checked against Chromium. Positive group IDs are source-informed with original offline wire proof, not observed live. No explicit empty-recipient success is invented.
       description: |
         Exactly five fixed selection fields with a named group-type token. This is
         not a send operation and cannot carry subject/body, recipient selections,
         credentials or uploads. No replay. Unknown layouts fail explicitly.
+        Positive numeric idGrupy is allowed only for grupa; zero discovers its
+        options. Other types remain zero. Virtual-class selection is not enabled.
+        Populated subgroup dispatch is source-informed and offline-qualified only.
       security: [{SessionCookie: []}]
       requestBody:
         required: true
@@ -1132,12 +1135,18 @@ paths:
               type: object
               additionalProperties: false
               required: [typAdresata, poprzednia, tabZaznaczonych, czyWirtualneKlasy, idGrupy]
+              oneOf:
+                - properties:
+                    idGrupy: {type: string, enum: ['0']}
+                - properties:
+                    typAdresata: {type: string, enum: [grupa]}
+                    idGrupy: {type: string, pattern: '^[1-9][0-9]{0,63}$'}
               properties:
                 typAdresata: {type: string, pattern: '^[a-z][a-z0-9_]{0,63}$'}
                 poprzednia: {type: string, enum: ['5']}
                 tabZaznaczonych: {type: string, enum: ['']}
                 czyWirtualneKlasy: {type: string, enum: ['false']}
-                idGrupy: {type: string, enum: ['0']}
+                idGrupy: {type: string, pattern: '^(0|[1-9][0-9]{0,63})$'}
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}

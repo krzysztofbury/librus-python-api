@@ -68,6 +68,12 @@ sent rows, plus populated attachment flags and one content attachment reference.
 Independent Chromium and same-byte apix common fields agree. Pagination and
 newer layouts remain pending; native streams have no apix parity counterpart.
 
+Later 0.4.5 evidence observes a populated two-page received mailbox, plus sent
+content with individual read receipts. Common mailbox fields agree with same-byte
+apix and independent Chromium; the native sent-content parser supports the
+observed two-row metadata layout that apix rejects. Broader/new mailbox layouts
+and populated sent pagination remain pending.
+
 ## Feature/version sequence
 
 Each version is independently tested and locally packaged. No consumer changes

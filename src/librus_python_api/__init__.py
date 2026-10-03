@@ -52,6 +52,7 @@ from librus_python_api.models import (
     MessageContent,
     MessageContentData,
     MessageFolder,
+    MessageRecipientReceipt,
     MessageReference,
     Messages,
     MessagesCursor,
@@ -67,6 +68,8 @@ from librus_python_api.models import (
     RecentScheduleEvent,
     Recipient,
     RecipientGroup,
+    RecipientGroupChoice,
+    RecipientGroupChoices,
     RecipientGroupReference,
     RecipientGroups,
     RecipientReference,
@@ -90,9 +93,12 @@ from librus_python_api.models import (
 )
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.4"
+__version__ = "0.4.5"
 
 __all__ = [
+    "RecipientGroupChoice",
+    "RecipientGroupChoices",
+    "MessageRecipientReceipt",
     "NotificationCategory",
     "NotificationCount",
     "NotificationCounts",

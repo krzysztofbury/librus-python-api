@@ -3,6 +3,96 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
+
+### Contracts, proofs and review
+
+- Source and final installed wheel/sdist suites pass 981 tests on Python 3.13.15
+  and 3.14.7, with one opt-in performance case deselected. Ruff, formatting,
+  strict mypy, hooks, secret scans and dependency audit pass. OpenAPI parity stays
+  at 35 unique operations; choice discovery reuses the fixed recipient route.
+- New public `recipient_group_choices` models bounded nonzero `idGrupy` options.
+  Default-zero selection fields preserve existing constructor calls; positive
+  selections are allowed only for `grupa`, enter reference/result provenance and
+  cache keys, and retain the exact five-field transport form. Virtual classes
+  stay false. No arbitrary authenticated URL or extra send/body field is accepted.
+- Named recipients remain ID-bearing ordered records. The independently observed
+  unnamed hidden-target pair has `label=None`, not an invented name or empty
+  success. Class-unavailable and unknown notices remain explicit typed failures.
+  Empty group options are not empty recipient lists.
+- Sent content accepts the observed subject/date metadata with absent addressee,
+  preserving `correspondent=None`. Individual receipts keep displayed names,
+  raw status and civil dates without invented IDs or aggregate read time. Duplicate
+  labels/order survive. Unknown statuses, incorrect spans and mixed/duplicate
+  receipt tables fail the whole result. Received consent/retry semantics do not change.
+- Original regressions failed before fixes for sent metadata, unnamed targets,
+  unavailable class notices, inert page-level scripts and mixed receipt ambiguity.
+  Existing owner tests extend selector injection, exact wire forms, distinct
+  caches, malformed layouts, bounds and pre-I/O scope rejection without production
+  test hooks. Four maximum sent bodies with 256 receipts and 20 inert attachments
+  each complete under the same exact 24-request shared budget as received content.
+- Pair-programmer checklist self-review checked positive/negative layout space,
+  no silent partial output, joined existing lifecycle ownership, scoped cache keys,
+  and bounded fixed-form dispatch. Main-metadata parsing is separated from receipt
+  classification. No independent subagent approval is claimed for this increment.
+- Final artifact imports, MIT metadata/license, Python requirement and `py.typed`
+  are checked in four isolated environments. Each environment replays all 60
+  captured responses through public methods on loopback against private,
+  independently recorded Chromium expectations. Final library bytes match the
+  installed live-smoke wheel; documentation rebuilds do not require new logins.
+
+### Fresh bounded live scope and accounting
+
+Owner approval allowed four discovery logins on the four configured contexts,
+then one installed-artifact smoke login on a selected context. Each admitted
+one credential submission and at most 32 HTTP dispatches including authentication.
+Only identity, recipient composer/lookup forms, proven existing mailbox pages
+zero through two and at most one sent content selected from that login's own list
+were allowed. No received opens, downloads, settings changes, sends, deletes,
+read-once retrieval or consumer-state writes were authorized or made.
+
+The four discovery attempts used 20, 21, 20 and 22 requests. The installed 0.4.5
+wheel smoke used 22: one login, eight type lookups, two received pages, one sent
+page and one sent content open. All five logins are used; total dispatches are
+105, and unused per-attempt requests authorize no rerun or expanded operation.
+
+- All contexts show eight type tokens, five populated named recipient types with
+  62 displayed records, one unnamed target, one class-unavailable type and an
+  empty group-option selector. This does not establish populated group membership.
+- One discovery context shows 50 received rows on page zero and six on page one;
+  installed public bounded collection returns all 56. Other contexts have one
+  received page. Two show populated sent lists and permit the selected sent open.
+- Installed smoke returns 63 recipient records including the unnamed target,
+  one explicit unavailable type, zero group choices, 56 received and four sent
+  summaries, and one individual read receipt. Warm cached calls dispatch zero.
+- Chromium checks 47 discovery responses plus 13 installed-smoke responses with
+  page scripts/networking disabled: no semantic mismatches. All four final
+  artifact environments replay these independent expectations without live access.
+- Same-byte apix 1.5.3 agrees on all 12 mailbox responses (168 row observations),
+  five composer type lists and 25 populated named-recipient responses (310 row
+  observations). It omits all five unnamed targets, flattens unavailable/group
+  states to zero recipient rows, and rejects all three sent-content captures with
+  ParseError. Native agrees with Chromium on those intentional differences;
+  no apix fallback, copied implementation or fixture is used.
+
+### Remaining gaps and retained evidence
+
+Populated group choices/nonzero dispatch, recursive/virtual-class selection,
+explicit empty-recipient success, populated sent pagination, newer/richer mailbox
+layouts, multiple-recipient live receipts and other read-status variants remain
+unqualified. Source-informed populated selector fixtures are not live evidence.
+Nullable display fields require explicit future consumer adapters. No MCP state
+or spool compatibility, consumer migration or publication is claimed here.
+
+Sending is still unimplemented and is the final planned increment in PR #13,
+after design approval and offline at-most-one-dispatch fault proofs. Any live
+send needs fresh exact sender/recipient/payload approval and its own budget;
+this read-only scope authorizes none. Read-once qualification remains separate.
+
+Private captures, browser expectations, builds and artifact environments are
+deleted after final replay. Retain only sanitized `release-evidence/0.4.5*` and
+qualified local archives in `dist/0.4.5/`. No package has been published.
+
 ## 0.4.4 (2026-10-02) - Notification and checkpoint primitives
 
 ### Offline and review

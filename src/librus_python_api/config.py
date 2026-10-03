@@ -382,7 +382,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/wiadomosci/1/6/{id}",
                 SideEffect.NONE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
                 "recipients",
@@ -618,6 +618,8 @@ MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
 MESSAGE_ATTACHMENT_PATH_PREFIX = "/wiadomosci/pobierz_zalacznik/"
 MESSAGE_MAX_CONTENT_LENGTH = 65536
 MESSAGE_MAX_ATTACHMENTS = 20
+MESSAGE_MAX_RECIPIENT_RECEIPTS = 256
+MESSAGE_MAX_RECEIPT_TEXT_LENGTH = 131072
 ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 ATTACHMENT_CHUNK_BYTES = 64 * 1024
 ATTACHMENT_MAX_LOCATION_LENGTH = 2048
@@ -633,12 +635,20 @@ RECIPIENT_MAX_ITEMS = 2048
 RECIPIENT_MAX_LABEL_LENGTH = 1024
 RECIPIENT_MAX_TOTAL_TEXT_LENGTH = 131072
 RECIPIENT_UNSUPPORTED_TYPES = frozenset({"grupa"})
+RECIPIENT_SELECTION_PROMPT = "Wybierz grupę"
+RECIPIENT_CLASS_UNAVAILABLE_NOTICE = (
+    "Uczeń nie jest przydzielony do klasy. W celu wyjaśnienia sytuacji prosimy "
+    "o kontakt ze szkołą"
+)
 
 
-def recipient_form(group_type: str) -> dict[str, str]:
+def recipient_form(group_type: str, *, selection_id: str = "0") -> dict[str, str]:
     if (
         type(group_type) is not str
         or RECIPIENT_GROUP_TYPE_PATTERN.fullmatch(group_type) is None
+        or type(selection_id) is not str
+        or re.fullmatch(r"0|[1-9][0-9]{0,63}", selection_id) is None
+        or (selection_id != "0" and group_type != "grupa")
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     return {
@@ -646,7 +656,7 @@ def recipient_form(group_type: str) -> dict[str, str]:
         "poprzednia": "5",
         "tabZaznaczonych": "",
         "czyWirtualneKlasy": "false",
-        "idGrupy": "0",
+        "idGrupy": selection_id,
     }
 
 

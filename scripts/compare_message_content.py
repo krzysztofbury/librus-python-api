@@ -15,8 +15,16 @@ from scripts.compare_messages import load_reference, normalized
 class CapturedContentClient:
     MESSAGE_URL = ENDPOINTS["message_content_received"].path.removesuffix("/{id}")
 
-    def __init__(self, body: bytes, identifier: str) -> None:
+    def __init__(
+        self,
+        body: bytes,
+        identifier: str,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+    ) -> None:
         self.body, self.identifier = body, identifier
+        self.MESSAGE_URL = ENDPOINTS[
+            "message_content_" + folder.value
+        ].path.removesuffix("/{id}")
 
     def get(self, url: str) -> SimpleNamespace:
         assert url == self.MESSAGE_URL + "/" + self.identifier
@@ -26,16 +34,31 @@ class CapturedContentClient:
 def compare(directory: Path, reference: Any) -> list[dict[str, object]]:
     results: list[dict[str, object]] = []
     for entry in json.loads((directory / "index.json").read_text())["captured"]:
-        if entry["endpoint"] != "message_content_received":
+        if entry["endpoint"] not in {
+            "message_content_received",
+            "message_content_sent",
+        }:
             continue
         body = (directory / entry["file"]).read_bytes()
         identifier = entry["reference"]
+        folder = MessageFolder(entry["endpoint"].removeprefix("message_content_"))
         native = parse_message_content(
-            body, MessageReference(MessageFolder.RECEIVED, identifier, "offline")
+            body, MessageReference(folder, identifier, "offline")
         )
-        other = reference.message_content(
-            CapturedContentClient(body, identifier), identifier
-        )
+        try:
+            other = reference.message_content(
+                CapturedContentClient(body, identifier, folder), identifier
+            )
+        except Exception as error:
+            results.append(
+                {
+                    "operation": entry["endpoint"],
+                    "native_recipient_receipts": len(native.recipient_receipts),
+                    "apix_error_type": type(error).__name__,
+                    "same_bytes": True,
+                }
+            )
+            continue
         fields = {
             "correspondent": (native.correspondent, other.author),
             "subject": (native.subject, other.title),
@@ -46,7 +69,7 @@ def compare(directory: Path, reference: Any) -> list[dict[str, object]]:
             {
                 "fields": len(fields),
                 "mismatches": {
-                    k: int(normalized(a) != normalized(b))
+                    k: int(normalized(a or "") != normalized(b))
                     for k, (a, b) in fields.items()
                 },
                 "attachments": len(native.attachments),

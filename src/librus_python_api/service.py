@@ -93,6 +93,7 @@ from librus_python_api.models import (
     NotificationCounts,
     Observation,
     OperationName,
+    RecipientGroupChoices,
     RecipientGroupReference,
     RecipientGroups,
     Recipients,
@@ -118,6 +119,7 @@ from librus_python_api.notifications import (
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
 from librus_python_api.recipients import (
+    parse_recipient_group_choices,
     parse_recipient_groups,
     parse_recipients,
     validate_group,
@@ -1045,14 +1047,42 @@ class AccountClient:
                 "recipients",
                 budget,
                 lambda body: parse_recipients(body, group),
-                form=recipient_form(group.identifier),
+                form=recipient_form(group.identifier, selection_id=group.selection_id),
             )
             return Recipients(
                 self._session_identity(), group, items, self._observation("recipients")
             )
 
         return await self._read(
-            ("recipients", group.identifier), fetch, budget, max_age_seconds
+            ("recipients", group.identifier, group.selection_id),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def recipient_group_choices(
+        self,
+        group: RecipientGroupReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> RecipientGroupChoices:
+        """Discover bounded nonzero group options, never guess virtual classes."""
+        validate_group(group, self._alias, choices=True)
+
+        async def fetch(budget: RequestBudget, _: bool) -> RecipientGroupChoices:
+            items = await self._page(
+                "recipients",
+                budget,
+                lambda body: parse_recipient_group_choices(body, group),
+                form=recipient_form(group.identifier),
+            )
+            return RecipientGroupChoices(
+                self._session_identity(), group, items, self._observation("recipients")
+            )
+
+        return await self._read(
+            ("recipients", "choices", group.identifier), fetch, budget, max_age_seconds
         )
 
     # Shared read machinery.

@@ -31,7 +31,7 @@ Rules that hold for every release:
 | `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
 | `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
 | `0.4.4` | Notification/checkpoint primitives | Done locally for count snapshots and offline checkpoint/replay; read-once live/consumer compatibility pending |
-| `0.4.5` | Broader recipient selection and message-layout coverage | Next increment in the 0.4 PR; qualification gaps remain explicit |
+| `0.4.5` | Broader recipient selection and message-layout coverage | Implemented: choice discovery, selection-bound references, anonymous targets, sent receipts and observed received pagination; broader gaps remain |
 | Sending (version TBD) | Validated one-attempt delivery | Final increment in the same 0.4 PR, after 0.4.5; plan and approve before implementation |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
@@ -88,13 +88,15 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   and separately approved recovery integration. Routine live checks exclude it.
 - [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
   migrations: separate P5/P8 work, not implemented by the library increment.
-- [ ] 0.4.5: broaden recipient selection and message-layout coverage in the
-  current 0.4 PR. Investigate subgroup/virtual-class selection and explicit empty
-  recipients, populated message pagination, sent content, receipt variants and
-  richer/new mailbox layouts. Implement only independently established behavior
-  with original fixtures; preserve unsupported and unobserved cases explicitly.
-  Any live discovery needs a fresh bounded account/operation scope. Received
-  content still requires explicit mark-read consent; no sends or read-once calls.
+- [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
+  exact nonzero group forms qualified offline. Four independent contexts observe
+  five named types, an anonymous target, unavailable class-dependent lookup,
+  empty group options, populated received pagination and sent content/receipts.
+  Keep typed unavailable outcomes separate from explicit empty-recipient success.
+- [ ] 0.4.5 follow-ups: populated subgroup/virtual-class semantics, explicit empty
+  recipients, sent pagination, multiple-recipient receipt/status variants and
+  richer/new layouts. No claimed universal layout coverage. Any new live scope
+  requires fresh approval; received opens still need explicit mark-read consent.
 - [ ] Sending (version TBD), the final increment after 0.4.5 in the same PR:
   approve the plan in
   [contracts/messages.md](contracts/messages.md#featureversion-sequence) before
@@ -114,7 +116,7 @@ Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
 The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
-0.4.0-0.4.4 are implemented, 0.4.5 coverage work comes next, and sending is the
+0.4.0-0.4.5 are implemented, and sending is the
 last planned library increment. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification

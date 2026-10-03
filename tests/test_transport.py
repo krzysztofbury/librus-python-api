@@ -11,6 +11,7 @@ from librus_python_api.config import (
     ConnectionSettings,
     SchedulerLimits,
     TransportLimits,
+    recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import LoginSubmission
@@ -334,6 +335,10 @@ CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
         ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
         ("grades", {}),  # empty form
         ("recipients", {"typAdresata": "nauczyciel"}),
+        ("recipients", recipient_form("nauczyciel") | {"idGrupy": "301"}),
+        ("recipients", recipient_form("grupa") | {"idGrupy": "0301"}),
+        ("recipients", recipient_form("grupa") | {"czyWirtualneKlasy": "true"}),
+        ("recipients", recipient_form("grupa") | {"wyslij": "1"}),
         (
             "recipients",
             {

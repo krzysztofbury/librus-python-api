@@ -1,6 +1,7 @@
 """Recipient identity/labels, group capability boundaries and parser limits."""
 
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -11,10 +12,14 @@ from librus_python_api.exceptions import (
     ParseError,
     UnsupportedCapabilityError,
 )
-from librus_python_api.recipients import parse_recipient_groups, parse_recipients
+from librus_python_api.recipients import (
+    parse_recipient_group_choices,
+    parse_recipient_groups,
+    parse_recipients,
+)
 from tests.http_support import serve
 from tests.reads_support import ReadsFixture
-from tests.recipients_support import groups_html, recipient_html
+from tests.recipients_support import choice_html, groups_html, recipient_html
 
 
 def test_group_header_is_not_a_selector_and_named_tokens_are_preserved() -> None:
@@ -64,6 +69,248 @@ def test_recipient_same_name_distinct_ids_do_not_overwrite_and_keep_scope() -> N
         for i in items
     )
     assert "Fixture" not in repr(items[0]) and "101" not in repr(items[0].reference)
+
+
+def test_anonymous_hidden_recipient_is_not_fabricated_as_empty_or_named() -> None:
+    items = parse_recipients(
+        b'<input type="HIDDEN" name="DoKogo" value="301">'
+        b'<input type="hidden" name="DoKogo_hid[]" value="301">',
+        RecipientGroupReference("sadmin", "student"),
+    )
+    assert len(items) == 1 and items[0].reference.identifier == "301"
+    assert items[0].label is None
+    body = (
+        b'<input type="HIDDEN" name="DoKogo" value="301">'
+        b'<input type="hidden" name="DoKogo_hid[]" value="301">'
+        b"<script>refresh_tooltips();</script>"
+    )
+    assert parse_recipients(body, RecipientGroupReference("sadmin", "student")) == items
+
+
+def test_group_choices_preserve_selection_scope_labels_and_availability() -> None:
+    group = RecipientGroupReference("grupa", "student")
+    assert parse_recipient_group_choices(choice_html().encode(), group) == ()
+    choices = parse_recipient_group_choices(
+        choice_html(
+            (("301", "Same Fixture Group", False), ("302", "Same Fixture Group", True))
+        ).encode(),
+        group,
+    )
+    assert [c.reference.selection_id for c in choices] == ["301", "302"]
+    assert all(
+        c.reference.identifier == "grupa"
+        and c.reference.account == "student"
+        and c.label == "Same Fixture Group"
+        for c in choices
+    )
+    assert choices[0].available and not choices[1].available
+    assert "Fixture" not in repr(choices[0]) and "301" not in repr(choices[0].reference)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        '<p class="msgEmptyTable">Unknown empty marker</p>',
+        '<div class="warning-content">Unknown warning</div>',
+    ],
+)
+def test_recipient_lists_do_not_silently_ignore_unknown_notices(extra: str) -> None:
+    with pytest.raises(ParseError):
+        parse_recipients(
+            recipient_html().replace("</html>", extra + "</html>").encode(),
+            RecipientGroupReference("nauczyciel", "student"),
+        )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '<input type="hidden" name="DoKogo" value="301">'
+        '<input type="hidden" name="DoKogo_hid[]" value="302">',
+        '<input type="hidden" name="DoKogo" value="301">'
+        '<input type="checkbox" name="DoKogo_hid[]" value="301">',
+        '<input type="hidden" name="DoKogo" value="301">'
+        '<input type="hidden" name="DoKogo_hid[]" value="301">Visible unexpected data',
+    ],
+)
+def test_anonymous_target_pair_cannot_hide_conflicting_id_type_or_display_data(
+    body: str,
+) -> None:
+    with pytest.raises(ParseError):
+        parse_recipients(body.encode(), RecipientGroupReference("sadmin", "student"))
+
+
+@pytest.mark.parametrize(
+    "bound",
+    [
+        "RECIPIENT_MAX_ITEMS",
+        "RECIPIENT_MAX_LABEL_LENGTH",
+        "RECIPIENT_MAX_TOTAL_TEXT_LENGTH",
+    ],
+)
+def test_choice_limits_fail_without_partial_options(
+    bound: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("librus_python_api.recipients." + bound, 1)
+    with pytest.raises(LimitError):
+        parse_recipient_group_choices(
+            choice_html(
+                (("301", "Fixture", False), ("302", "Other fixture", False))
+            ).encode(),
+            RecipientGroupReference("grupa", "student"),
+        )
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ('value="301"', 'value="../301"'),
+        ('value="301"', 'value="0"'),
+        ('id="idGrupy"', 'id="unknown"'),
+        ('value="0"></option>', 'value="0">Fixture unknown placeholder</option>'),
+        ("Wybierz grupę", "Unknown state"),
+        ("Fixture Group", "<script>unsafe()</script>"),
+    ],
+)
+def test_group_choices_reject_unknown_controls_or_ambiguous_selections(
+    before: str, after: str
+) -> None:
+    with pytest.raises((ParseError, InvalidInputError, UnsupportedCapabilityError)):
+        parse_recipient_group_choices(
+            choice_html((("301", "Fixture Group", False),))
+            .replace(before, after)
+            .encode(),
+            RecipientGroupReference("grupa", "student"),
+        )
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        RecipientGroupReference("grupa", "parent"),
+        RecipientGroupReference("nauczyciel", "student", "301"),
+        RecipientGroupReference("grupa", "student", "../301"),
+        RecipientGroupReference("grupa", "student", "0301"),
+        RecipientGroupReference("grupa", "student", True),  # type: ignore[arg-type]
+    ],
+)
+def test_foreign_or_invalid_group_selections_fail_before_auth(reference: Any) -> None:
+    async def scenario() -> None:
+        fixture = ReadsFixture()
+        fixture.origin = "http://localhost:8080"
+        async with fixture.service() as service:
+            with pytest.raises(InvalidInputError):
+                await service.account("student").recipients(reference)
+            assert fixture.calls == []
+
+    asyncio.run(scenario())
+
+
+def test_group_selections_have_exact_forms_and_separate_cache_keys() -> None:
+    from aiohttp import web
+
+    class ChoiceFixture(ReadsFixture):
+        def handler(self, operation: str) -> Any:
+            if operation != "recipients":
+                return super().handler(operation)
+
+            async def select(request: web.Request) -> web.Response:
+                login = self.record(request)
+                self.reads.append((operation, login))
+                data = {str(k): str(v) for k, v in (await request.post()).items()}
+                assert set(data) == {
+                    "typAdresata",
+                    "poprzednia",
+                    "tabZaznaczonych",
+                    "czyWirtualneKlasy",
+                    "idGrupy",
+                }
+                assert (
+                    data["typAdresata"] == "grupa"
+                    and data["poprzednia"] == "5"
+                    and data["tabZaznaczonych"] == ""
+                    and data["czyWirtualneKlasy"] == "false"
+                )
+                identifier = data["idGrupy"]
+                body = (
+                    choice_html(
+                        (
+                            ("301", "Fixture group", False),
+                            ("302", "Other fixture group", False),
+                        )
+                    )
+                    if identifier == "0"
+                    else recipient_html(((identifier, "Fixture Person"),))
+                )
+                return web.Response(text=body, content_type="text/html")
+
+            return select
+
+    async def scenario() -> None:
+        fixture = ChoiceFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                group = RecipientGroupReference("grupa", "student")
+                budget = RequestBudget(max_requests=8)
+                choices = await client.recipient_group_choices(
+                    group, budget=budget, max_age_seconds=60
+                )
+                first = await client.recipients(
+                    choices.items[0].reference, budget=budget, max_age_seconds=60
+                )
+                second = await client.recipients(
+                    choices.items[1].reference, budget=budget, max_age_seconds=60
+                )
+                assert (
+                    first.group.selection_id
+                    == first.items[0].reference.selection_id
+                    == "301"
+                )
+                assert (
+                    second.group.selection_id
+                    == second.items[0].reference.selection_id
+                    == "302"
+                )
+                assert [
+                    first.items[0].reference.identifier,
+                    second.items[0].reference.identifier,
+                ] == ["301", "302"]
+                assert (
+                    await client.recipient_group_choices(
+                        group, budget=budget, max_age_seconds=60
+                    )
+                    is choices
+                )
+                assert (
+                    await client.recipients(
+                        choices.items[0].reference, budget=budget, max_age_seconds=60
+                    )
+                    is first
+                )
+                assert (
+                    await client.recipients(
+                        choices.items[1].reference, budget=budget, max_age_seconds=60
+                    )
+                    is second
+                )
+                assert (
+                    budget.requests_dispatched == 8 and fixture.count("recipients") == 3
+                )
+
+    asyncio.run(scenario())
+
+
+def test_class_unavailable_recipient_notice_is_not_empty_or_generic_failure() -> None:
+    body = (
+        '<div><p class="msgEmptyTable">Uczeń nie jest przydzielony do klasy. '
+        "W celu wyjaśnienia sytuacji prosimy o kontakt ze szkołą</p></div>"
+    )
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_recipients(
+            body.encode(), RecipientGroupReference("rada_rodzicow", "student")
+        )
 
 
 @pytest.mark.parametrize(
@@ -163,6 +410,16 @@ def test_invalid_scope_and_subgroup_fail_before_login() -> None:
                     await client.recipients(reference)
             with pytest.raises(UnsupportedCapabilityError):
                 await client.recipients(RecipientGroupReference("grupa", "student"))
+            with pytest.raises(InvalidInputError):
+                await client.recipient_group_choices(
+                    RecipientGroupReference("grupa", "parent")
+                )
+            for reference in (
+                RecipientGroupReference("nauczyciel", "student"),
+                RecipientGroupReference("grupa", "student", "301"),
+            ):
+                with pytest.raises(UnsupportedCapabilityError):
+                    await client.recipient_group_choices(reference)
             assert fixture.calls == []
 
     asyncio.run(scenario())

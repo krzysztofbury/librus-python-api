@@ -239,9 +239,17 @@ Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
   Sent opens do not require the opt-in. Neither folder is automatically replayed,
   including after proven expiry or a stale keepalive disconnect.
 - `content` is `MessageContentData(reference, correspondent, subject, timestamp,
-  read_timestamp, text, attachments)`. School timestamps use the same raw/civil
+  read_timestamp, text, attachments, recipient_receipts)`. School timestamps use the same raw/civil
   time policy as lists. `read_timestamp` retains the optional displayed
   `Przeczytano` value; it is not inbox unread or per-recipient status.
+- Sent content may omit an `Adresat` field: `correspondent=None` then preserves
+  absence rather than inventing a name from another table. `recipient_receipts`
+  holds ordered `MessageRecipientReceipt(recipient, raw_status, read_timestamp)`
+  records when a separate individual receipt table is displayed. Equal labels
+  survive; no recipient IDs or aggregate read time are invented. `NIE` has no
+  read timestamp; displayed dates retain school civil time. Unknown statuses fail.
+  At most 256 receipt rows, 4,096 characters per field and 128 KiB total receipt
+  text are accepted. An absent table means no reported receipts, not zero recipients.
 - `text` is full plain text with supported block/`br` boundaries and normalized
   whitespace, at most 65,536 characters. No HTML, scripts or external resources
   are returned or fetched. Active body content is unsupported, not executed.
@@ -319,25 +327,40 @@ Evidence, source-informed restrictions and remaining gaps:
 - `recipients(group: RecipientGroupReference)` returns
   `Recipients(identity, group, items, observation)` through one fixed POST.
   References must belong to the same account alias; arbitrary URLs, token
-  injection and foreign references fail before I/O. The special `grupa` selector
-  has unqualified selection semantics, is not supported for lookup, and raises
-  `UnsupportedCapabilityError` before I/O. A disabled group's metadata does not
+  injection and foreign references fail before I/O. `RecipientGroupReference`
+  includes a `selection_id` defaulting to `"0"`. The root `grupa` reference is
+  not a direct lookup and raises `UnsupportedCapabilityError` before I/O.
+  `recipient_group_choices(root)` returns `RecipientGroupChoices(identity, group,
+  items, observation)` with `RecipientGroupChoice(reference, label, available)`
+  records from nonzero `idGrupy` options. Pass a choice reference to `recipients`.
+  Nonzero selections are permitted only for `grupa`, use the exact fixed form,
+  and remain source-informed/offline-qualified until populated live evidence.
+  Virtual classes stay disabled; no recursive hierarchy or group-zero membership
+  is guessed. An empty option list means no selectable groups, not no recipients.
+  A disabled group's metadata does not
   grant permission; callers should not select it and upstream denial stays typed.
 - Each `Recipient` preserves a plain-text `label` and a numeric
-  `RecipientReference(identifier, account, group_type)`. Equal display names with
+  `RecipientReference(identifier, account, group_type, selection_id)`. Equal display names with
   different IDs remain different records. No dictionary keyed by a person's
   name or cross-account deduplication occurs. IDs must match the label's checkbox
-  target/value; a missing label or duplicate ID is a parse failure.
+  target/value; a missing label or duplicate ID is a parse failure. The one
+  independently observed anonymous `sadmin` control-pair layout returns a numeric
+  reference with `label=None`, never an invented name or an empty list. This does
+  not authorize sending to an unidentified target.
+- The class-unavailable notice raises `UnsupportedCapabilityError`; it is not an
+  explicit empty-recipient result. Unknown notices and contradictory empty/prompt
+  layouts fail rather than silently returning only the recognizable rows.
 
 Limits: 32 group selectors, 2,048 recipients, 1,024 characters per label and
 128 KiB total recipient text, plus shared transport/parser/body limits. Each
-lookup has its own account/group cache key and accepts the common budget and
+lookup has its own account/type/selection cache key and accepts the common budget and
 freshness parameters. Fresh reads are default. Both selection operations are
 never replayed, even though group discovery uses GET. No send route, message
    content, mark-read, attachment or read-once access occurs in recipient discovery.
 
-Empty recipient layouts and subgroup discovery have not been observed/implemented;
-an unknown/empty response fails explicitly, never silently becomes `[]`.
+The empty group-option selector is observed. Populated choices, nonzero dispatch,
+virtual-class selection and explicit empty-recipient success remain live-unqualified;
+an unknown/empty response is never silently accepted as a recipient list.
 Evidence and apix differences: [contracts/recipients.md](contracts/recipients.md).
 
 ## Notification and checkpoint primitives

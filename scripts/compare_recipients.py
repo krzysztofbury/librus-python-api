@@ -7,8 +7,13 @@ from types import SimpleNamespace
 from typing import Any
 
 from librus_python_api.config import ENDPOINTS
+from librus_python_api.exceptions import UnsupportedCapabilityError
 from librus_python_api.models import RecipientGroupReference
-from librus_python_api.recipients import parse_recipient_groups, parse_recipients
+from librus_python_api.recipients import (
+    parse_recipient_group_choices,
+    parse_recipient_groups,
+    parse_recipients,
+)
 from scripts.compare_messages import load_reference, normalized
 
 
@@ -59,12 +64,38 @@ def compare(directory: Path, reference: Any) -> list[dict[str, object]]:
                 }
             else:
                 assert isinstance(token, str)
-                items = parse_recipients(
-                    body, RecipientGroupReference(token, "offline")
-                )
                 external = reference.get_recipients(client, token)
+                group = RecipientGroupReference(
+                    token, "offline", entry["form"]["idGrupy"]
+                )
+                if token == "grupa" and group.selection_id == "0":
+                    choices = parse_recipient_group_choices(body, group)
+                    results.append(
+                        {
+                            "operation": operation,
+                            "kind": "group_choices",
+                            "choices": len(choices),
+                            "apix_recipient_rows": len(external),
+                            "same_bytes": True,
+                            "equivalent_api": False,
+                        }
+                    )
+                    continue
+                try:
+                    items = parse_recipients(body, group)
+                except UnsupportedCapabilityError:
+                    results.append(
+                        {
+                            "operation": operation,
+                            "kind": "unavailable",
+                            "apix_recipient_rows": len(external),
+                            "same_bytes": True,
+                            "equivalent_api": False,
+                        }
+                    )
+                    continue
                 native_pairs = {
-                    (i.reference.identifier, normalized(i.label)) for i in items
+                    (i.reference.identifier, normalized(i.label or "")) for i in items
                 }
                 external_pairs = {
                     (identifier, normalized(label))
