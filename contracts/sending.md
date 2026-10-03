@@ -79,3 +79,9 @@ automatic retry or fallback. Verify the sender, exact unique recipient ID and
 approved payload with fresh bounded discovery authorization; stop on ambiguity.
 Keep all personal target/payload details outside this public repository. Consumer
 migration and publication remain separately gated.
+
+Later separately approved discovery resolved the sole intended recipient on the
+modern backend, not the legacy route qualified offline here. The modern account
+ID must not be turned into a legacy reference or sent through this form by
+assumption. Modern sending support and live acknowledgement qualification remain
+pending. See [modern-messages.md](modern-messages.md).

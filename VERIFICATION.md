@@ -130,6 +130,44 @@ capture, runner and installed-wheel environment were deleted after recording
 the essential unresolved state privately. Further discovery needs fresh scope;
 no guessed form, alternate council or recipient is authorized by unused budget.
 
+### Later modern-composer investigation (2026-10-03)
+
+User-provided screenshots established that the intended directory is available
+in the modern messaging module, while the legacy selector remained unavailable.
+The owner separately approved one fresh original-sender context, capped at 32
+requests for authentication, composer assets and recipient discovery only, with
+no sending or settings changes. The isolated installed-wheel investigation used
+one credential submission and 19 requests. Native authentication/identity and
+all staged modern requests shared the native scheduler and one request/byte/
+deadline budget; reviewed redirects were separate explicit dispatches.
+
+The modern account identity matched the previously verified native owner. The
+modern types response and one council branch resolved the intended class and
+sole recipient uniquely, with distinct recipient account/user ID fields. The
+session was then closed. No modern ID was cast to a legacy recipient reference,
+and no send attempt was prepared or executed. All four separately approved
+contexts total 51 requests, four credential submissions and zero sends.
+
+Offline Chromium rendered the exact captured modern app bundles and directory
+response bytes, with all network requests intercepted and service workers
+disabled. Expanding only the receiver dialog and council/class branch rendered
+the unique intended recipient, with its leaf key matching the JSON account ID.
+No checkbox, draft/save or send action was selected. Ancillary subject captions,
+crossed-out metadata and signatures used explicit invented empty stubs; CSS was
+stubbed, unrelated reads and external/telemetry traffic were blocked. This is a
+bounded directory-semantics check, not whole-app or styling qualification.
+
+The newer system is a separate backend. The qualified 0.4.6 package still ships
+only legacy messaging; the private investigation adapter is not a supported
+public API. Modern JSON sending, payload encoding and acknowledgements remain
+source-informed/unimplemented and live-unqualified. Further implementation and
+the single-recipient live test need separate approvals. No legacy retirement
+date was established and no account settings were changed. Details and required
+next-increment gates are in [contracts/modern-messages.md](contracts/modern-messages.md).
+Token-bearing URLs, private pages/app captures, worker and temporary environment
+were deleted after the worker stopped and essential private plan state was saved.
+Only sanitized accounting is retained publicly.
+
 ## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
 
 ### Contracts, proofs and review

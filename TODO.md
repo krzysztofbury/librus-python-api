@@ -97,6 +97,14 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   recipients, sent pagination, multiple-recipient receipt/status variants and
   richer/new layouts. No claimed universal layout coverage. Any new live scope
   requires fresh approval; received opens still need explicit mark-read consent.
+- [ ] Modern messaging follow-up, version/scope not yet approved: prioritize the
+  separate backend observed on the newer composer, rather than guess legacy class
+  selectors or toggle account settings. Read-only modern council discovery now
+  resolves the one intended recipient, but 0.4.6 remains legacy-only. Require
+  account/backend-bound references, central routes/OpenAPI contracts, original
+  fixtures and a qualified modern JSON send boundary before the manual test.
+  No cross-backend ID reuse, automatic fallback or inferred retirement date. See
+  [contracts/modern-messages.md](contracts/modern-messages.md).
 - [x] 0.4.6, the final library increment in the same PR: approved single-use
   attempt design implemented with typed uncertainty, exact fixed wire forms,
   shared limits and offline cancellation/fault proofs. See
