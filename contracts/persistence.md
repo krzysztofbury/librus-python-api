@@ -5,14 +5,17 @@
 S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native
 IDs lack trustworthy age metadata across all categories; silent expiry could
 re-notify old records or remove duplicate-send protection. `prune_seen` selects
-one context/category and exact IDs, requires raw/reservation/delivery recovery to
-be drained, preserves initialization and all other categories, and commits
+one context/category and exact IDs, requires reservation/delivery recovery to
+be resolved, preserves raw checkpoint bytes/cursor, initialization and all other
+categories, and commits
 atomically. Forgotten IDs may be notified again. `prune_send_history` selects
 exact context-bound history identifiers; live pending, CLAIMED and UNKNOWN rows
 cannot be deleted. Expired unused confirmations and safe terminal rows can be
 removed. ACCEPTED pruning requires `allow_accepted=True`, explicitly permitting
 later duplicate confirmation for the same submission. No network is performed.
 SQLite reuses freed pages; pruning is logical, not secure erasure or VACUUM.
+Retained raw replay is allowed after pruning, so seen saturation can be recovered
+without a new read-once request, even after an earlier slice was acknowledged.
 
 Both database schemas advance to version 2, adding one random 32-byte context
 salt per store. SQL context keys, notification lock filenames, persisted batch

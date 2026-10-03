@@ -1,6 +1,7 @@
 """Explicit retention and versioned store-local pseudonyms on actual SQLite."""
 
 import asyncio
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ import pytest
 from librus_python_api import NotificationCategory
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.persistence import (
+    NotificationLimits,
     NotificationStore,
     NotificationWorkflow,
     PersistenceLimits,
@@ -17,6 +19,7 @@ from librus_python_api.persistence import (
 )
 from tests.http_support import serve
 from tests.notification_persistence_support import NotificationWorkflowFixture
+from tests.notifications_support import event_row, events_html
 from tests.sending_support import SendFixture
 from tests.test_persistence import prepare
 
@@ -280,6 +283,72 @@ def test_context_salts_are_durable_independent_and_not_leaked_as_plain_context(
                     client.context.identifier.encode()
                     not in (tmp_path / "send" / "state.sqlite3").read_bytes()
                 )
+
+    asyncio.run(scenario())
+
+
+def test_seen_saturation_can_prune_and_replay_retained_raw_without_reconsuming(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        fixture.payload = events_html(
+            event_row("Original old one") + event_row("Original old two")
+        )
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                async with NotificationStore(
+                    tmp_path / "state",
+                    limits=NotificationLimits(seen_ids_per_category=2, batch_items=1),
+                ) as store:
+                    workflow = NotificationWorkflow(client, store)
+                    categories = (NotificationCategory.AGENDA,)
+                    old = []
+                    for _ in range(2):
+                        batch = await workflow.poll(
+                            categories=categories, allow_consume_events=True
+                        )
+                        old.append(batch.items[0].identifier)
+                        await workflow.acknowledge(batch.receipt)
+                    fixture.payload = events_html(
+                        event_row("Original new one") + event_row("Original new two")
+                    )
+                    for index in range(2):
+                        with pytest.raises(LibrusError) as error:
+                            await workflow.poll(
+                                categories=categories, allow_consume_events=True
+                            )
+                        assert error.value.kind is ErrorKind.LIMIT
+                        before = json.loads(
+                            (await store.export_archive(context=client.context)).payload
+                        )
+                        assert before["raw"]["cursor"] == index
+                        requests = len(fixture.calls)
+                        assert (
+                            await store.prune_seen(
+                                context=client.context,
+                                category=NotificationCategory.AGENDA,
+                                identifiers=(old[index],),
+                            )
+                            == 1
+                        )
+                        after = json.loads(
+                            (await store.export_archive(context=client.context)).payload
+                        )
+                        assert after["raw"] == before["raw"]
+                        batch = await workflow.poll(categories=categories)
+                        assert len(fixture.calls) == requests
+                        assert len(batch.items) == 1
+                        await workflow.acknowledge(batch.receipt)
+                    assert len(fixture.calls_by_account) == 2
+                    assert (
+                        json.loads(
+                            (await store.export_archive(context=client.context)).payload
+                        )["raw"]
+                        is None
+                    )
 
     asyncio.run(scenario())
 

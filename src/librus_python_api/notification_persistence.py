@@ -309,7 +309,8 @@ class NotificationStore(_SQLiteStore):
     ) -> int:
         """Explicit retention; forgotten IDs may be notified again.
 
-        Recovery must be drained before pruning any category in that context.
+        Staged delivery and uncertain reservations must be resolved first. Raw
+        checkpoints/progress are retained unchanged, including at seen saturation.
         No age-based expiry, background pruning or first-run reset is performed.
         """
         if (
@@ -341,7 +342,6 @@ class NotificationStore(_SQLiteStore):
             self._validate_contents(connection)
             key = self._context_key(context.identifier)
             for table in (
-                "notification_raw",
                 "notification_deliveries",
                 "notification_reservations",
             ):
