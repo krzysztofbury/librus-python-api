@@ -17,7 +17,7 @@ isolated coordination branch records the revised thin-adapter boundary.
 
 ## 0.4.8: durable send prerequisites
 
-Proposed implementation: an explicit private SQLite store using standard-library
+Implementation: an explicit private SQLite store using standard-library
 transactions, bounded schema/record counts/bytes, busy timeout and storage worker
 admission. File and directory checks reject non-regular files, symlinks and unsafe
 ownership/permissions. Construction/import are inert; opening and closing are
@@ -81,6 +81,9 @@ Live read-once qualification still needs a dedicated disposable-event account.
 | `librus-mcp/src/config.py`, `cli.py`, `server.py`, `output_models.py` | Configuration source precedence, feature gates, lifecycle, human consent, MCP schemas/errors/serialization | Thin consumer responsibilities; preserve catalog/contract snapshots and installed stdio behavior |
 
 This inventory is a requirement map, not a claim that every extraction is complete.
+Build the prerequisites in this repository now; implement adapters in the separate
+`librus-mcp` repository when its migration from `librus-apix` begins. No MCP
+implementation changes are part of the current API persistence slice.
 Retire duplicate consumer logic only in the slice whose API replacement and
 adapter have passed the actual runtime/fault proof. No literal copying, hidden
 legacy fallback, production-state reset, merge or publication is implied.

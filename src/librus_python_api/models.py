@@ -473,6 +473,14 @@ class Identity:
 
 
 @dataclass(frozen=True, slots=True)
+class AccountContext:
+    """Stable configured-login provenance, not credentials or an authority token."""
+
+    alias: str = field(repr=False)
+    identifier: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class NotificationCount:
     category: NotificationCategory
     label: str = field(repr=False)

@@ -6,7 +6,8 @@ Replace `librus-apix` in [librus-mcp](https://github.com/krzysztofbury/librus-mc
 with this independently implemented, MIT-licensed library, published on PyPI,
 while preserving the MCP v1.7.0 public contract. The library gives MCP a small,
 typed async API over several independent Librus logins with shared, bounded
-traffic. MCP chooses accounts, combines results and owns its tools and state.
+traffic. Optional API workflows own reusable durable state and orchestration;
+MCP chooses accounts, configures paths, presents consent and owns its tool schemas.
 
 Rules that hold for every release:
 
@@ -87,7 +88,7 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   token-scoped counts use typed categories. No orchestration/seen state/hashes.
 - [ ] Qualify read-once layouts on a dedicated test login with disposable events
   and separately approved recovery integration. Routine live checks exclude it.
-- [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
+- [ ] API notification seen state, canonical hashes, pending replay and
   migrations: now included in the expanded 0.4 delivery through the API's explicit
   optional persistence layer. MCP receives only thin compatibility adapters.
 - [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
@@ -163,8 +164,9 @@ after claiming a send is conservatively uncertain, never an invitation to replay
 Preserve existing notification data and recovery files; do not reset production
 state or automatically migrate it during development or offline tests.
 
-The owner authorized behavior-preserving extraction and thin-consumer migration
-development after the API prerequisites are proved. Default/release cutover still
+Build the reusable prerequisites here first. MCP adapter implementation belongs
+in the separate `librus-mcp` repository when migrating from `librus-apix` to this
+API, not in the current library implementation slice. Default/release cutover still
 requires installed acceptance and the release gate. Credentialed CI, PR merge
 and publication require separate authorization. PyPI remains deferred until
 `1.0.0rc1`. Existing evidence gaps remain open until their actual gates pass.
@@ -506,8 +508,8 @@ Dependencies: P2-P4. Requirements: R07-R09, R12.
 - [x] Document the remaining loss window before complete receipt/checkpoint;
   no exactly-once promise. Drain already persisted events before another live
   consume. Preserve overflow batches for later bounded processing.
-- [ ] Keep notification category selection, first-run semantics, deduplication,
-  and persisted seen IDs in MCP. Use library records through explicit adapters
+- [ ] Move reusable first-run semantics, deduplication and persisted seen IDs to
+  the optional API workflow. MCP selects requested categories and uses adapters
   instead of upstream `NotificationIds`, `RecentEvent`, and private diff parsers.
 - [ ] Preserve canonical schedule identities, hashes, date/text normalization,
   pending-spool replay, and unrequested-category state. New gateway IDs need an
@@ -523,7 +525,8 @@ Dependencies: P2-P4. Requirements: R07-R09, R12.
   authenticated URLs as a public escape hatch.
 - [ ] Preserve at-most-one send attempt and distinguish rejection from unknown
   delivery after timeout/cancellation/unrecognized response. Do not retry or
-  switch backend after possible acceptance. Keep preview/token handling in MCP.
+  switch backend after possible acceptance. Optional API storage owns token expiry,
+  binding and claims; MCP presents human approval when its backend is migrated.
 - [ ] Verify confirmation expiration, payload binding, token reuse rejection,
   and uncertain-delivery MCP error mapping with the new library installed.
 
@@ -535,8 +538,8 @@ live writes or read-once calls are necessary for routine CI verification.
 Dependencies: each completed slice; full run before P8.
 
 - [ ] Maintain a requirement-to-proof map for R01-R17. Library tests own transport,
-  parsing, and budgets; MCP tests own wire serialization, state transactions,
-  confirmation, and publication. Rework old private-internal mocks only when
+  parsing, budgets and optional persistence transactions; MCP tests own wire
+  serialization, consent presentation and adapter compatibility. Rework old private-internal mocks only when
   stronger public-boundary proof replaces their actual invariant.
 - [ ] Add representative fixture-server workloads: empty/small/full bounded
   mailboxes, changing pages, many unique lessons, warm/cold caches, slow bodies,

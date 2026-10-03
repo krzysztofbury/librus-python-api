@@ -1,6 +1,8 @@
 """Public login-scoped account service under one shared traffic boundary."""
 
 import asyncio
+import hashlib
+import json
 import math
 import re
 import time
@@ -63,6 +65,7 @@ from librus_python_api.message_content import parse_message_content, validate_re
 from librus_python_api.messages import parse_messages
 from librus_python_api.messages import validate_selection as validate_message_selection
 from librus_python_api.models import (
+    AccountContext,
     Agenda,
     Announcements,
     Attendance,
@@ -327,6 +330,23 @@ class AccountClient:
         credentials: AccountCredentials,
     ) -> None:
         self._service, self._alias, self._credentials = service, alias, credentials
+        self._context = AccountContext(
+            alias,
+            hashlib.sha256(
+                json.dumps(
+                    [
+                        1,
+                        alias,
+                        credentials.login.get_secret_value(),
+                        service._connection.synergia_origin,
+                        service._connection.api_origin,
+                        service._connection.messages_origin,
+                    ],
+                    ensure_ascii=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+        )
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
         self._flights: dict[Hashable, _Flight] = {}
@@ -398,6 +418,11 @@ class AccountClient:
         submission = ModernSendSubmission(recipients, subject, body)
         encode_modern_send(submission, self._alias)
         return SendAttempt(self, submission)
+
+    @property
+    def context(self) -> AccountContext:
+        """Configured login/origin provenance without authentication or storage I/O."""
+        return self._context
 
     async def _modern_ready(
         self, budget: RequestBudget, *, refresh: bool = False

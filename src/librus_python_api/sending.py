@@ -9,6 +9,7 @@ from librus_python_api.config import SEND_ACCEPTED_TEXT, SEND_REJECTED_TEXT
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.markup import text
 from librus_python_api.models import (
+    AccountContext,
     Identity,
     MessagingBackend,
     ModernSendSubmission,
@@ -71,6 +72,10 @@ class SendAttempt:
     @property
     def used(self) -> bool:
         return self._used
+
+    @property
+    def account_context(self) -> AccountContext:
+        return self._client.context
 
     @property
     def outcome(self) -> SendResult:

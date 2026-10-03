@@ -26,7 +26,9 @@ without changing the original outcome or dispatching again.
 In-flight snapshots are provisional; seeing NOT_DISPATCHED while work is still
 running never authorizes another attempt. Reconcile only after completion or
 joined cancellation. A process crash loses this local state; durable crash
-recovery and prevention of consumer-created duplicate attempts remain external.
+recovery and duplicate prevention require the explicit optional
+`PersistenceStore` workflow described in [persistence.md](persistence.md).
+The process-local attempt itself remains independent of storage.
 
 Reuse shared operation/parser/traffic budgets, account locks, isolated sessions
 and joined service shutdown. Sending bypasses `_read` and its caches/flights;

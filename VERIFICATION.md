@@ -3,6 +3,51 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Optional send persistence (2026-10-03) - Source qualification
+
+The superseding ownership decision puts reusable durable workflows in the API's
+explicit optional layer. MCP configuration, human approval, tool schemas and wire
+mapping stay in its separate repository; adapter implementation happens when
+migrating that repository from `librus-apix`. No MCP code/default backend or
+production state is changed by this slice. Earlier consumer-owned roadmap text
+below is historical and superseded by [contracts/persistence.md](contracts/persistence.md).
+
+- Independently authored SQLite schema, storage implementation and original
+  fixtures; no GPL consumer helpers or upstream material transferred.
+- Source on Python 3.13.15/3.14.7: 1,185 passed, one opt-in performance case
+  deselected. Ruff lint/format, strict typing and repository hooks pass.
+- Forty-four persistence cases use real disposable SQLite and public native
+  attempts. Legacy acceptance/rejection/unknown/pre-dispatch outcomes and modern
+  unknown/source-informed denial run through actual loopback HTTP, never live Librus.
+- Real competing processes prove one dispatch with the same token and with
+  different tokens for identical input. Killing the sender before credentials/send
+  or after send receipt leaves a durable claim; history reports UNKNOWN and blocks new-token
+  and duplicate-preview bypass. This is not exactly-once upstream delivery.
+- Sixteen independent synthetic logins execute 64 full 50-recipient/200-subject/
+  15,000-body messages at the maximum 64-worker/send admission, under one exact
+  144-request service budget. All outcomes persist; no owned requests remain.
+  A 4,096-record uncertain history is recoverable and refuses overflow without
+  eviction. Real SQLite lock contention and worker saturation fail before HTTP.
+- Repeated cancellation at claim, active send, final save and queued final save
+  joins owned work; shutdown joins workers. Final-save failure retains a claimed
+  UNKNOWN record even when the process-local result was ACCEPTED. Recovery works
+  without plaintext tokens and never implicitly reconciles uncertainty.
+- Pair-programmer self-review: TigerStyle #2 bounded work, #4 paired validation,
+  #6 unsupported states and #12 complete failure handling. Original regressions
+  failed before fixing extra-trigger acceptance, false-valued invalid limits,
+  exact-deadline expiry and cancellation discarding a queued acknowledged save.
+  They pass after the fixes. No independent agent review is claimed.
+- Corrupt/unknown/altered schemas, symlinks, unsafe permissions and oversized
+  files fail closed without resetting stored bytes. Credentials, message content,
+  recipient labels and token plaintext are absent from the actual database.
+
+No HTML/UI behavior or upstream wire layout changes in this slice; earlier same-
+byte browser semantics remain scoped to their original contracts. Installed
+wheel/sdist qualification and the separate 0.4.8 version commit are still pending
+at this source checkpoint. Notification storage/replay is the next separate slice;
+manual reconciliation, MCP migration, live qualification, merge and publication
+remain outside this delivery. No live requests, credential submissions or sends.
+
 ## 0.4.7 (2026-10-03) - Explicit modern messaging, offline qualification
 
 ### Scope and provenance

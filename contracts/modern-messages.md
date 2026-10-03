@@ -115,6 +115,7 @@ jar, and legacy cookies are never copied into the modern jar. Invalidation and
 shutdown clear/close both account-owned contexts. Limits and token syntax are
 conservative library policy, not universal upstream guarantees.
 
-Consumer preview/confirmation, durable attempt records, crash recovery and
-reconciliation remain application-owned. Consumer migration, merge and publication
+Optional API persistence supplies durable confirmation binding, atomic claims
+and conservative crash recovery for modern attempts too. Human approval and
+manual reconciliation remain application-owned. Consumer migration, merge and publication
 remain separate gates. See [sending.md](sending.md) and [../VERIFICATION.md](../VERIFICATION.md).

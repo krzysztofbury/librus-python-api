@@ -2,17 +2,19 @@
 
 ## Ownership and design decision
 
-The library provides typed ordinary count/event records and an explicitly
-consenting read-once primitive. It does not own a notification manager, selected
-categories, first-run rules, seen IDs, hashes, durable spool format, locks,
-transactions, delivery limits, migrations or filesystem publication. Ordinary
-grades/attendance/message/announcement/homework records already supply the other
-notification inputs; do not create a second six-category orchestration facade.
+The core client provides typed ordinary count/event records and an explicitly
+consenting read-once primitive. Its contracts remain independent of storage.
+The superseding S3 design assigns reusable notification orchestration, first-run
+rules, canonical IDs, bounded replay, transactions and recovery to the explicit
+optional API persistence layer, not MCP. This workflow is not implemented yet;
+the original 0.4.4 primitives below remain the current public contract.
+MCP will select categories and map its old formats in its separate repository
+at backend migration time. See [persistence.md](persistence.md).
 
 Pair-programmer design intentionally strengthens P5's original validated-batch
 handoff to **complete encoded-response checkpoint before validation/parsing**.
 Malformed gzip, MIME, markup or parser limits must not destroy the only fully
-received representation. A successful callback acknowledges consumer-owned
+received representation. A successful callback acknowledges application-selected
 durable storage. Only then can a complete typed batch be returned. The consumer
 must drain existing durable responses before another consume; the library
 cannot inspect an external spool or enforce cross-process transactions.
@@ -52,7 +54,8 @@ page again does not promise a fresh notification poll or force a new login.
   bounded parser workers and an operation budget. It never authenticates or
   dispatches HTTP, preserves original identity/observation, and requires the
   same account alias and supported envelope version. Serialization and recovery
-  policy remain application-owned; envelopes are not authorization tokens.
+   policy remain application-selected pending the optional S3 workflow;
+   envelopes are not authorization tokens.
 - Events preserve added-date text, free-form type and normalized multiline data,
   order and duplicates. No synthetic ID, hash, detail link, UTC conversion or
   upstream category enum is invented. The conservative four-column/header and

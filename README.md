@@ -46,6 +46,13 @@ positive acknowledgement is established. No automatic fallback or settings chang
 See [contracts/modern-messages.md](contracts/modern-messages.md).
 See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
+
+Explicit optional `librus_python_api.persistence.PersistenceStore` supplies
+durable send confirmation binding, atomic single-use claims and conservative
+restart recovery, with no core storage dependency or automatic retry. Applications
+select a private directory and obtain human approval. Notification persistence is
+the next separate slice; no MCP code or production state is migrated here.
+See [contracts/persistence.md](contracts/persistence.md) and [API.md](API.md).
 Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
 Content requires explicit potential mark-read consent; see
 [contracts/message-content.md](contracts/message-content.md) for its qualification gaps.

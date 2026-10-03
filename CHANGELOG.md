@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - Optional durable send workflows
+
+- Explicit optional SQLite store with private bounded files, versioned schema,
+  cross-process transactions and cancellation-joined lifecycle, independent of MCP.
+- Configured-login/backend/exact-submission-bound expiring confirmations, atomic
+  single-use claims and durable outcomes. Persist hashes/status only, not message
+  bodies, token plaintext, recipient labels, credentials or HTTP sessions.
+- Claimed/unknown/accepted submissions block duplicate-preview/token bypass.
+  Crash or final-save failure preserves uncertainty without replay or fallback.
+- Original public legacy/modern loopback, competing-process, killed-sender,
+  cancellation, fault, corruption, capacity and maximum-admission load proofs.
+- MCP integration remains in its separate repository at backend migration time.
+  Notification state/replay, manual reconciliation, live qualification and
+  publication are not implemented or authorized by this increment.
+
 ## 0.4.7 - Explicit modern messaging backend
 
 Local-first. No live credentialed operation, message or publication in this increment.

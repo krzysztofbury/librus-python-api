@@ -1,7 +1,8 @@
 # Public API (0.4.2)
 
-Everything public is exported from `librus_python_api`; exceptions live in
-`librus_python_api.exceptions`. Results are frozen dataclasses. Their reprs omit
+Core public values are exported from `librus_python_api`; exceptions live in
+`librus_python_api.exceptions`. Optional storage is explicitly imported from
+`librus_python_api.persistence`. Results are frozen dataclasses. Their reprs omit
 personal fields. Serializing them for MCP or anything else is the consumer's job.
 
 ## Service and accounts
@@ -330,8 +331,9 @@ completion, not necessarily ACCEPTED; inspect the typed result.
 
 Attempts are process-local, not confirmation tokens, a durable outbox or
 upstream idempotency. Constructing another attempt can duplicate delivery; no
-automatic retry of UNKNOWN or cancelled attempts is safe. The consumer owns
-preview/confirmation, durable attempt records and any manual reconciliation.
+automatic retry of UNKNOWN or cancelled attempts is safe. The optional persistence
+workflow below adds durable confirmation/claim safeguards. Applications still own
+human approval and any manual reconciliation.
 References are structural values, not proof of consent or intended identity.
 No attachment upload, reply, forward or scheduled-send API is introduced.
 
@@ -340,6 +342,64 @@ separately gated to the one privately specified recipient, one approved message
 and at most one dispatch, after exact sender/recipient/payload verification and
 fresh bounded discovery approval. No additional/group/substitute recipient or
 fallback is allowed. See [the send contract](contracts/sending.md).
+
+## Optional durable sending
+
+Explicitly import `PersistenceStore`, `PersistenceLimits`, `SendConfirmation`,
+`DurableSendOutcome`, `DurableSendPhase` and `DurableSendRecord` from
+`librus_python_api.persistence`.
+Core clients work without storage. No import, constructor, login or prepare call
+creates state, reads old MCP files or starts background recovery.
+
+- `PersistenceStore(directory: Path, *, limits=None)` selects an absolute private
+  directory whose parent already exists. `async with` opens/closes it; `open()`
+  and idempotent `aclose()` are also available. One store belongs to one event loop.
+  Use the same directory across cooperating processes for coordinated claims.
+  Select a trusted local filesystem with working SQLite locks/fsync. No network
+  filesystem, encrypted-at-rest, or hostile same-user filesystem isolation claim.
+- `client.context` and `attempt.account_context` expose a frozen `AccountContext`
+  binding the configured alias, login and native/API/modern origins, not a shared
+  student identity. Password rotation preserves this context; login/origin/alias
+  changes do not. Identifiers are hashes, not anonymization or authority tokens.
+- `await store.preview_send(attempt)` performs no HTTP and returns an expiring
+  `SendConfirmation(token, expires_at)`. Only a token hash and exact context/backend/
+  complete immutable-submission digest are persisted. Message bodies, recipient
+  labels, token plaintext, credentials and cookies are never stored. The caller
+  must preserve approved input and obtain human consent before execution.
+- `await store.execute_send(token, attempt, budget=None)` accepts the original or
+  an identically prepared unused native attempt, including after restart. It
+  commits the single-use claim before any authentication/send. Mismatch, expiry
+  or backwards time invalidates the unused token; replay rejects without HTTP.
+  A claimed/unknown/accepted identical submission also blocks another preview
+  or an already-issued duplicate token in this same store. Distinct contexts and
+  backends remain independent; the store never dispatches a fallback.
+- Execution returns the native `SendResult`. Cancellation and shutdown join owned
+  network/storage work. A final-save failure raises a closed typed storage/limit
+  error; inspect the native attempt but treat the durable claim as uncertain.
+  `await store.send_outcome(token, context=client.context)` returns a typed phase,
+  `SendStatus | None`, and `requires_reconciliation`. CLAIMED always means UNKNOWN,
+  including a process lost before dispatch; it is never permission to replay.
+  `await store.send_history(context=client.context)` returns bounded immutable
+  records with opaque token-hash identifiers, payload digests, UTC creation/expiry
+  and outcomes, ordered by creation then identifier. It works without plaintext
+  tokens and neither clears uncertainty nor authorizes another send.
+- SQLite FULL synchronous transactions serialize cross-process claims. Unknown
+  schema, extra triggers, corrupt data, replaced files, symlinks, non-regular
+  files and unsafe POSIX permissions fail closed, never reset/migrate state.
+  No automatic retry, reconciliation, deletion of consumed history or polling.
+- Defaults: 8 admitted storage workers and 8 send workflows, 256 total records,
+  32 unused previews, 300-second expiry and 0.1-second SQLite busy timeout.
+  Configured maxima: 64 each, 4,096 records, 256 previews, 300 seconds and 5 seconds.
+  Storage workers are serialized per store; full queues/contention fail immediately
+  or after the bounded busy interval. The database is capped at 8 MiB. Expired
+  unused previews may be reclaimed; consumed history is not silently evicted.
+
+These are local conservative safeguards, not upstream idempotency or exactly-once
+delivery. Direct `attempt.execute()` and other stores do not participate in this
+store's duplicate protection. Applications must route the protected workflow
+consistently. Notification persistence/replay remains the next separate slice;
+MCP integration belongs in its separate repository at backend migration time.
+See [contracts/persistence.md](contracts/persistence.md).
 
 ## Message content
 

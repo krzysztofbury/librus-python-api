@@ -10,6 +10,7 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.models import (
+    AccountContext,
     Agenda,
     AgendaDay,
     AgendaEvent,
@@ -110,6 +111,7 @@ from librus_python_api.service import AccountClient, LibrusService
 __version__ = "0.4.7"
 
 __all__ = [
+    "AccountContext",
     "MessagingBackend",
     "ModernAccountData",
     "ModernIdentity",
