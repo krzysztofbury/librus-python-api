@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.9 - Optional notification persistence and replay
+
+- Explicit native notification store/workflow with a private separate SQLite
+  database, bounded POSIX process locks and no core/MCP storage dependency.
+- Whole raw read-once envelopes commit before parsing; restart drains bounded
+  local slices before another consume. Failed receipt/checkpoint keeps conservative
+  uncertainty instead of replaying a potentially consumed upstream request.
+- Durable batches require explicit delivery acknowledgement before atomically
+  updating seen IDs/cursors. First-run/requested-category semantics and native
+  canonical identities remain independent of MCP; delivery is at-least-once.
+- Neutral exact-context/version-bound archive import/export into empty targets,
+  retaining malformed raw bytes and rejecting inconsistent progress/delivery.
+- Original real-SQLite/public-native loopback, process-loss/competition, cancellation,
+  save-fault, capacity and representative load proofs. Existing send state remains
+  unchanged; notification archives contain private data and are not encrypted.
+- Modern authentication, broader coverage and live qualification move to the 0.5
+  TODO. MCP migration, live operations, merge and publication remain separate gates.
+
 ## 0.4.8 - Optional durable send workflows
 
 - Explicit optional SQLite store with private bounded files, versioned schema,

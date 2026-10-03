@@ -1,37 +1,48 @@
-"""Explicit optional durable workflows, independent of MCP and core transport.
+"""Explicit optional durable sending, independent of MCP and core transport."""
 
-The application owns human approval and path selection. Claims are conservative:
-process loss after a claim never makes a send replayable. No HTTP data or cookies
-are persisted, and construction/import perform no filesystem or network I/O.
-"""
-
-import asyncio
 import hashlib
 import json
-import os
 import re
 import secrets
 import sqlite3
-import stat
 import time
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Self, cast
+from typing import Self, cast
 
 from pydantic import Field, model_validator
 
+from librus_python_api._notification_codec import canonical_notification_id
+from librus_python_api._storage import _SQLiteStore, _StorageLimits
 from librus_python_api.budget import RequestBudget
-from librus_python_api.config import _ValidatedConfig
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import AccountContext, SendResult, SendStatus
+from librus_python_api.notification_models import (
+    NotificationArchive,
+    NotificationBatch,
+    NotificationItem,
+    NotificationSeen,
+    NotificationState,
+)
+from librus_python_api.notification_persistence import (
+    NotificationLimits,
+    NotificationStore,
+)
+from librus_python_api.notification_workflow import NotificationWorkflow
 from librus_python_api.sending import SendAttempt
 
 __all__ = [
+    "NotificationArchive",
+    "NotificationBatch",
+    "NotificationItem",
+    "NotificationSeen",
+    "NotificationState",
+    "NotificationLimits",
+    "NotificationStore",
+    "NotificationWorkflow",
+    "canonical_notification_id",
     "DurableSendOutcome",
     "DurableSendPhase",
     "DurableSendRecord",
@@ -40,9 +51,6 @@ __all__ = [
     "SendConfirmation",
 ]
 
-_SCHEMA_VERSION = 1
-_PAGE_BYTES = 4096
-_DATABASE_BYTES = 8 * 1024 * 1024
 _STATUS_VALUES = frozenset(
     {"pending", "claimed", "invalidated", *(s.value for s in SendStatus)}
 )
@@ -62,12 +70,10 @@ _SEND_SCHEMA = """CREATE TABLE send_attempts (
 )"""
 
 
-class PersistenceLimits(_ValidatedConfig):
-    operations: int = Field(default=8, ge=1, le=64)
+class PersistenceLimits(_StorageLimits):
     send_records: int = Field(default=256, ge=1, le=4096)
     pending_confirmations: int = Field(default=32, ge=1, le=256)
     confirmation_ttl_seconds: int = Field(default=300, ge=1, le=300)
-    busy_timeout_seconds: float = Field(default=0.1, gt=0, le=5, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def pending_bound(self) -> Self:
@@ -137,275 +143,27 @@ def _binding(attempt: SendAttempt) -> tuple[str, str]:
     return context, hashlib.sha256(encoded).hexdigest()
 
 
-class PersistenceStore:
-    """Explicit SQLite lifecycle with bounded/joined workers and durable claims.
+class PersistenceStore(_SQLiteStore):
+    """Explicit private durable send claims; core clients require no storage.
 
-    The selected directory's parent must already exist. Existing private files
-    are validated, never reset, silently migrated or removed to recover capacity.
-    In-flight recovery snapshots are conservative, not proof a process stopped.
+    The selected directory's parent must exist. Store only digests and outcomes,
+    never send bodies, token plaintext or HTTP cookies. Existing files are
+    validated, not reset or automatically migrated. A durable claim is uncertain
+    after process loss, even if no HTTP request actually reached the upstream.
     """
+
+    _schema = (_SEND_SCHEMA,)
 
     def __init__(
         self, directory: Path, *, limits: PersistenceLimits | None = None
     ) -> None:
-        if not isinstance(directory, Path) or not directory.is_absolute():
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        self._directory = directory
-        self._path = directory / "state.sqlite3"
         self._limits = limits if limits is not None else PersistenceLimits()
         if not isinstance(self._limits, PersistenceLimits):
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        self._opened = self._opening = self._closing = self._closed = False
-        self._operations = 0
-        self._lock = asyncio.Lock()
-        self._tasks: set[asyncio.Task[Any]] = set()
-        self._send_tasks: set[asyncio.Task[SendResult]] = set()
-        self._close_task: asyncio.Task[None] | None = None
-        self._file_identity: tuple[int, int] | None = None
+        super().__init__(directory, limits=self._limits)
 
-    async def __aenter__(self) -> Self:
-        await self.open()
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        await self.aclose()
-
-    async def open(self) -> None:
-        if self._opened or self._opening or self._closing or self._closed:
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        self._opening = True
-        try:
-            await self._io(self._initialise, opening=True)
-            self._opened = True
-        finally:
-            self._opening = False
-
-    async def aclose(self) -> None:
-        if (
-            asyncio.current_task() in self._tasks
-            or asyncio.current_task() in self._send_tasks
-        ):
-            raise LibrusError(ErrorKind.INVALID_INPUT)
-        if self._close_task is None:
-            self._closing = True
-            self._close_task = asyncio.create_task(self._close())
-        interrupted = await join_owned(self._close_task)
-        self._close_task.result()
-        if interrupted:
-            raise asyncio.CancelledError
-
-    async def _close(self) -> None:
-        # Cancel network workflows first, and let their owned final saves finish.
-        # Canceling those storage children first would discard acknowledged state.
-        for task in tuple(self._send_tasks):
-            task.cancel()
-        for task in tuple(self._send_tasks):
-            await join_owned(task)
-        # New ordinary operations are closed; final saves were joined above.
-        tasks = tuple(self._tasks)
-        for task in tasks:
-            task.cancel()
-        for task in tasks:
-            await join_owned(task)
-        self._closed = True
-        self._opened = False
-
-    async def _io[T](
-        self,
-        operation: Callable[[], T],
-        *,
-        opening: bool = False,
-        finishing: bool = False,
-    ) -> T:
-        if (
-            self._closed
-            or (not self._opened and not opening)
-            or (self._closing and not finishing)
-        ):
-            raise LibrusError(ErrorKind.CLOSED)
-        if self._operations >= self._limits.operations:
-            raise LibrusError(ErrorKind.LIMIT)
-        self._operations += 1
-        task = asyncio.create_task(self._worker(operation))
-        self._tasks.add(task)
-        cancelled = False
-        try:
-            await asyncio.wait((task,))
-            return task.result()
-        except asyncio.CancelledError:
-            cancelled = True
-            # Once finishing is admitted, even cancellation while waiting for
-            # another storage worker must join it, not discard an acknowledgement.
-            if not finishing:
-                task.cancel()
-            raise
-        finally:
-            interrupted = await join_owned(task)
-            self._tasks.discard(task)
-            self._operations -= 1
-            if cancelled or interrupted:
-                raise asyncio.CancelledError
-
-    async def _worker[T](self, operation: Callable[[], T]) -> T:
-        kind: ErrorKind | None = None
-        async with self._lock:
-            task = asyncio.create_task(asyncio.to_thread(operation))
-            interrupted = await join_owned(task)
-            if interrupted:
-                raise asyncio.CancelledError
-            try:
-                return task.result()
-            except LibrusError:
-                raise
-            except Exception:
-                kind = ErrorKind.STORAGE
-        assert kind is not None
-        raise LibrusError(kind)
-
-    def _check_directory(self) -> None:
-        # Private immediate parent plus a fixed filename is the trust boundary.
-        # Same-user malicious filesystem writers are not an isolation promise.
-        if self._directory.is_symlink():
-            raise LibrusError(ErrorKind.STORAGE)
-        self._directory.mkdir(mode=0o700, exist_ok=True)
-        status = self._directory.stat()
-        if not stat.S_ISDIR(status.st_mode):
-            raise LibrusError(ErrorKind.STORAGE)
-        if os.name == "posix" and (
-            status.st_uid != os.geteuid() or stat.S_IMODE(status.st_mode) & 0o077
-        ):
-            raise LibrusError(ErrorKind.STORAGE)
-
-    def _check_file(self, *, create: bool = False) -> None:
-        if self._path.is_symlink():
-            raise LibrusError(ErrorKind.STORAGE)
-        flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
-        if create:
-            flags |= os.O_CREAT
-        descriptor = os.open(self._path, flags, 0o600)
-        try:
-            status = os.fstat(descriptor)
-            if (
-                not stat.S_ISREG(status.st_mode)
-                or status.st_nlink != 1
-                or status.st_size > _DATABASE_BYTES
-            ):
-                raise LibrusError(ErrorKind.STORAGE)
-            if os.name == "posix" and (
-                status.st_uid != os.geteuid() or stat.S_IMODE(status.st_mode) & 0o077
-            ):
-                raise LibrusError(ErrorKind.STORAGE)
-            identity = (status.st_dev, status.st_ino)
-            if self._file_identity is not None and self._file_identity != identity:
-                raise LibrusError(ErrorKind.STORAGE)
-            self._file_identity = identity
-        finally:
-            os.close(descriptor)
-
-    def _check_sidecars(self) -> None:
-        for suffix in ("-journal", "-wal", "-shm"):
-            path = self._path.with_name(self._path.name + suffix)
-            try:
-                status = path.lstat()
-            except FileNotFoundError:
-                continue
-            if (
-                not stat.S_ISREG(status.st_mode)
-                or status.st_nlink != 1
-                or status.st_size > _DATABASE_BYTES + 1024 * 1024
-                or (
-                    os.name == "posix"
-                    and (
-                        status.st_uid != os.geteuid()
-                        or stat.S_IMODE(status.st_mode) & 0o077
-                    )
-                )
-            ):
-                raise LibrusError(ErrorKind.STORAGE)
-
-    @contextmanager
-    def _connection(self, *, initialise: bool = False) -> Iterator[sqlite3.Connection]:
-        connection = None
-        kind: ErrorKind | None = None
-        try:
-            self._check_directory()
-            self._check_file(create=initialise)
-            self._check_sidecars()
-            connection = sqlite3.connect(
-                self._path, timeout=self._limits.busy_timeout_seconds
-            )
-            connection.execute("PRAGMA trusted_schema=OFF")
-            connection.execute("PRAGMA synchronous=FULL")
-            connection.execute(
-                f"PRAGMA max_page_count={_DATABASE_BYTES // _PAGE_BYTES}"
-            )
-            connection.execute("BEGIN IMMEDIATE")
-            if not initialise:
-                self._validate_schema(connection)
-            yield connection
-            connection.commit()
-        except LibrusError:
-            raise
-        except sqlite3.Error as error:
-            kind = (
-                ErrorKind.LIMIT
-                if getattr(error, "sqlite_errorcode", None)
-                in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)
-                else ErrorKind.STORAGE
-            )
-        except OSError:
-            kind = ErrorKind.STORAGE
-        finally:
-            if connection is not None:
-                connection.close()
-        if kind is not None:
-            raise LibrusError(kind)
-
-    def _initialise(self) -> None:
-        with self._connection(initialise=True) as connection:
-            version = connection.execute("PRAGMA user_version").fetchone()[0]
-            tables = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' LIMIT 8"
-            ).fetchall()
-            if (
-                version not in (0, _SCHEMA_VERSION)
-                or (version == 0 and tables)
-                or (version == _SCHEMA_VERSION and tables != [("send_attempts",)])
-            ):
-                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            if version == 0:
-                connection.execute(_SEND_SCHEMA)
-                connection.execute(f"PRAGMA user_version={_SCHEMA_VERSION}")
-            self._validate_schema(connection)
-            self._rows(connection)
-        if os.name == "posix":
-            descriptor = os.open(
-                self._directory,
-                os.O_RDONLY
-                | getattr(os, "O_DIRECTORY", 0)
-                | getattr(os, "O_NOFOLLOW", 0),
-            )
-            try:
-                os.fsync(descriptor)
-            finally:
-                os.close(descriptor)
-
-    @staticmethod
-    def _validate_schema(connection: sqlite3.Connection) -> None:
-        objects = connection.execute(
-            "SELECT type, name, sql FROM sqlite_master ORDER BY name LIMIT 8"
-        ).fetchall()
-        if (
-            connection.execute("PRAGMA user_version").fetchone()[0] != _SCHEMA_VERSION
-            or connection.execute("PRAGMA page_size").fetchone()[0] != _PAGE_BYTES
-            or connection.execute("PRAGMA journal_mode").fetchone()[0] != "delete"
-            or objects
-            != [
-                ("table", "send_attempts", _SEND_SCHEMA),
-                ("index", "sqlite_autoindex_send_attempts_1", None),
-            ]
-        ):
-            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    def _validate_contents(self, connection: sqlite3.Connection) -> None:
+        self._rows(connection)
 
     def _rows(self, connection: sqlite3.Connection) -> list[_SendRow]:
         rows = cast(
@@ -473,7 +231,6 @@ class PersistenceStore:
         )
 
     def _claim(self, token_hash: str, context: str, digest: str) -> None:
-        invalid = False
         with self._connection() as connection:
             rows = self._rows(connection)
             row = next((row for row in rows if row[0] == token_hash), None)
@@ -497,27 +254,9 @@ class PersistenceStore:
     ) -> SendResult:
         token_hash = _token_hash(token)
         context, digest = _binding(attempt)
-        if not self._opened or self._closing or self._closed:
-            raise LibrusError(ErrorKind.CLOSED)
-        if len(self._send_tasks) >= self._limits.operations:
-            raise LibrusError(ErrorKind.LIMIT)
-        task = asyncio.create_task(
-            self._execute_send(token_hash, context, digest, attempt, budget)
+        return await self._owned(
+            lambda: self._execute_send(token_hash, context, digest, attempt, budget)
         )
-        self._send_tasks.add(task)
-        cancelled = False
-        try:
-            await asyncio.wait((task,))
-            return task.result()
-        except asyncio.CancelledError:
-            cancelled = True
-            task.cancel()
-            raise
-        finally:
-            interrupted = await join_owned(task)
-            self._send_tasks.discard(task)
-            if cancelled or interrupted:
-                raise asyncio.CancelledError
 
     async def _execute_send(
         self,

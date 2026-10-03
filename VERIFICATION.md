@@ -3,6 +3,58 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.9 (2026-10-03) - Optional durable notifications
+
+Source checkpoint, before version/artifact qualification:
+
+- Explicit optional native `NotificationStore`/`NotificationWorkflow`, separate
+  private SQLite database, no core storage requirement and no MCP implementation
+  or production-state changes. Independently authored code and original fixtures.
+- Python 3.13.15 and 3.14.7 each pass 1,235 portable tests (one performance test
+  deselected); Ruff lint/format and strict typing pass. Fifty new notification
+  cases exercise actual public-native loopback and real disposable SQLite.
+- Durable raw encoded bodies/metadata precede parsing; malformed markup, MIME,
+  gzip and coding stay retained. An uncertain pre-checkpoint marker blocks fresh
+  consume until explicit possible-loss acceptance. No upstream replay is inferred.
+- Staged delivery replays without HTTP until explicit acknowledgement atomically
+  commits seen IDs and cursor/cleanup. First-run, category selection and ordinary
+  category failures are exercised, including all six native categories. No count
+  menu, content-mark-read or hidden detail requests are made by the workflow.
+- Real competing processes refuse the second same-context consume. Process loss
+  during partial receipt, after checkpoint/staging and after acknowledgement
+  preserves marker/raw/delivery/committed state respectively. Restart drains local
+  bytes without another login or read-once request.
+- Real worker faults before/after checkpoint, staging and acknowledgement plus
+  repeated cancellation/shutdown join owned saves. Candidate seen-state overflow
+  preserves raw data and recovers with explicitly larger supported limits.
+- Representative load: four independent logins each deliver/acknowledge 1,024
+  distinct events under one exact 24-request budget. Four MiB encoded raw receipt
+  is retained at the accepted wire bound; shared checkpoint capacity refuses the
+  next consume. Byte/event slices, 1,024 duplicate rows and workflow saturation
+  remain bounded with no silent data eviction or owned active/queued requests.
+- Neutral archive round trips include pending delivery/progress. Invalid version,
+  exact context, bytes, count, old IDs and staged-event omission reject atomically.
+  The omission regression failed before comparing imported cursor coverage with
+  the retained envelope, then passes after the fix. Empty/seen-only context binding
+  is covered too. Private archives are neither encrypted nor authenticated.
+- A last-committed receipt retry initially failed when a newer batch was staged.
+  The regression now passes, leaving the newer delivery intact and unacknowledged.
+- Send store schema and qualified bytes remain unchanged across notification use;
+  all 44 existing send persistence cases pass after extracting shared private
+  SQLite ownership. Extra schema, raw corruption and lock symlinks fail closed.
+- Pair-programmer self-review: TigerStyle #2 bounded work, #4 paired validation,
+  #6 unsupported states and #12 joined failure handling. No independent agent
+  review is claimed. No new HTML/UI layout, route or parser contract changes;
+  existing independent same-byte/browser evidence retains its original scope.
+
+Installed wheel/sdist qualification and final sanitized artifact evidence remain
+pending at this source checkpoint. Source-test scratch/databases/workers were
+cleaned. All new HTTP traffic was loopback: zero live Librus requests, credentials
+or sends. POSIX context locks do not coordinate global traffic across independent
+processes. Delivery is at-least-once, not exactly-once or historical catch-up.
+Modern authentication, broader coverage and live qualification remain in the 0.5
+TODO. MCP mapping/migration, credentialed CI, merge and publication remain gated.
+
 ## 0.4.8 (2026-10-03) - Optional durable send workflows, offline qualification
 
 The superseding ownership decision puts reusable durable workflows in the API's

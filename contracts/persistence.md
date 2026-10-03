@@ -56,7 +56,7 @@ and any MCP integration remain separate, not implied by local storage proofs.
 
 ## 0.4.9: durable notification prerequisites
 
-Approved implementation plan: an explicit `NotificationStore` and native
+Implementation: an explicit `NotificationStore` and native
 `NotificationWorkflow`, with a separate `notifications.sqlite3` in the selected
 private directory. Reuse independently authored SQLite/file/worker ownership
 primitives, not send schema or GPL consumer helpers. Existing 0.4.8 send databases
@@ -101,7 +101,70 @@ decoding/parsing. Recover and drain existing raw checkpoints before another
 consume. Preserve malformed accepted responses for explicit diagnosis; do not
 silently drop data or reset seen history. Provide bounded replay and deduplication,
 stable canonical identities, requested-category and first-run behavior, transaction
-locks, migrations and rollback-safe import/export primitives independently of MCP.
+locks and rollback-safe import/export primitives independently of MCP. There is no
+automatic schema migration: unknown layouts fail without resetting existing data.
+
+### Delivery, limits and compatibility boundaries
+
+The store uses POSIX `flock`, with one persistent zero-byte private lock file per
+registered context. Contending callers fail with LIMIT, not an unbounded wait.
+The same context is serialized across processes; distinct contexts remain separate.
+All actual HTTP work still uses the service scheduler and supplied shared budget.
+An application using multiple processes must separately coordinate global network
+traffic; filesystem context locks do not implement a distributed rate limiter.
+
+First run means the context has no acknowledged delivery. It diffs selected native
+collections against empty seen IDs, never the menu count route. Ordinary categories
+use LAST_LOGIN grades/attendance, the first received-mailbox page, announcements,
+and an explicit homework window (default: preceding seven days through today in
+Europe/Warsaw). These are bounded observations, not a historical catch-up guarantee.
+Only delivered IDs change on acknowledgement; unrequested categories stay intact.
+An empty batch still has a receipt and initializes the context only when acknowledged.
+While a batch is pending, the exact original category tuple must be requested.
+It is replayed without HTTP even if new consume consent is omitted. Changing the
+selection requires acknowledging that batch first.
+
+Defaults: 16 contexts, 8 workers/workflows, 0.1 s busy timeout, 32 checkpoints or
+uncertainty reservations, 16 MiB combined checkpoint/reservation bytes, 4 MiB total
+seen-state bytes, 4,096 seen IDs per category, 500 delivery items and 1 MiB batch
+bytes. Schedule slices contain at most 500 new events and 128 KiB canonical value
+JSON. The full raw envelope remains bounded by 4 MiB encoded body plus 4 MiB
+metadata. SQLite main-file capacity is 64 MiB; staged delivery plus candidate
+state is globally capped at 16 MiB. All bounds fail closed without pruning seen
+history or consuming another envelope. Explicit larger supported limits can
+recover a retained envelope that failed a smaller delivery/seen bound. An event
+too large for one configured slice blocks replay rather than being skipped.
+
+Reserve worst-case body/metadata capacity before consuming and retain the marker
+using logical storage budgets, not a physical disk-space guarantee. Disk exhaustion,
+filesystem failure and process loss between upstream mutation and complete durable
+checkpoint remain possible loss windows. The marker records uncertainty, not data
+which was never received. Reserve capacity and retain the marker
+after any pre-checkpoint fault, even a failure before authentication. This may
+conservatively block a call which never reached upstream. Only explicit
+`resolve_uncertain_consume(accept_possible_loss=True)` removes a marker without
+raw/delivery data. Complete malformed responses are not markers and cannot be
+discarded through that method. Export them for diagnosis; no hidden fresh consume.
+
+Neutral archive version 1 embeds the exact context and holds seen state, last
+receipt, encoded raw envelope, cursor, pending delivery and uncertainty reservation.
+Imports require an empty target context and validate raw digest, actual decoded
+event count, staged event/cursor consistency and candidate seen state in one SQL
+transaction. A raw envelope without an established event count is deliberately
+not parsed on import, allowing recovery of malformed checkpoint bytes. Archives
+contain private data, are not encrypted or authenticated, and must be protected
+by the application just like the source directory. SQLite deletion is logical,
+not a secure-erasure guarantee. Do not remove lock files while stores are active.
+
+`canonical_notification_id` provides the version-1 native identity policy.
+Schedule identity is SHA-256 of sorted, compact, UTF-8 JSON of date_added/type/data.
+Native messages use folder and reference ID; announcements use their content
+reference; homework/attendance use native IDs where present; otherwise identities
+cover the typed visible value. Modified stable-ID records are not automatically
+re-notified. Old MCP `schedule` category needs explicit mapping to native `agenda`.
+Other old IDs require independently qualified conversion, not blind ingestion.
+Neither the archive nor this workflow reads old MCP JSON/spool files or promises
+wire compatibility, exactly-once delivery or durable upstream acknowledgement.
 
 MCP-specific legacy JSON field names and spool formats belong in a thin explicit
 adapter. Existing production files are not read/migrated by import, startup or

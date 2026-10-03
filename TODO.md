@@ -36,7 +36,7 @@ Rules that hold for every release:
 | `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
 | `0.4.7` | Explicit modern identity, council discovery and single-use JSON sending | Implemented; offline qualification recorded in VERIFICATION.md; positive acknowledgements and sole-recipient live send remain gated |
 | `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
-| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Planned: final 0.4 persistence prerequisite, not full compatibility closure |
+| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Implemented; source-qualified, installed artifact qualification pending; final 0.4 persistence prerequisite, not full compatibility closure |
 | `0.5.x` | Modern authentication, broader communication coverage and live qualification | Planned; explicit evidence/consent gates below |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
@@ -142,7 +142,7 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
 | S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
-| S3 | Persistent notifications and checkpoint replay, proposed 0.4.9 | API optional persistence layer; canonical identities, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before consume and competing-process proofs. MCP maps old formats without maintaining another engine |
+| S3 | Persistent notifications and checkpoint replay, 0.4.9 | Implemented offline: explicit native store/workflow, canonical identities, first-run/requested-category semantics, raw checkpoint before parsing, bounded replay before consume, two-phase acknowledgement, neutral archive and competing-process proofs. Source qualified; installed artifacts pending. MCP old-format mapping remains a separate migration task |
 
 ### 0.5 TODO - Compatibility and live communication qualification
 

@@ -1,4 +1,4 @@
-# Public API (0.4.2)
+# Public API
 
 Core public values are exported from `librus_python_api`; exceptions live in
 `librus_python_api.exceptions`. Optional storage is explicitly imported from
@@ -397,9 +397,91 @@ creates state, reads old MCP files or starts background recovery.
 These are local conservative safeguards, not upstream idempotency or exactly-once
 delivery. Direct `attempt.execute()` and other stores do not participate in this
 store's duplicate protection. Applications must route the protected workflow
-consistently. Notification persistence/replay remains the next separate slice;
-MCP integration belongs in its separate repository at backend migration time.
+consistently. MCP integration belongs in its separate repository at backend
+migration time.
 See [contracts/persistence.md](contracts/persistence.md).
+
+## Optional durable notifications
+
+Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
+`NotificationBatch`, `NotificationItem`, `NotificationState`, `NotificationSeen`,
+`NotificationArchive` and `canonical_notification_id` from
+`librus_python_api.persistence`. Construction is inert; core clients remain
+independent of this optional layer.
+
+```python
+from pathlib import Path
+from librus_python_api import NotificationCategory
+from librus_python_api.persistence import NotificationStore, NotificationWorkflow
+
+# Inside the application's existing LibrusService scope. Parent directory exists.
+async with NotificationStore(Path("/absolute/private/notification-state")) as store:
+    workflow = NotificationWorkflow(service.account("parent"), store)
+    batch = await workflow.poll(categories=(NotificationCategory.MESSAGES,))
+    await application_deliver(batch)  # application-owned delivery boundary
+    await workflow.acknowledge(batch.receipt)
+```
+
+- `NotificationStore(directory: Path, *, limits=None)` opens the private separate
+  `notifications.sqlite3` via `async with` or explicit `open()`/`aclose()`.
+  Existing send databases remain unchanged. Select a trusted local filesystem
+  with SQLite/fsync/POSIX flock support; other platforms fail explicitly on
+  context operations. One store belongs to one event loop. Shutdown/cancellation
+  joins owned work. Same-context competition fails with LIMIT, without HTTP.
+- `NotificationWorkflow(client, store).poll(*, categories, allow_consume_events=False,
+  homework_window=None, checkpoint_timeout_seconds=5.0, budget=None)` accepts a
+  nonempty tuple of distinct native categories. Ordinary reads precede schedule
+  consumption. Homework defaults to today minus seven days through today in
+  Europe/Warsaw. Grades/attendance use LAST_LOGIN, messages use received page zero,
+  announcements use the ordinary collection. No menu counts, message content,
+  detail calls, modern fallback or arbitrary historical catch-up is performed.
+- New `AGENDA` consumption requires explicit `allow_consume_events=True` each
+  time. Complete encoded raw bytes and original metadata commit before parsing.
+  Existing raw checkpoints replay locally before another consume. Malformed raw
+  data remains stored and blocks another consume, even with fresh consent.
+- `NotificationBatch(receipt, context, first_run, categories, items,
+  has_more_schedule)` is a durably staged batch. Each `NotificationItem` carries
+  category, canonical identifier, native typed value, identity and observation.
+  First run diffs against empty IDs and ends only at acknowledgement. Requested
+  categories alone update seen state. Until acknowledgement, polling the exact
+  same category tuple returns that batch without authentication/HTTP. A different
+  tuple fails explicitly, not silently discarding the prior delivery.
+- `await workflow.acknowledge(receipt)` (or
+  `await store.acknowledge(receipt, context=client.context)`) atomically saves seen
+  IDs, advances the schedule cursor and cleans completed raw/delivery rows.
+  Repeating the most recently committed receipt is idempotent; older or foreign
+  receipts reject. Even an empty batch needs acknowledgement. Application delivery
+  then process loss before acknowledgement can duplicate delivery: at-least-once,
+  not exactly-once. Acknowledging before actual application delivery risks loss.
+- `await store.state(context=client.context)` returns immutable initialized/seen
+  state without HTTP. Pending batches do not mark IDs seen. Defaults are bounded:
+  16 contexts, 8 workers/workflows, 32 raw/reservation records, 16 MiB checkpoint
+  bytes, 4 MiB total seen-state bytes, 4,096 IDs/category, 500 items/1 MiB per batch,
+  500 events/128 KiB value JSON per replay slice, 0.1 s busy timeout. The full
+  envelope is capped at 4 MiB encoded body plus 4 MiB metadata; database main file
+  at 64 MiB and global staged delivery/candidate state at 16 MiB. Bounds fail closed
+  without silently evicting history. A retained raw envelope can be recovered with
+  explicit supported larger limits; oversized single events are never skipped.
+- `await store.export_archive(context=...)` returns a version-1 neutral archive
+  containing exact context, seen IDs, receipt, raw bytes/progress, pending delivery
+  and uncertainty. `await store.import_archive(archive)` is empty-target-only and
+  validates the complete import transaction before commit. Unknown versions,
+  foreign contexts, malformed raw/progress and inconsistent staged events reject.
+  Protect private archive bytes: they are not encrypted/authenticated and are not
+  MCP JSON/spool formats. No auto migration, production-file discovery or overwrite.
+- `await store.resolve_uncertain_consume(context=...,
+  accept_possible_loss=True)` explicitly clears only a reservation without raw
+  or pending delivery. Such a marker remains after any failure before checkpoint,
+  including possible pre-dispatch failure; it never expires or authorizes retry.
+  Clearing it accepts possible lost upstream events, not proof of no consumption.
+
+`canonical_notification_id(category, value)` exposes version-1 native identities.
+Schedule hashes cover date_added/type/data; stable native IDs identify ordinary
+records where available, otherwise complete visible typed content. Stable-ID
+updates do not automatically re-notify. MCP `schedule`/legacy IDs need a separately
+qualified explicit mapping to `agenda`/native IDs. See
+[contracts/persistence.md](contracts/persistence.md) for compatibility and loss
+windows. No live qualification or MCP migration is implied by offline recovery.
 
 ## Message content
 
