@@ -342,6 +342,23 @@ def test_seen_saturation_can_prune_and_replay_retained_raw_without_reconsuming(
                         assert len(fixture.calls) == requests
                         assert len(batch.items) == 1
                         await workflow.acknowledge(batch.receipt)
+                        if index == 0:
+                            state = await store.state(context=client.context)
+                            with pytest.raises(LibrusError) as protected:
+                                await store.prune_seen(
+                                    context=client.context,
+                                    category=NotificationCategory.AGENDA,
+                                    identifiers=(batch.items[0].identifier,),
+                                )
+                            assert protected.value.kind is ErrorKind.INVALID_INPUT
+                            assert await store.state(context=client.context) == state
+                            async with NotificationStore(tmp_path / "copy") as copied:
+                                await copied.import_archive(
+                                    await store.export_archive(context=client.context)
+                                )
+                                assert (
+                                    await copied.state(context=client.context) == state
+                                )
                     assert len(fixture.calls_by_account) == 2
                     assert (
                         json.loads(

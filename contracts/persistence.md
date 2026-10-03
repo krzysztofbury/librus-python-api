@@ -16,6 +16,8 @@ later duplicate confirmation for the same submission. No network is performed.
 SQLite reuses freed pages; pruning is logical, not secure erasure or VACUUM.
 Retained raw replay is allowed after pruning, so seen saturation can be recovered
 without a new read-once request, even after an earlier slice was acknowledged.
+Agenda IDs proving the acknowledged raw prefix remain protected until that raw
+receipt drains, so every exported archive remains independently importable.
 
 Both database schemas advance to version 2, adding one random 32-byte context
 salt per store. SQL context keys, notification lock filenames, persisted batch

@@ -354,6 +354,20 @@ class NotificationStore(_SQLiteStore):
             current = next(entry for entry in state.seen if entry.category is category)
             if not removed.issubset(current.identifiers):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
+            raw = self._raw(connection, context)
+            if category is NotificationCategory.AGENDA and raw is not None and raw[2]:
+                response = raw[1]
+                events = parse_schedule_events(
+                    decode_payload(response.wire.body, response.wire, WIRE_BYTES)
+                )
+                protected = {
+                    canonical_notification_id(NotificationCategory.AGENDA, value)
+                    for value in events[: raw[2]]
+                }
+                if removed & protected:
+                    # Prefix membership proves acknowledged cursor progress during
+                    # archive import. Retain it until the raw receipt is drained.
+                    raise LibrusError(ErrorKind.INVALID_INPUT)
             after = replace(
                 state,
                 seen=tuple(
