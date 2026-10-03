@@ -188,7 +188,7 @@ Nothing is marked as read.
 - `completed_lessons(start, end, cursor=None, max_pages=4, limit=128)` reads up to
   8 pages and 256 rows and returns a `next_cursor` (or `None` when finished).
   Resume with the cursor, the same login and the same dates. A resumed page must
-  match its fingerprint; page-count drift or a repeated page raises `ParseError`.
+  match its fingerprint; page-count drift or a repeated page raises `StaleCursorError`.
   Cursors are not snapshots.
 
 Windows span at most 371 days. Where the school has disabled the view, both
@@ -213,8 +213,9 @@ Pass the enum, not a string.
   the page, offset, page count, fingerprint and up to 2,000 already returned IDs.
   Duplicate IDs across pages are skipped, not across accounts or folders.
   Duplicate IDs within one page fail. Changed mid-page content, changed page
-  counts, clamped/repeated pages and pages containing only seen IDs fail with
-  `ParseError`. History capacity exhaustion is `LimitError`. A cursor is not a
+   counts, repeated pages and pages containing only seen IDs fail with
+   `StaleCursorError` (`kind=stale_cursor`). Malformed/clamped page metadata remains
+   `ParseError`. History capacity exhaustion is `LimitError`. A cursor is not a
   mailbox snapshot: page-boundary changes with unchanged counts can still move
   records. Restart explicitly when drift is detected. It is not an authorization
   token and is not designed as a durable notification checkpoint.
@@ -236,6 +237,9 @@ in addition to shared body/parser/request limits. No body or attachment fetch,
 mark-read, delete, send or read-once operation occurs. Pagination changes the
 selected mailbox view, so its POST is never replayed, including after expiry.
 Page and batch caches are separate and fresh by default.
+
+In 0.4.11 a full 50-row page without pagination metadata is unsupported, not
+apparently complete. Empty and shorter pager-less page-zero layouts remain supported.
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
@@ -331,6 +335,11 @@ reason, never raw exceptions/responses. Cancellation propagates
 `asyncio.CancelledError` after joined cleanup; inspect `attempt.outcome` afterwards.
 Its reason is `"cancelled"` unless a terminal acknowledgement was already
 established. Shutdown preserves these cancellation semantics for the send path.
+In 0.4.11 completed bounded send responses survive return-time budget expiry.
+Receipt parsing has a separate local deadline of
+`TransportLimits.request_timeout_seconds` and the same bounded parser/admission
+policy. No further HTTP or retry is granted. Incomplete responses and local
+parsing timeout remain UNKNOWN; external cancellation still propagates.
 Sender identity/observation are bound at the potential-dispatch boundary, not
 invented for failures before it. Sent page/batch caches are invalidated there,
 including uncertain sends; unrelated received summaries remain cached unless
@@ -439,9 +448,12 @@ Old version-1 archives explicitly reject. See the storage format decision in
 
 `await store.prune_seen(context=client.context, category=NotificationCategory.GRADES,
 identifiers=(...))` explicitly forgets the selected seen IDs and returns the deleted
-count. It requires no raw checkpoint, uncertain reservation or pending delivery in
-that context. Foreign/missing/duplicate/invalid IDs reject atomically. Other
-categories and initialization/last receipt stay intact. Forgotten IDs can be
+count. It requires no uncertain reservation or pending delivery in that context.
+Raw checkpoint bytes/cursor stay intact, allowing saturated history to shrink and
+replay without another read-once request. Foreign/missing/duplicate/invalid IDs
+reject atomically.
+Agenda IDs proving the acknowledged raw prefix cannot be pruned until it drains.
+Other categories and initialization/last receipt stay intact. Forgotten IDs can be
 notified again; no automatic school-year/age expiry is performed.
 
 Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
@@ -571,6 +583,14 @@ Unknown metadata/body layouts and bounds fail the whole operation. Full HTML
 other/new mailbox layouts remain live qualification gaps.
 
 ## Attachment streams
+
+0.4.11 adds `TransportLimits.attachment_idle_timeout_seconds` (default 15 seconds)
+for every paused consumer-demand wait, independently of a long operation budget.
+Idle expiry reports TIMEOUT, leaves `complete=False`, joins/closes the download
+and frees shared admission. Network reads use their separate transport deadlines.
+Unsupported signed redirect route/key shapes report UNSUPPORTED_CAPABILITY without
+permission cooldown. Foreign origin/scheme/userinfo and HTTP 403 remain denied;
+neither error permits download dispatch or replay.
 
 `stream_attachment(reference, *, max_bytes=50*1024*1024, budget=None)` constructs
 an `AttachmentStream` without I/O. Use it as an async context manager:
@@ -736,6 +756,7 @@ text. `error_for(kind)` builds one.
 | `ViewDisabledError` | The school administrator disabled this view |
 | `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
 | `ParseError` | The page or JSON does not match the expected structure |
+| `StaleCursorError` | A previously valid continuation no longer matches the current sequence; restart explicitly |
 | `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses |
 | `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
 | `LimitError` | A request, byte, item or queue bound was reached |

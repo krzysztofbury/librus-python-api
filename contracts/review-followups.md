@@ -33,8 +33,13 @@ Safety findings and boundaries:
 - Explicit caller pruning chosen instead of school-year/age expiry. There is no
   automatic weakening of seen/dedup history. Accepted-send pruning requires a
   separate duplicate-risk opt-in; uncertain/claimed sends remain unprunable.
-- Pending raw/reservation/delivery prohibits seen pruning under the held process
-  context lock. All selections validate before SQL deletion/update; other category
+- Pending reservation/delivery prohibits seen pruning under the held process
+  context lock. Raw bytes/progress stay untouched, permitting saturation recovery
+  by explicit pruning without a new read-once consume. A late review regression
+  caught and corrected the initial over-conservative raw-pruning guard.
+  Agenda prefix IDs remain protected until raw drain to preserve archive-import
+  proof of acknowledged progress, while unrelated old IDs can free capacity.
+  All selections validate before SQL deletion/update; other category
   state, initialization and last acknowledgement survive.
 - Salt creation is atomic under SQLite BEGIN IMMEDIATE; reopening/process
   competition retains the same salt. Persisted contexts/lock paths/batches/raw
@@ -68,5 +73,37 @@ Safety findings and boundaries:
 - A preflight cannot eliminate expiry between GET and POST. Post-dispatch errors
   still retain UNKNOWN, clear the modern binding and never replay the message.
 
-The edge-case post-change review will be recorded in its own scoped commit. All
-verification stays offline with independently authored fixtures.
+## Edge-case slice post-change review
+
+- S10(e): owning mailbox/lesson batch drift now has STALE_CURSOR. Invalid caller
+  data and malformed/clamped page metadata retain INVALID_INPUT/PARSE. No implicit
+  restart, retry, partial list or cursor success is introduced.
+- S10(f,g): signed route/key shape failures are unsupported without permission
+  cooldown; origin/scheme/userinfo and HTTP denials still fail closed. A full
+  50-row pager-less mailbox refuses completion, while empty/49-row layouts and
+  correctly paginated full pages retain their prior behavior.
+- S10(h): every consumer-demand wait has an independent finite idle deadline,
+  default 15 seconds. It closes and joins the existing worker before releasing
+  account/global slots; network reads keep their independent transport deadlines.
+- S10(i): send-only scheduler completion no longer rechecks the caller deadline
+  after an exchange returns a complete bounded response. Service local receipt
+  parsing then uses a separate request-timeout-sized deadline, retaining the same
+  parser/body/admission bounds. This grants no further HTTP or retry. Incomplete
+  exchanges, parser failures and external cancellation remain conservative UNKNOWN.
+- Original public-native regressions failed before the fixes for stale error
+  classification, pager-less completion, attachment cooldown and a discarded real
+  loopback send acknowledgement. The configured idle field was absent before the
+  change. Completed legacy receipts remain ACCEPTED in durable and plain workflows;
+  modern definitive denials remain REJECTED. Parser deadline/cancellation tests
+  prove bounded joining, preserved external cancellation and no replay.
+- Final review also caught an over-broad modern error cleanup: ordinary
+  UNKNOWN_DELIVERY is unqualified receipt evidence, not session failure. Retaining
+  that binding keeps two concurrent attempts to one handoff and two preflights;
+  malformed JSON still clears only modern state. Ten repeated concurrent cases
+  and the public malformed-send/legacy-read/rebind case pass.
+- Full source suite: 1,291 passed, one deselected. Existing representative
+  multi-login mailbox/download/send/notification and competing-process proofs pass.
+  Installed source/wheel/sdist qualification remains the final release gate.
+
+All verification stays offline with independently authored fixtures. No independent
+agent/model review, live traffic, consumer mutation, merge or publication occurred.

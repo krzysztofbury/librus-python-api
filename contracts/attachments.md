@@ -6,7 +6,12 @@ Use a single-owner context-managed stream, not the ordinary cached/coalesced
 read path. One service-owned worker retains the account lock and operation slot.
 The download retains shared scheduler admission through EOF, failure or early
 close, including consumer pauses. A one-chunk demand/delivery handoff bounds
-memory and an absolute operation deadline terminates paused consumers.
+memory and an absolute operation deadline terminates paused consumers. From
+0.4.11 every demand wait also has a separately configurable
+`TransportLimits.attachment_idle_timeout_seconds` (default 15 seconds), so a long
+caller budget cannot let a paused consumer monopolize shared admission. Waiting
+for network bytes is not idle consumer time. Expiry reports TIMEOUT, keeps
+`complete=False`, joins/closes transport work and frees admission without replay.
 
 Safety takes priority over overlapping requests on the same account. Two fixed
 requests resolve a numeric message/file reference and stream the validated
@@ -21,6 +26,11 @@ destinations use exact origin and path grammar, bounded unreserved key character
 and no userinfo, query, fragment, controls, percent encoding or traversal. Only
 the official verified HTTPS origin or an explicitly configured loopback override
 is permitted. Signed URLs never become public metadata or diagnostic/error data.
+
+From 0.4.11 unsupported signed route/key/encoding shapes report
+UNSUPPORTED_CAPABILITY, not ACCESS_DENIED, and do not install a permission cooldown.
+Unambiguous foreign origin/scheme/userinfo violations remain ACCESS_DENIED.
+All failures still prevent download dispatch; actual HTTP 403 remains a denial.
 
 Actual bytes count before delivery. Content-Length is an early bound, not proof
 of completed delivery. Unknown length is allowed; premature framing, unsupported

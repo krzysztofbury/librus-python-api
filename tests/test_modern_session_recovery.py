@@ -87,6 +87,31 @@ def test_successful_warm_preflight_is_exactly_one_get_before_one_post() -> None:
     asyncio.run(scenario())
 
 
+def test_modern_send_parse_failure_clears_only_modern_state() -> None:
+    async def scenario() -> None:
+        fixture = ModernFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            initial = await client.modern_identity()
+            fixture.responses["send"] = (200, b"malformed", "application/json", {})
+            result = await prepare(client).execute()
+            assert (
+                result.status is SendStatus.UNKNOWN and result.reason is ErrorKind.PARSE
+            )
+            profile = await client.student_information(
+                budget=RequestBudget(max_requests=1)
+            )
+            assert (
+                profile.observation.session_generation
+                == initial.observation.session_generation
+            )
+            await client.modern_identity(budget=RequestBudget(max_requests=3))
+            assert [stage for stage, _, _ in fixture.modern_calls].count("handoff") == 2
+            assert fixture.logins == {"student": 1} and len(fixture.sends) == 1
+
+    asyncio.run(scenario())
+
+
 class ExpireOnceFixture(ModernFixture):
     expire_stage: str | None = None
 

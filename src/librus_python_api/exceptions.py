@@ -18,6 +18,7 @@ __all__ = [
     "ParseError",
     "SessionExpiredError",
     "StorageError",
+    "StaleCursorError",
     "ThrottledError",
     "UnknownDeliveryError",
     "UnsupportedCapabilityError",
@@ -41,6 +42,7 @@ class ErrorKind(StrEnum):
     TIMEOUT = "timeout"
     LIMIT = "limit"
     PARSE = "parse"
+    STALE_CURSOR = "stale_cursor"
     UNKNOWN_DELIVERY = "unknown_delivery"
     CLOSED = "closed"
     STORAGE = "storage"
@@ -123,6 +125,10 @@ class ParseError(LibrusError):
     pass
 
 
+class StaleCursorError(LibrusError):
+    """Previously valid continuation no longer matches the current page sequence."""
+
+
 class UnknownDeliveryError(LibrusError):
     pass
 
@@ -154,6 +160,7 @@ _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
     ErrorKind.TIMEOUT: OperationTimeoutError,
     ErrorKind.LIMIT: LimitError,
     ErrorKind.PARSE: ParseError,
+    ErrorKind.STALE_CURSOR: StaleCursorError,
     ErrorKind.UNKNOWN_DELIVERY: UnknownDeliveryError,
     ErrorKind.CLOSED: ClosedError,
     ErrorKind.STORAGE: StorageError,

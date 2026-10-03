@@ -50,7 +50,7 @@ def signed_attachment_key(location: str, connection: ConnectionSettings) -> str:
         or any(ord(c) <= 32 or ord(c) >= 127 for c in location)
         or any(c in location for c in ("%", "\\", "?", "#"))
     ):
-        raise LibrusError(ErrorKind.ACCESS_DENIED)
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     invalid = False
     key = ""
     try:
@@ -65,15 +65,16 @@ def signed_attachment_key(location: str, connection: ConnectionSettings) -> str:
             or target.netloc not in authorities
             or target.username is not None
             or target.password is not None
-            or not target.path.startswith(prefix)
-            or suffix
         ):
             invalid = True
+        elif not target.path.startswith(prefix) or suffix:
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         else:
             key = target.path[len(prefix) :]
     except ValueError:
         invalid = True
     if invalid:
         raise LibrusError(ErrorKind.ACCESS_DENIED)
-    validate_key(key)
+    if ATTACHMENT_KEY_PATTERN.fullmatch(key) is None or key in {".", ".."}:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     return key

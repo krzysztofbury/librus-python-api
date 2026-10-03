@@ -383,6 +383,7 @@ class AiohttpTransport:
                 self._account,
                 budget,
                 partial(self._send_exchange, payload, budget, dispatched, modern=True),
+                preserve_completed=True,
             )
         except aiohttp.ClientError:
             kind = ErrorKind.CONNECTION
@@ -408,6 +409,7 @@ class AiohttpTransport:
                 self._account,
                 budget,
                 partial(self._send_exchange, payload, budget, dispatched),
+                preserve_completed=True,
             )
         except aiohttp.ClientError:
             kind = ErrorKind.CONNECTION

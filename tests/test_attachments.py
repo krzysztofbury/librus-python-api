@@ -41,7 +41,7 @@ def test_unservable_controls_and_ambiguous_encoding_fail_before_url_normalizatio
         "key\u00e9",
         "key%2fextra",
     ):
-        with pytest.raises(AccessDeniedError):
+        with pytest.raises(UnsupportedCapabilityError):
             signed_attachment_key(
                 "https://sandbox.librus.pl/GetFile/" + suffix, ConnectionSettings()
             )
@@ -65,7 +65,16 @@ def test_unservable_controls_and_ambiguous_encoding_fail_before_url_normalizatio
         "https://sandbox.librus.pl/GetFile/",
         "https://sandbox.librus.pl/Other/key",
     ):
-        with pytest.raises(AccessDeniedError):
+        expected = (
+            UnsupportedCapabilityError
+            if location
+            in (
+                "https://sandbox.librus.pl/GetFile/",
+                "https://sandbox.librus.pl/Other/key",
+            )
+            else AccessDeniedError
+        )
+        with pytest.raises(expected):
             signed_attachment_key(location, ConnectionSettings())
 
 
@@ -428,7 +437,12 @@ def test_malicious_destination_never_dispatches_a_download(location: str) -> Non
             fixture.location = location.replace(
                 "https://sandbox.librus.pl/", fixture.download_origin + "/"
             )
-            with pytest.raises(AccessDeniedError) as error:
+            unsupported = location == "" or location.startswith(
+                "https://sandbox.librus.pl/GetFile/"
+            )
+            with pytest.raises(
+                UnsupportedCapabilityError if unsupported else AccessDeniedError
+            ) as error:
                 async with service.account("student").stream_attachment(reference()):
                     pytest.fail("Untrusted redirect was accepted")
             assert error.value.__cause__ is error.value.__context__ is None

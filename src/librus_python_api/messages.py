@@ -262,6 +262,11 @@ def parse_messages(
             ):
                 raise LibrusError(ErrorKind.LIMIT)
             items.append(item)
+    if len(items) == MESSAGE_MAX_PAGE_ITEMS and not any(
+        "pagination" in node.get("class", "").split() for node in document.iter("div")
+    ):
+        # A full page without a pager cannot prove this is the last page.
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     result = tuple(items)
     # Account/folder scope is already explicit; ordered row identities detect
     # mid-page drift. Read state is excluded: opening a message, here or on
