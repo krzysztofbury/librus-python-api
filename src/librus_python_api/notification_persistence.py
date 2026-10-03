@@ -805,11 +805,28 @@ class NotificationStore(_SQLiteStore):
             raise LibrusError(ErrorKind.PARSE)
         metadata = dump(raw["metadata"], META_BYTES)
         response = restore_envelope(metadata, body, context.alias)
+        if raw["total"] is None and raw["cursor"] != 0:
+            raise LibrusError(ErrorKind.PARSE)
         if raw["total"] is not None:
             events = parse_schedule_events(
                 decode_payload(body, response.wire, WIRE_BYTES)
             )
             if raw["total"] != len(events):
+                raise LibrusError(ErrorKind.PARSE)
+            # Acknowledged progress marks every event before the cursor seen; an
+            # unseen one there would be skipped without ever being delivered.
+            state, _ = self._state(connection, context.identifier)
+            seen = {
+                identifier
+                for entry in state.seen
+                if entry.category is NotificationCategory.AGENDA
+                for identifier in entry.identifiers
+            }
+            if any(
+                canonical_notification_id(NotificationCategory.AGENDA, value)
+                not in seen
+                for value in events[: raw["cursor"]]
+            ):
                 raise LibrusError(ErrorKind.PARSE)
         if raw["identifier"] != _raw_id(context.identifier, metadata, body):
             raise LibrusError(ErrorKind.PARSE)

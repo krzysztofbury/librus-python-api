@@ -31,8 +31,7 @@ from librus_python_api.config import (
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import MessageFolder, RequestForm, TransportResponse
 from librus_python_api.scheduler import RequestScheduler
-from librus_python_api.transport import AiohttpTransport
-from scripts.live_capture import private_directory
+from scripts.live_capture import ReadOnlyCaptureTransport, private_directory
 
 
 class CaptureAudit:
@@ -73,7 +72,7 @@ def write_private(path: Path, body: bytes) -> None:
         stream.write(body)
 
 
-class MessageCaptureTransport(AiohttpTransport):
+class MessageCaptureTransport(ReadOnlyCaptureTransport):
     def __init__(
         self,
         account: str,

@@ -25,9 +25,8 @@ from librus_python_api.config import (
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import MessageFolder, RequestForm, TransportResponse
 from librus_python_api.scheduler import RequestScheduler
-from librus_python_api.transport import AiohttpTransport
 from scripts.capture_messages import write_private
-from scripts.live_capture import private_directory
+from scripts.live_capture import ReadOnlyCaptureTransport, private_directory
 
 
 class ContentAudit:
@@ -73,7 +72,7 @@ class ContentAudit:
         self.counts[operation] += 1
 
 
-class ContentCaptureTransport(AiohttpTransport):
+class ContentCaptureTransport(ReadOnlyCaptureTransport):
     def __init__(
         self,
         account: str,

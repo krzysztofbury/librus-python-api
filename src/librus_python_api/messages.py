@@ -263,8 +263,21 @@ def parse_messages(
                 raise LibrusError(ErrorKind.LIMIT)
             items.append(item)
     result = tuple(items)
-    # Account/folder scope is already explicit; domain rows detect mid-page drift.
+    # Account/folder scope is already explicit; ordered row identities detect
+    # mid-page drift. Read state is excluded: opening a message, here or on
+    # another device, changes it without moving any row.
     fingerprint = hashlib.sha256(
-        repr(tuple(astuple(i) for i in result)).encode()
+        repr(
+            tuple(
+                (
+                    astuple(i.reference),
+                    i.correspondent,
+                    i.subject,
+                    astuple(i.timestamp),
+                    i.has_attachment,
+                )
+                for i in result
+            )
+        ).encode()
     ).hexdigest()
     return result, count, fingerprint

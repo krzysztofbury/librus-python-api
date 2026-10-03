@@ -5,7 +5,11 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Literal
 
 from librus_python_api.budget import RequestBudget
-from librus_python_api.config import SEND_ACCEPTED_TEXT, SEND_REJECTED_TEXT
+from librus_python_api.config import (
+    MESSAGE_INFORMATION_NOTICES,
+    SEND_ACCEPTED_TEXT,
+    SEND_REJECTED_TEXT,
+)
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.markup import text
 from librus_python_api.models import (
@@ -27,7 +31,9 @@ if TYPE_CHECKING:
 def parse_send_acknowledgement(body: bytes) -> SendStatus:
     """Only one designated, exact result paragraph can establish acceptance."""
     document = parse_page(body)
-    if page_notices(document):
+    # The legacy-module banner is shown on every legacy messages page, including
+    # the send result; any other notice may replace the acknowledgement.
+    if any(n not in MESSAGE_INFORMATION_NOTICES for n in page_notices(document)):
         raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
     if document.xpath(
         '//*[contains(concat(" ",normalize-space(@class)," "),'

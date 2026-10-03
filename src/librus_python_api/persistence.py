@@ -270,12 +270,19 @@ class PersistenceStore(_SQLiteStore):
         try:
             return await attempt.execute(budget=budget)
         finally:
-            await self._io(
-                lambda: self._finish(
-                    token_hash, context, digest, attempt.outcome.status
-                ),
-                finishing=True,
-            )
+            try:
+                await self._io(
+                    lambda: self._finish(
+                        token_hash, context, digest, attempt.outcome.status
+                    ),
+                    finishing=True,
+                )
+            except LibrusError as error:
+                # LIMIT means "stopped before upstream work"; after a claim the
+                # send may have been dispatched and the claim stays uncertain.
+                if error.kind is not ErrorKind.LIMIT:
+                    raise
+                raise LibrusError(ErrorKind.STORAGE) from None
 
     def _finish(
         self, token_hash: str, context: str, digest: str, status: SendStatus

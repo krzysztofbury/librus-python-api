@@ -49,7 +49,7 @@ def test_audit_only_allows_selected_received_message_and_one_login() -> None:
 
 @pytest.mark.parametrize("mode,opens", [("discovery", 1), ("smoke", 2)])
 @pytest.mark.parametrize("already_read", [False, True])
-def test_capture_selects_only_already_read_content_and_never_downloads(
+def test_capture_opens_only_already_read_received_content(
     mode: str,
     opens: int,
     already_read: bool,

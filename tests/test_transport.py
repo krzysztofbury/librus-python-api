@@ -2,6 +2,7 @@ import asyncio
 import gzip
 from contextlib import AsyncExitStack
 
+import aiohttp
 import pytest
 from aiohttp import web
 from pydantic import SecretStr
@@ -53,6 +54,42 @@ def test_read_effect_get_is_not_replayed_after_stale_keepalive_disconnect() -> N
                         "message_content_received", budget, reference_id="101"
                     )
                 assert calls == budget.requests_dispatched == 1
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_missing_aiohttp_replay_switch_stops_traffic_before_any_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        calls = 0
+
+        async def me(request: web.Request) -> web.Response:
+            nonlocal calls
+            calls += 1
+            return web.Response(text="{}")
+
+        app = web.Application()
+        app.router.add_get("/gateway/api/2.0/Me", me)
+        async with serve(app) as origin, RequestScheduler(("a",)) as scheduler:
+            transport = AiohttpTransport(
+                "a",
+                scheduler,
+                ConnectionSettings(synergia_origin=origin, api_origin=origin),
+                TransportLimits(),
+            )
+            # Simulates an aiohttp release that renamed the private attribute.
+            monkeypatch.setattr(
+                aiohttp.ClientSession,
+                "ATTRS",
+                aiohttp.ClientSession.ATTRS - {"_retry_connection"},
+            )
+            try:
+                with pytest.raises(LibrusError, match="^unsupported_capability$"):
+                    await transport.request("identity", RequestBudget())
+                assert calls == 0
             finally:
                 await transport.aclose()
 

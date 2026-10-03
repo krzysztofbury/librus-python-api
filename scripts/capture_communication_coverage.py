@@ -33,9 +33,8 @@ from librus_python_api.recipients import (
     parse_recipient_groups,
 )
 from librus_python_api.scheduler import RequestScheduler
-from librus_python_api.transport import AiohttpTransport
 from scripts.capture_messages import write_private
-from scripts.live_capture import private_directory
+from scripts.live_capture import ReadOnlyCaptureTransport, private_directory
 
 
 class CoverageScope:
@@ -107,7 +106,7 @@ class CoverageScope:
         self.counts[name] += 1
 
 
-class CoverageTransport(AiohttpTransport):
+class CoverageTransport(ReadOnlyCaptureTransport):
     def __init__(
         self,
         account: str,
@@ -122,11 +121,6 @@ class CoverageTransport(AiohttpTransport):
         self.scope, self.out, self.index = scope, out, index
 
     def _get_download_session(self) -> NoReturn:
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-
-    async def consume_schedule_events(
-        self, *args: object, **kwargs: object
-    ) -> NoReturn:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
     async def _exchange(

@@ -179,6 +179,17 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
         raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+def _require_no_connection_retry() -> None:
+    """Fail closed if aiohttp drops the private switch that stops GET replays.
+
+    aiohttp otherwise silently replays a GET on a stale keep-alive connection.
+    Some GETs mark messages read or consume read-once events, so a missing
+    switch must stop all traffic, not degrade to silent replays.
+    """
+    if "_retry_connection" not in getattr(aiohttp.ClientSession, "ATTRS", ()):
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+
 class AiohttpTransport:
     def __init__(
         self,
@@ -198,6 +209,7 @@ class AiohttpTransport:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._session is None:
+            _require_no_connection_retry()
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
                     limit=1,
@@ -222,6 +234,7 @@ class AiohttpTransport:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._modern_session is None:
+            _require_no_connection_retry()
             self._modern_session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
                     limit=1, ssl=self._connection.ssl_context or True
@@ -532,6 +545,7 @@ class AiohttpTransport:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._download_session is None:
+            _require_no_connection_retry()
             self._download_session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
                     limit=1, ssl=self._connection.ssl_context or True
@@ -862,9 +876,13 @@ class AiohttpTransport:
 
     async def aclose(self) -> None:
         self._closed = True
-        if self._session is not None:
-            await self._session.close()
-        if self._download_session is not None:
-            await self._download_session.close()
-        if self._modern_session is not None:
-            await self._modern_session.close()
+        try:
+            if self._session is not None:
+                await self._session.close()
+        finally:
+            try:
+                if self._download_session is not None:
+                    await self._download_session.close()
+            finally:
+                if self._modern_session is not None:
+                    await self._modern_session.close()

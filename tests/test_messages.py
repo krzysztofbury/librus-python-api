@@ -81,8 +81,9 @@ def test_sent_correspondent_and_recipient_status_are_not_fabricated_unread() -> 
 
 
 @pytest.mark.parametrize("folder", list(MessageFolder))
-def test_explicit_empty_has_one_page_and_no_body_fanout(folder: MessageFolder) -> None:
-    assert parse(messages_html(folder, rows="", pagination=False), folder)[0] == ()
+def test_explicit_empty_folder_is_one_empty_page(folder: MessageFolder) -> None:
+    items, count, _ = parse(messages_html(folder, rows="", pagination=False), folder)
+    assert items == () and count == 1
 
 
 def test_multiline_text_class_order_and_numeric_bold_preserve_rendered_semantics() -> (
@@ -253,6 +254,31 @@ def test_batch_overlap_deduplicates_across_resume_without_losing_new_rows() -> N
                     and rest.next_cursor is None
                     and rest.pages_fetched == 2
                 )
+
+    asyncio.run(scenario())
+
+
+def test_mid_page_resume_survives_read_state_change() -> None:
+    async def scenario() -> None:
+        fixture = ReadsFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                first = await client.messages(max_pages=1, limit=1)
+                assert first.next_cursor is not None
+                assert first.next_cursor.offset == 1
+                # Row 101 was opened (marked read) before the caller resumed.
+                body = messages_html(
+                    count=3, rows=message_row(unread=False) + message_row("102")
+                )
+                fixture.page_bodies[("messages_received", 0)] = (
+                    body.encode(),
+                    "text/html",
+                )
+                rest = await client.messages(cursor=first.next_cursor, limit=1)
+                assert [r.reference.identifier for r in rest.items] == ["102"]
+                assert rest.items[0].unread is True
 
     asyncio.run(scenario())
 

@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import json
+import sqlite3
 import threading
 from dataclasses import replace
 from pathlib import Path
@@ -85,6 +86,48 @@ def test_checkpoint_failure_preserves_raw_or_conservative_consume_marker(
                         with pytest.raises(LibrusError):
                             await workflow.poll(categories=AGENDA)
                         assert len(fixture.calls) == before
+                    assert fixture.calls_by_account == ["student"]
+
+    asyncio.run(scenario())
+
+
+def test_other_context_write_lock_does_not_fail_post_consume_checkpoint(
+    tmp_path: Path,
+) -> None:
+    # Every login context shares one database write lock. A short hold by
+    # another process must not lose an already consumed read-once page.
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        fixture.body_hold = asyncio.Event()
+        locked, release = threading.Event(), threading.Event()
+
+        def hold_write_lock() -> None:
+            with sqlite3.connect(tmp_path / "state" / "notifications.sqlite3") as db:
+                db.execute("BEGIN IMMEDIATE")
+                locked.set()
+                release.wait(10)
+
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                async with NotificationStore(tmp_path / "state") as store:
+                    workflow = NotificationWorkflow(service.account("student"), store)
+                    task = asyncio.create_task(
+                        workflow.poll(categories=AGENDA, allow_consume_events=True)
+                    )
+                    await asyncio.wait_for(fixture.pending.wait(), 5)
+                    holder = threading.Thread(target=hold_write_lock)
+                    holder.start()
+                    try:
+                        assert await asyncio.to_thread(locked.wait, 5)
+                        fixture.body_hold.set()
+                        # Longer than the ordinary busy timeout (0.1 s).
+                        await asyncio.sleep(0.4)
+                    finally:
+                        release.set()
+                        await asyncio.to_thread(holder.join, 5)
+                    batch = await asyncio.wait_for(task, 10)
+                    assert batch.items
                     assert fixture.calls_by_account == ["student"]
 
     asyncio.run(scenario())
@@ -397,6 +440,58 @@ def test_neutral_archive_roundtrip_staged_delivery_and_progress(tmp_path: Path) 
                         == before_import
                     )
                 assert len(fixture.calls) == before
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("damage", ["cursor_past_unseen", "cursor_without_total"])
+def test_archive_import_rejects_cursor_past_undelivered_events(
+    tmp_path: Path, damage: str
+) -> None:
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        fixture.payload = events_html(
+            "".join(event_row(f"Original {i}") for i in range(3))
+        )
+        limits = NotificationLimits(replay_events=1)
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                async with NotificationStore(
+                    tmp_path / "original", limits=limits
+                ) as original:
+                    workflow = NotificationWorkflow(client, original)
+                    first = await workflow.poll(
+                        categories=AGENDA, allow_consume_events=True
+                    )
+                    await workflow.acknowledge(first.receipt)
+                    archive = await original.export_archive(context=client.context)
+                record = json.loads(archive.payload)
+                assert record["raw"]["cursor"] == 1 and record["delivery"] is None
+                if damage == "cursor_past_unseen":
+                    # Event 1 was never delivered, so it is not in the seen set.
+                    record["raw"]["cursor"] = 2
+                else:
+                    record["raw"]["total"] = None
+                changed = replace(
+                    archive,
+                    payload=json.dumps(
+                        record,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode(),
+                )
+                async with NotificationStore(
+                    tmp_path / "target", limits=limits
+                ) as target:
+                    with pytest.raises(LibrusError):
+                        await target.import_archive(changed)
+                    restored = json.loads(
+                        (await target.export_archive(context=client.context)).payload
+                    )
+                    assert restored["raw"] is None
 
     asyncio.run(scenario())
 

@@ -878,6 +878,86 @@ def test_final_save_failure_retains_claim_and_acknowledged_local_result(
     asyncio.run(scenario())
 
 
+def test_post_dispatch_write_lock_contention_keeps_acknowledged_outcome(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        fixture = SendFixture()
+        fixture.send_hold = asyncio.Event()
+        locked, release = threading.Event(), threading.Event()
+        directory = tmp_path / "state"
+
+        def hold_write_lock() -> None:
+            with sqlite3.connect(directory / "state.sqlite3") as db:
+                db.execute("BEGIN IMMEDIATE")
+                locked.set()
+                release.wait(10)
+
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                async with PersistenceStore(directory) as store:
+                    confirmation = await store.preview_send(prepare(client))
+                    task = asyncio.create_task(
+                        store.execute_send(confirmation.token, prepare(client))
+                    )
+                    await asyncio.wait_for(fixture.send_started.wait(), 5)
+                    holder = threading.Thread(target=hold_write_lock)
+                    holder.start()
+                    try:
+                        assert await asyncio.to_thread(locked.wait, 5)
+                        fixture.send_hold.set()
+                        await asyncio.sleep(0.4)
+                    finally:
+                        release.set()
+                        await asyncio.to_thread(holder.join, 5)
+                    result = await asyncio.wait_for(task, 10)
+                    assert result.status is SendStatus.ACCEPTED
+                    outcome = await store.send_outcome(
+                        confirmation.token, context=client.context
+                    )
+                    assert outcome.status is SendStatus.ACCEPTED
+                assert len(fixture.send_calls) == 1
+
+    asyncio.run(scenario())
+
+
+def test_post_claim_final_save_contention_is_storage_not_limit(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        fixture = SendFixture()
+        fixture.send_hold = asyncio.Event()
+        directory = tmp_path / "state"
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                limits = PersistenceLimits(final_busy_timeout_seconds=0.05)
+                async with PersistenceStore(directory, limits=limits) as store:
+                    confirmation = await store.preview_send(prepare(client))
+                    task = asyncio.create_task(
+                        store.execute_send(confirmation.token, prepare(client))
+                    )
+                    await asyncio.wait_for(fixture.send_started.wait(), 5)
+                    with sqlite3.connect(directory / "state.sqlite3") as blocker:
+                        blocker.execute("BEGIN IMMEDIATE")
+                        fixture.send_hold.set()
+                        with pytest.raises(LibrusError) as error:
+                            await asyncio.wait_for(task, 10)
+                    # LIMIT promises that no upstream work happened.
+                    assert error.value.kind is ErrorKind.STORAGE
+                    outcome = await store.send_outcome(
+                        confirmation.token, context=client.context
+                    )
+                    assert outcome.status is SendStatus.UNKNOWN
+                    assert outcome.phase == "claimed"
+                assert len(fixture.send_calls) == 1
+
+    asyncio.run(scenario())
+
+
 def test_real_sqlite_contention_and_bounded_capacity_before_transport(
     tmp_path: Path,
 ) -> None:

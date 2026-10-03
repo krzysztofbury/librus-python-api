@@ -1,6 +1,7 @@
 """Private bounded SQLite ownership shared by explicit optional stores."""
 
 import asyncio
+import contextvars
 import os
 import sqlite3
 import stat
@@ -19,6 +20,17 @@ from librus_python_api.lifecycle import join_owned
 class _StorageLimits(_ValidatedConfig):
     operations: int = Field(default=8, ge=1, le=64)
     busy_timeout_seconds: float = Field(default=0.1, gt=0, le=5, allow_inf_nan=False)
+    # Final saves follow upstream side effects (a dispatched send or a consumed
+    # read-once page), so they wait longer for other contexts' write locks.
+    final_busy_timeout_seconds: float = Field(
+        default=5, gt=0, le=60, allow_inf_nan=False
+    )
+
+
+# Worker threads inherit the calling task's context through asyncio.to_thread.
+_busy_timeout_seconds: contextvars.ContextVar[float | None] = contextvars.ContextVar(
+    "_busy_timeout_seconds", default=None
+)
 
 
 class _SQLiteStore:
@@ -122,7 +134,14 @@ class _SQLiteStore:
         if self._operations >= self._storage_limits.operations:
             raise LibrusError(ErrorKind.LIMIT)
         self._operations += 1
-        task = asyncio.create_task(self._worker(operation))
+        task = asyncio.create_task(
+            self._worker(
+                operation,
+                self._storage_limits.final_busy_timeout_seconds
+                if finishing
+                else self._storage_limits.busy_timeout_seconds,
+            )
+        )
         self._tasks.add(task)
         cancelled = False
         try:
@@ -141,8 +160,9 @@ class _SQLiteStore:
             if cancelled or interrupted:
                 raise asyncio.CancelledError
 
-    async def _worker[T](self, operation: Callable[[], T]) -> T:
+    async def _worker[T](self, operation: Callable[[], T], busy_seconds: float) -> T:
         async with self._lock:
+            _busy_timeout_seconds.set(busy_seconds)
             task = asyncio.create_task(asyncio.to_thread(operation))
             interrupted = await join_owned(task)
             if interrupted:
@@ -224,8 +244,12 @@ class _SQLiteStore:
             self._check_directory()
             self._check_file(create=initialise)
             self._check_sidecars()
+            busy_seconds = _busy_timeout_seconds.get()
             connection = sqlite3.connect(
-                self._path, timeout=self._storage_limits.busy_timeout_seconds
+                self._path,
+                timeout=self._storage_limits.busy_timeout_seconds
+                if busy_seconds is None
+                else busy_seconds,
             )
             connection.execute("PRAGMA trusted_schema=OFF")
             connection.execute("PRAGMA foreign_keys=ON")

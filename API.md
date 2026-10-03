@@ -391,7 +391,10 @@ creates state, reads old MCP files or starts background recovery.
   32 unused previews, 300-second expiry and 0.1-second SQLite busy timeout.
   Configured maxima: 64 each, 4,096 records, 256 previews, 300 seconds and 5 seconds.
   Storage workers are serialized per store; full queues/contention fail immediately
-  or after the bounded busy interval. The database is capped at 8 MiB. Expired
+  or after the bounded busy interval. The final outcome save after a claim waits
+  up to `final_busy_timeout_seconds` (default 5, maximum 60); if it still fails,
+  `execute_send` raises STORAGE and the claim stays uncertain. LIMIT is only raised
+  before upstream work. The database is capped at 8 MiB. Expired
   unused previews may be reclaimed; consumed history is not silently evicted.
 
 These are local conservative safeguards, not upstream idempotency or exactly-once
@@ -457,7 +460,9 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   state without HTTP. Pending batches do not mark IDs seen. Defaults are bounded:
   16 contexts, 8 workers/workflows, 32 raw/reservation records, 16 MiB checkpoint
   bytes, 4 MiB total seen-state bytes, 4,096 IDs/category, 500 items/1 MiB per batch,
-  500 events/128 KiB value JSON per replay slice, 0.1 s busy timeout. The full
+  500 events/128 KiB value JSON per replay slice, 0.1 s busy timeout, and 5 s
+  `final_busy_timeout_seconds` for checkpoint, staging and acknowledgement saves
+  that follow upstream work, since all contexts share one write lock. The full
   envelope is capped at 4 MiB encoded body plus 4 MiB metadata; database main file
   at 64 MiB and global staged delivery/candidate state at 16 MiB. Bounds fail closed
   without silently evicting history. A retained raw envelope can be recovered with

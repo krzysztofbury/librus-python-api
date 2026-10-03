@@ -153,6 +153,28 @@ def test_exact_designated_acknowledgement_is_not_substring_interpretation(
 
 
 @pytest.mark.parametrize(
+    "message,status",
+    [
+        ("Wiadomość została wysłana.", SendStatus.ACCEPTED),
+        ("Wiadomość nie została wysłana.", SendStatus.REJECTED),
+    ],
+)
+def test_legacy_module_banner_does_not_hide_acknowledgement(
+    message: str, status: SendStatus
+) -> None:
+    # Accounts on the legacy module get this banner on every messages page.
+    banner = (
+        '<div class="warning-content">Korzystasz ze starej wersji modułu '
+        "Wiadomości, która nie jest już rozwijana i nie zawiera wszystkich "
+        "dostępnych funkcji. Przejdź do ustawień i włącz opcję: Używaj nowego "
+        "systemu wiadomości.</div>"
+    )
+    body = acknowledgement(message).replace("<body>", "<body>" + banner)
+    assert banner in body
+    assert parse_send_acknowledgement(body.encode()) is status
+
+
+@pytest.mark.parametrize(
     "body",
     [
         acknowledgement("Unknown state"),

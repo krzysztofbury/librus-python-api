@@ -10,6 +10,7 @@ from playwright.async_api import async_playwright
 from librus_python_api.config import NOTIFICATION_DESTINATIONS
 from librus_python_api.notifications import parse_notification_counts
 from scripts.capture_messages import write_private
+from scripts.live_capture import private_file
 
 COUNTS_DOM = """destinations => {
  const menu = document.querySelector('#graphic-menu');
@@ -39,6 +40,7 @@ def load_capture(file: Path) -> bytes:
 
 
 async def check(file: Path, expected: Path) -> dict[str, object]:
+    expected = private_file(expected)
     body = await asyncio.to_thread(load_capture, file)
     async with async_playwright() as p:
         browser = await p.chromium.launch(executable_path="/usr/bin/chromium")
@@ -54,7 +56,8 @@ async def check(file: Path, expected: Path) -> dict[str, object]:
         {"category": r.category.value, "label": r.label, "count": r.count}
         for r in parse_notification_counts(body)
     ]
-    assert native == rendered, "Count/category/label mismatch (values suppressed)"
+    if native != rendered:  # Not an assert: it must survive python -O.
+        raise AssertionError("Count/category/label mismatch (values suppressed)")
     await asyncio.to_thread(write_private, expected, json.dumps(rendered).encode())
     return {
         "categories": len(rendered),

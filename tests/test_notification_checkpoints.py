@@ -724,6 +724,29 @@ def test_consume_is_uncached_but_simultaneous_same_login_is_rejected() -> None:
             assert first is not second and len(records) == 2
             assert fixture.calls_by_account == ["student", "student"]
 
+            # A second consume while the first is inside its checkpoint is refused
+            # before any request, so one process never consumes twice at once.
+            entered, release = asyncio.Event(), asyncio.Event()
+
+            async def held(response: ScheduleEventResponse) -> None:
+                entered.set()
+                await release.wait()
+
+            task = asyncio.create_task(
+                client.consume_schedule_events(
+                    checkpoint=held, allow_consume_events=True
+                )
+            )
+            await asyncio.wait_for(entered.wait(), 5)
+            with pytest.raises(InvalidInputError):
+                await client.consume_schedule_events(
+                    checkpoint=persist, allow_consume_events=True
+                )
+            release.set()
+            await task
+            assert fixture.calls_by_account == ["student"] * 3
+            assert len(records) == 2
+
     asyncio.run(scenario())
 
 

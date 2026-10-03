@@ -42,7 +42,9 @@ Joined execution saves the typed final outcome. Cancellation propagates normally
 an acknowledged result survives joined cleanup. Failed final persistence leaves
 the consumed claim uncertain, never permission to replay. Store contention,
 invalid/expired binding, corrupt/unknown schema and capacity limits stop execution
-before upstream work. Expired unused previews may be pruned; uncertain/consumed
+before upstream work. After a claim, a failed final save (including write-lock
+contention past `final_busy_timeout_seconds`) reports STORAGE, never LIMIT, and
+leaves the claim uncertain. Expired unused previews may be pruned; uncertain/consumed
 history is not silently discarded to make room. Manual reconciliation is an
 explicit later policy, not implicit deletion or token reissuance.
 
@@ -123,6 +125,12 @@ An empty batch still has a receipt and initializes the context only when acknowl
 While a batch is pending, the exact original category tuple must be requested.
 It is replayed without HTTP even if new consume consent is omitted. Changing the
 selection requires acknowledging that batch first.
+
+All contexts share one SQLite write lock. Saves that follow an upstream side
+effect (checkpoint, staging, acknowledgement) wait up to `final_busy_timeout_seconds`
+(default 5 s) for it; a checkpoint save that outlives its callback timeout is
+still joined, and a late commit is replayed rather than lost. Archive import
+rejects raw cursor progress past any event missing from the imported seen set.
 
 Defaults: 16 contexts, 8 workers/workflows, 0.1 s busy timeout, 32 checkpoints or
 uncertainty reservations, 16 MiB combined checkpoint/reservation bytes, 4 MiB total

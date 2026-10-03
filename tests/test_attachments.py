@@ -55,6 +55,15 @@ def test_unservable_controls_and_ambiguous_encoding_fail_before_url_normalizatio
     for location in (
         "http://sandbox.librus.pl/GetFile/key",
         "https://sandbox.librus.pl:444/GetFile/key",
+        # Official-origin rules, not a loopback host mismatch, must reject these.
+        "https://user@sandbox.librus.pl/GetFile/key",
+        "https://user:pass@sandbox.librus.pl/GetFile/key",
+        "https://sandbox.librus.pl.evil.invalid/GetFile/key",
+        "https://evil.invalid/GetFile/key",
+        "//sandbox.librus.pl/GetFile/key",
+        "/GetFile/key",
+        "https://sandbox.librus.pl/GetFile/",
+        "https://sandbox.librus.pl/Other/key",
     ):
         with pytest.raises(AccessDeniedError):
             signed_attachment_key(location, ConnectionSettings())

@@ -20,6 +20,7 @@ from librus_python_api.recipients import (
     parse_recipients,
 )
 from scripts.capture_messages import write_private
+from scripts.live_capture import private_file
 
 RECIPIENT_DOM = r"""() => {
  const select = document.querySelector('select[name=idGrupy]');
@@ -187,6 +188,9 @@ def load_capture(directory: Path) -> list[tuple[dict[str, Any], bytes]]:
 
 
 async def check(directory: Path, expectations: Path) -> dict[str, object]:
+    # Expectations hold browser-rendered private rows; checks raise explicitly
+    # because asserts disappear under python -O.
+    expectations = private_file(expectations)
     from playwright.async_api import async_playwright
 
     from scripts.crosscheck import GROUPS_DOM, MESSAGES_DOM
@@ -213,9 +217,11 @@ async def check(directory: Path, expectations: Path) -> dict[str, object]:
                     labels = displayed["pagination"]
                     count = 1
                     if labels:
-                        assert len(labels) == 1
+                        if len(labels) != 1:
+                            raise AssertionError("Unexpected pagination labels")
                         match = re.search(r"\bz\s*(\d+)", labels[0])
-                        assert match is not None
+                        if match is None:
+                            raise AssertionError("Unexpected pagination label")
                         count = int(match[1])
                     view = {"kind": "messages", "page_count": count, "items": []}
                     for row in displayed["rows"]:
@@ -225,9 +231,11 @@ async def check(directory: Path, expectations: Path) -> dict[str, object]:
                             match = re.fullmatch(
                                 r"/wiadomosci/1/[56]/([0-9]+)(?:/f0)?", link
                             )
-                            assert match is not None
+                            if match is None:
+                                raise AssertionError("Unexpected message link")
                             identifiers.append(match[1])
-                        assert identifiers[0] == identifiers[1]
+                        if len(identifiers) != 2 or identifiers[0] != identifiers[1]:
+                            raise AssertionError("Mismatched message links")
                         view["items"].append({"id": identifiers[0], **row})
                 else:
                     view = {"kind": "content", **await page.evaluate(CONTENT_DOM)}

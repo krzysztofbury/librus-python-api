@@ -30,9 +30,8 @@ from librus_python_api.models import (
     TransportResponse,
 )
 from librus_python_api.scheduler import RequestScheduler
-from librus_python_api.transport import AiohttpTransport
 from scripts.capture_messages import write_private
-from scripts.live_capture import private_directory
+from scripts.live_capture import ReadOnlyCaptureTransport, private_directory
 
 
 class StreamAudit:
@@ -97,7 +96,7 @@ class StreamAudit:
         self.counts["attachment_download"] += 1
 
 
-class StreamCaptureTransport(AiohttpTransport):
+class StreamCaptureTransport(ReadOnlyCaptureTransport):
     def __init__(
         self,
         account: str,

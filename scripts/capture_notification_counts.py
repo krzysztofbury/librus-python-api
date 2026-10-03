@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import json
 from collections import Counter
-from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import NoReturn
 
@@ -16,11 +15,10 @@ from librus_python_api.config import (
     TransportLimits,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import RequestForm, ScheduleEventWire, TransportResponse
+from librus_python_api.models import RequestForm, TransportResponse
 from librus_python_api.scheduler import RequestScheduler
-from librus_python_api.transport import AiohttpTransport
 from scripts.capture_messages import write_private
-from scripts.live_capture import private_directory
+from scripts.live_capture import ReadOnlyCaptureTransport, private_directory
 
 
 class CountScope:
@@ -46,7 +44,7 @@ class CountScope:
         self.counts[name] += 1
 
 
-class CountCaptureTransport(AiohttpTransport):
+class CountCaptureTransport(ReadOnlyCaptureTransport):
     def _get_download_session(self) -> NoReturn:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
@@ -74,14 +72,6 @@ class CountCaptureTransport(AiohttpTransport):
         except BaseException:
             self.scope.failed = True
             raise
-
-    async def consume_schedule_events(
-        self,
-        budget: RequestBudget,
-        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
-        checkpoint_timeout_seconds: float,
-    ) -> TransportResponse:
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
 
 async def capture(

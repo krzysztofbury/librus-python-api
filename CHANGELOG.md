@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.4.10 - PR #13 review hardening
+
+Fixes from an independent multi-agent review of the 0.4 series. Local-first;
+no live Librus request, send or read-once consume was made.
+
+- Legacy send acknowledgements tolerate the known legacy-module banner instead of
+  reporting every send on a non-migrated account as UNKNOWN.
+- Mid-page message cursors fingerprint row identities only, so a message opened
+  (marked read) before resuming no longer raises a parse error.
+- Final saves after an upstream side effect (read-once checkpoint, staged batch,
+  acknowledgement, send outcome) wait up to `final_busy_timeout_seconds` (default
+  5 s) for another context's SQLite write lock, instead of the 0.1 s default that
+  could lose an already consumed read-once page.
+- A post-claim send outcome save failure reports STORAGE, never LIMIT, which
+  promises that no upstream work happened.
+- Archive import rejects raw cursor progress past events missing from the seen
+  set, and any progress without a known event total.
+- The transport fails closed if aiohttp drops the private switch that prevents
+  silent GET replays; transport close always closes every session.
+- Capture scripts share a read-only transport base that refuses sends, modern
+  authentication and read-once consumes, which bypass the per-request allowlist.
+  Crosscheck expectation files are refused inside Git work trees, and their
+  checks no longer rely on `assert`.
+- New regression tests failed before each fix: send banner, read-state resume,
+  real SQLite write-lock contention at post-consume and post-dispatch boundaries,
+  import cursor tampering, concurrent same-login consume, capture refusals and
+  official attachment destination rules.
+
 ## 0.4.9 - Optional notification persistence and replay
 
 - Explicit native notification store/workflow with a private separate SQLite
