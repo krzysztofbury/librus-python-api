@@ -117,6 +117,19 @@ wheel environments were deleted. Essential sender checks and the unresolved
 single-recipient plan remain in private owner-only state outside Git; only
 sanitized accounting is retained here and in the release-evidence sidecar.
 
+The owner then separately approved discovery on the corresponding student login,
+with a fresh 16-request ceiling, one credential submission and one class-council
+lookup. The installed wheel verified that independent account identity and used
+11 requests. The lookup again returned the explicit class-unavailable notice,
+with no recipient labels, independently checked in offline Chromium. This was
+an authorized discovery-context change, not a change of sender or permission to
+reuse another account's references. No recipient ID or class path was resolved,
+and no send attempt was prepared or executed. All three scopes total 32 requests
+and three credential submissions, with zero sends. The third task's private
+capture, runner and installed-wheel environment were deleted after recording
+the essential unresolved state privately. Further discovery needs fresh scope;
+no guessed form, alternate council or recipient is authorized by unused budget.
+
 ## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
 
 ### Contracts, proofs and review
