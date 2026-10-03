@@ -88,7 +88,8 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Qualify read-once layouts on a dedicated test login with disposable events
   and separately approved recovery integration. Routine live checks exclude it.
 - [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
-  migrations: separate P5/P8 work, not implemented by the library increment.
+  migrations: now included in the expanded 0.4 delivery, implemented in the
+  consumer repository rather than the library. Full backend migration is separate.
 - [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
   exact nonzero group forms qualified offline. Four independent contexts observe
   five named types, an anonymous target, unavailable class-dependent lookup,
@@ -122,6 +123,44 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   details and the exact payload in owner-only local state outside Git.
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
+
+### Expanded 0.4 completion sequence
+
+The owner approved completing the remaining communication work one slice at a
+time, including application-owned persistent send/notification state. Each slice
+gets a separate scoped implementation/evidence commit; new library contracts get
+their own 0.4.x version and source/wheel/sdist qualification. Consumer-only changes
+do not fabricate a library version or enable a default backend migration.
+
+| Order | Work item | Owner and completion gate |
+| --- | --- | --- |
+| S1 | Installed modern authentication, identity and council verification | Library qualification; one separately approved login, one credential submission, 16 HTTP requests maximum, no send/content/read-once operations; stop on failure, no rerun |
+| S2 | Persistent send attempts and recovery | Consumer; account/backend/exact-payload-bound durable confirmation, atomic single-use claims, crash/uncertainty recovery without replay, bounded private storage and cross-process fault proofs |
+| S3 | Persistent notifications and checkpoint replay | Consumer; native raw-envelope adapter, canonical identities, existing-state compatibility, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before live consume and competing-process proofs |
+| S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
+| S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
+| S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; consumer retains safe naming and atomic file publication |
+| S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
+| S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
+| S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
+
+Live verification is evidence gathering, not permission to guess undocumented
+wire shapes. Read-only discovery approvals do not authorize content opens,
+downloads, sends, event consumption or account-setting changes. If evidence or
+safe test accounts are unavailable, record that slice as blocked and continue
+with the next independently implementable slice rather than claiming completion.
+
+Persistence stays application-owned, with no credentials/cookies in durable
+records and no coupling of the library API to MCP schemas or storage formats.
+The consumer owns confirmation expiry, payload/account/backend binding, locks,
+transactions, state migrations, retention and manual reconciliation. A crash
+after claiming a send is conservatively uncertain, never an invitation to replay.
+Preserve existing notification data and recovery files; do not reset production
+state or automatically migrate it during development or offline tests.
+
+Out of scope without additional approval: full MCP backend migration/default
+cutover, credentialed CI, PR merge and publication. PyPI remains deferred until
+`1.0.0rc1`. Existing evidence gaps remain open until their actual gates pass.
 
 Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
