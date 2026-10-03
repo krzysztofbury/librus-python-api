@@ -72,7 +72,13 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   follow/retry, and join cancellation before returning. Missing methods are
   unsupported, never a fallback to the generic `request` method. Custom transports
   must uphold the callback boundary; the library cannot prove what a third-party
-  transport actually sends. Generic `request("send_message", ...)` is prohibited.
+   transport actually sends. Generic `request("send_message", ...)` is prohibited.
+  Modern support adds `authenticate_modern(expected_login, budget)`,
+  `clear_modern_auth()` and `send_modern_message(submission, budget, dispatched)`.
+  Use a separate account-owned modern cookie jar and the same shared scheduler;
+  validate exact origin/login/target/source before the one handoff dispatch.
+  The modern send callback, uncertainty and joined cleanup rules are identical.
+  Generic modern launch/handoff/send requests are prohibited.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -232,7 +238,55 @@ Page and batch caches are separate and fresh by default.
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
-## Sending (0.4.6, offline-qualified only)
+## Modern messaging (0.4.7, offline-qualified only)
+
+- `modern_identity(*, budget=None, max_age_seconds=0)` returns `ModernIdentity`:
+  native `identity`, modern `account` metadata and an `observation`. Modern owner
+  ID and available names must match the native owner. Only ordinary school roles
+  are enabled, conservatively; unrelated origins and OSIN remain unsupported.
+- `modern_recipient_types(*, budget=None, max_age_seconds=0)` returns
+  `ModernRecipientTypes`. Each item has a backend/account-bound `reference`,
+  a `label` and `lookup_supported`. Unsupported types are metadata, not permission
+  to look up another route.
+- `modern_recipients(recipient_type, *, budget=None, max_age_seconds=0)` returns
+  `ModernRecipients`. Only `parentsCouncil` is supported. Each item preserves
+  `label` and `ModernRecipientReference(account_id, user_id, account,
+  recipient_type, class_label)`. Duplicate account IDs/classes and unrecognized
+  layouts raise errors; IDs must never be substituted or passed to legacy APIs.
+- `prepare_modern_send(*, recipients: tuple[ModernRecipientReference, ...],
+  subject: str, body: str) -> SendAttempt` is local, immutable and single-use.
+  It does not perform recipient lookup. Caller-owned preview/confirmation must
+  bind the exact backend, sender, recipient(s) and input text before execution.
+  `attempt.submission` is `ModernSendSubmission` rather than `SendSubmission`;
+  `attempt.outcome.backend` is `MessagingBackend.MODERN`. Legacy outcomes default
+  to `MessagingBackend.LEGACY` without changing legacy wire behavior.
+
+Modern authentication uses one exact native launch and modern token handoff,
+then verifies `/api/me`, all under the same request/byte/deadline budgets.
+Its cookies are isolated from legacy cookies even for the same login. Fresh
+identity reads re-check modern metadata; other calls reuse only that login's
+already-verified session. Expiry invalidates authentication, never replays a send.
+Reads are also non-retryable in this initial scope.
+
+The send JSON carries `receivers.schoolReceivers[].accountId`, Base64 UTF-8
+`topic` and HTML-escaped plain-text `content`, `storageId=null`, `category="normal"`.
+HTML escaping preserves literal markup in the modern reader; input line endings
+are retained in the encoded payload and displayed as line breaks. The existing
+50-recipient/200-subject/15,000-body-character and 64 KiB encoded-request policy
+limits apply after escaping/Base64 expansion. No attachments, CC/BCC, groups,
+drafts, signatures or settings changes are supported.
+
+Modern HTTP 2xx remains UNKNOWN because no definitive positive acknowledgement
+has been established. An explicit allowlisted validation denial on HTTP 400/422
+can establish source-informed REJECTED. Unknown, malformed, contradictory or
+failed responses remain UNKNOWN after potential dispatch, with no retries,
+redirects, fallback, post-send lookup or implicit reauthentication. Cancel/shutdown
+propagate normally with an inspectable outcome after joined cleanup, as below.
+No modern mailbox reconciliation API is introduced.
+
+See [the modern contract](contracts/modern-messages.md) for evidence and live gates.
+
+## Legacy sending (0.4.6, offline-qualified only)
 
 `prepare_send(*, recipients: tuple[RecipientReference, ...], subject: str,
 body: str)` returns a `SendAttempt` without network access. It validates same-login

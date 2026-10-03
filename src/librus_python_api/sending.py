@@ -10,6 +10,8 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.markup import text
 from librus_python_api.models import (
     Identity,
+    MessagingBackend,
+    ModernSendSubmission,
     Observation,
     SendResult,
     SendStatus,
@@ -50,13 +52,20 @@ def parse_send_acknowledgement(body: bytes) -> SendStatus:
 class SendAttempt:
     """One process-local attempt, not consent, durable storage or idempotency."""
 
-    def __init__(self, client: "AccountClient", submission: SendSubmission) -> None:
+    def __init__(
+        self, client: "AccountClient", submission: SendSubmission | ModernSendSubmission
+    ) -> None:
         self._client, self._submission = client, submission
         self._used = False
-        self._outcome = SendResult(SendStatus.NOT_DISPATCHED)
+        self._outcome = SendResult(
+            SendStatus.NOT_DISPATCHED,
+            backend=MessagingBackend.MODERN
+            if isinstance(submission, ModernSendSubmission)
+            else MessagingBackend.LEGACY,
+        )
 
     @property
-    def submission(self) -> SendSubmission:
+    def submission(self) -> SendSubmission | ModernSendSubmission:
         return self._submission
 
     @property
@@ -86,8 +95,11 @@ class SendAttempt:
     def _dispatch(self, identity: Identity, observation: Observation) -> None:
         if self._outcome.status is not SendStatus.NOT_DISPATCHED:
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        self._outcome = SendResult(
-            SendStatus.UNKNOWN, identity=identity, observation=observation
+        self._outcome = replace(
+            self._outcome,
+            status=SendStatus.UNKNOWN,
+            identity=identity,
+            observation=observation,
         )
 
     def _acknowledge(self, status: SendStatus) -> SendResult:

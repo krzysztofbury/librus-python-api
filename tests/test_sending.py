@@ -576,7 +576,7 @@ def test_request_byte_bound_applies_to_encoded_form_not_only_unicode_characters(
         )
 
 
-def test_generic_request_cannot_enter_send_variant_with_any_form() -> None:
+def test_generic_request_cannot_enter_write_or_modern_handoff_with_any_form() -> None:
     from librus_python_api import LibrusService
     from librus_python_api.config import AccountCredentials, ConnectionSettings
 
@@ -591,7 +591,7 @@ def test_generic_request_cannot_enter_send_variant_with_any_form() -> None:
                     )
                 },
                 connection=ConnectionSettings(
-                    synergia_origin=origin, api_origin=origin
+                    synergia_origin=origin, api_origin=origin, messages_origin=origin
                 ),
             ) as service:
                 client = service.account("student")
@@ -600,10 +600,16 @@ def test_generic_request_cannot_enter_send_variant_with_any_form() -> None:
                     {"wyslij": "Wyślij"},
                     {"numer_strony105": "0", "porcjowanie_pojemnik105": "105"},
                 ):
-                    with pytest.raises(InvalidInputError):
-                        await client._transport.request(
-                            "send_message", RequestBudget(), form=form
-                        )
+                    for endpoint in (
+                        "send_message",
+                        "modern_send_message",
+                        "modern_launch",
+                        "modern_handoff",
+                    ):
+                        budget = RequestBudget()
+                        with pytest.raises(InvalidInputError):
+                            await client._transport.request(endpoint, budget, form=form)
+                        assert budget.requests_dispatched == 0
                 assert fixture.calls == []
 
     asyncio.run(scenario())

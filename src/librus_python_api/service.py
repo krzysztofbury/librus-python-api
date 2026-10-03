@@ -46,6 +46,7 @@ from librus_python_api.config import (
     agenda_form,
     attendance_view_form,
     completed_lessons_form,
+    encode_modern_send,
     encode_send_form,
     grade_view_form,
     homework_form,
@@ -91,6 +92,13 @@ from librus_python_api.models import (
     MessagesCursor,
     MessagesPage,
     MessageSummary,
+    ModernAccountData,
+    ModernIdentity,
+    ModernRecipientReference,
+    ModernRecipients,
+    ModernRecipientTypeReference,
+    ModernRecipientTypes,
+    ModernSendSubmission,
     NotificationCounts,
     Observation,
     OperationName,
@@ -113,6 +121,13 @@ from librus_python_api.models import (
     SubjectFrequency,
     Timetable,
     TransportResponse,
+)
+from librus_python_api.modern_messages import (
+    parse_modern_identity,
+    parse_modern_recipients,
+    parse_modern_send_response,
+    parse_modern_types,
+    validate_modern_type,
 )
 from librus_python_api.notifications import (
     decode_payload,
@@ -322,6 +337,7 @@ class AccountClient:
         self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
         self._consuming_schedule = False
+        self._modern_account: ModernAccountData | None = None
 
     @property
     def _transport(self) -> AccountTransport:
@@ -341,7 +357,10 @@ class AccountClient:
     async def _execute_send(
         self, attempt: SendAttempt, budget: RequestBudget | None
     ) -> SendResult:
-        encode_send_form(attempt.submission, self._alias)
+        if isinstance(attempt.submission, ModernSendSubmission):
+            return await self._execute_modern_send(attempt, attempt.submission, budget)
+        submission = attempt.submission
+        encode_send_form(submission, self._alias)
 
         async def fetch(budget: RequestBudget, _: bool) -> SendResult:
             send = getattr(self._transport, "send_message", None)
@@ -356,7 +375,7 @@ class AccountClient:
                     if isinstance(key, tuple) and key[0] == "messages_sent":
                         del self._cache[key]
 
-            response = await send(attempt.submission, budget, dispatched)
+            response = await send(submission, budget, dispatched)
             self._validate_read_response(response, HTML)
             status = await self._service._parsers.run(
                 parse_send_acknowledgement, response.body, budget
@@ -365,6 +384,165 @@ class AccountClient:
 
         return await self._uncached(
             "send_message", fetch, budget, authenticate=True, preserve_cancellation=True
+        )
+
+    def prepare_modern_send(
+        self,
+        *,
+        recipients: tuple[ModernRecipientReference, ...],
+        subject: str,
+        body: str,
+    ) -> SendAttempt:
+        if self._service._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        submission = ModernSendSubmission(recipients, subject, body)
+        encode_modern_send(submission, self._alias)
+        return SendAttempt(self, submission)
+
+    async def _modern_ready(
+        self, budget: RequestBudget, *, refresh: bool = False
+    ) -> ModernAccountData:
+        if self._modern_account is not None and not refresh:
+            return self._modern_account
+        authenticate = getattr(self._transport, "authenticate_modern", None)
+        if not callable(authenticate):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        try:
+            if self._modern_account is None:
+                await authenticate(self._credentials.login.get_secret_value(), budget)
+            account = await self._page(
+                "modern_identity", budget, parse_modern_identity, content_type=JSON
+            )
+            identity = self._session_identity()
+            if (
+                account.account_id != identity.owner.id
+                or (
+                    identity.owner.first_name is not None
+                    and account.first_name != identity.owner.first_name
+                )
+                or (
+                    identity.owner.last_name is not None
+                    and account.last_name != identity.owner.last_name
+                )
+            ):
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            self._modern_account = account
+            return account
+        except BaseException:
+            self._modern_account = None
+            clear = getattr(self._transport, "clear_modern_auth", None)
+            if callable(clear):
+                clear()
+            raise
+
+    async def modern_identity(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernIdentity:
+        async def fetch(budget: RequestBudget, _: bool) -> ModernIdentity:
+            # Identity reads are fresh even if a modern session is already bound.
+            account = await self._modern_ready(budget, refresh=True)
+            return ModernIdentity(
+                self._session_identity(), account, self._observation("modern_identity")
+            )
+
+        return await self._read(("modern_identity",), fetch, budget, max_age_seconds)
+
+    async def modern_recipient_types(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernRecipientTypes:
+        async def fetch(budget: RequestBudget, _: bool) -> ModernRecipientTypes:
+            await self._modern_ready(budget)
+            items = await self._page(
+                "modern_recipient_types",
+                budget,
+                lambda body: parse_modern_types(body, self._alias),
+                content_type=JSON,
+            )
+            return ModernRecipientTypes(
+                self._session_identity(),
+                items,
+                self._observation("modern_recipient_types"),
+            )
+
+        return await self._read(
+            ("modern_recipient_types",),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def modern_recipients(
+        self,
+        recipient_type: ModernRecipientTypeReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernRecipients:
+        validate_modern_type(recipient_type, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernRecipients:
+            await self._modern_ready(budget)
+            items = await self._page(
+                "modern_recipients",
+                budget,
+                lambda body: parse_modern_recipients(body, recipient_type),
+                content_type=JSON,
+            )
+            return ModernRecipients(
+                self._session_identity(),
+                recipient_type,
+                items,
+                self._observation("modern_recipients"),
+            )
+
+        return await self._read(
+            ("modern_recipients", recipient_type.identifier),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def _execute_modern_send(
+        self,
+        attempt: SendAttempt,
+        submission: ModernSendSubmission,
+        budget: RequestBudget | None,
+    ) -> SendResult:
+        encode_modern_send(submission, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> SendResult:
+            send = getattr(self._transport, "send_modern_message", None)
+            if not callable(send):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            await self._modern_ready(budget)
+
+            def dispatched() -> None:
+                attempt._dispatch(
+                    self._session_identity(), self._observation("modern_send_message")
+                )
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_sent":
+                        del self._cache[key]
+
+            response = await send(submission, budget, dispatched)
+            if response.status in (400, 422):
+                if _media_type(response) != JSON:
+                    raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
+            else:
+                self._validate_read_response(response, JSON)
+            status = await self._service._parsers.run(
+                lambda body: parse_modern_send_response(body, response.status),
+                response.body,
+                budget,
+            )
+            return attempt._acknowledge(status)
+
+        return await self._uncached(
+            "modern_send_message",
+            fetch,
+            budget,
+            authenticate=True,
+            preserve_cancellation=True,
         )
 
     # Public reads: validate input, then describe one fetch for _read.
@@ -1373,6 +1551,7 @@ class AccountClient:
 
     def _invalidate(self) -> None:
         self._identity = None
+        self._modern_account = None
         self._cache.clear()
         self._metadata.clear()
         self._transport.clear_auth()

@@ -1,9 +1,11 @@
-# Modern messaging: observed discovery, implementation pending
+# Modern messaging: explicit 0.4.7 backend
 
 The modern composer at `https://wiadomosci.librus.pl/nowy/` is a separate
 messaging backend from the legacy Synergia HTML routes implemented in 0.4.6.
 Successful modern recipient discovery does not qualify legacy lookup or sending.
-No modern backend, modern send API or automatic fallback is shipped yet.
+0.4.7 implements an explicit, offline-qualified modern backend. No automatic
+fallback, account-setting mutation or cross-backend ID reuse is implemented.
+No modern send or positive acknowledgement has been observed live.
 
 ## Independently observed read-only discovery
 
@@ -58,34 +60,60 @@ offline attempts. This verifies the directory's account-ID mapping and tree
 semantics, not styling, unrelated account data or whole-app live compatibility.
 The inspected app code is an external behavior reference only. No bundles,
 implementation excerpts, private captures or derived personal fixtures were
-incorporated in the repository. Original offline fixtures are still required
-before implementing the modern backend.
+incorporated in the repository. The implementation uses independently authored
+synthetic fixtures, not sanitized copies of private response data.
 
-## Required next increment, not authorized implementation
+## Implemented scope and remaining live gates
 
 Prioritize explicit modern-backend support over guessing legacy class selectors.
 No retirement date or universal migration policy for legacy messaging has been
 established. Account settings must not be silently toggled to select a backend.
 
-Before modern sending:
+The approved 0.4.7 scope implements the following boundaries:
 
-1. Approve the next feature/version scope separately. Preserve existing 0.4.6
+1. Preserve existing 0.4.6
    single-use attempts, cancellation/uncertainty semantics and shared budgets.
-2. Add the modern origin, authentication handoff and all enabled routes centrally
+2. Modern origin, authentication handoff and all enabled routes are centralized
    in `config.py`, with matching OpenAPI operations and original offline wire
    proofs. The investigation adapter is not a shipped library interface.
-3. Bind references to both the independent login and messaging backend. Modern
+3. Separate `ModernRecipientTypeReference` and `ModernRecipientReference` bind
+   the independent account alias and modern backend. Modern
    recipient `accountId`, modern `userId` and legacy recipient IDs must not be
    conflated or accepted across backends without separately established proof.
-4. Independently establish modern plain-text payload encoding, acknowledgement,
-   definitive rejection and potentially dispatched boundaries. Captured app code
-   indicates JSON sending, unlike the legacy repeated form; no send request or
-   acknowledgement has been observed live. No automatic cross-backend fallback
-   or replay is safe.
-5. Qualify source and installed wheel/sdist under representative offline load,
+4. `prepare_modern_send` validates locally without I/O; its attempt uses the same
+   single-use and potential-dispatch semantics as legacy sending. The JSON contract
+   is source-informed by three separately approved unauthenticated public-asset
+   GETs, with zero credentials, account data, script execution or sends. Topic is
+   UTF-8 Base64; body is HTML-escaped plain text encoded as UTF-8 Base64 because
+   the modern reader interprets decoded content as HTML and converts newlines to
+   breaks. Recipient payload contains `accountId`, never `userId`. Fixed fields
+   are `storageId=null` and `category="normal"`; CC/BCC, groups, OSIN accounts,
+   uploads, replies, forwards, signatures and drafts are excluded.
+   A successful HTTP response alone remains UNKNOWN. Only explicit allowlisted
+   source-informed denial codes on HTTP 400/422 can establish REJECTED; neither
+   real acknowledgement nor rejection envelopes have been live-qualified.
+5. Qualification covers source and installed wheel/sdist under representative
+   offline load,
    including one-dispatch fault proofs and account/backend isolation. Obtain fresh
    exact payload and live-budget approval for the privately planned sole-recipient
    manual test. Discovery approval is not send approval.
+
+`modern_identity`, `modern_recipient_types` and `modern_recipients` are ordinary
+bounded reads with explicit max-age caching. Only the `parentsCouncil` lookup
+is supported; other type metadata is returned with `lookup_supported=False`.
+Directory parsing accepts only the established one-nested-array class shape,
+preserving class labels and unique account IDs; unsupported or ambiguous shapes
+raise errors rather than returning partial results. Empty classes are synthetic
+offline cases, not claims about observed live empty-directory semantics.
+
+Authentication manually inspects one native launch redirect and one modern
+handoff redirect. Both are non-retryable and budgeted; the token, encoded login,
+target, source and destination are allowlisted before dispatch. No composer or
+JavaScript fetch is needed at runtime. Modern identity must match the native
+owner ID and available names. Modern cookies are never copied into the legacy
+jar, and legacy cookies are never copied into the modern jar. Invalidation and
+shutdown clear/close both account-owned contexts. Limits and token syntax are
+conservative library policy, not universal upstream guarantees.
 
 Consumer preview/confirmation, durable attempt records, crash recovery and
 reconciliation remain application-owned. Consumer migration, merge and publication

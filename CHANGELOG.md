@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.7 - Explicit modern messaging backend
+
+Local-first. No live credentialed operation, message or publication in this increment.
+
+- Separate modern identity/type/council discovery, strict native-owner binding,
+  account/backend-specific references and isolated modern session cookies.
+- Exact bounded authentication handoff and six central routes with OpenAPI parity;
+  no arbitrary redirect follow, legacy fallback or account-setting mutation.
+- `prepare_modern_send` freezes plain-text input for the existing single-use
+  attempt lifecycle. Fixed ordinary JSON uses recipient account IDs, UTF-8
+  Base64, HTML-escaped body literals, null attachment storage and normal category.
+- Modern 2xx is UNKNOWN, not inferred acceptance. Only allowlisted explicit
+  source-informed denial codes on validation responses establish REJECTED.
+  Response loss, cancellation, expiry and unqualified evidence never allow replay.
+- Original two-origin loopback tests and independent Chromium plain-text rendering
+  exercise installed runtime paths. Broader directory roles/layouts, modern
+  content/attachments and positive acknowledgements remain unqualified.
+
 ## 0.4.6 - Single-use sending attempts
 
 Local-first, offline qualification only. No live message sent or package published.

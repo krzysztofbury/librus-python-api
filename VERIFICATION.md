@@ -3,13 +3,90 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.7 (2026-10-03) - Explicit modern messaging, offline qualification
+
+### Scope and provenance
+
+The approved follow-up adds modern identity/type/council discovery and an explicit
+modern single-use JSON send API to PR #13. It does not alter settings or dispatch
+the separately planned live message. Three separately approved unauthenticated
+public-asset GETs completed with zero credential submissions, account data,
+script execution or sends. The scope is closed with no automatic rerun. Prior
+read-only modern identity/council observations remain evidence for one layout,
+not live qualification of the new installed implementation.
+
+The external app was inspected only as a behavior reference; no code, bundles,
+private captures or external fixtures are incorporated. Original fixtures use
+invented accounts and recipients on two loopback origins. No applicable modern
+apix operation is used as an oracle or fallback. Ordinary CI remains offline.
+
+### Qualification and review
+
+- Source, installed wheel and installed sdist each pass 1,141 portable tests on
+  Python 3.13.15 and 3.14.7; the one opt-in performance case remains deselected.
+  Ruff lint/format, strict typing, hooks, secret scans, locked dependency audit
+  and artifact metadata/license/py.typed checks pass.
+- OpenAPI parity covers 42 operation IDs on 41 distinct method/path pairs.
+  Six modern routes are centrally catalogued. Authentication redirects and
+  send requests cannot be entered through the generic request interface.
+- Eighty original modern cases exercise actual public prepare/execute and read
+  paths across separate native/modern fixture origins. Cookie assertions exclude
+  native tokens from modern requests and modern cookies from native requests;
+  four independent logins sharing one synthetic student retain different owners.
+- The exact JSON uses recipient account IDs, not user IDs, UTF-8 Base64 text,
+  null attachment storage and normal category. Backend-specific references reject
+  legacy/cross-account use before I/O. Single-use frozen outcomes retain the
+  backend, native identity and observation after potential dispatch.
+- Representative load includes four full 50-recipient/200-subject/15,000-body
+  submissions under one exact 36-request budget and a 2,048-leaf directory read.
+  The next leaf fails the bounded directory policy. Same-account distinct attempts
+  share authentication but not send results; saturated shared admission dispatches
+  no second send and leaves no owned active/queued work.
+- Cancellation, deadline and shutdown are exercised during native launch,
+  modern handoff, identity verification and send response waiting. Pre-dispatch
+  failures retain NOT_DISPATCHED; potential dispatch retains UNKNOWN. Expiry,
+  disconnect, partial EOF, redirects, wrong MIME and bounded-response failures
+  never replay, switch backend or claim acceptance. Sent-list caches invalidate
+  at potential dispatch while unrelated received summaries remain cached.
+- Pair-programmer checklist self-review covered TigerStyle #2 bounded work,
+  #6 unsupported states, #12 failure handling and #13 explicit transport defaults.
+  It identified raw plain-text markup being interpreted as HTML by the modern
+  reader. The exact-wire regression failed before HTML escaping, then passed
+  after escaping body literals before UTF-8 Base64 encoding. No independent
+  subagent review or universal upstream compatibility is claimed.
+- `scripts/crosscheck_modern_messages.py` independently renders actual original
+  loopback POST bytes in real offline Chromium. All three bodies, including
+  Unicode, literal script/tag/entity text and CR/LF/CRLF, match plain-text intent.
+  Networking and service workers are blocked; no external app code is executed.
+  This is a source-informed reader-semantics check, not a full modern-app replay
+  or proof of real server transformation. Prior captured-app directory replay
+  remains qualified only as described in the modern contract.
+
+### Retained artifacts and remaining gates
+
+Qualified local archives are in `dist/0.4.7/`; sanitized hashes and results are
+in `release-evidence/0.4.7*`. Task-owned assets, environments and logs are removed.
+The private live plan remains owner-only and not authorized to send. Cumulative
+approved discovery/asset scopes used 54 HTTP requests and four credential
+submissions, with zero live sends; the new increment used only the three public
+GETs. Unused older budgets do not authorize any further calls.
+
+Modern HTTP success is UNKNOWN until a definitive positive acknowledgement is
+independently established. Explicit validation denial envelopes are source-
+informed only, not live-qualified. Installed live handoff/discovery, broader
+roles/type/class layouts and the exact sole-recipient send still require fresh
+bounded authorization. Modern mailbox content, attachments and reconciliation
+remain unsupported. Consumer migration, credentialed CI, merge and publication
+were not performed.
+
 ## 0.4.6 (2026-10-03) - Single-use sending, offline only
 
 ### Design, scope and evidence boundary
 
 Owner-approved single-use attempts freeze validated payloads locally and retain
 inspectable outcomes across cancellation. This is the final library increment
-in PR #13. Implementation approval did not authorize live discovery or sending:
+in the original PR #13 sequence, later extended by 0.4.7. Implementation approval
+did not authorize live discovery or sending:
 zero Librus requests and zero live send dispatches were made in this increment.
 The privately recorded one-recipient/one-message/one-dispatch qualification plan
 still requires exact sender/recipient/payload verification and fresh bounded

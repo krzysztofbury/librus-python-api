@@ -42,6 +42,10 @@ type OperationName = Literal[
     "consume_schedule_events",
     "decode_schedule_events",
     "send_message",
+    "modern_identity",
+    "modern_recipient_types",
+    "modern_recipients",
+    "modern_send_message",
 ]
 
 
@@ -99,6 +103,11 @@ class SendStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class MessagingBackend(StrEnum):
+    LEGACY = "legacy"
+    MODERN = "modern"
+
+
 @dataclass(frozen=True, slots=True)
 class SendSubmission:
     recipients: tuple["RecipientReference", ...] = field(repr=False)
@@ -112,6 +121,7 @@ class SendResult:
     reason: ErrorKind | Literal["cancelled"] | None = None
     identity: "Identity | None" = field(default=None, repr=False)
     observation: "Observation | None" = field(default=None, repr=False)
+    backend: MessagingBackend = MessagingBackend.LEGACY
 
 
 class NotificationCategory(StrEnum):
@@ -297,6 +307,71 @@ class Recipients:
     group: RecipientGroupReference = field(repr=False)
     items: tuple[Recipient, ...] = field(repr=False)
     observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientTypeReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientType:
+    reference: ModernRecipientTypeReference = field(repr=False)
+    label: str = field(repr=False)
+    lookup_supported: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientReference:
+    account_id: str = field(repr=False)
+    user_id: str = field(repr=False)
+    account: str = field(repr=False)
+    recipient_type: str = field(repr=False)
+    class_label: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipient:
+    reference: ModernRecipientReference = field(repr=False)
+    label: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernAccountData:
+    account_id: str = field(repr=False)
+    group_id: str
+    first_name: str = field(repr=False)
+    last_name: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernIdentity:
+    identity: "Identity" = field(repr=False)
+    account: ModernAccountData = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientTypes:
+    identity: "Identity" = field(repr=False)
+    items: tuple[ModernRecipientType, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipients:
+    identity: "Identity" = field(repr=False)
+    recipient_type: ModernRecipientTypeReference = field(repr=False)
+    items: tuple[ModernRecipient, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernSendSubmission:
+    recipients: tuple[ModernRecipientReference, ...] = field(repr=False)
+    subject: str = field(repr=False)
+    body: str = field(repr=False)
 
 
 @dataclass(frozen=True, slots=True)

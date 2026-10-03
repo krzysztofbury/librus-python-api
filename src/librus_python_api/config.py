@@ -5,7 +5,9 @@ records source-informed routes with explicit offline/live evidence separation.
 There is intentionally no public arbitrary authenticated URL interface.
 """
 
+import base64
 import calendar
+import json
 import re
 import ssl
 import unicodedata
@@ -13,6 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
+from html import escape
 from types import MappingProxyType
 from typing import Annotated, Any, Literal, Self
 from urllib.parse import urlencode, urlsplit
@@ -33,6 +36,8 @@ from librus_python_api.models import (
     AttendanceView,
     GradeView,
     MessageFolder,
+    ModernRecipientReference,
+    ModernSendSubmission,
     RecipientReference,
     SendSubmission,
 )
@@ -69,7 +74,7 @@ class Endpoint:
     side_effect: SideEffect
     retry_safe: bool
     evidence: Evidence
-    origin: Literal["synergia", "api", "download"] = "synergia"
+    origin: Literal["synergia", "api", "download", "messages"] = "synergia"
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", self.operation_id):
@@ -90,7 +95,7 @@ class Endpoint:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if self.side_effect != SideEffect.NONE and self.retry_safe:
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        if self.origin not in ("synergia", "api", "download"):
+        if self.origin not in ("synergia", "api", "download", "messages"):
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
@@ -101,6 +106,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
         "synergia": "https://synergia.librus.pl",
         "api": "https://api.librus.pl",
         "download": "https://sandbox.librus.pl",
+        "messages": "https://wiadomosci.librus.pl",
     }
 )
 OAUTH_QUERY = (("client_id", "46"),)
@@ -111,6 +117,59 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
         for item in (
+            Endpoint(
+                "modern_launch",
+                "GET",
+                "/wiadomosci3",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "modern_handoff",
+                "GET",
+                "/pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_identity",
+                "GET",
+                "/api/me",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_recipient_types",
+                "GET",
+                "/api/receivers/types",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_recipients",
+                "GET",
+                "/api/receivers/groups/students-and-attendants",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_send_message",
+                "POST",
+                "/api/messages",
+                SideEffect.SEND_MESSAGE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "messages",
+            ),
             Endpoint(
                 "consume_schedule_events",
                 "GET",
@@ -641,6 +700,27 @@ SEND_MAX_BODY_CHARACTERS = 15000
 SEND_MAX_REQUEST_BYTES = 64 * 1024
 SEND_ACCEPTED_TEXT = "Wiadomość została wysłana."
 SEND_REJECTED_TEXT = "Wiadomość nie została wysłana."
+MODERN_DIRECTORY_TYPE_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]{0,63}")
+MODERN_HANDOFF_PATTERN = re.compile(
+    r"/pobierz28/MultiDomainLogon/token/([A-Za-z0-9]{32,256})/login/([A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
+)
+MODERN_TERMINAL_PATHS = frozenset({"/nowy", "/nowy/"})
+MODERN_DIRECTORY_QUERIES = MappingProxyType(
+    {
+        "modern_recipient_types": (("includeClass", "true"),),
+        "modern_recipients": (("receiverType", "parentsCouncil"),),
+    }
+)
+MODERN_SUPPORTED_RECIPIENT_TYPE = "parentsCouncil"
+MODERN_SUPPORTED_ACCOUNT_GROUPS = frozenset({"5", "8", "9"})
+MODERN_MAX_CLASSES = 128
+MODERN_MAX_RECIPIENTS = 2048
+MODERN_MAX_TYPES = 32
+MODERN_MAX_LABEL = 1024
+MODERN_MAX_TOTAL_TEXT = 128 * 1024
+MODERN_REJECTION_CODES = frozenset(
+    {"DUPLICATED_RECEIVERS", "THE_RECEIVER_CANNOT_RECEIVE_A_NOTE_COPY"}
+)
 ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 ATTACHMENT_CHUNK_BYTES = 64 * 1024
 ATTACHMENT_MAX_LOCATION_LENGTH = 2048
@@ -728,6 +808,70 @@ def encode_send_form(submission: SendSubmission, account: str) -> bytes:
         )
     )
     payload = urlencode(fields, encoding="utf-8", errors="strict").encode("ascii")
+    if len(payload) > SEND_MAX_REQUEST_BYTES:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return payload
+
+
+def encode_modern_send(submission: ModernSendSubmission, account: str) -> bytes:
+    """Source-informed ordinary school JSON, never OSIN/group/CC/BCC sending."""
+    if (
+        not isinstance(submission, ModernSendSubmission)
+        or type(submission.recipients) is not tuple
+        or not 1 <= len(submission.recipients) <= SEND_MAX_RECIPIENTS
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    for value, limit, whitespace in (
+        (submission.subject, SEND_MAX_SUBJECT_CHARACTERS, ""),
+        (submission.body, SEND_MAX_BODY_CHARACTERS, "\r\n\t"),
+    ):
+        if (
+            type(value) is not str
+            or not 1 <= len(value) <= limit
+            or not value.strip()
+            or any(
+                unicodedata.category(c) in {"Cc", "Cs"} and c not in whitespace
+                for c in value
+            )
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+    seen: set[str] = set()
+    recipients = []
+    for reference in submission.recipients:
+        if (
+            not isinstance(reference, ModernRecipientReference)
+            or reference.account != account
+            or reference.recipient_type != MODERN_SUPPORTED_RECIPIENT_TYPE
+            or type(reference.class_label) is not str
+            or not reference.class_label.strip()
+            or len(reference.class_label) > MODERN_MAX_LABEL
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if (
+            any(
+                type(v) is not str or re.fullmatch(r"[0-9]{1,64}", v) is None
+                for v in (reference.account_id, reference.user_id)
+            )
+            or reference.account_id in seen
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        seen.add(reference.account_id)
+        recipients.append({"accountId": reference.account_id})
+    payload = json.dumps(
+        {
+            "receivers": {"schoolReceivers": recipients},
+            "topic": base64.b64encode(submission.subject.encode()).decode("ascii"),
+            # The modern reader inserts decoded content as sanitized HTML.
+            # Preserve plain-text literals instead of letting tags disappear.
+            "content": base64.b64encode(
+                escape(submission.body, quote=False).encode()
+            ).decode("ascii"),
+            "storageId": None,
+            "category": "normal",
+        },
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("ascii")
     if len(payload) > SEND_MAX_REQUEST_BYTES:
         raise LibrusError(ErrorKind.INVALID_INPUT)
     return payload
@@ -992,10 +1136,13 @@ class ConnectionSettings(_ValidatedConfig):
     synergia_origin: str = UPSTREAM_ORIGINS["synergia"]
     api_origin: str = UPSTREAM_ORIGINS["api"]
     download_origin: str = UPSTREAM_ORIGINS["download"]
+    messages_origin: str = UPSTREAM_ORIGINS["messages"]
     proxy_url: SecretStr | None = Field(default=None, repr=False)
     ssl_context: ssl.SSLContext | None = Field(default=None, repr=False)
 
-    @field_validator("synergia_origin", "api_origin", "download_origin")
+    @field_validator(
+        "synergia_origin", "api_origin", "download_origin", "messages_origin"
+    )
     @classmethod
     def validate_origin(cls, value: str, info: ValidationInfo) -> str:
         assert info.field_name is not None
@@ -1042,4 +1189,5 @@ class ConnectionSettings(_ValidatedConfig):
             "api": self.api_origin,
             "synergia": self.synergia_origin,
             "download": self.download_origin,
+            "messages": self.messages_origin,
         }[endpoint.origin]

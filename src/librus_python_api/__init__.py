@@ -59,6 +59,16 @@ from librus_python_api.models import (
     MessagesPage,
     MessageSummary,
     MessageTimestamp,
+    MessagingBackend,
+    ModernAccountData,
+    ModernIdentity,
+    ModernRecipient,
+    ModernRecipientReference,
+    ModernRecipients,
+    ModernRecipientType,
+    ModernRecipientTypeReference,
+    ModernRecipientTypes,
+    ModernSendSubmission,
     NotificationCategory,
     NotificationCount,
     NotificationCounts,
@@ -97,9 +107,19 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.4.6"
+__version__ = "0.4.7"
 
 __all__ = [
+    "MessagingBackend",
+    "ModernAccountData",
+    "ModernIdentity",
+    "ModernRecipient",
+    "ModernRecipientReference",
+    "ModernRecipientType",
+    "ModernRecipientTypeReference",
+    "ModernRecipientTypes",
+    "ModernRecipients",
+    "ModernSendSubmission",
     "SendAttempt",
     "SendResult",
     "SendStatus",

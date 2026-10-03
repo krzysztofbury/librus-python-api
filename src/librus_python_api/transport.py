@@ -4,6 +4,7 @@ import asyncio
 import math
 import re
 import zlib
+from base64 import b64encode
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -30,12 +31,16 @@ from librus_python_api.config import (
     FORM_MAX_VALUE_LENGTH,
     MESSAGE_MAX_PAGE_COUNT,
     MESSAGE_PAGE_FIELDS,
+    MODERN_DIRECTORY_QUERIES,
+    MODERN_HANDOFF_PATTERN,
+    MODERN_TERMINAL_PATHS,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
     Endpoint,
     SideEffect,
     TransportLimits,
+    encode_modern_send,
     encode_send_form,
     recipient_form,
 )
@@ -44,6 +49,7 @@ from librus_python_api.models import (
     AttachmentHeaders,
     LoginSubmission,
     MessageAttachmentReference,
+    ModernSendSubmission,
     RequestForm,
     ScheduleEventWire,
     SendSubmission,
@@ -75,6 +81,19 @@ class AccountTransport(Protocol):
         budget: RequestBudget,
         dispatched: Callable[[], None],
     ) -> TransportResponse: ...
+
+    async def authenticate_modern(
+        self, expected_login: str, budget: RequestBudget
+    ) -> None: ...
+
+    async def send_modern_message(
+        self,
+        submission: ModernSendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse: ...
+
+    def clear_modern_auth(self) -> None: ...
 
     async def follow(
         self,
@@ -172,6 +191,7 @@ class AiohttpTransport:
         self._connection, self._limits = connection, limits
         self._session: aiohttp.ClientSession | None = None
         self._download_session: aiohttp.ClientSession | None = None
+        self._modern_session: aiohttp.ClientSession | None = None
         self._closed = False
 
     def _get_session(self) -> aiohttp.ClientSession:
@@ -198,6 +218,27 @@ class AiohttpTransport:
             self._session._retry_connection = False
         return self._session
 
+    def _get_modern_session(self) -> aiohttp.ClientSession:
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        if self._modern_session is None:
+            self._modern_session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=1, ssl=self._connection.ssl_context or True
+                ),
+                cookie_jar=aiohttp.CookieJar(),
+                trust_env=False,
+                auto_decompress=False,
+                read_bufsize=16 * 1024,
+                timeout=aiohttp.ClientTimeout(
+                    total=self._limits.request_timeout_seconds,
+                    connect=self._limits.connect_timeout_seconds,
+                ),
+                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+            )
+            self._modern_session._retry_connection = False
+        return self._modern_session
+
     def _url(self, endpoint: Endpoint) -> str:
         return self._connection.origin(endpoint) + endpoint.path
 
@@ -216,6 +257,9 @@ class AiohttpTransport:
             "attachment_resolve",
             "consume_schedule_events",
             "send_message",
+            "modern_send_message",
+            "modern_launch",
+            "modern_handoff",
         }:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
@@ -229,7 +273,89 @@ class AiohttpTransport:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
+        if endpoint_id in MODERN_DIRECTORY_QUERIES:
+            url = str(URL(url).with_query(MODERN_DIRECTORY_QUERIES[endpoint_id]))
         return await self._request(endpoint, url, budget, form)
+
+    async def authenticate_modern(
+        self, expected_login: str, budget: RequestBudget
+    ) -> None:
+        try:
+            response = await self._request(
+                ENDPOINTS["modern_launch"],
+                self._url(ENDPOINTS["modern_launch"]),
+                budget,
+                None,
+            )
+            if response.status != 302:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            url = self._modern_redirect(
+                response.url, response.headers.get("location", "")
+            )
+            parsed = urlsplit(url)
+            match = MODERN_HANDOFF_PATTERN.fullmatch(parsed.path)
+            if match is None or match[2] != b64encode(expected_login.encode()).decode(
+                "ascii"
+            ).rstrip("="):
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            response = await self._request(
+                ENDPOINTS["modern_handoff"], url, budget, None
+            )
+            if response.status != 302:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            final = self._modern_redirect(
+                response.url, response.headers.get("location", "")
+            )
+            if urlsplit(final).path not in MODERN_TERMINAL_PATHS:
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+        except BaseException:
+            self.clear_modern_auth()
+            raise
+
+    def _modern_redirect(self, previous: str, location: str) -> str:
+        valid = False
+        url = ""
+        try:
+            if type(location) is str and 1 <= len(location) <= 4096:
+                url = urljoin(previous, location)
+                parsed = urlsplit(url)
+                valid = not (
+                    parsed.username
+                    or parsed.password
+                    or parsed.query
+                    or parsed.fragment
+                    or "%" in parsed.path
+                ) and URL(url).origin() == URL(self._connection.messages_origin)
+        except ValueError:
+            pass
+        if not valid:
+            raise LibrusError(ErrorKind.ACCESS_DENIED)
+        return url
+
+    async def send_modern_message(
+        self,
+        submission: ModernSendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse:
+        payload = encode_modern_send(submission, self._account)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(self._send_exchange, payload, budget, dispatched, modern=True),
+            )
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError, zlib.error):
+            kind = ErrorKind.PARSE
+        assert kind is not None
+        raise LibrusError(kind)
 
     async def send_message(
         self,
@@ -257,17 +383,24 @@ class AiohttpTransport:
         raise LibrusError(kind)
 
     async def _send_exchange(
-        self, payload: bytes, budget: RequestBudget, dispatched: Callable[[], None]
+        self,
+        payload: bytes,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+        *,
+        modern: bool = False,
     ) -> TransportResponse:
-        endpoint = ENDPOINTS["send_message"]
-        session = self._get_session()
+        endpoint = ENDPOINTS["modern_send_message" if modern else "send_message"]
+        session = self._get_modern_session() if modern else self._get_session()
         proxy = self._connection.proxy_url
         dispatched()
         async with session.post(
             self._url(endpoint),
             data=payload,
             headers={
-                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"
+                "Content-Type": "application/json"
+                if modern
+                else "application/x-www-form-urlencoded; charset=utf-8"
             },
             allow_redirects=False,
             proxy=proxy.get_secret_value() if proxy is not None else None,
@@ -276,7 +409,8 @@ class AiohttpTransport:
             if len(session.cookie_jar) > self._limits.max_cookies:
                 session.cookie_jar.clear()
                 raise LibrusError(ErrorKind.LIMIT)
-            self._check_status(response)
+            if not modern or response.status not in (400, 422):
+                self._check_status(response)
             body = await self._read_body(response, budget)
             return TransportResponse(
                 response.status,
@@ -545,6 +679,7 @@ class AiohttpTransport:
                     for item in ENDPOINTS.values()
                     if item.method == "GET"
                     and item.side_effect == SideEffect.AUTHENTICATION
+                    and not item.operation_id.startswith("modern_")
                     and parsed.path == item.path
                     and URL(url).origin() == URL(self._connection.origin(item))
                 ),
@@ -594,7 +729,11 @@ class AiohttpTransport:
         budget: RequestBudget,
         form: RequestForm,
     ) -> TransportResponse:
-        session = self._get_session()
+        session = (
+            self._get_modern_session()
+            if endpoint.origin == "messages"
+            else self._get_session()
+        )
         proxy = self._connection.proxy_url
         headers = None
         if isinstance(form, LoginSubmission):
@@ -715,6 +854,11 @@ class AiohttpTransport:
     def clear_auth(self) -> None:
         if self._session is not None:
             self._session.cookie_jar.clear(lambda cookie: cookie.key in AUTH_COOKIES)
+        self.clear_modern_auth()
+
+    def clear_modern_auth(self) -> None:
+        if self._modern_session is not None:
+            self._modern_session.cookie_jar.clear()
 
     async def aclose(self) -> None:
         self._closed = True
@@ -722,3 +866,5 @@ class AiohttpTransport:
             await self._session.close()
         if self._download_session is not None:
             await self._download_session.close()
+        if self._modern_session is not None:
+            await self._modern_session.close()

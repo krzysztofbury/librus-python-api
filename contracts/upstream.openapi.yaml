@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.6
+  version: 0.4.7
   license:
     name: MIT
   description: |
@@ -16,6 +16,156 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /wiadomosci3:
+    get:
+      operationId: modern_launch
+      summary: Begin an explicit modern messaging authentication handoff
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Separately approved read-only discovery observed an exact modern MultiDomainLogon redirect. No auto-follow or send. See contracts/modern-messages.md.
+      responses:
+        '302': {$ref: '#/components/responses/Redirect'}
+        default: {$ref: '#/components/responses/Failure'}
+  /pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
+    get:
+      operationId: modern_handoff
+      summary: One exact account-verified modern login handoff, with an isolated cookie jar
+      security: []
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One explicit handoff set the modern session and redirected to /nowy; secret token URLs were deleted. Login must bind to the current credential context; no arbitrary redirects. See contracts/modern-messages.md.
+      parameters:
+        - {in: path, name: token, required: true, schema: {type: string, pattern: '^[A-Za-z0-9]{32,256}$'}}
+        - {in: path, name: login, required: true, schema: {type: string, minLength: 1, maxLength: 512}, description: Unpadded UTF-8 Base64 of the exact configured login}
+        - {in: path, name: target, required: true, schema: {type: string, enum: [L25vd3k]}}
+        - {in: path, name: source, required: true, schema: {type: string, enum: [c3luZXJnaWE]}}
+      responses:
+        '302': {$ref: '#/components/responses/Redirect'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/me:
+    get:
+      operationId: modern_identity
+      security: [{ModernSessionCookies: []}]
+      summary: Bind modern account identity to the independently verified native owner
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. No universal role/layout coverage. See contracts/modern-messages.md.
+      responses:
+        '200': {description: Modern account metadata, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/types:
+    get:
+      operationId: modern_recipient_types
+      security: [{ModernSessionCookies: []}]
+      summary: Bounded modern type metadata, with unsupported branches explicit
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One populated type list observed; parentsCouncil discovery is enabled, other branch lookups remain unsupported. See contracts/modern-messages.md.
+      parameters:
+        - {in: query, name: includeClass, required: true, schema: {type: string, enum: ['true']}}
+      responses:
+        '200': {description: Typed modern directory metadata, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/groups/students-and-attendants:
+    get:
+      operationId: modern_recipients
+      security: [{ModernSessionCookies: []}]
+      summary: One bounded parent-council branch preserving class, account and user IDs
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One populated council/class layout independently checked with Chromium; no virtual classes, arbitrary receiverType selection or recursive lookup. See contracts/modern-messages.md.
+      parameters:
+        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [parentsCouncil]}}
+      responses:
+        '200':
+          description: Class-qualified nested recipient leaves
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [classes]
+                properties:
+                  classes:
+                    type: array
+                    maxItems: 128
+                    items:
+                      type: object
+                      required: [label, receivers]
+                      additionalProperties: false
+                      properties:
+                        label: {type: string, minLength: 1, maxLength: 1024}
+                        receivers:
+                          type: array
+                          minItems: 1
+                          maxItems: 1
+                          items:
+                            type: array
+                            maxItems: 2048
+                            items:
+                              type: object
+                              required: [accountId, userId, name]
+                              additionalProperties: false
+                              properties:
+                                accountId: {type: string, pattern: '^[0-9]{1,64}$'}
+                                userId: {type: string, pattern: '^[0-9]{1,64}$'}
+                                name: {type: string, minLength: 1, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/messages:
+    post:
+      operationId: modern_send_message
+      security: [{ModernSessionCookies: []}]
+      summary: Single-attempt ordinary modern JSON message, never replayed or redirected
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: send_message
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Independently inspected public app assets establish UTF-8 Base64 topic/content, schoolReceivers accountId, null storageId and normal category; original offline wire proof only. No live send or positive acknowledgement observed. See contracts/modern-messages.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [receivers, topic, content, storageId, category]
+              properties:
+                receivers:
+                  type: object
+                  additionalProperties: false
+                  required: [schoolReceivers]
+                  properties:
+                    schoolReceivers:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      uniqueItems: true
+                      items: {type: object, additionalProperties: false, required: [accountId], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}}}
+                topic: {type: string, format: byte, description: 'Base64 of validated plain UTF-8 text, not HTML or inferred XML'}
+                content: {type: string, format: byte, description: Base64 of HTML-escaped plain UTF-8 text with preserved line endings}
+                storageId: {type: string, nullable: true, enum: [null]}
+                category: {type: string, enum: [normal]}
+      responses:
+        '200': {description: No independently established positive acknowledgement; HTTP success alone remains UNKNOWN}
+        '400': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
+        '422': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
+        default: {description: 'UNKNOWN after potential dispatch, with no retry, fallback, redirects or post-send reauthentication'}
   /terminarz/dodane_od_ostatniego_logowania:
     get:
       operationId: consume_schedule_events
@@ -1195,6 +1345,11 @@ paths:
         default: {$ref: '#/components/responses/Failure'}
 components:
   securitySchemes:
+    ModernSessionCookies:
+      type: apiKey
+      in: header
+      name: Cookie
+      description: Server-selected cookies established by the exact modern handoff; kept in a separate per-account modern jar, never copied from native authentication.
     SessionCookie:
       type: apiKey
       in: cookie
