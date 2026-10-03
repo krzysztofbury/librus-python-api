@@ -5,6 +5,20 @@ in the Git history of this file.
 
 ## 0.4.11 (2026-10-03) - Offline S10 storage and session follow-ups
 
+Pre-merge independent review (supersedes the counts, hashes and size below):
+the attachment destination check reported a foreign redirect carrying a query,
+fragment, percent or backslash as UNSUPPORTED_CAPABILITY instead of ACCESS_DENIED.
+The reorder in `2aa756f` has seven foreign-destination regressions that failed
+before it. Source, installed wheel and installed sdist on Python 3.13.15 and
+3.14.7 each pass 1,302 portable cases (one performance case deselected). Ruff,
+strict typing, hooks, history/worktree secret scans and the locked dependency audit
+pass; archives rebuild with identical hashes. Re-qualified archives in
+`dist/0.4.11/` total 621,242 bytes; the evidence file carries the new hashes.
+No other defects were found; see `contracts/review-followups.md`. All traffic
+stayed on loopback with zero live Librus requests.
+
+The original pre-review record follows.
+
 Implementation is committed in separate storage, modern-session and edge-case
 slices after the remotely confirmed PR #13 merge. Pre/post review, retention
 trade-offs and regressions are recorded in `contracts/review-followups.md`.

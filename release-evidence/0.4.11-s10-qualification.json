@@ -2,22 +2,37 @@
   "version": "0.4.11",
   "date": "2026-10-03",
   "scope": "S10(a-i) storage retention, modern session recovery and communication edges; offline only",
-  "implementation_commit": "33f8667746de608e6acbdca6d18fd791559861bb",
+  "implementation_commit": "2aa756f3b64648c5b05bdf58fe83621ac62a4dfd",
   "provenance": "independently authored implementation and original fixtures; no external source, tests or captures incorporated",
   "review": {
-    "mode": "pair-programmer skill-guided pre/post self-review, not independent agent/model review",
+    "mode": "pair-programmer skill-guided pre/post self-review, then an independent pre-merge review",
     "record": "contracts/review-followups.md",
     "retention_decision": "explicit caller-selected atomic pruning, not automatic age expiry",
     "late_findings_fixed": [
       "raw checkpoint pruning guard prevented seen-capacity recovery without reconsume",
       "acknowledged agenda prefix IDs must remain until raw drain to preserve archive import proof",
       "ordinary unqualified UNKNOWN_DELIVERY is not session failure; malformed modern receipts still clear only modern state"
+    ],
+    "merge_review_findings_fixed": [
+      "foreign attachment destinations with unsupported encoding reported UNSUPPORTED_CAPABILITY instead of ACCESS_DENIED"
     ]
   },
-  "python_versions": ["3.13.15", "3.14.7"],
-  "source": {"passed_per_python": 1291, "deselected_per_python": 1},
-  "installed_wheel": {"passed_per_python": 1291, "deselected_per_python": 1},
-  "installed_sdist": {"passed_per_python": 1291, "deselected_per_python": 1},
+  "python_versions": [
+    "3.13.15",
+    "3.14.7"
+  ],
+  "source": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
+  "installed_wheel": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
+  "installed_sdist": {
+    "passed_per_python": 1302,
+    "deselected_per_python": 1
+  },
   "regressions_failed_before_fix": [
     "exact modern launch redirects to native login reported ACCESS_DENIED instead of SESSION_EXPIRED",
     "warm modern send skipped identity preflight and modern 401 invalidated valid legacy authentication",
@@ -25,7 +40,8 @@
     "full pager-less mailbox appeared complete",
     "unsupported attachment route shape installed a permission cooldown",
     "complete real loopback send receipt became UNKNOWN at return-time budget expiry",
-    "seen saturation with retained raw checkpoint refused explicit pruning"
+    "seen saturation with retained raw checkpoint refused explicit pruning",
+    "foreign attachment destination with query, fragment, percent or backslash lost its ACCESS_DENIED classification"
   ],
   "runtime_and_load_proof": [
     "public native multi-account mailbox, attachment, send and notification wire/runtime paths under bounded shared budgets",
@@ -54,13 +70,13 @@
   "artifacts": [
     {
       "name": "librus_python_api-0.4.11-py3-none-any.whl",
-      "bytes": 118694,
-      "sha256": "4c8b850bd20b10981a23758fcd08505a7a32be9b2ed2b1bcfd9939bfa66bca5a"
+      "bytes": 118797,
+      "sha256": "8f0335d6621e2aed565d42ffabc42fae049924f56e8fa67b62f52c7b62aa04ff"
     },
     {
       "name": "librus_python_api-0.4.11.tar.gz",
-      "bytes": 501446,
-      "sha256": "4b71af72255cb3fdd8263da013d5d3775d1ac38ffd452325c472e95ccbeab9e9"
+      "bytes": 502445,
+      "sha256": "06e67cce962e7ecc505d66bdad2b9a21e2b927a04799b300a16e3054dc4e011b"
     }
   ],
   "artifact_documentation_checkpoint": "pre-final-evidence documentation; final VERIFICATION.md supersedes pending installed gates",
