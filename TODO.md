@@ -31,7 +31,8 @@ Rules that hold for every release:
 | `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
 | `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
 | `0.4.4` | Notification/checkpoint primitives | Done locally for count snapshots and offline checkpoint/replay; read-once live/consumer compatibility pending |
-| Sending (version TBD) | Validated one-attempt delivery | Plan and approve before implementation |
+| `0.4.5` | Broader recipient selection and message-layout coverage | Next increment in the 0.4 PR; qualification gaps remain explicit |
+| Sending (version TBD) | Validated one-attempt delivery | Final increment in the same 0.4 PR, after 0.4.5; plan and approve before implementation |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -87,7 +88,15 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   and separately approved recovery integration. Routine live checks exclude it.
 - [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
   migrations: separate P5/P8 work, not implemented by the library increment.
-- [ ] Sending (version TBD): approve the plan in
+- [ ] 0.4.5: broaden recipient selection and message-layout coverage in the
+  current 0.4 PR. Investigate subgroup/virtual-class selection and explicit empty
+  recipients, populated message pagination, sent content, receipt variants and
+  richer/new mailbox layouts. Implement only independently established behavior
+  with original fixtures; preserve unsupported and unobserved cases explicitly.
+  Any live discovery needs a fresh bounded account/operation scope. Received
+  content still requires explicit mark-read consent; no sends or read-once calls.
+- [ ] Sending (version TBD), the final increment after 0.4.5 in the same PR:
+  approve the plan in
   [contracts/messages.md](contracts/messages.md#featureversion-sequence) before
   implementing validated single-attempt sending with typed unknown-delivery results, plus
   MCP confirmation and token integration. Exercise offline only; never widen the
@@ -104,6 +113,9 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
+The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
+0.4.0-0.4.4 are implemented, 0.4.5 coverage work comes next, and sending is the
+last planned library increment. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification
 

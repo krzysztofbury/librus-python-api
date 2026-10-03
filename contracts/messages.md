@@ -55,7 +55,7 @@ are deleted. Agreement with apix is not a correctness oracle.
 | `recipient_groups`, `get_recipients` | Implemented in 0.4.1 | Simple-group lookup and named discovery; [separate contract](recipients.md) |
 | `message_content` | Implemented in 0.4.2 | Explicit potential mark-read consent, full text and send/read civil timestamps; qualified only for an already-read received message |
 | Attachment indicator | `has_attachment` | Indicator only; separate native streams implemented in 0.4.3, not an apix capability |
-| Notification helpers / read-once events | Deferred to 0.4.4 | Callback handoff, not persistence owned by the library |
+| Notification helpers / read-once events | Primitives implemented in 0.4.4 | Durable response handoff and local replay; consumer owns orchestration/persistence, live consume unqualified |
 | `send_message` | Plan-only | Separate approval gate; no live send in list qualification |
 
 Live qualification is limited to one login: a populated two-row received page
@@ -72,6 +72,9 @@ newer layouts remain pending; native streams have no apix parity counterpart.
 
 Each version is independently tested and locally packaged. No consumer changes
 or PyPI publication are part of these increments.
+The 0.4 PR retains the separate increment commits. After 0.4.0-0.4.4, broaden
+coverage in 0.4.5, then implement sending as the final library increment in the
+same PR. This ordering does not authorize live discovery or sending.
 
 1. **0.4.0 - Lists:** ordinary received/sent summaries and bounded continuation.
 2. **0.4.1 - Recipient discovery:** source/account-bound groups and recipients,
@@ -85,8 +88,14 @@ or PyPI publication are part of these increments.
 5. **0.4.4 - Notification primitives:** checkpoint callback with durable handoff
    and cancellation semantics. Never consume live read-once events as routine
    verification. MCP retains seen-state, hashes, spool replay and migrations.
-6. **Sending - plan first, version not assigned:** agree on the contract and
-   qualification scope before implementation. The proposed boundary is a
+6. **0.4.5 - Coverage:** broader recipient selection, explicit empty recipients,
+   populated message pagination, sent content, receipt variants and richer/new
+   layouts. Establish requirements independently before enabling behavior; use
+   original fixtures and record live gaps honestly. Fresh bounded approval is
+   needed for live discovery, including specific consent for received opens.
+   This increment excludes sends, read-once consumption and consumer migration.
+7. **Sending - final increment in the same PR, version not assigned:** agree on
+   the contract and qualification scope before implementation. The proposed boundary is a
    validated unique account-bound recipient set, bounded subject/body, exactly
    one dispatch and typed accepted/rejected/unknown-delivery outcomes. Timeout,
    cancellation or an unknown response after dispatch must never cause replay,
