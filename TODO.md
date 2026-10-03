@@ -88,8 +88,8 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Qualify read-once layouts on a dedicated test login with disposable events
   and separately approved recovery integration. Routine live checks exclude it.
 - [ ] MCP notification adapters, seen state, canonical hashes, pending replay and
-  migrations: now included in the expanded 0.4 delivery, implemented in the
-  consumer repository rather than the library. Full backend migration is separate.
+  migrations: now included in the expanded 0.4 delivery through the API's explicit
+  optional persistence layer. MCP receives only thin compatibility adapters.
 - [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
   exact nonzero group forms qualified offline. Four independent contexts observe
   five named types, an anonymous target, unavailable class-dependent lookup,
@@ -127,19 +127,22 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 ### Expanded 0.4 completion sequence
 
 The owner approved completing the remaining communication work one slice at a
-time, including application-owned persistent send/notification state. Each slice
+time, including API-owned optional persistent send/notification workflows. Each slice
 gets a separate scoped implementation/evidence commit; new library contracts get
 their own 0.4.x version and source/wheel/sdist qualification. Consumer-only changes
-do not fabricate a library version or enable a default backend migration.
+do not fabricate a library version. The owner subsequently clarified the target:
+extract reusable safeguards from MCP into the API and leave MCP as a thin consumer.
+Replacement proceeds family by family after proof, not by deleting unqualified
+legacy paths. This supersedes the earlier consumer-owned persistence split.
 
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
 | S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
-| S2 | Persistent send attempts and recovery | Consumer; account/backend/exact-payload-bound durable confirmation, atomic single-use claims, crash/uncertainty recovery without replay, bounded private storage and cross-process fault proofs |
-| S3 | Persistent notifications and checkpoint replay | Consumer; native raw-envelope adapter, canonical identities, existing-state compatibility, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before live consume and competing-process proofs |
+| S2 | Persistent send attempts and recovery, proposed 0.4.8 | API optional persistence layer; configured-login/backend/exact-payload-bound durable confirmation, atomic single-use claims, crash/uncertainty recovery without replay, bounded private storage and cross-process fault proofs. MCP retains human approval and wire mapping only |
+| S3 | Persistent notifications and checkpoint replay, proposed 0.4.9 | API optional persistence layer; canonical identities, first-run/requested-category semantics, durable checkpoint before parsing, bounded replay before consume and competing-process proofs. MCP maps old formats without maintaining another engine |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
 | S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
-| S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; consumer retains safe naming and atomic file publication |
+| S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
 | S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
 | S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
 | S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
@@ -150,16 +153,20 @@ downloads, sends, event consumption or account-setting changes. If evidence or
 safe test accounts are unavailable, record that slice as blocked and continue
 with the next independently implementable slice rather than claiming completion.
 
-Persistence stays application-owned, with no credentials/cookies in durable
-records and no coupling of the library API to MCP schemas or storage formats.
-The consumer owns confirmation expiry, payload/account/backend binding, locks,
-transactions, state migrations, retention and manual reconciliation. A crash
+Persistence is explicitly selected by the application, with no credentials/cookies
+in durable records and no coupling of core client/domain/transport contracts to
+MCP schemas, file discovery or existing consumer storage formats. The optional
+API layer owns expiry, payload/account/backend binding, locks, transactions,
+retention and recovery primitives. MCP selects paths, presents human approval,
+maps wire records and invokes deliberately reviewed compatibility migration. A crash
 after claiming a send is conservatively uncertain, never an invitation to replay.
 Preserve existing notification data and recovery files; do not reset production
 state or automatically migrate it during development or offline tests.
 
-Out of scope without additional approval: full MCP backend migration/default
-cutover, credentialed CI, PR merge and publication. PyPI remains deferred until
+The owner authorized behavior-preserving extraction and thin-consumer migration
+development after the API prerequisites are proved. Default/release cutover still
+requires installed acceptance and the release gate. Credentialed CI, PR merge
+and publication require separate authorization. PyPI remains deferred until
 `1.0.0rc1`. Existing evidence gaps remain open until their actual gates pass.
 
 Each version is independently qualified and packaged locally. No sending or
@@ -214,12 +221,14 @@ contract; keep narrowly scoped HTML adapters for missing fields and operations.
 | Choosing logins, combining overlapping results, and summary generation | MCP |
 | Retry classification, bounded reauthentication, account/operation cooldown machinery | Library, with public policy settings supplied by MCP |
 | Endpoint capabilities, JSON/HTML parsing, typed domain data, pagination, reference caches | Library |
-| Requested-category orchestration and notification diff/seen-state policy | MCP, using public library operations |
-| Durable schedule checkpoint storage, hashes, process locks, state migrations | MCP; library guarantees the checkpoint handoff boundary |
+| Requested-category orchestration, first-run/diff/seen-state policy | Optional API notification workflow; MCP selects requested categories and serializes results |
+| Durable checkpoints, canonical hashes, process locks, transactions, recovery | Optional API persistence layer; MCP maps legacy formats through explicit compatibility adapters |
 | Attachment authorization and bounded byte streaming | Library |
-| Download directory, safe temporary files, atomic non-overwriting publication | MCP |
+| Download destination selection | MCP configuration |
+| Reusable safe filenames, bounded temporary files, atomic non-overwriting publication | Optional API file layer |
 | Message send transport and typed delivery outcome | Library |
-| Send confirmation tokens and permission to invoke a write | MCP |
+| Durable send confirmation expiry/binding, single-use claims and recovery | Optional API persistence layer |
+| Human approval and permission to invoke a write | MCP or other application |
 | Legacy field names, Polish-label detail maps, ratio/percentage conversion, MCP schemas | MCP adapter |
 
 During migration, keep existing safeguards until the replacement owner is
