@@ -194,6 +194,7 @@ class PersistenceStore(_SQLiteStore):
 
     async def preview_send(self, attempt: SendAttempt) -> SendConfirmation:
         context, digest = _binding(attempt)
+        context = self.context_identifier(context)
         return await self._io(lambda: self._issue(context, digest))
 
     def _issue(self, context: str, digest: str) -> SendConfirmation:
@@ -254,6 +255,7 @@ class PersistenceStore(_SQLiteStore):
     ) -> SendResult:
         token_hash = _token_hash(token)
         context, digest = _binding(attempt)
+        context = self.context_identifier(context)
         return await self._owned(
             lambda: self._execute_send(token_hash, context, digest, attempt, budget)
         )
@@ -303,7 +305,7 @@ class PersistenceStore(_SQLiteStore):
         token_hash = _token_hash(token)
         if not isinstance(context, AccountContext):
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        identifier = _valid_digest(context.identifier)
+        identifier = self.context_identifier(_valid_digest(context.identifier))
         return await self._io(lambda: self._outcome(token_hash, identifier))
 
     def _outcome(self, token_hash: str, context: str) -> DurableSendOutcome:
@@ -333,7 +335,7 @@ class PersistenceStore(_SQLiteStore):
         """Bounded context-bound recovery, even if plaintext tokens were lost."""
         if not isinstance(context, AccountContext):
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        identifier = _valid_digest(context.identifier)
+        identifier = self.context_identifier(_valid_digest(context.identifier))
         return await self._io(lambda: self._history(identifier))
 
     def _history(self, context: str) -> tuple[DurableSendRecord, ...]:
@@ -352,3 +354,52 @@ class PersistenceStore(_SQLiteStore):
                 )
                 for row in rows
             )
+
+    async def prune_send_history(
+        self,
+        *,
+        context: AccountContext,
+        identifiers: tuple[str, ...],
+        allow_accepted: bool = False,
+    ) -> int:
+        """Explicit atomic retention. Uncertain/claimed/live pending sends stay.
+
+        Removing ACCEPTED records requires explicit duplicate-risk acceptance:
+        identical payloads can subsequently receive a new confirmation.
+        """
+        if (
+            not isinstance(context, AccountContext)
+            or type(identifiers) is not tuple
+            or not 1 <= len(identifiers) <= self._limits.send_records
+            or type(allow_accepted) is not bool
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        for identifier in identifiers:
+            _valid_digest(identifier)
+        if len(set(identifiers)) != len(identifiers):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        key = self.context_identifier(context.identifier)
+        return await self._io(
+            lambda: self._prune_sends(key, identifiers, allow_accepted)
+        )
+
+    def _prune_sends(
+        self, context: str, identifiers: tuple[str, ...], allow_accepted: bool
+    ) -> int:
+        with self._connection() as connection:
+            rows = {row[0]: row for row in self._rows(connection) if row[1] == context}
+            allowed = {"invalidated", "not_dispatched", "rejected"}
+            if allow_accepted:
+                allowed.add("accepted")
+            now = _now()
+            for identifier in identifiers:
+                row = rows.get(identifier)
+                if row is None or not (
+                    row[5] in allowed or (row[5] == "pending" and row[4] <= now)
+                ):
+                    raise LibrusError(ErrorKind.INVALID_INPUT)
+            connection.executemany(
+                "DELETE FROM send_attempts WHERE token_hash=? AND context=?",
+                [(identifier, context) for identifier in identifiers],
+            )
+        return len(identifiers)

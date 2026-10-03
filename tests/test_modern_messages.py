@@ -520,14 +520,14 @@ def test_same_account_concurrent_attempts_share_only_authentication_not_sends() 
         async with fixture.running() as service:
             client = service.account("student")
             attempts = [prepare(client), prepare(client)]
-            budget = RequestBudget(max_requests=10)
+            budget = RequestBudget(max_requests=11)
             results = await asyncio.gather(
                 *(a.execute(budget=budget) for a in attempts)
             )
             assert all(r.status is SendStatus.UNKNOWN for r in results)
             assert len(fixture.sends) == 2
             assert [stage for stage, _, _ in fixture.modern_calls].count("handoff") == 1
-            assert budget.requests_dispatched == 10
+            assert budget.requests_dispatched == 11
 
     asyncio.run(scenario())
 

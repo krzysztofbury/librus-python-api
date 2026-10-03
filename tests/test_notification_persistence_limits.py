@@ -287,7 +287,7 @@ def test_notification_specific_corruption_fails_closed_before_http(
                         categories=AGENDA, allow_consume_events=True
                     )
                 if damage == "lock_symlink":
-                    lock = directory / f"notification-{client.context.identifier}.lock"
+                    lock = next(directory.glob("notification-*.lock"))
                     lock.unlink()
                     target = tmp_path / "untouched"
                     target.write_bytes(b"Original bytes")

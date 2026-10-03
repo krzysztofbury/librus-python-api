@@ -38,6 +38,15 @@ session-expiry response after dispatch invalidates auth but never replays sendin
 
 ## Wire requirements and provenance
 
+From 0.4.11 the scheduler does not discard a successfully completed send exchange
+because the caller deadline passes during result return. A complete bounded
+receipt enters local parsing with a separate deadline sized by
+`TransportLimits.request_timeout_seconds`, while parser bytes/workers, service
+admission, cancellation and no-replay remain unchanged. This extends only local
+receipt processing, not authentication, queue waits, dispatch or response reads.
+Incomplete exchanges and unknown acknowledgements stay UNKNOWN; local parse
+timeout/failure stays conservative and external cancellation still propagates.
+
 The send and sent-list operations share POST `/wiadomosci/1/6` but have distinct
 fixed payloads, side effects and operation IDs. The OpenAPI physical operation
 retains its sent-list contract and declares sending as an explicit request

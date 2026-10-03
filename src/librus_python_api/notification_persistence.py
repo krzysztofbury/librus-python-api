@@ -2,12 +2,13 @@
 
 import base64
 import hashlib
+import hmac
 import os
 import sqlite3
 import stat
 from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -199,6 +200,7 @@ class NotificationStore(_SQLiteStore):
             raise LibrusError(ErrorKind.LIMIT)
 
     def _register(self, context: str) -> None:
+        context = self._context_key(context)
         with self._connection() as connection:
             self._validate_contents(connection)
             if (
@@ -217,6 +219,7 @@ class NotificationStore(_SQLiteStore):
                 )
 
     def _lock_context(self, context: str, held: list[int]) -> None:
+        context = self._context_key(context)
         if fcntl is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         path = self._directory / f"notification-{context}.lock"
@@ -273,7 +276,7 @@ class NotificationStore(_SQLiteStore):
     ) -> tuple[NotificationState, str | None]:
         row = connection.execute(
             "SELECT payload,last_receipt FROM notification_state WHERE context=?",
-            (context,),
+            (self._context_key(context),),
         ).fetchone()
         if row is None:
             return empty_state(), None
@@ -297,13 +300,109 @@ class NotificationStore(_SQLiteStore):
             self._validate_contents(connection)
             return self._state(connection, context)[0]
 
+    async def prune_seen(
+        self,
+        *,
+        context: AccountContext,
+        category: NotificationCategory,
+        identifiers: tuple[str, ...],
+    ) -> int:
+        """Explicit retention; forgotten IDs may be notified again.
+
+        Staged delivery and uncertain reservations must be resolved first. Raw
+        checkpoints/progress are retained unchanged, including at seen saturation.
+        No age-based expiry, background pruning or first-run reset is performed.
+        """
+        if (
+            not isinstance(category, NotificationCategory)
+            or type(identifiers) is not tuple
+            or not 1 <= len(identifiers) <= self.limits.seen_ids_per_category
+            or any(
+                type(value) is not str or HEX.fullmatch(value) is None
+                for value in identifiers
+            )
+            or len(set(identifiers)) != len(identifiers)
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+
+        async def prune() -> int:
+            return await self._io(
+                lambda: self._prune_seen(context, category, identifiers)
+            )
+
+        return await self._transaction(context, prune)
+
+    def _prune_seen(
+        self,
+        context: AccountContext,
+        category: NotificationCategory,
+        identifiers: tuple[str, ...],
+    ) -> int:
+        with self._connection() as connection:
+            self._validate_contents(connection)
+            key = self._context_key(context.identifier)
+            for table in (
+                "notification_deliveries",
+                "notification_reservations",
+            ):
+                if connection.execute(
+                    f"SELECT 1 FROM {table} WHERE context=?", (key,)
+                ).fetchone():
+                    raise LibrusError(ErrorKind.INVALID_INPUT)
+            state, last = self._state(connection, context.identifier)
+            removed = set(identifiers)
+            current = next(entry for entry in state.seen if entry.category is category)
+            if not removed.issubset(current.identifiers):
+                raise LibrusError(ErrorKind.INVALID_INPUT)
+            raw = self._raw(connection, context)
+            if category is NotificationCategory.AGENDA and raw is not None and raw[2]:
+                response = raw[1]
+                events = parse_schedule_events(
+                    decode_payload(response.wire.body, response.wire, WIRE_BYTES)
+                )
+                protected = {
+                    canonical_notification_id(NotificationCategory.AGENDA, value)
+                    for value in events[: raw[2]]
+                }
+                if removed & protected:
+                    # Prefix membership proves acknowledged cursor progress during
+                    # archive import. Retain it until the raw receipt is drained.
+                    raise LibrusError(ErrorKind.INVALID_INPUT)
+            after = replace(
+                state,
+                seen=tuple(
+                    replace(
+                        entry,
+                        identifiers=tuple(
+                            value for value in entry.identifiers if value not in removed
+                        ),
+                    )
+                    if entry.category is category
+                    else entry
+                    for entry in state.seen
+                ),
+            )
+            connection.execute(
+                "UPDATE notification_state SET payload=? WHERE context=?",
+                (
+                    state_bytes(
+                        after,
+                        self.limits.seen_ids_per_category,
+                        self.limits.state_bytes,
+                    ),
+                    key,
+                ),
+            )
+            assert self._state(connection, context.identifier) == (after, last)
+        return len(identifiers)
+
     def _raw(
         self, connection: sqlite3.Connection, context: AccountContext
     ) -> tuple[str, ScheduleEventResponse, int, int | None] | None:
         row = connection.execute(
             "SELECT identifier,metadata,body,cursor,total FROM notification_raw "
             "WHERE context=?",
-            (context.identifier,),
+            (self._context_key(context.identifier),),
         ).fetchone()
         if row is None:
             return None
@@ -317,7 +416,8 @@ class NotificationStore(_SQLiteStore):
                 total is not None
                 and (type(total) is not int or not cursor <= total <= 1024)
             )
-            or identifier != _raw_id(context.identifier, metadata, body)
+            or identifier
+            != _raw_id(self._context_key(context.identifier), metadata, body)
         ):
             raise LibrusError(ErrorKind.PARSE)
         return (
@@ -341,7 +441,7 @@ class NotificationStore(_SQLiteStore):
             reservation = (
                 connection.execute(
                     "SELECT 1 FROM notification_reservations WHERE context=?",
-                    (context.identifier,),
+                    (self._context_key(context.identifier),),
                 ).fetchone()
                 is not None
             )
@@ -350,6 +450,7 @@ class NotificationStore(_SQLiteStore):
             return delivery[0] if delivery else None, raw, reservation
 
     def _reserve(self, context: str, body_bytes: int) -> None:
+        context = self._context_key(context)
         if type(body_bytes) is not int or not 1 <= body_bytes <= WIRE_BYTES:
             raise LibrusError(ErrorKind.LIMIT)
         with self._connection() as connection:
@@ -374,22 +475,23 @@ class NotificationStore(_SQLiteStore):
         self, context: AccountContext, response: ScheduleEventResponse
     ) -> None:
         metadata, body = encode_envelope(response, context.alias)
+        key = self._context_key(context.identifier)
         with self._connection() as connection:
             self._validate_contents(connection)
             row = connection.execute(
                 "SELECT bytes FROM notification_reservations WHERE context=?",
-                (context.identifier,),
+                (key,),
             ).fetchone()
             if row is None or len(metadata) + len(body) > row[0]:
                 raise LibrusError(ErrorKind.CHECKPOINT)
-            identifier = _raw_id(context.identifier, metadata, body)
+            identifier = _raw_id(key, metadata, body)
             connection.execute(
                 "INSERT INTO notification_raw VALUES (?,?,?,?,0,NULL)",
-                (context.identifier, identifier, metadata, body),
+                (key, identifier, metadata, body),
             )
             connection.execute(
                 "DELETE FROM notification_reservations WHERE context=?",
-                (context.identifier,),
+                (key,),
             )
             self._validate_contents(connection)
 
@@ -400,7 +502,12 @@ class NotificationStore(_SQLiteStore):
         cursor_after: int | None,
         total: int | None,
     ) -> None:
-        payload = encode_batch(batch, self.limits.batch_bytes)
+        stored_context = replace(
+            batch.context, identifier=self._context_key(batch.context.identifier)
+        )
+        payload = encode_batch(
+            replace(batch, context=stored_context), self.limits.batch_bytes
+        )
         if len(batch.items) > self.limits.batch_items:
             raise LibrusError(ErrorKind.LIMIT)
         with self._connection() as connection:
@@ -423,12 +530,12 @@ class NotificationStore(_SQLiteStore):
                     raise LibrusError(ErrorKind.PARSE)
                 connection.execute(
                     "UPDATE notification_raw SET total=? WHERE context=?",
-                    (total, batch.context.identifier),
+                    (total, stored_context.identifier),
                 )
             connection.execute(
                 "INSERT INTO notification_deliveries VALUES (?,?,?,?,?,?)",
                 (
-                    batch.context.identifier,
+                    stored_context.identifier,
                     batch.receipt,
                     payload,
                     after,
@@ -445,13 +552,18 @@ class NotificationStore(_SQLiteStore):
         row = connection.execute(
             "SELECT receipt,payload,state_after,raw_identifier,cursor_after "
             "FROM notification_deliveries WHERE context=?",
-            (context.identifier,),
+            (self._context_key(context.identifier),),
         ).fetchone()
         if row is None:
             return None
         if type(row[1]) is not bytes or type(row[2]) is not bytes:
             raise LibrusError(ErrorKind.PARSE)
         batch = restore_batch(row[1], self.limits.batch_bytes)
+        if batch.context != replace(
+            context, identifier=self._context_key(context.identifier)
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        batch = replace(batch, context=context)
         after = restore_state(
             row[2], self.limits.seen_ids_per_category, self.limits.state_bytes
         )
@@ -514,7 +626,7 @@ class NotificationStore(_SQLiteStore):
             )
             connection.execute(
                 "INSERT OR REPLACE INTO notification_state VALUES (?,?,?)",
-                (context.identifier, payload, receipt),
+                (self._context_key(context.identifier), payload, receipt),
             )
             if raw_identifier is not None:
                 raw = self._raw(connection, context)
@@ -522,16 +634,16 @@ class NotificationStore(_SQLiteStore):
                 if cursor_after == raw[3]:
                     connection.execute(
                         "DELETE FROM notification_raw WHERE context=?",
-                        (context.identifier,),
+                        (self._context_key(context.identifier),),
                     )
                 else:
                     connection.execute(
                         "UPDATE notification_raw SET cursor=? WHERE context=?",
-                        (cursor_after, context.identifier),
+                        (cursor_after, self._context_key(context.identifier)),
                     )
             connection.execute(
                 "DELETE FROM notification_deliveries WHERE context=?",
-                (context.identifier,),
+                (self._context_key(context.identifier),),
             )
             self._validate_contents(connection)
 
@@ -557,7 +669,7 @@ class NotificationStore(_SQLiteStore):
             if (
                 connection.execute(
                     "DELETE FROM notification_reservations WHERE context=?",
-                    (context.identifier,),
+                    (self._context_key(context.identifier),),
                 ).rowcount
                 != 1
             ):
@@ -566,7 +678,7 @@ class NotificationStore(_SQLiteStore):
     async def export_archive(self, *, context: AccountContext) -> NotificationArchive:
         async def export() -> NotificationArchive:
             payload = await self._io(lambda: self._export(context))
-            return NotificationArchive(1, context, payload)
+            return NotificationArchive(2, context, payload)
 
         return await self._transaction(context, export)
 
@@ -578,7 +690,7 @@ class NotificationStore(_SQLiteStore):
             delivery = self._delivery(connection, context)
             reservation = connection.execute(
                 "SELECT bytes FROM notification_reservations WHERE context=?",
-                (context.identifier,),
+                (self._context_key(context.identifier),),
             ).fetchone()
             raw_record = None
             if raw:
@@ -594,7 +706,16 @@ class NotificationStore(_SQLiteStore):
             if delivery:
                 delivery_record = {
                     "batch": load(
-                        encode_batch(delivery[0], self.limits.batch_bytes),
+                        encode_batch(
+                            replace(
+                                delivery[0],
+                                context=replace(
+                                    context,
+                                    identifier=self._context_key(context.identifier),
+                                ),
+                            ),
+                            self.limits.batch_bytes,
+                        ),
                         self.limits.batch_bytes,
                     ),
                     "state_after": asdict(delivery[1]),
@@ -604,8 +725,15 @@ class NotificationStore(_SQLiteStore):
             return dump(
                 {
                     "state": asdict(state),
-                    "version": 1,
-                    "context": asdict(context),
+                    "version": 2,
+                    "context": asdict(
+                        replace(
+                            context, identifier=self._context_key(context.identifier)
+                        )
+                    ),
+                    "context_salt": self._context_salt.hex()
+                    if self._context_salt
+                    else None,
                     "last_receipt": last,
                     "raw": raw_record,
                     "delivery": delivery_record,
@@ -618,7 +746,7 @@ class NotificationStore(_SQLiteStore):
         if (
             not isinstance(archive, NotificationArchive)
             or type(archive.version) is not int
-            or archive.version != 1
+            or archive.version != 2
             or type(archive.payload) is not bytes
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -627,6 +755,72 @@ class NotificationStore(_SQLiteStore):
             await self._io(lambda: self._import(archive))
 
         await self._transaction(archive.context, restore)
+
+    def _rebind_archive(self, record: dict[str, Any], context: AccountContext) -> None:
+        """Validate source namespace before rebinding to this empty target store."""
+        salt = record["context_salt"]
+        if type(salt) is not str or HEX.fullmatch(salt) is None:
+            raise LibrusError(ErrorKind.PARSE)
+        source_key = hmac.new(
+            bytes.fromhex(salt), bytes.fromhex(context.identifier), hashlib.sha256
+        ).hexdigest()
+        source_context = replace(context, identifier=source_key)
+        if record["context"] != asdict(source_context):
+            raise LibrusError(ErrorKind.PARSE)
+        target_context = replace(
+            context, identifier=self._context_key(context.identifier)
+        )
+        record["context"] = asdict(target_context)
+        raw, delivery = record["raw"], record["delivery"]
+        source_raw: str | None = None
+        target_raw: str | None = None
+        if raw is not None:
+            if (
+                type(raw) is not dict
+                or set(raw) != {"identifier", "metadata", "body", "cursor", "total"}
+                or type(raw["body"]) is not str
+            ):
+                raise LibrusError(ErrorKind.PARSE)
+            try:
+                body = base64.b64decode(raw["body"], validate=True)
+            except (ValueError, UnicodeError):
+                raise LibrusError(ErrorKind.PARSE) from None
+            metadata = dump(raw["metadata"], META_BYTES)
+            source_raw = _raw_id(source_key, metadata, body)
+            if raw["identifier"] != source_raw:
+                raise LibrusError(ErrorKind.PARSE)
+            target_raw = _raw_id(target_context.identifier, metadata, body)
+            raw["identifier"] = target_raw
+        if delivery is not None:
+            if type(delivery) is not dict or set(delivery) != {
+                "batch",
+                "state_after",
+                "raw_identifier",
+                "cursor_after",
+            }:
+                raise LibrusError(ErrorKind.PARSE)
+            batch = restore_batch(
+                dump(delivery["batch"], self.limits.batch_bytes),
+                self.limits.batch_bytes,
+            )
+            if (
+                batch.context != source_context
+                or delivery["raw_identifier"] != source_raw
+            ):
+                # Ordinary-only batches may coexist with pending raw recovery.
+                if (
+                    batch.context != source_context
+                    or delivery["raw_identifier"] is not None
+                ):
+                    raise LibrusError(ErrorKind.PARSE)
+            if delivery["raw_identifier"] is not None:
+                delivery["raw_identifier"] = target_raw
+            delivery["batch"] = load(
+                encode_batch(
+                    replace(batch, context=target_context), self.limits.batch_bytes
+                ),
+                self.limits.batch_bytes,
+            )
 
     def _import(self, archive: NotificationArchive) -> None:
         record = load(archive.payload, ARCHIVE_BYTES)
@@ -638,15 +832,13 @@ class NotificationStore(_SQLiteStore):
             "reservation",
             "version",
             "context",
+            "context_salt",
         }:
             raise LibrusError(ErrorKind.PARSE)
         context = archive.context
-        if (
-            type(record["version"]) is not int
-            or record["version"] != 1
-            or record["context"] != asdict(context)
-        ):
+        if type(record["version"]) is not int or record["version"] != 2:
             raise LibrusError(ErrorKind.PARSE)
+        self._rebind_archive(record, context)
         with self._connection() as connection:
             self._validate_contents(connection)
             # Import is empty-target only, never a silent history reset.
@@ -657,7 +849,8 @@ class NotificationStore(_SQLiteStore):
                 "notification_reservations",
             ):
                 if connection.execute(
-                    f"SELECT 1 FROM {table} WHERE context=?", (context.identifier,)
+                    f"SELECT 1 FROM {table} WHERE context=?",
+                    (self._context_key(context.identifier),),
                 ).fetchone():
                     raise LibrusError(ErrorKind.INVALID_INPUT)
             state = restore_state(
@@ -676,7 +869,7 @@ class NotificationStore(_SQLiteStore):
                 connection.execute(
                     "INSERT INTO notification_state VALUES (?,?,?)",
                     (
-                        context.identifier,
+                        self._context_key(context.identifier),
                         state_bytes(
                             state,
                             self.limits.seen_ids_per_category,
@@ -698,7 +891,7 @@ class NotificationStore(_SQLiteStore):
                     raise LibrusError(ErrorKind.PARSE)
                 connection.execute(
                     "INSERT INTO notification_reservations VALUES (?,?)",
-                    (context.identifier, reservation),
+                    (self._context_key(context.identifier), reservation),
                 )
             delivery = record["delivery"]
             if delivery is not None:
@@ -713,6 +906,11 @@ class NotificationStore(_SQLiteStore):
                     dump(delivery["batch"], self.limits.batch_bytes),
                     self.limits.batch_bytes,
                 )
+                if batch.context != replace(
+                    context, identifier=self._context_key(context.identifier)
+                ):
+                    raise LibrusError(ErrorKind.PARSE)
+                public_batch = replace(batch, context=context)
                 after = restore_state(
                     dump(delivery["state_after"], self.limits.state_bytes),
                     self.limits.seen_ids_per_category,
@@ -721,7 +919,7 @@ class NotificationStore(_SQLiteStore):
                 connection.execute(
                     "INSERT INTO notification_deliveries VALUES (?,?,?,?,?,?)",
                     (
-                        context.identifier,
+                        self._context_key(context.identifier),
                         batch.receipt,
                         encode_batch(batch, self.limits.batch_bytes),
                         state_bytes(
@@ -734,7 +932,7 @@ class NotificationStore(_SQLiteStore):
                     ),
                 )
                 self._delivery(connection, context)
-                self._validate_import_delivery(connection, context, batch)
+                self._validate_import_delivery(connection, context, public_batch)
             self._validate_contents(connection)
 
     def _validate_import_delivery(
@@ -828,12 +1026,14 @@ class NotificationStore(_SQLiteStore):
                 for value in events[: raw["cursor"]]
             ):
                 raise LibrusError(ErrorKind.PARSE)
-        if raw["identifier"] != _raw_id(context.identifier, metadata, body):
+        if raw["identifier"] != _raw_id(
+            self._context_key(context.identifier), metadata, body
+        ):
             raise LibrusError(ErrorKind.PARSE)
         connection.execute(
             "INSERT INTO notification_raw VALUES (?,?,?,?,?,?)",
             (
-                context.identifier,
+                self._context_key(context.identifier),
                 raw["identifier"],
                 metadata,
                 body,

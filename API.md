@@ -188,7 +188,7 @@ Nothing is marked as read.
 - `completed_lessons(start, end, cursor=None, max_pages=4, limit=128)` reads up to
   8 pages and 256 rows and returns a `next_cursor` (or `None` when finished).
   Resume with the cursor, the same login and the same dates. A resumed page must
-  match its fingerprint; page-count drift or a repeated page raises `ParseError`.
+  match its fingerprint; page-count drift or a repeated page raises `StaleCursorError`.
   Cursors are not snapshots.
 
 Windows span at most 371 days. Where the school has disabled the view, both
@@ -213,8 +213,9 @@ Pass the enum, not a string.
   the page, offset, page count, fingerprint and up to 2,000 already returned IDs.
   Duplicate IDs across pages are skipped, not across accounts or folders.
   Duplicate IDs within one page fail. Changed mid-page content, changed page
-  counts, clamped/repeated pages and pages containing only seen IDs fail with
-  `ParseError`. History capacity exhaustion is `LimitError`. A cursor is not a
+   counts, repeated pages and pages containing only seen IDs fail with
+   `StaleCursorError` (`kind=stale_cursor`). Malformed/clamped page metadata remains
+   `ParseError`. History capacity exhaustion is `LimitError`. A cursor is not a
   mailbox snapshot: page-boundary changes with unchanged counts can still move
   records. Restart explicitly when drift is detected. It is not an authorization
   token and is not designed as a durable notification checkpoint.
@@ -237,9 +238,20 @@ mark-read, delete, send or read-once operation occurs. Pagination changes the
 selected mailbox view, so its POST is never replayed, including after expiry.
 Page and batch caches are separate and fresh by default.
 
+In 0.4.11 a full 50-row page without pagination metadata is unsupported, not
+apparently complete. Empty and shorter pager-less page-zero layouts remain supported.
+
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
 ## Modern messaging (0.4.7, offline-qualified only)
+
+0.4.11 revalidates bound modern identity with one fresh GET before each send.
+The initial handoff already includes that GET; subsequent sends cost one GET plus
+one POST. Expiry before dispatch raises `SessionExpiredError` and leaves
+NOT_DISPATCHED. An exact launch-to-native-login redirect is expiry, not denial.
+Messages-origin failures clear only modern binding/cookies/cache; valid legacy
+sessions stay usable. A later explicit modern call can rebind, but no modern
+read/send is automatically retried. A race after preflight can still yield UNKNOWN.
 
 - `modern_identity(*, budget=None, max_age_seconds=0)` returns `ModernIdentity`:
   native `identity`, modern `account` metadata and an `observation`. Modern owner
@@ -323,6 +335,11 @@ reason, never raw exceptions/responses. Cancellation propagates
 `asyncio.CancelledError` after joined cleanup; inspect `attempt.outcome` afterwards.
 Its reason is `"cancelled"` unless a terminal acknowledgement was already
 established. Shutdown preserves these cancellation semantics for the send path.
+In 0.4.11 completed bounded send responses survive return-time budget expiry.
+Receipt parsing has a separate local deadline of
+`TransportLimits.request_timeout_seconds` and the same bounded parser/admission
+policy. No further HTTP or retry is granted. Incomplete responses and local
+parsing timeout remain UNKNOWN; external cancellation still propagates.
 Sender identity/observation are bound at the potential-dispatch boundary, not
 invented for failures before it. Sent page/batch caches are invalidated there,
 including uncertain sends; unrelated received summaries remain cached unless
@@ -344,6 +361,22 @@ fresh bounded discovery approval. No additional/group/substitute recipient or
 fallback is allowed. See [the send contract](contracts/sending.md).
 
 ## Optional durable sending
+
+### 0.4.11 format and explicit retention
+
+Storage schema version 2 uses a random salt created once per database. Persisted
+context identifiers are store-local HMAC-SHA256 pseudonyms, not the public
+`client.context.identifier` hash. `store.context_identifier(client.context.identifier)`
+returns that pseudonym only on an open store. Core clients remain storage-independent.
+Version-1 stores reject without modification; no automatic migration/reset.
+
+`await store.prune_send_history(context=client.context, identifiers=(...),
+allow_accepted=False)` returns the number of deleted rows. Use identifiers from
+`send_history`. The entire selection validates before deletion: foreign/missing
+IDs, live pending confirmations, CLAIMED and UNKNOWN rows reject. Expired pending,
+INVALIDATED, NOT_DISPATCHED and REJECTED rows are eligible. ACCEPTED rows require
+explicit `allow_accepted=True`, which removes protection against a new confirmation
+for an identical submission. No implicit expiry of consumed history or HTTP calls.
 
 Explicitly import `PersistenceStore`, `PersistenceLimits`, `SendConfirmation`,
 `DurableSendOutcome`, `DurableSendPhase` and `DurableSendRecord` from
@@ -405,6 +438,23 @@ migration time.
 See [contracts/persistence.md](contracts/persistence.md).
 
 ## Optional durable notifications
+
+In 0.4.11, notification schema and neutral archive versions are 2. Export payloads
+carry the source salt and store-local identifiers, not the public context hash.
+Empty-target import validates the source namespace and rebinds to the target salt;
+receipts/events/progress remain unchanged, but export bytes differ across stores.
+Old version-1 archives explicitly reject. See the storage format decision in
+[contracts/persistence.md](contracts/persistence.md).
+
+`await store.prune_seen(context=client.context, category=NotificationCategory.GRADES,
+identifiers=(...))` explicitly forgets the selected seen IDs and returns the deleted
+count. It requires no uncertain reservation or pending delivery in that context.
+Raw checkpoint bytes/cursor stay intact, allowing saturated history to shrink and
+replay without another read-once request. Foreign/missing/duplicate/invalid IDs
+reject atomically.
+Agenda IDs proving the acknowledged raw prefix cannot be pruned until it drains.
+Other categories and initialization/last receipt stay intact. Forgotten IDs can be
+notified again; no automatic school-year/age expiry is performed.
 
 Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
 `NotificationBatch`, `NotificationItem`, `NotificationState`, `NotificationSeen`,
@@ -533,6 +583,14 @@ Unknown metadata/body layouts and bounds fail the whole operation. Full HTML
 other/new mailbox layouts remain live qualification gaps.
 
 ## Attachment streams
+
+0.4.11 adds `TransportLimits.attachment_idle_timeout_seconds` (default 15 seconds)
+for every paused consumer-demand wait, independently of a long operation budget.
+Idle expiry reports TIMEOUT, leaves `complete=False`, joins/closes the download
+and frees shared admission. Network reads use their separate transport deadlines.
+Unsupported signed redirect route/key shapes report UNSUPPORTED_CAPABILITY without
+permission cooldown. Foreign origin/scheme/userinfo and HTTP 403 remain denied;
+neither error permits download dispatch or replay.
 
 `stream_attachment(reference, *, max_bytes=50*1024*1024, budget=None)` constructs
 an `AttachmentStream` without I/O. Use it as an async context manager:
@@ -698,6 +756,7 @@ text. `error_for(kind)` builds one.
 | `ViewDisabledError` | The school administrator disabled this view |
 | `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
 | `ParseError` | The page or JSON does not match the expected structure |
+| `StaleCursorError` | A previously valid continuation no longer matches the current sequence; restart explicitly |
 | `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses |
 | `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
 | `LimitError` | A request, byte, item or queue bound was reached |

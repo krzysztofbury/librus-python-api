@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.10
+  version: 0.4.11
   license:
     name: MIT
   description: |
@@ -131,6 +131,7 @@ paths:
       operationId: modern_send_message
       security: [{ModernSessionCookies: []}]
       summary: Single-attempt ordinary modern JSON message, never replayed or redirected
+      description: Each send revalidates modern identity with one side-effect-free GET before POST; failure remains NOT_DISPATCHED. Complete bounded receipts survive return-time deadline expiry with separately bounded local parsing. No send retry or fallback.
       x-origin: messages
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: send_message
@@ -189,6 +190,7 @@ paths:
       operationId: attachment_resolve
       tags: [Attachments]
       summary: Resolve one account-bound attachment without replay or following redirects
+      description: Unsupported signed route/key shapes fail without download or permission cooldown; foreign origin/scheme/userinfo violations remain denied. Exact native login redirects prove expiry.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
@@ -228,7 +230,7 @@ paths:
           schema: {type: string, minLength: 1, maxLength: 512, pattern: '^(?!\.{1,2}$)[A-Za-z0-9_.~-]+$'}
       responses:
         '200':
-          description: Uninterpreted file bytes, identity encoding, no redirects; streamed under byte/deadline/request limits
+          description: Uninterpreted file bytes, identity encoding, no redirects; streamed under byte/deadline/request limits and an independent finite consumer-demand idle timeout
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
