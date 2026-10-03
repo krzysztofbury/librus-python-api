@@ -1,0 +1,66 @@
+{
+  "version": "0.4.10",
+  "date": "2026-10-03",
+  "scope": "PR #13 independent review hardening, offline only",
+  "implementation_commit": "40ce057",
+  "provenance": "independently authored fixes and original fixtures; librus-apix 1.5.3 read only as a behaviour reference, nothing copied",
+  "review": {
+    "independent_agent_reviewers": 4,
+    "areas": [
+      "transport, service, route catalogue and OpenAPI parity",
+      "parsers and send acknowledgement versus reference behaviour",
+      "durable send and notification storage",
+      "test value and live-capture script safety"
+    ],
+    "critical_findings": 0,
+    "high_findings_fixed": 3,
+    "medium_findings_fixed": 7,
+    "deferred_to_todo_s10": 9
+  },
+  "python_versions": ["3.13.15", "3.14.7"],
+  "source": {"passed_per_python": 1253, "deselected_per_python": 1},
+  "installed_wheel": {"passed_per_python": 1253, "deselected_per_python": 1},
+  "installed_sdist": {"passed_per_python": 1253, "deselected_per_python": 1},
+  "regressions_failed_before_fix": [
+    "legacy-module banner turned accepted and rejected send acknowledgements into UNKNOWN",
+    "mid-page cursor resume after a read-state change raised PARSE",
+    "another context's 0.4 s write lock failed the post-consume checkpoint",
+    "post-dispatch write-lock contention lost the accepted durable outcome",
+    "post-claim final save contention reported LIMIT instead of STORAGE",
+    "archive import accepted a raw cursor past an undelivered event",
+    "archive import accepted raw progress without a known event total",
+    "unguarded capture transport dispatched a send and a read-once consume",
+    "removed same-login consume guard allowed a concurrent consume"
+  ],
+  "quality": {
+    "ruff_lint_and_format": true,
+    "strict_mypy": true,
+    "repository_hooks": true,
+    "history_and_worktree_secret_scan": true,
+    "locked_dependency_audit": true,
+    "installed_location_and_version": true,
+    "reproducible_archive_hashes": true
+  },
+  "artifacts": [
+    {
+      "name": "librus_python_api-0.4.10-py3-none-any.whl",
+      "bytes": 115368,
+      "sha256": "d8c9e0009b79b421b883ab1ff7f239e09d452251ef9bd534d5f8aae953825bca"
+    },
+    {
+      "name": "librus_python_api-0.4.10.tar.gz",
+      "bytes": 484608,
+      "sha256": "59080ce50961e365d5043de1062bab0dbdf8fa33994688985e284a4156779d12"
+    }
+  ],
+  "live_http_requests": 0,
+  "live_credential_submissions": 0,
+  "live_send_dispatches": 0,
+  "mcp_code_or_production_state_changed": false,
+  "published": false,
+  "remaining": [
+    "TODO S10 review follow-ups, including modern session recovery and storage retention",
+    "0.5 modern authentication, broader coverage and live qualification",
+    "MCP adapter and production migration in separate repository"
+  ]
+}

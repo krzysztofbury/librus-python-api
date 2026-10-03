@@ -6,6 +6,7 @@ __all__ = [
     "AccessDeniedError",
     "AccountActionRequiredError",
     "ClosedError",
+    "CheckpointError",
     "ConnectionError",
     "CredentialsRejectedError",
     "ErrorKind",
@@ -16,6 +17,7 @@ __all__ = [
     "OperationTimeoutError",
     "ParseError",
     "SessionExpiredError",
+    "StorageError",
     "ThrottledError",
     "UnknownDeliveryError",
     "UnsupportedCapabilityError",
@@ -25,6 +27,7 @@ __all__ = [
 
 
 class ErrorKind(StrEnum):
+    CHECKPOINT = "checkpoint"
     INVALID_INPUT = "invalid_input"
     CREDENTIALS_REJECTED = "credentials_rejected"
     ACCOUNT_ACTION_REQUIRED = "account_action_required"
@@ -40,6 +43,7 @@ class ErrorKind(StrEnum):
     PARSE = "parse"
     UNKNOWN_DELIVERY = "unknown_delivery"
     CLOSED = "closed"
+    STORAGE = "storage"
 
 
 class LibrusError(Exception):
@@ -126,7 +130,16 @@ class ClosedError(LibrusError):
     pass
 
 
+class CheckpointError(LibrusError):
+    """Durable acknowledgement is unknown; never retry the callback or consume."""
+
+
+class StorageError(LibrusError):
+    """Private durable storage failed; a write may already have committed."""
+
+
 _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
+    ErrorKind.CHECKPOINT: CheckpointError,
     ErrorKind.INVALID_INPUT: InvalidInputError,
     ErrorKind.CREDENTIALS_REJECTED: CredentialsRejectedError,
     ErrorKind.ACCOUNT_ACTION_REQUIRED: AccountActionRequiredError,
@@ -142,6 +155,7 @@ _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
     ErrorKind.PARSE: ParseError,
     ErrorKind.UNKNOWN_DELIVERY: UnknownDeliveryError,
     ErrorKind.CLOSED: ClosedError,
+    ErrorKind.STORAGE: StorageError,
 }
 
 

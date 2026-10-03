@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from datetime import date, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from librus_python_api import (
     AccountCredentials,
@@ -28,6 +28,7 @@ from librus_python_api import (
     OperationLimits,
     RequestBudget,
 )
+from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import LoginSubmission, RequestForm, TransportResponse
 from librus_python_api.transport import AiohttpTransport
 
@@ -66,13 +67,44 @@ def private_directory(path: Path) -> Path:
     return resolved
 
 
+def private_file(path: Path) -> Path:
+    """Refuse a private output file inside any Git work tree, like captures."""
+    resolved = path.expanduser().resolve()
+    if any((folder / ".git").exists() for folder in resolved.parents):
+        raise SystemExit("Refusing to write private output inside a Git work tree")
+    return resolved
+
+
 def form_fields(form: RequestForm) -> dict[str, str] | None:
     if form is None or isinstance(form, LoginSubmission):
         return None
     return dict(form)
 
 
-class CapturingTransport(AiohttpTransport):
+class ReadOnlyCaptureTransport(AiohttpTransport):
+    """Refuse every transport path that bypasses the per-request allowlist.
+
+    Sends, modern authentication and read-once consumption use dedicated
+    exchanges instead of request()/_exchange(), so an allowlist there alone
+    cannot stop them. Capture runs never need them.
+    """
+
+    async def send_message(self, *args: object, **kwargs: object) -> NoReturn:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+    async def send_modern_message(self, *args: object, **kwargs: object) -> NoReturn:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+    async def authenticate_modern(self, *args: object, **kwargs: object) -> NoReturn:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+    async def consume_schedule_events(
+        self, *args: object, **kwargs: object
+    ) -> NoReturn:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+
+class CapturingTransport(ReadOnlyCaptureTransport):
     """Allowlist each endpoint and keep a copy of every non-login response."""
 
     out: Path

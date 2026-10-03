@@ -1,9 +1,11 @@
 """Account-isolated aiohttp transport and explicit injection contract."""
 
+import asyncio
 import math
 import re
 import zlib
-from collections.abc import Mapping
+from base64 import b64encode
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -14,21 +16,45 @@ from urllib.parse import urljoin, urlsplit
 import aiohttp
 from yarl import URL
 
+from librus_python_api.attachment_routes import (
+    validate_attachment_reference,
+    validate_key,
+    validate_max_bytes,
+)
 from librus_python_api.budget import RequestBudget
+from librus_python_api.checkpoint import CheckpointState, handoff, validate_checkpoint
 from librus_python_api.config import (
+    ATTACHMENT_CHUNK_BYTES,
     AUTH_COOKIES,
     ENDPOINTS,
     FORM_FIELDS,
     FORM_MAX_VALUE_LENGTH,
+    MESSAGE_MAX_PAGE_COUNT,
+    MESSAGE_PAGE_FIELDS,
+    MODERN_DIRECTORY_QUERIES,
+    MODERN_HANDOFF_PATTERN,
+    MODERN_TERMINAL_PATHS,
     OAUTH_QUERY,
     USER_AGENT,
     ConnectionSettings,
     Endpoint,
     SideEffect,
     TransportLimits,
+    encode_modern_send,
+    encode_send_form,
+    recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import LoginSubmission, RequestForm, TransportResponse
+from librus_python_api.models import (
+    AttachmentHeaders,
+    LoginSubmission,
+    MessageAttachmentReference,
+    ModernSendSubmission,
+    RequestForm,
+    ScheduleEventWire,
+    SendSubmission,
+    TransportResponse,
+)
 from librus_python_api.scheduler import RequestScheduler
 
 
@@ -49,12 +75,53 @@ class AccountTransport(Protocol):
         reference_id: str | None = None,
     ) -> TransportResponse: ...
 
+    async def send_message(
+        self,
+        submission: SendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse: ...
+
+    async def authenticate_modern(
+        self, expected_login: str, budget: RequestBudget
+    ) -> None: ...
+
+    async def send_modern_message(
+        self,
+        submission: ModernSendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse: ...
+
+    def clear_modern_auth(self) -> None: ...
+
     async def follow(
         self,
         previous_url: str,
         location: str,
         budget: RequestBudget,
     ) -> TransportResponse: ...
+
+    async def resolve_attachment(
+        self, reference: MessageAttachmentReference, budget: RequestBudget
+    ) -> TransportResponse: ...
+
+    async def consume_schedule_events(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        checkpoint_timeout_seconds: float,
+    ) -> TransportResponse: ...
+
+    async def stream_download(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None: ...
 
     def has_cookie(self, name: str, endpoint_id: str) -> bool: ...
     def clear_auth(self) -> None: ...
@@ -92,10 +159,35 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
                 for key, value in form.items()
             )
         )
+        if valid and endpoint.operation_id in {"messages_received", "messages_sent"}:
+            assert isinstance(form, Mapping)
+            page = form.get("numer_strony105", "")
+            valid = (
+                set(form) == MESSAGE_PAGE_FIELDS
+                and form.get("porcjowanie_pojemnik105") == "105"
+                and re.fullmatch(r"0|[1-9][0-9]{0,3}", page) is not None
+                and int(page) < MESSAGE_MAX_PAGE_COUNT
+            )
+        if valid and endpoint.operation_id == "recipients":
+            assert isinstance(form, Mapping)
+            valid = form == recipient_form(
+                form.get("typAdresata", ""), selection_id=form.get("idGrupy", "")
+            )
     else:
         valid = form is None
     if not valid:
         raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
+def _require_no_connection_retry() -> None:
+    """Fail closed if aiohttp drops the private switch that stops GET replays.
+
+    aiohttp otherwise silently replays a GET on a stale keep-alive connection.
+    Some GETs mark messages read or consume read-once events, so a missing
+    switch must stop all traffic, not degrade to silent replays.
+    """
+    if "_retry_connection" not in getattr(aiohttp.ClientSession, "ATTRS", ()):
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
 
 class AiohttpTransport:
@@ -109,12 +201,15 @@ class AiohttpTransport:
         self._account, self._scheduler = account, scheduler
         self._connection, self._limits = connection, limits
         self._session: aiohttp.ClientSession | None = None
+        self._download_session: aiohttp.ClientSession | None = None
+        self._modern_session: aiohttp.ClientSession | None = None
         self._closed = False
 
     def _get_session(self) -> aiohttp.ClientSession:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._session is None:
+            _require_no_connection_retry()
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(
                     limit=1,
@@ -130,7 +225,32 @@ class AiohttpTransport:
                 ),
                 headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
             )
+            # aiohttp otherwise silently replays GET on a stale keepalive
+            # connection. Some GETs mark read; every attempt must be budgeted.
+            self._session._retry_connection = False
         return self._session
+
+    def _get_modern_session(self) -> aiohttp.ClientSession:
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        if self._modern_session is None:
+            _require_no_connection_retry()
+            self._modern_session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=1, ssl=self._connection.ssl_context or True
+                ),
+                cookie_jar=aiohttp.CookieJar(),
+                trust_env=False,
+                auto_decompress=False,
+                read_bufsize=16 * 1024,
+                timeout=aiohttp.ClientTimeout(
+                    total=self._limits.request_timeout_seconds,
+                    connect=self._limits.connect_timeout_seconds,
+                ),
+                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+            )
+            self._modern_session._retry_connection = False
+        return self._modern_session
 
     def _url(self, endpoint: Endpoint) -> str:
         return self._connection.origin(endpoint) + endpoint.path
@@ -146,6 +266,15 @@ class AiohttpTransport:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        if endpoint.origin == "download" or endpoint_id in {
+            "attachment_resolve",
+            "consume_schedule_events",
+            "send_message",
+            "modern_send_message",
+            "modern_launch",
+            "modern_handoff",
+        }:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
         if "{id}" in endpoint.path:
             if type(reference_id) is not str or not re.fullmatch(
@@ -157,7 +286,387 @@ class AiohttpTransport:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if endpoint.origin == "api":
             url = str(URL(url).with_query(OAUTH_QUERY))
+        if endpoint_id in MODERN_DIRECTORY_QUERIES:
+            url = str(URL(url).with_query(MODERN_DIRECTORY_QUERIES[endpoint_id]))
         return await self._request(endpoint, url, budget, form)
+
+    async def authenticate_modern(
+        self, expected_login: str, budget: RequestBudget
+    ) -> None:
+        try:
+            response = await self._request(
+                ENDPOINTS["modern_launch"],
+                self._url(ENDPOINTS["modern_launch"]),
+                budget,
+                None,
+            )
+            if response.status != 302:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            url = self._modern_redirect(
+                response.url, response.headers.get("location", "")
+            )
+            parsed = urlsplit(url)
+            match = MODERN_HANDOFF_PATTERN.fullmatch(parsed.path)
+            if match is None or match[2] != b64encode(expected_login.encode()).decode(
+                "ascii"
+            ).rstrip("="):
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            response = await self._request(
+                ENDPOINTS["modern_handoff"], url, budget, None
+            )
+            if response.status != 302:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            final = self._modern_redirect(
+                response.url, response.headers.get("location", "")
+            )
+            if urlsplit(final).path not in MODERN_TERMINAL_PATHS:
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+        except BaseException:
+            self.clear_modern_auth()
+            raise
+
+    def _modern_redirect(self, previous: str, location: str) -> str:
+        valid = False
+        url = ""
+        try:
+            if type(location) is str and 1 <= len(location) <= 4096:
+                url = urljoin(previous, location)
+                parsed = urlsplit(url)
+                valid = not (
+                    parsed.username
+                    or parsed.password
+                    or parsed.query
+                    or parsed.fragment
+                    or "%" in parsed.path
+                ) and URL(url).origin() == URL(self._connection.messages_origin)
+        except ValueError:
+            pass
+        if not valid:
+            raise LibrusError(ErrorKind.ACCESS_DENIED)
+        return url
+
+    async def send_modern_message(
+        self,
+        submission: ModernSendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse:
+        payload = encode_modern_send(submission, self._account)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(self._send_exchange, payload, budget, dispatched, modern=True),
+            )
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError, zlib.error):
+            kind = ErrorKind.PARSE
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def send_message(
+        self,
+        submission: SendSubmission,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+    ) -> TransportResponse:
+        payload = encode_send_form(submission, self._account)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(self._send_exchange, payload, budget, dispatched),
+            )
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError, zlib.error):
+            kind = ErrorKind.PARSE
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _send_exchange(
+        self,
+        payload: bytes,
+        budget: RequestBudget,
+        dispatched: Callable[[], None],
+        *,
+        modern: bool = False,
+    ) -> TransportResponse:
+        endpoint = ENDPOINTS["modern_send_message" if modern else "send_message"]
+        session = self._get_modern_session() if modern else self._get_session()
+        proxy = self._connection.proxy_url
+        dispatched()
+        async with session.post(
+            self._url(endpoint),
+            data=payload,
+            headers={
+                "Content-Type": "application/json"
+                if modern
+                else "application/x-www-form-urlencoded; charset=utf-8"
+            },
+            allow_redirects=False,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            if len(session.cookie_jar) > self._limits.max_cookies:
+                session.cookie_jar.clear()
+                raise LibrusError(ErrorKind.LIMIT)
+            if not modern or response.status not in (400, 422):
+                self._check_status(response)
+            body = await self._read_body(response, budget)
+            return TransportResponse(
+                response.status,
+                body,
+                str(response.url),
+                MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
+            )
+
+    async def consume_schedule_events(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        checkpoint_timeout_seconds: float,
+    ) -> TransportResponse:
+        validate_checkpoint(checkpoint, checkpoint_timeout_seconds)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        state = CheckpointState()
+        kind: ErrorKind | None = None
+        cancelled = False
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                partial(
+                    self._consume_exchange,
+                    budget,
+                    checkpoint,
+                    checkpoint_timeout_seconds,
+                    state,
+                ),
+            )
+        except asyncio.CancelledError:
+            cancelled = True
+        except LibrusError as error:
+            kind = error.kind
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError):
+            kind = ErrorKind.PARSE
+        # Scheduler cancellation joins but discards a worker exception. Preserve
+        # the stronger durability failure even when cancellation/close overlaps.
+        if state.failed:
+            raise LibrusError(ErrorKind.CHECKPOINT)
+        if cancelled:
+            raise asyncio.CancelledError
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _consume_exchange(
+        self,
+        budget: RequestBudget,
+        checkpoint: Callable[[ScheduleEventWire], Awaitable[None]],
+        seconds: float,
+        state: CheckpointState,
+    ) -> TransportResponse:
+        endpoint = ENDPOINTS["consume_schedule_events"]
+        session = self._get_session()
+        proxy = self._connection.proxy_url
+        async with session.get(
+            self._url(endpoint),
+            allow_redirects=False,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            if len(session.cookie_jar) > self._limits.max_cookies:
+                session.cookie_jar.clear()
+                raise LibrusError(ErrorKind.LIMIT)
+            self._check_status(response)
+            body = await self._read_payload(response, budget)
+            if response.status == 200:
+                wire = ScheduleEventWire(
+                    body,
+                    response.headers.get("Content-Type"),
+                    tuple(response.headers.getall("Content-Encoding", [])),
+                    tuple(response.headers.getall("Transfer-Encoding", [])),
+                )
+                await handoff(lambda: checkpoint(wire), seconds, state)
+            return TransportResponse(
+                response.status,
+                body,
+                str(response.url),
+                MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
+            )
+
+    async def _read_payload(
+        self, response: aiohttp.ClientResponse, budget: RequestBudget
+    ) -> bytes:
+        """Dechunked encoded payload, before decompression or semantic decoding."""
+        length = response.content_length
+        if length is not None and (
+            length > self._limits.response_max_bytes
+            or length > budget.remaining_response_bytes
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
+        body = bytearray()
+        async for chunk in response.content.iter_chunked(16 * 1024):
+            budget._receive(len(chunk))
+            if len(body) + len(chunk) > self._limits.response_max_bytes:
+                raise LibrusError(ErrorKind.LIMIT)
+            body.extend(chunk)
+        return bytes(body)
+
+    async def resolve_attachment(
+        self, reference: MessageAttachmentReference, budget: RequestBudget
+    ) -> TransportResponse:
+        validate_attachment_reference(reference, self._account)
+        endpoint = ENDPOINTS["attachment_resolve"]
+        path = endpoint.path.format(
+            message_id=reference.message.identifier, file_id=reference.identifier
+        )
+        return await self._request(
+            endpoint, self._connection.origin(endpoint) + path, budget, None
+        )
+
+    def _get_download_session(self) -> aiohttp.ClientSession:
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        if self._download_session is None:
+            _require_no_connection_retry()
+            self._download_session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=1, ssl=self._connection.ssl_context or True
+                ),
+                cookie_jar=aiohttp.DummyCookieJar(),
+                trust_env=False,
+                auto_decompress=False,
+                read_bufsize=ATTACHMENT_CHUNK_BYTES,
+                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+            )
+            self._download_session._retry_connection = False
+        return self._download_session
+
+    async def stream_download(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None:
+        validate_key(key)
+        validate_max_bytes(max_bytes)
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        kind: ErrorKind | None = None
+        try:
+            await self._scheduler.run(
+                self._account,
+                budget,
+                partial(
+                    self._download_exchange,
+                    key,
+                    budget,
+                    max_bytes,
+                    opened,
+                    demand,
+                    deliver,
+                ),
+            )
+            return
+        except aiohttp.ClientPayloadError:
+            kind = ErrorKind.PARSE
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError):
+            kind = ErrorKind.PARSE
+        except LibrusError as error:
+            # A signed-server denial does not prove Librus session expiry.
+            kind = (
+                ErrorKind.ACCESS_DENIED
+                if error.kind is ErrorKind.SESSION_EXPIRED
+                else error.kind
+            )
+        assert kind is not None
+        raise LibrusError(kind)
+
+    async def _download_exchange(
+        self,
+        key: str,
+        budget: RequestBudget,
+        max_bytes: int,
+        opened: Callable[[AttachmentHeaders], None],
+        demand: Callable[[], Awaitable[None]],
+        deliver: Callable[[bytes], None],
+    ) -> None:
+        validate_key(key)
+        endpoint = ENDPOINTS["attachment_download"]
+        url = self._connection.origin(endpoint) + endpoint.path.format(key=key)
+        proxy = self._connection.proxy_url
+        timeout = aiohttp.ClientTimeout(
+            total=budget.remaining_seconds(),
+            connect=self._limits.connect_timeout_seconds,
+        )
+        async with self._get_download_session().get(
+            url,
+            allow_redirects=False,
+            timeout=timeout,
+            proxy=proxy.get_secret_value() if proxy is not None else None,
+        ) as response:
+            self._check_headers(response)
+            self._check_status(response)
+            if response.status != 200:
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            content_codings = response.headers.getall("Content-Encoding", [])
+            transfer_codings = response.headers.getall("Transfer-Encoding", [])
+            if (
+                len(content_codings) > 1
+                or any(v.strip().casefold() != "identity" for v in content_codings)
+                or len(transfer_codings) > 1
+                or any(v.strip().casefold() != "chunked" for v in transfer_codings)
+            ):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            length = response.content_length
+            if length is not None and (
+                length > max_bytes or length > budget.remaining_response_bytes
+            ):
+                raise LibrusError(ErrorKind.LIMIT)
+            opened(
+                AttachmentHeaders(
+                    response.headers.get("Content-Type"),
+                    length,
+                    response.headers.get("Content-Disposition"),
+                )
+            )
+            received = 0
+            while True:
+                await demand()
+                chunk = await response.content.read(ATTACHMENT_CHUNK_BYTES)
+                if not chunk:
+                    if length is not None and received != length:
+                        raise LibrusError(ErrorKind.PARSE)
+                    return
+                budget._receive(len(chunk))
+                received += len(chunk)
+                if received > max_bytes:
+                    raise LibrusError(ErrorKind.LIMIT)
+                deliver(chunk)
 
     async def follow(
         self,
@@ -184,6 +693,7 @@ class AiohttpTransport:
                     for item in ENDPOINTS.values()
                     if item.method == "GET"
                     and item.side_effect == SideEffect.AUTHENTICATION
+                    and not item.operation_id.startswith("modern_")
                     and parsed.path == item.path
                     and URL(url).origin() == URL(self._connection.origin(item))
                 ),
@@ -233,7 +743,11 @@ class AiohttpTransport:
         budget: RequestBudget,
         form: RequestForm,
     ) -> TransportResponse:
-        session = self._get_session()
+        session = (
+            self._get_modern_session()
+            if endpoint.origin == "messages"
+            else self._get_session()
+        )
         proxy = self._connection.proxy_url
         headers = None
         if isinstance(form, LoginSubmission):
@@ -259,12 +773,7 @@ class AiohttpTransport:
             allow_redirects=False,
             proxy=proxy.get_secret_value() if proxy is not None else None,
         ) as response:
-            if (
-                len(response.headers) > 128
-                or sum(len(k) + len(v) for k, v in response.headers.items()) > 32 * 1024
-                or len(response.headers.getall("Location", [])) > 1
-            ):
-                raise LibrusError(ErrorKind.LIMIT)
+            self._check_headers(response)
             if len(session.cookie_jar) > self._limits.max_cookies:
                 session.cookie_jar.clear()
                 raise LibrusError(ErrorKind.LIMIT)
@@ -276,6 +785,14 @@ class AiohttpTransport:
                 str(response.url),
                 MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
             )
+
+    def _check_headers(self, response: aiohttp.ClientResponse) -> None:
+        if (
+            len(response.headers) > 128
+            or sum(len(k) + len(v) for k, v in response.headers.items()) > 32 * 1024
+            or len(response.headers.getall("Location", [])) > 1
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
 
     def _check_status(self, response: aiohttp.ClientResponse) -> None:
         if response.status in (429, 503):
@@ -351,8 +868,21 @@ class AiohttpTransport:
     def clear_auth(self) -> None:
         if self._session is not None:
             self._session.cookie_jar.clear(lambda cookie: cookie.key in AUTH_COOKIES)
+        self.clear_modern_auth()
+
+    def clear_modern_auth(self) -> None:
+        if self._modern_session is not None:
+            self._modern_session.cookie_jar.clear()
 
     async def aclose(self) -> None:
         self._closed = True
-        if self._session is not None:
-            await self._session.close()
+        try:
+            if self._session is not None:
+                await self._session.close()
+        finally:
+            try:
+                if self._download_session is not None:
+                    await self._download_session.close()
+            finally:
+                if self._modern_session is not None:
+                    await self._modern_session.close()

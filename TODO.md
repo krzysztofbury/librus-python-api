@@ -6,7 +6,8 @@ Replace `librus-apix` in [librus-mcp](https://github.com/krzysztofbury/librus-mc
 with this independently implemented, MIT-licensed library, published on PyPI,
 while preserving the MCP v1.7.0 public contract. The library gives MCP a small,
 typed async API over several independent Librus logins with shared, bounded
-traffic. MCP chooses accounts, combines results and owns its tools and state.
+traffic. Optional API workflows own reusable durable state and orchestration;
+MCP chooses accounts, configures paths, presents consent and owns its tool schemas.
 
 Rules that hold for every release:
 
@@ -26,7 +27,18 @@ Rules that hold for every release:
 | `0.1.0` | Account service, login, identity, profile, scheduler, budgets | Done |
 | `0.2.0` | Grades: summaries, records, views, windows | Done |
 | `0.3.0` | Attendance, timetable, announcements, agenda, homework, completed lessons; behaviour-note decision | Done, with the gaps below |
-| `0.4.0` | Messages, attachment streams, notification primitives, sending | Next |
+| `0.4.0` | Received/sent message lists and bounded continuation | Done locally, with message-layout gaps below |
+| `0.4.1` | Recipient groups and recipients | Done locally for observed simple groups; hierarchy/empty-list gaps remain |
+| `0.4.2` | Full message content, explicit read side effects, attachment metadata | Done locally for observed already-read received content; populated attachment/sent gaps remain |
+| `0.4.3` | Bounded attachment streams | Done locally for one received attachment; broader file/layout/effect gaps remain |
+| `0.4.4` | Notification/checkpoint primitives | Done locally for count snapshots and offline checkpoint/replay; read-once live/consumer compatibility pending |
+| `0.4.5` | Broader recipient selection and message-layout coverage | Implemented: choice discovery, selection-bound references, anonymous targets, sent receipts and observed received pagination; broader gaps remain |
+| `0.4.6` | Single-use send attempts and typed uncertainty | Implemented and offline-qualified; exact one-recipient live qualification remains separately gated |
+| `0.4.7` | Explicit modern identity, council discovery and single-use JSON sending | Implemented; offline qualification recorded in VERIFICATION.md; positive acknowledgements and sole-recipient live send remain gated |
+| `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
+| `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Implemented; 50 original notification fault/load cases, source/wheel/sdist qualified on Python 3.13/3.14; final 0.4 persistence prerequisite, not full compatibility closure |
+| `0.4.10` | PR #13 review hardening | Implemented; independent review fixes with fail-before regressions, source/wheel/sdist qualified on Python 3.13/3.14 |
+| `0.5.x` | Modern authentication, broader communication coverage and live qualification | Planned; explicit evidence/consent gates below |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -51,20 +63,136 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [ ] Homework windows longer than one month: decide whether the library should
   split them into monthly requests or leave that to the consumer.
 
-### 0.4.0 - Communication and notification safety
+### 0.4.x - Separate communication features
 
-- [ ] Received/sent message lists, bounded pagination, recipient discovery,
-  full-message content and source-bound references. Keep mark-read effects
-  explicit and message bodies out of list retrieval.
-- [ ] Attachment metadata and credential-free bounded download streams, with the
-  MCP atomic-publication integration and cancellation proof from P4.
-- [ ] The read-once schedule/checkpoint interface, and adapting notification
-  records while MCP keeps its seen state, hashes, replay and migrations.
-- [ ] Validated single-attempt sending with typed unknown-delivery results, plus
-  MCP confirmation and token integration. Exercise offline only; never widen the
+- [x] 0.4.0: received/sent message lists, bounded pagination and source-bound
+  references. Keep message bodies out of list retrieval. Installed live smoke
+  and same-byte Chromium/apix replay completed on one login. Populated sent
+  rows, multi-page metadata, attachment flags, other roles and the newer mailbox
+  layout remain live-unqualified; original offline proofs are not live evidence.
+- [x] 0.4.1: named recipient-group discovery and ID-bearing simple-group lookup.
+  Installed live smoke covered tutor, teachers and school office; Chromium/apix
+  replay agreed. Empty lists, subgroup/virtual-class discovery, other groups and
+  roles remain pending. Details: [contracts/recipients.md](contracts/recipients.md).
+- [x] 0.4.2: full-message content and inert attachment metadata implemented.
+  Explicit mark-read consent, summary-cache invalidation and no hidden replay;
+  installed live smoke and Chromium/apix agree on one already-read received
+  message. Source and installed wheel/sdist suites pass on 3.13/3.14. Populated sent content and
+  attachment metadata, receipt variants and richer/new layouts remain unqualified.
+- [x] 0.4.3: single-owner credential-free bounded download streams, shared
+  request/byte/deadline limits and joined cancellation. Pair-programmer design
+  and corrected post-review complete. Installed live smoke streams one received
+  attachment; populated metadata and page-zero sent rows checked independently.
+  MCP file naming and atomic-publication integration from P4 remain separate.
+- [ ] Attachment follow-ups: sent-message downloads, multiple/empty files,
+  broader signed-key/handler/header variants and upstream read-effect evidence.
+  Do not expand allowlists without independent qualification.
+- [x] 0.4.4 library primitives: explicit read-once consent, durable encoded-response
+  handoff before parsing, typed events and zero-network local replay. Ordinary
+  token-scoped counts use typed categories. No orchestration/seen state/hashes.
+- [ ] Qualify read-once layouts on a dedicated test login with disposable events
+  and separately approved recovery integration. Routine live checks exclude it.
+- [x] 0.4.9: API notification seen state, canonical identities, raw/pending replay,
+  explicit acknowledgement and neutral empty-target archive import/export through
+  the optional persistence layer. No automatic schema or production-state migration.
+  MCP's thin old-format compatibility adapter remains a separate migration task.
+- [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
+  exact nonzero group forms qualified offline. Four independent contexts observe
+  five named types, an anonymous target, unavailable class-dependent lookup,
+  empty group options, populated received pagination and sent content/receipts.
+  Keep typed unavailable outcomes separate from explicit empty-recipient success.
+- [ ] 0.4.5 follow-ups: populated subgroup/virtual-class semantics, explicit empty
+  recipients, sent pagination, multiple-recipient receipt/status variants and
+  richer/new layouts. No claimed universal layout coverage. Any new live scope
+  requires fresh approval; received opens still need explicit mark-read consent.
+- [x] 0.4.7: explicit modern identity, type/council discovery and single-use JSON
+  sending, with account/backend-bound references, separate cookies, central
+  routes/OpenAPI contracts and original offline fixtures. 0.4.6 stays legacy-only.
+  No cross-backend ID reuse, automatic fallback, setting changes or inferred
+  retirement date. See
+  [contracts/modern-messages.md](contracts/modern-messages.md).
+- [ ] Modern follow-ups: independently qualify positive acknowledgement and
+  rejection envelopes, installed live authentication/discovery and the separately
+  approved sole-recipient manual send. Other directory branches, virtual classes,
+  pagination, modern mailbox content and attachments remain unsupported.
+- [x] 0.4.6, the legacy sending increment in the same PR: approved single-use
+  attempt design implemented with typed uncertainty, exact fixed wire forms,
+  shared limits and offline cancellation/fault proofs. See
+  [contracts/sending.md](contracts/sending.md). MCP confirmation/token adapters
+  and persistent attempt state remain separate; never widen the
   daily check to sends, mark-read content or event consumption.
+  Planned manual live test: at most one Polish automation-test message to one
+  privately specified recipient, explicitly requiring no response and apologizing
+  for the unsolicited test. Verify sender and exact recipient first; qualify the
+  native single-attempt path offline and agree on fresh authentication/discovery
+  budgets before execution. Never retry uncertain delivery. Keep personal target
+  details and the exact payload in owner-only local state outside Git.
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
+
+### 0.4 persistence completion and deferred 0.5 sequence
+
+The owner approved completing the remaining communication work one slice at a
+time, including API-owned optional persistent send/notification workflows. Each slice
+gets a separate scoped implementation/evidence commit; new library contracts get
+their own 0.4.x version and source/wheel/sdist qualification. Consumer-only changes
+do not fabricate a library version. The owner subsequently clarified the target:
+extract reusable safeguards from MCP into the API and leave MCP as a thin consumer.
+Replacement proceeds family by family after proof, not by deleting unqualified
+legacy paths. This supersedes the earlier consumer-owned persistence split.
+
+| Order | Work item | Owner and completion gate |
+| --- | --- | --- |
+| S2 | Persistent send attempts and recovery, 0.4.8 | Done offline: explicit API SQLite store, login/backend/exact-payload-bound confirmation, atomic claims, crash/uncertainty recovery without replay, bounded history and competing-process/load/fault proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP adapter implementation stays deferred to its separate backend migration |
+| S3 | Persistent notifications and checkpoint replay, 0.4.9 | Done offline: explicit native store/workflow, canonical identities, first-run/requested-category semantics, raw checkpoint before parsing, bounded replay before consume, two-phase acknowledgement, neutral archive and competing-process proofs. Source/wheel/sdist qualified on Python 3.13/3.14. MCP old-format mapping remains a separate migration task |
+
+### 0.5 TODO - Compatibility and live communication qualification
+
+The owner deferred the remaining authentication, coverage and live qualification
+work to 0.5. Completing 0.4.9 closes the planned optional persistence prerequisites,
+not universal upstream compatibility or the separate MCP migration. No live
+authorization is created or renewed by moving these items.
+
+| Order | Work item | Owner and completion gate |
+| --- | --- | --- |
+| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
+| S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
+| S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
+| S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
+| S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
+| S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
+| S10 | Review follow-ups deferred from 0.4.10 | Library; (a) modern launch redirect to the synergia login maps to SESSION_EXPIRED, not ACCESS_DENIED; (b) revalidate or clear the bound modern session before a modern send and after messages-origin errors, without discarding a valid legacy session on a modern 401; (c) explicit retention primitives: seen IDs per category default to the 4,096 maximum and terminal send rows are never pruned, so long-lived stores eventually refuse with LIMIT; (d) keyed or salted persisted context identifiers instead of an unsalted login hash; (e) a distinct stale-cursor error kind instead of PARSE; (f) attachment redirect shape mismatches as UNSUPPORTED_CAPABILITY, not ACCESS_DENIED with cooldown; (g) refuse a pager-less full page as single-page; (h) bounded idle wait for paused attachment consumers holding scheduler slots; (i) keep a completed send response when the budget deadline passes during return |
+| S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
+
+Live verification is evidence gathering, not permission to guess undocumented
+wire shapes. Read-only discovery approvals do not authorize content opens,
+downloads, sends, event consumption or account-setting changes. If evidence or
+safe test accounts are unavailable, record that slice as blocked and continue
+with the next independently implementable slice rather than claiming completion.
+
+Persistence is explicitly selected by the application, with no credentials/cookies
+in durable records and no coupling of core client/domain/transport contracts to
+MCP schemas, file discovery or existing consumer storage formats. The optional
+API layer owns expiry, payload/account/backend binding, locks, transactions,
+retention and recovery primitives. MCP selects paths, presents human approval,
+maps wire records and invokes deliberately reviewed compatibility migration. A crash
+after claiming a send is conservatively uncertain, never an invitation to replay.
+Preserve existing notification data and recovery files; do not reset production
+state or automatically migrate it during development or offline tests.
+
+Build the reusable prerequisites here first. MCP adapter implementation belongs
+in the separate `librus-mcp` repository when migrating from `librus-apix` to this
+API, not in the current library implementation slice. Default/release cutover still
+requires installed acceptance and the release gate. Credentialed CI, PR merge
+and publication require separate authorization. PyPI remains deferred until
+`1.0.0rc1`. Existing evidence gaps remain open until their actual gates pass.
+
+Each version is independently qualified and packaged locally. No sending or
+live read-once operation is authorized by this sequence. Consumer migration,
+credentialed CI and publication keep their separate approval gates.
+The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
+0.4.0-0.4.10 are implemented; 0.4.9 completes persistence and 0.4.10 applies review fixes. Sending is offline-qualified only, with the
+one-recipient live gate still pending. MCP migration is separate from this PR.
 
 ### 1.0.0rc1 - Complete replacement qualification
 
@@ -111,12 +239,14 @@ contract; keep narrowly scoped HTML adapters for missing fields and operations.
 | Choosing logins, combining overlapping results, and summary generation | MCP |
 | Retry classification, bounded reauthentication, account/operation cooldown machinery | Library, with public policy settings supplied by MCP |
 | Endpoint capabilities, JSON/HTML parsing, typed domain data, pagination, reference caches | Library |
-| Requested-category orchestration and notification diff/seen-state policy | MCP, using public library operations |
-| Durable schedule checkpoint storage, hashes, process locks, state migrations | MCP; library guarantees the checkpoint handoff boundary |
+| Requested-category orchestration, first-run/diff/seen-state policy | Optional API notification workflow; MCP selects requested categories and serializes results |
+| Durable checkpoints, canonical hashes, process locks, transactions, recovery | Optional API persistence layer; MCP maps legacy formats through explicit compatibility adapters |
 | Attachment authorization and bounded byte streaming | Library |
-| Download directory, safe temporary files, atomic non-overwriting publication | MCP |
+| Download destination selection | MCP configuration |
+| Reusable safe filenames, bounded temporary files, atomic non-overwriting publication | Optional API file layer |
 | Message send transport and typed delivery outcome | Library |
-| Send confirmation tokens and permission to invoke a write | MCP |
+| Durable send confirmation expiry/binding, single-use claims and recovery | Optional API persistence layer |
+| Human approval and permission to invoke a write | MCP or other application |
 | Legacy field names, Polish-label detail maps, ratio/percentage conversion, MCP schemas | MCP adapter |
 
 During migration, keep existing safeguards until the replacement owner is
@@ -164,11 +294,11 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   requested fields, result types, capability status, pagination, side effects,
   retry safety, and evidence confidence. Include every row in P3-P5.
   Status: every enabled read has its route, side effect, retry safety and
-  evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.0.
+   evidence in `config.py` and the OpenAPI file; the P4-P5 rows come with 0.4.x.
 - [x] Keep upstream routes centralized in `config.py` and maintain importable
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
-  provenance and live gaps. 26 operations, checked by `tests/test_contracts.py`.
+   provenance and live gaps. 30 operations, checked by `tests/test_contracts.py`.
 - [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
   adapters for missing versus null fields, detail labels, default dates,
   `sort_by` filtering, string IDs, and legacy list/map output shapes.
@@ -192,18 +322,18 @@ Dependencies: P0.
   agenda, homework, announcements, messages, recipients, attachments, and notes.
   Keep MCP/Pydantic wire models out of the library API. Prefer typed dataclasses
   with explicit runtime validation at parse boundaries; document serialization.
-  Status: done for every 0.1-0.3 family; messages, recipients, attachments and
-  notes are pending.
+  Status: done for every 0.1-0.3 family, message summaries and simple recipient
+  discovery; content, attachments and notes are pending.
 - [ ] Define typed page results with items, continuation, truncation reason,
   source identity, and detected-change information. Never imply that an offset
   cursor freezes upstream data. Bind continuation to account/query/source.
-  Status: completed lessons have bound cursors with page fingerprints; message
-  pages are pending.
+  Status: completed lessons and messages have bound cursors and fingerprints;
+  message batches include seen IDs and explicit truncation reasons.
 - [ ] Normalize IDs without conflating distinct sources: retain opaque IDs where
   evidenced, distinguish display IDs from valid legacy detail references, and
   reject URL/path injection. Numeric legacy routes remain strictly numeric.
   Status: done for every enabled route (numeric references, account-bound
-  `SchoolReference`); message IDs are pending.
+  `SchoolReference` and folder/account-bound numeric `MessageReference`).
 - [ ] Model empty success, unsupported capability, unpublished data, permission
   denial, incomplete data, and parse failure separately. Required-field failures
   must not silently become `[]`, zero, or a fabricated record.
@@ -222,8 +352,9 @@ Dependencies: P0.
   school-provided averages where available; derived averages need documented
   weighting and grade-symbol rules, not assumptions from another school.
   Status: civil dates and local clocks are never converted, raw grades and
-  school averages are kept, and ratios are explicit; a `Europe/Warsaw` policy is
-  needed for message timestamps in 0.4.0.
+  school averages are kept, and ratios are explicit. Message timestamps retain
+  school wall time, raw displayed text and `Europe/Warsaw`, without guessing an
+  offset or DST fold.
 - [ ] Start with `scope`, typed detail/event references, integer calendar inputs,
   normalized field names, and ID-bearing record collections. Prefer an explicit
   ratio domain type; keep presentation conversion in MCP. Support A01-A08
@@ -250,8 +381,9 @@ their broad checkboxes are not blanket claims from the identity slice.
   identity without using student identity as the cache/security key. Isolate
   messaging session state too. Multi-child switching inside one login is not
   assumed or required for the initial four-login use case.
-  Status: done and verified live on four logins; messaging session isolation
-  comes with 0.4.0.
+  Status: ordinary account isolation verified live on four logins; message-list
+  isolation exercised offline on four independent full mailboxes. Message live
+  qualification covers one login only.
 - [x] Implement explicit session ownership and deterministic resource cleanup.
   Public injection must not require consumers to replace `_session` or clone
   private fields. Preserve all cookie restrictions and duplicate names.
@@ -270,7 +402,7 @@ their broad checkboxes are not blanket claims from the identity slice.
 - [ ] Bound bytes before parsing for HTML/JSON and attachments. Cover absent or
   misleading Content-Length, chunked bodies, decompression, cumulative redirect
   bodies, malformed encodings, and cancellation while waiting for bytes.
-  Status: done for HTML and JSON; attachment streams come with 0.4.0.
+  Status: done for HTML and JSON; attachment streams come with 0.4.3.
 - [x] Bound parser CPU/memory and measure event-loop responsiveness on maximum
   accepted bodies. An asyncio deadline cannot preempt synchronous parsing;
   if parsing is offloaded, bound workers and account for their actual completion
@@ -335,10 +467,11 @@ and relevant account-variant fixtures before its adapter becomes the default.
 - [x] For JSON, validate envelopes, nested references, required values, and
   endpoint-specific variants. Bound IDs, list sizes, nesting/decoding work;
   preserve justified optional/unknown fields without silently skipping bad rows.
-- [ ] Implement bounded page/offset continuation and ID deduplication. Cover page
+- [x] Implement bounded page/offset continuation and ID deduplication. Cover page
   zero, repeated/clamped pages, overlaps, short/oversized pages, and empty ranges.
   Cursor translation may require retaining the legacy endpoint during migration.
-  Status: done for completed lessons; message pagination is pending.
+  Status: done for completed lessons and message lists; populated live message
+  pagination remains a recorded coverage gate, not inferred from fixtures.
 - [x] Support current scope/date filtering semantics. Label client-side filtering
   separately from upstream bounds; do not approximate `last_login` with a date
   window or lose events because authentication changed its reference point.
@@ -383,29 +516,33 @@ as completed parser validation.
 
 Dependencies: P2-P4. Requirements: R07-R09, R12.
 
-- [ ] Specify an awaitable checkpoint callback for the read-once schedule
-  operation. MCP supplies persistence; the library must await durable handoff of
-  the complete validated batch before optional enrichment, filtering, or normal
-  cancellation propagation can discard the result. Define failure ownership
-  and a bounded cancellation-deferral interval explicitly.
-- [ ] Document the remaining loss window before receipt/parsing/checkpoint;
+- [x] Specify an awaitable checkpoint callback for the read-once schedule
+  operation. The 0.4.4 design strengthens the boundary: consumer-owned durable
+  handoff of the complete encoded response before decoding/parsing, then a typed
+  complete batch. No filtering/enrichment before handoff. Define unknown
+  acknowledgement, joined ownership and a finite cooperative checkpoint interval.
+- [x] Document the remaining loss window before complete receipt/checkpoint;
   no exactly-once promise. Drain already persisted events before another live
   consume. Preserve overflow batches for later bounded processing.
-- [ ] Keep notification category selection, first-run semantics, deduplication,
-  and persisted seen IDs in MCP. Use library records through explicit adapters
+- [ ] Move reusable first-run semantics, deduplication and persisted seen IDs to
+  the optional API workflow. MCP selects requested categories and uses adapters
   instead of upstream `NotificationIds`, `RecentEvent`, and private diff parsers.
 - [ ] Preserve canonical schedule identities, hashes, date/text normalization,
   pending-spool replay, and unrequested-category state. New gateway IDs need an
   explicit migration map/versioning strategy; do not silently reset history.
-- [ ] Exercise read-once receipt, checkpoint failure, cancellation, failed seen
-  saves, restart/replay, and competing consumers with a local fixture server
-  plus real temporary filesystem state. Never test by live double-fetching.
+- [x] Library proofs: read-once receipt, checkpoint failure/cancellation, local
+  restart decoding and same-login concurrency rejection on original loopback
+  fixtures plus a real temporary filesystem sink. Never live double-fetch.
+- [ ] Consumer proofs: failed seen saves, bounded spool draining, competing
+  processes and state-format compatibility. The new raw envelope is not a
+  drop-in replacement for the existing persisted event spool.
 - [ ] Implement recipient discovery and a typed send result. Validate unique
   recipient references and payload bounds before I/O. Do not expose arbitrary
   authenticated URLs as a public escape hatch.
 - [ ] Preserve at-most-one send attempt and distinguish rejection from unknown
   delivery after timeout/cancellation/unrecognized response. Do not retry or
-  switch backend after possible acceptance. Keep preview/token handling in MCP.
+  switch backend after possible acceptance. Optional API storage owns token expiry,
+  binding and claims; MCP presents human approval when its backend is migrated.
 - [ ] Verify confirmation expiration, payload binding, token reuse rejection,
   and uncertain-delivery MCP error mapping with the new library installed.
 
@@ -417,8 +554,8 @@ live writes or read-once calls are necessary for routine CI verification.
 Dependencies: each completed slice; full run before P8.
 
 - [ ] Maintain a requirement-to-proof map for R01-R17. Library tests own transport,
-  parsing, and budgets; MCP tests own wire serialization, state transactions,
-  confirmation, and publication. Rework old private-internal mocks only when
+  parsing, budgets and optional persistence transactions; MCP tests own wire
+  serialization, consent presentation and adapter compatibility. Rework old private-internal mocks only when
   stronger public-boundary proof replaces their actual invariant.
 - [ ] Add representative fixture-server workloads: empty/small/full bounded
   mailboxes, changing pages, many unique lessons, warm/cold caches, slow bodies,

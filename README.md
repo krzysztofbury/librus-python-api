@@ -8,12 +8,12 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.3.0`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.4.10`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
 
-| Family | Calls | Live status (0.3.0) |
+| Family | Calls | Latest live evidence |
 | --- | --- | --- |
 | Identity, profile | `identity`, `student_information` | Verified on two student contexts |
 | Grades | `final_grades`, `grades`, `grades_window` | Verified on two student contexts |
@@ -23,14 +23,46 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Agenda | `agenda`, `agenda_detail` | Verified on two contexts, two months each |
 | Homework | `homework`, `homework_detail` | Verified: populated and empty |
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
+| Message lists | `messages_page`, `messages` | 0.4.5: one populated two-page received mailbox and page-zero sent rows; independent byte/browser comparison |
+| Recipient discovery | `recipient_groups`, `recipient_group_choices`, `recipients` | 0.4.5: four login contexts, five named types and an anonymous target; empty group options observed, populated selection remains offline-qualified |
+| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | One prior read-only council layout observed and browser-checked; 0.4.7 installed implementation is offline-qualified only |
+| Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
+| Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
+| Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
+| Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
-"Verified" means a live page from the current build was parsed and, for school
-reads, timetable and profile, compared with Chromium's independent rendering of
-the same bytes. It is not a claim about every school's layout. Details and
+"Verified" refers to the release-specific observations in the verification log,
+not a claim that every family was called live again in 0.4.5. School reads,
+timetable, profile, messages and recipients were compared with Chromium's independent
+rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Messages, attachments, notifications and sending belong to `0.4.0`. Behaviour
-notes stay unsupported until a populated page has been observed
+Notification primitives do not own seen state or persistence. Sending is implemented
+and offline-qualified only, through `prepare_send` and a single-use `SendAttempt`.
+No live message has been sent; form/acknowledgement compatibility remains pending.
+The separate modern backend uses `prepare_modern_send`, backend-specific references
+and an isolated cookie jar. Modern HTTP success remains UNKNOWN until a definitive
+positive acknowledgement is established. No automatic fallback or settings changes.
+See [contracts/modern-messages.md](contracts/modern-messages.md).
+See [contracts/sending.md](contracts/sending.md). Message-list live
+gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
+
+Explicit optional `librus_python_api.persistence.PersistenceStore` supplies
+durable send confirmation binding, atomic single-use claims and conservative
+restart recovery, with no core storage dependency or automatic retry. Applications
+select a private directory and obtain human approval. Optional `NotificationStore`
+and `NotificationWorkflow` add durable raw checkpoints and explicitly acknowledged
+at-least-once notification delivery. Core clients still require no storage; no
+MCP code or production state is migrated here.
+See [contracts/persistence.md](contracts/persistence.md) and [API.md](API.md).
+Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
+Content requires explicit potential mark-read consent; see
+[contracts/message-content.md](contracts/message-content.md) for its qualification gaps.
+Stream lifecycle, byte budgets and destination restrictions are specified in
+[contracts/attachments.md](contracts/attachments.md).
+Read-once checkpoint ownership and its remaining loss windows are specified in
+[contracts/notifications.md](contracts/notifications.md); routine live checks never consume events.
+Behaviour notes stay unsupported until a populated page has been observed
 ([decision](contracts/behaviour-notes.md)).
 
 ## Example
@@ -68,7 +100,8 @@ See [API.md](API.md) for every call, its result types and its limits.
 - **No silent partial data.** Unrecognized layouts raise typed errors instead
   of returning empty or partial results. A view disabled by the school is
   `ViewDisabledError`, not an empty list.
-- **No unsafe replays.** View-selection POSTs are never replayed. Safe reads
+- **No unsafe replays.** View-selection, content opens and sends are never replayed.
+  Hidden persistent-connection retries are disabled. Safe reads
   recover a proven session expiry with at most one new login. Credentials are
   never resubmitted by a retry policy.
 - **Isolation.** Each login has its own cookies, session, cache and cooldowns.

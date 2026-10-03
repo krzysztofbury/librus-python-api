@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.3.0
+  version: 0.4.10
   license:
     name: MIT
   description: |
@@ -16,6 +16,266 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /wiadomosci3:
+    get:
+      operationId: modern_launch
+      summary: Begin an explicit modern messaging authentication handoff
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Separately approved read-only discovery observed an exact modern MultiDomainLogon redirect. No auto-follow or send. See contracts/modern-messages.md.
+      responses:
+        '302': {$ref: '#/components/responses/Redirect'}
+        default: {$ref: '#/components/responses/Failure'}
+  /pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
+    get:
+      operationId: modern_handoff
+      summary: One exact account-verified modern login handoff, with an isolated cookie jar
+      security: []
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: authentication
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One explicit handoff set the modern session and redirected to /nowy; secret token URLs were deleted. Login must bind to the current credential context; no arbitrary redirects. See contracts/modern-messages.md.
+      parameters:
+        - {in: path, name: token, required: true, schema: {type: string, pattern: '^[A-Za-z0-9]{32,256}$'}}
+        - {in: path, name: login, required: true, schema: {type: string, minLength: 1, maxLength: 512}, description: Unpadded UTF-8 Base64 of the exact configured login}
+        - {in: path, name: target, required: true, schema: {type: string, enum: [L25vd3k]}}
+        - {in: path, name: source, required: true, schema: {type: string, enum: [c3luZXJnaWE]}}
+      responses:
+        '302': {$ref: '#/components/responses/Redirect'}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/me:
+    get:
+      operationId: modern_identity
+      security: [{ModernSessionCookies: []}]
+      summary: Bind modern account identity to the independently verified native owner
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. No universal role/layout coverage. See contracts/modern-messages.md.
+      responses:
+        '200': {description: Modern account metadata, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/types:
+    get:
+      operationId: modern_recipient_types
+      security: [{ModernSessionCookies: []}]
+      summary: Bounded modern type metadata, with unsupported branches explicit
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One populated type list observed; parentsCouncil discovery is enabled, other branch lookups remain unsupported. See contracts/modern-messages.md.
+      parameters:
+        - {in: query, name: includeClass, required: true, schema: {type: string, enum: ['true']}}
+      responses:
+        '200': {description: Typed modern directory metadata, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/groups/students-and-attendants:
+    get:
+      operationId: modern_recipients
+      security: [{ModernSessionCookies: []}]
+      summary: One bounded parent-council branch preserving class, account and user IDs
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: One populated council/class layout independently checked with Chromium; no virtual classes, arbitrary receiverType selection or recursive lookup. See contracts/modern-messages.md.
+      parameters:
+        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [parentsCouncil]}}
+      responses:
+        '200':
+          description: Class-qualified nested recipient leaves
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [classes]
+                properties:
+                  classes:
+                    type: array
+                    maxItems: 128
+                    items:
+                      type: object
+                      required: [label, receivers]
+                      additionalProperties: false
+                      properties:
+                        label: {type: string, minLength: 1, maxLength: 1024}
+                        receivers:
+                          type: array
+                          minItems: 1
+                          maxItems: 1
+                          items:
+                            type: array
+                            maxItems: 2048
+                            items:
+                              type: object
+                              required: [accountId, userId, name]
+                              additionalProperties: false
+                              properties:
+                                accountId: {type: string, pattern: '^[0-9]{1,64}$'}
+                                userId: {type: string, pattern: '^[0-9]{1,64}$'}
+                                name: {type: string, minLength: 1, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/messages:
+    post:
+      operationId: modern_send_message
+      security: [{ModernSessionCookies: []}]
+      summary: Single-attempt ordinary modern JSON message, never replayed or redirected
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: send_message
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Independently inspected public app assets establish UTF-8 Base64 topic/content, schoolReceivers accountId, null storageId and normal category; original offline wire proof only. No live send or positive acknowledgement observed. See contracts/modern-messages.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [receivers, topic, content, storageId, category]
+              properties:
+                receivers:
+                  type: object
+                  additionalProperties: false
+                  required: [schoolReceivers]
+                  properties:
+                    schoolReceivers:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      uniqueItems: true
+                      items: {type: object, additionalProperties: false, required: [accountId], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}}}
+                topic: {type: string, format: byte, description: 'Base64 of validated plain UTF-8 text, not HTML or inferred XML'}
+                content: {type: string, format: byte, description: Base64 of HTML-escaped plain UTF-8 text with preserved line endings}
+                storageId: {type: string, nullable: true, enum: [null]}
+                category: {type: string, enum: [normal]}
+      responses:
+        '200': {description: No independently established positive acknowledgement; HTTP success alone remains UNKNOWN}
+        '400': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
+        '422': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
+        default: {description: 'UNKNOWN after potential dispatch, with no retry, fallback, redirects or post-send reauthentication'}
+  /terminarz/dodane_od_ostatniego_logowania:
+    get:
+      operationId: consume_schedule_events
+      tags: [Notifications]
+      summary: Consume once with mandatory durable encoded-response handoff before decoding
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: consume_events
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed read-once route and three-string event concept; conservative original four-column fixtures, not observed native live behavior. Never routine live verification.
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /wiadomosci/pobierz_zalacznik/{message_id}/{file_id}:
+    get:
+      operationId: attachment_resolve
+      tags: [Attachments]
+      summary: Resolve one account-bound attachment without replay or following redirects
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Source-informed consumer two-hop legacy flow with original bounded HTTP proof. Installed 0.4.3 wheel observed one received-message 302 resolution; absence of read effects remains unqualified.
+      parameters:
+        - in: path
+          name: message_id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+        - in: path
+          name: file_id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '302':
+          $ref: '#/components/responses/Redirect'
+        default:
+          $ref: '#/components/responses/Failure'
+  /GetFile/{key}/get:
+    get:
+      operationId: attachment_download
+      tags: [Attachments]
+      summary: Credential-free bounded stream from the exact signed sandbox route
+      security: []
+      x-origin: download
+      x-upstream-origin: https://sandbox.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Separate no-cookie session and strict destination grammar exercised on original loopback fixtures. Installed 0.4.3 wheel streamed one 930056-byte received attachment with clean EOF and no declared length; broader signed key alphabet remains source-informed.
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 512, pattern: '^(?!\.{1,2}$)[A-Za-z0-9_.~-]+$'}
+      responses:
+        '200':
+          description: Uninterpreted file bytes, identity encoding, no redirects; streamed under byte/deadline/request limits
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        default:
+          $ref: '#/components/responses/Failure'
+  /wiadomosci/1/5/{id}:
+    get:
+      operationId: message_content_received
+      tags: [Messages]
+      summary: Open one received message with explicit potential mark-read consent
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: mark_read
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized already-read received content and 0.4.3 populated attachment metadata independently checked. Original HTTP proof prohibits replay; richer received layouts remain pending.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
+  /wiadomosci/1/6/{id}:
+    get:
+      operationId: message_content_sent
+      tags: [Messages]
+      summary: Open one sent message without automatic replay
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Two 0.4.5 sent opens on independent login contexts observed subject/date metadata without an Adresat field and separate individual read receipts. Original fixtures and Chromium check these exact bytes; richer and sent-attachment layouts remain pending.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string, pattern: '^[0-9]{1,64}$'}
+      responses:
+        '200':
+          $ref: '#/components/responses/Html'
+        default:
+          $ref: '#/components/responses/Failure'
   /loguj/portalRodzina:
     get:
       operationId: login_portal
@@ -211,16 +471,16 @@ paths:
           $ref: '#/components/responses/Failure'
   /uczen/index:
     get:
-      operationId: login_student_landing
-      tags: [Authentication]
-      summary: Optional student landing if explicitly returned in the redirect chain
-      description: Never bootstrap this route unconditionally or require it for parent access.
+      operationId: notification_counts
+      tags: [Authentication, Notifications]
+      summary: Student landing and explicit token-scoped menu counter read
+      description: Optional authentication landing if returned in the redirect chain, also explicitly readable for notification counters. Never required for parent access. Counts are token-scoped, not a fresh poll; conservatively no replay.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Source-informed student route; not a parent-account capability assumption. Offline verification only.
+      x-evidence-note: Reuses the student landing route for independently authored bounded counter parsing. Installed 0.4.4 wheel observed five shown categories, independently checked against Chromium and same-byte apix. Broader role/layout/token freshness remains unqualified.
       responses:
         '200':
           $ref: '#/components/responses/Html'
@@ -919,8 +1179,177 @@ paths:
           $ref: '#/components/responses/Html'
         default:
           $ref: '#/components/responses/Failure'
+  /wiadomosci/1/5:
+    post:
+      operationId: messages_received
+      summary: Select one received-message list page without opening a message
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized populated received page zero; fixed pagination form, original fixtures and identical-byte Chromium/apix replay. Live multi-page behavior remains unqualified. See contracts/messages.md.
+      description: |
+        One zero-based list page, no separate page-count GET or content fan-out.
+        Changes only the selected mailbox page. Does not mark messages read,
+        delete, send, fetch attachments or consume notification events. Shared
+        request/body/deadline and scheduler limits apply. No POST replay.
+        Unknown/disabled/denied pages never silently become an empty list.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [numer_strony105, porcjowanie_pojemnik105]
+              properties:
+                numer_strony105: {type: string, pattern: '^(0|[1-9][0-9]{0,2})$'}
+                porcjowanie_pojemnik105: {type: string, enum: ['105']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /wiadomosci/1/6:
+    post:
+      operationId: messages_sent
+      x-request-variants:
+        - operationId: send_message
+          summary: Single-attempt plain-text send, never automatically replayed
+          x-origin: synergia
+          x-upstream-origin: https://synergia.librus.pl
+          x-side-effect: send_message
+          x-retry-safe: false
+          x-evidence: source_informed
+          x-evidence-note: Source-informed legacy form only, with independently authored loopback fixtures; no live send, acknowledgement or payload limits observed. See contracts/sending.md.
+          security: [{SessionCookie: []}]
+          requestBody:
+            required: true
+            content:
+              application/x-www-form-urlencoded:
+                schema:
+                  type: object
+                  additionalProperties: false
+                  required: [filtrUzytkownikow, idPojemnika, DoKogo, Rodzaj, temat, tresc, poprzednia, fileStorageIdentifier, wyslij]
+                  properties:
+                    filtrUzytkownikow: {type: string, enum: ['0']}
+                    idPojemnika: {type: string, enum: ['']}
+                    DoKogo:
+                      type: array
+                      minItems: 1
+                      maxItems: 50
+                      uniqueItems: true
+                      items: {type: string, pattern: '^[0-9]{1,64}$'}
+                    Rodzaj: {type: string, enum: ['0']}
+                    temat: {type: string, minLength: 1, maxLength: 200}
+                    tresc: {type: string, minLength: 1, maxLength: 15000}
+                    poprzednia: {type: string, enum: ['5']}
+                    fileStorageIdentifier: {type: string, enum: ['']}
+                    wyslij: {type: string, enum: ['Wyślij']}
+                encoding:
+                  DoKogo: {style: form, explode: true}
+          responses:
+            '200':
+              description: HTML with explicitly classified acknowledgement; unknown layout is not acceptance
+              content:
+                text/html: {schema: {type: string}}
+            default:
+              description: Unknown delivery after potential dispatch; never retry, follow or infer rejection from status alone
+      summary: Select one sent-message list page with pagination fields only
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Authorized explicit empty sent page zero and its seven-column header; original populated fixtures are source-informed, not live qualification. See contracts/messages.md.
+      description: |
+        The upstream URL also serves message sending, but this operation accepts
+        exactly the two pagination fields. Send/recipient/body/subject/upload
+        fields and credentials are rejected by the list operation before dispatch.
+        Sending is a distinct explicitly declared request variant with a dedicated
+        single-use transport boundary. One zero-based sent-list page shares all global budgets and is
+        never replayed. No content opens, mark-read or attachment access occurs.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [numer_strony105, porcjowanie_pojemnik105]
+              properties:
+                numer_strony105: {type: string, pattern: '^(0|[1-9][0-9]{0,2})$'}
+                porcjowanie_pojemnik105: {type: string, enum: ['105']}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /wiadomosci/2/6:
+    get:
+      operationId: recipient_groups
+      summary: Open recipient selection and discover available group types
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Eight named group selectors observed on four independent 0.4.5 login contexts and checked against Chromium/apix. The group root is not a direct recipient lookup; separate choice discovery is supported. See contracts/recipients.md.
+      description: |
+        Opens a compose/selection view, not a message. No sends, body retrieval,
+        mark-read or event consumption. Session selection is serialized and never
+        automatically replayed. Shared request/body/deadline limits apply.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /getRecipients:
+    post:
+      operationId: recipients
+      summary: Discover group choices or retrieve recipients for a typed selection
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: select_view
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: 0.4.5 observes five populated named types, one anonymous hidden target, one unavailable type and an empty group-option selector on four independent login contexts, checked against Chromium. Positive group IDs are source-informed with original offline wire proof, not observed live. No explicit empty-recipient success is invented.
+      description: |
+        Exactly five fixed selection fields with a named group-type token. This is
+        not a send operation and cannot carry subject/body, recipient selections,
+        credentials or uploads. No replay. Unknown layouts fail explicitly.
+        Positive numeric idGrupy is allowed only for grupa; zero discovers its
+        options. Other types remain zero. Virtual-class selection is not enabled.
+        Populated subgroup dispatch is source-informed and offline-qualified only.
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [typAdresata, poprzednia, tabZaznaczonych, czyWirtualneKlasy, idGrupy]
+              oneOf:
+                - properties:
+                    idGrupy: {type: string, enum: ['0']}
+                - properties:
+                    typAdresata: {type: string, enum: [grupa]}
+                    idGrupy: {type: string, pattern: '^[1-9][0-9]{0,63}$'}
+              properties:
+                typAdresata: {type: string, pattern: '^[a-z][a-z0-9_]{0,63}$'}
+                poprzednia: {type: string, enum: ['5']}
+                tabZaznaczonych: {type: string, enum: ['']}
+                czyWirtualneKlasy: {type: string, enum: ['false']}
+                idGrupy: {type: string, pattern: '^(0|[1-9][0-9]{0,63})$'}
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
 components:
   securitySchemes:
+    ModernSessionCookies:
+      type: apiKey
+      in: header
+      name: Cookie
+      description: Server-selected cookies established by the exact modern handoff; kept in a separate per-account modern jar, never copied from native authentication.
     SessionCookie:
       type: apiKey
       in: cookie

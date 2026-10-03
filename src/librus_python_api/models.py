@@ -30,6 +30,22 @@ type OperationName = Literal[
     "homework",
     "homework_detail",
     "completed_lessons",
+    "messages_received",
+    "messages_sent",
+    "message_content_received",
+    "message_content_sent",
+    "attachment_resolve",
+    "attachment_download",
+    "recipient_groups",
+    "recipients",
+    "notification_counts",
+    "consume_schedule_events",
+    "decode_schedule_events",
+    "send_message",
+    "modern_identity",
+    "modern_recipient_types",
+    "modern_recipients",
+    "modern_send_message",
 ]
 
 
@@ -73,6 +89,289 @@ class AttendanceView(StrEnum):
     ALL = "all"
     WEEK = "week"
     LAST_LOGIN = "last_login"
+
+
+class MessageFolder(StrEnum):
+    RECEIVED = "received"
+    SENT = "sent"
+
+
+class SendStatus(StrEnum):
+    NOT_DISPATCHED = "not_dispatched"
+    UNKNOWN = "unknown"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class MessagingBackend(StrEnum):
+    LEGACY = "legacy"
+    MODERN = "modern"
+
+
+@dataclass(frozen=True, slots=True)
+class SendSubmission:
+    recipients: tuple["RecipientReference", ...] = field(repr=False)
+    subject: str = field(repr=False)
+    body: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SendResult:
+    status: SendStatus
+    reason: ErrorKind | Literal["cancelled"] | None = None
+    identity: "Identity | None" = field(default=None, repr=False)
+    observation: "Observation | None" = field(default=None, repr=False)
+    backend: MessagingBackend = MessagingBackend.LEGACY
+
+
+class NotificationCategory(StrEnum):
+    GRADES = "grades"
+    ATTENDANCE = "attendance"
+    MESSAGES = "messages"
+    ANNOUNCEMENTS = "announcements"
+    AGENDA = "agenda"
+    HOMEWORK = "homework"
+
+
+@dataclass(frozen=True, slots=True)
+class MessageReference:
+    folder: MessageFolder
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageTimestamp:
+    """School wall time, not a guessed UTC instant or DST fold."""
+
+    local: datetime = field(repr=False)
+    raw: str = field(repr=False)
+    timezone: Literal["Europe/Warsaw"] = "Europe/Warsaw"
+
+
+@dataclass(frozen=True, slots=True)
+class MessageSummary:
+    reference: MessageReference = field(repr=False)
+    correspondent: str = field(repr=False)
+    subject: str = field(repr=False)
+    timestamp: MessageTimestamp = field(repr=False)
+    unread: bool | None
+    has_attachment: bool
+    recipient_read_status: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageAttachmentReference:
+    message: MessageReference = field(repr=False)
+    identifier: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageAttachment:
+    reference: MessageAttachmentReference = field(repr=False)
+    filename: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentHeaders:
+    content_type: str | None = field(repr=False)
+    content_length: int | None
+    content_disposition: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentMetadata:
+    identity: "Identity" = field(repr=False)
+    reference: MessageAttachmentReference = field(repr=False)
+    headers: AttachmentHeaders = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class MessageRecipientReceipt:
+    recipient: str = field(repr=False)
+    raw_status: str = field(repr=False)
+    read_timestamp: MessageTimestamp | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessageContentData:
+    reference: MessageReference = field(repr=False)
+    correspondent: str | None = field(repr=False)
+    subject: str = field(repr=False)
+    timestamp: MessageTimestamp = field(repr=False)
+    read_timestamp: MessageTimestamp | None = field(repr=False)
+    text: str = field(repr=False)
+    attachments: tuple[MessageAttachment, ...] = field(repr=False)
+    recipient_receipts: tuple[MessageRecipientReceipt, ...] = field(
+        default=(), repr=False
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class MessageContent:
+    identity: "Identity" = field(repr=False)
+    content: MessageContentData = field(repr=False)
+    may_mark_read: bool
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class MessagesCursor:
+    account: str = field(repr=False)
+    folder: MessageFolder
+    page: int
+    offset: int
+    page_count: int
+    fingerprint: str = field(repr=False)
+    seen_ids: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class MessagesPage:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    page: int
+    page_count: int
+    items: tuple[MessageSummary, ...] = field(repr=False)
+    fingerprint: str = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class Messages:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    items: tuple[MessageSummary, ...] = field(repr=False)
+    pages_fetched: int
+    duplicates_skipped: int
+    next_cursor: MessagesCursor | None = field(repr=False)
+    truncation_reason: Literal["item_limit", "page_limit"] | None
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+    selection_id: str = field(default="0", repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroup:
+    reference: RecipientGroupReference = field(repr=False)
+    label: str = field(repr=False)
+    available: bool
+    lookup_supported: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+    group_type: str = field(repr=False)
+    selection_id: str = field(default="0", repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class Recipient:
+    reference: RecipientReference = field(repr=False)
+    label: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupChoice:
+    reference: RecipientGroupReference = field(repr=False)
+    label: str = field(repr=False)
+    available: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroupChoices:
+    identity: "Identity" = field(repr=False)
+    group: RecipientGroupReference = field(repr=False)
+    items: tuple[RecipientGroupChoice, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class RecipientGroups:
+    identity: "Identity" = field(repr=False)
+    groups: tuple[RecipientGroup, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class Recipients:
+    identity: "Identity" = field(repr=False)
+    group: RecipientGroupReference = field(repr=False)
+    items: tuple[Recipient, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientTypeReference:
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientType:
+    reference: ModernRecipientTypeReference = field(repr=False)
+    label: str = field(repr=False)
+    lookup_supported: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientReference:
+    account_id: str = field(repr=False)
+    user_id: str = field(repr=False)
+    account: str = field(repr=False)
+    recipient_type: str = field(repr=False)
+    class_label: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipient:
+    reference: ModernRecipientReference = field(repr=False)
+    label: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernAccountData:
+    account_id: str = field(repr=False)
+    group_id: str
+    first_name: str = field(repr=False)
+    last_name: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernIdentity:
+    identity: "Identity" = field(repr=False)
+    account: ModernAccountData = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipientTypes:
+    identity: "Identity" = field(repr=False)
+    items: tuple[ModernRecipientType, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernRecipients:
+    identity: "Identity" = field(repr=False)
+    recipient_type: ModernRecipientTypeReference = field(repr=False)
+    items: tuple[ModernRecipient, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernSendSubmission:
+    recipients: tuple[ModernRecipientReference, ...] = field(repr=False)
+    subject: str = field(repr=False)
+    body: str = field(repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +469,60 @@ class Observation:
 class Identity:
     owner: Person
     student: Person
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class AccountContext:
+    """Stable configured-login provenance, not credentials or an authority token."""
+
+    alias: str = field(repr=False)
+    identifier: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationCount:
+    category: NotificationCategory
+    label: str = field(repr=False)
+    count: int
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationCounts:
+    identity: Identity = field(repr=False)
+    items: tuple[NotificationCount, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEventWire:
+    """HTTP payload bytes with transfer framing removed, before content decoding."""
+
+    body: bytes = field(repr=False)
+    content_type: str | None = field(repr=False)
+    content_codings: tuple[str, ...] = field(repr=False)
+    transfer_codings: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEventResponse:
+    version: int
+    identity: Identity = field(repr=False)
+    wire: ScheduleEventWire = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class RecentScheduleEvent:
+    date_added: str = field(repr=False)
+    type: str = field(repr=False)
+    data: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEvents:
+    identity: Identity = field(repr=False)
+    items: tuple[RecentScheduleEvent, ...] = field(repr=False)
     observation: Observation
 
 

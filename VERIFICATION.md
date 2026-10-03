@@ -3,6 +3,917 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.4.10 (2026-10-03) - PR #13 review hardening
+
+Final offline source and installed-artifact qualification:
+
+- Four independent agent reviewers covered transport/service/catalogue parity,
+  parsers and send acknowledgements against librus-apix 1.5.3 behaviour (read
+  only, nothing copied), durable storage, and test value plus capture-script
+  safety. No Critical finding. Fixed: post-consume checkpoint loss under another
+  context's write lock, post-dispatch outcome loss under contention, capture
+  transports able to send or consume, the legacy banner hiding send
+  acknowledgements, read-state cursor drift, archive cursor skipping, LIMIT after
+  a claim, fail-open aiohttp replay switch and missing concurrency/destination
+  tests. Nine lower-priority findings are tracked as TODO S10.
+- Every fix has a regression that failed before the change (listed in the
+  evidence file); real SQLite write locks are held from a second connection.
+- Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+  pass 1,253 portable tests (one performance test deselected). Ruff lint/format,
+  strict typing, repository hooks, history and worktree secret scans and the
+  locked dependency audit pass. Archives rebuild with identical hashes.
+- Route paths and form fields for lists, recipients and legacy sending match the
+  reference library; this repository is stricter on unknown notices, counters
+  and acknowledgement text. No browser or live trace was needed: no finding
+  depended on unobserved upstream behaviour.
+
+Qualified local archives are in `dist/0.4.10/`; sanitized hashes and results are
+in `release-evidence/0.4.10-review-qualification.json`. All HTTP traffic was
+loopback: zero live Librus requests, credentials, sends or read-once consumes.
+
+## 0.4.9 (2026-10-03) - Optional durable notifications
+
+Final offline source and installed-artifact qualification:
+
+- Explicit optional native `NotificationStore`/`NotificationWorkflow`, separate
+  private SQLite database, no core storage requirement and no MCP implementation
+  or production-state changes. Independently authored code and original fixtures.
+- Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+  pass 1,235 portable tests (one performance test deselected). Ruff lint/format,
+  strict typing, repository hooks, history secret scan and locked dependency audit
+  pass. Installed imports resolve inside each environment; version/MIT metadata,
+  license files, `py.typed` and dependency compatibility checks pass. Fifty new notification
+  cases exercise actual public-native loopback and real disposable SQLite.
+- Durable raw encoded bodies/metadata precede parsing; malformed markup, MIME,
+  gzip and coding stay retained. An uncertain pre-checkpoint marker blocks fresh
+  consume until explicit possible-loss acceptance. No upstream replay is inferred.
+- Staged delivery replays without HTTP until explicit acknowledgement atomically
+  commits seen IDs and cursor/cleanup. First-run, category selection and ordinary
+  category failures are exercised, including all six native categories. No count
+  menu, content-mark-read or hidden detail requests are made by the workflow.
+- Real competing processes refuse the second same-context consume. Process loss
+  during partial receipt, after checkpoint/staging and after acknowledgement
+  preserves marker/raw/delivery/committed state respectively. Restart drains local
+  bytes without another login or read-once request.
+- Real worker faults before/after checkpoint, staging and acknowledgement plus
+  repeated cancellation/shutdown join owned saves. Candidate seen-state overflow
+  preserves raw data and recovers with explicitly larger supported limits.
+- Representative load: four independent logins each deliver/acknowledge 1,024
+  distinct events under one exact 24-request budget. Four MiB encoded raw receipt
+  is retained at the accepted wire bound; shared checkpoint capacity refuses the
+  next consume. Byte/event slices, 1,024 duplicate rows and workflow saturation
+  remain bounded with no silent data eviction or owned active/queued requests.
+- Neutral archive round trips include pending delivery/progress. Invalid version,
+  exact context, bytes, count, old IDs and staged-event omission reject atomically.
+  The omission regression failed before comparing imported cursor coverage with
+  the retained envelope, then passes after the fix. Empty/seen-only context binding
+  is covered too. Private archives are neither encrypted nor authenticated.
+- A last-committed receipt retry initially failed when a newer batch was staged.
+  The regression now passes, leaving the newer delivery intact and unacknowledged.
+- Send store schema and qualified bytes remain unchanged across notification use;
+  all 44 existing send persistence cases pass after extracting shared private
+  SQLite ownership. Extra schema, raw corruption and lock symlinks fail closed.
+- Pair-programmer self-review: TigerStyle #2 bounded work, #4 paired validation,
+  #6 unsupported states and #12 joined failure handling. No independent agent
+  review is claimed. No new HTML/UI layout, route or parser contract changes;
+  existing independent same-byte/browser evidence retains its original scope.
+
+Qualified local archives in `dist/0.4.9/` total 593,555 bytes; sanitized hashes
+and results are in `release-evidence/0.4.9-notification-qualification.json`. Their
+documentation captures the source checkpoint; this final log supersedes its
+pending installed gate. Task-owned environments, databases, workers and scratch
+were cleaned. All new HTTP traffic was loopback: zero live Librus requests, credentials
+or sends. POSIX context locks do not coordinate global traffic across independent
+processes. Delivery is at-least-once, not exactly-once or historical catch-up.
+Modern authentication, broader coverage and live qualification remain in the 0.5
+TODO. MCP mapping/migration, credentialed CI, merge and publication remain gated.
+
+## 0.4.8 (2026-10-03) - Optional durable send workflows, offline qualification
+
+The superseding ownership decision puts reusable durable workflows in the API's
+explicit optional layer. MCP configuration, human approval, tool schemas and wire
+mapping stay in its separate repository; adapter implementation happens when
+migrating that repository from `librus-apix`. No MCP code/default backend or
+production state is changed by this slice. Earlier consumer-owned roadmap text
+below is historical and superseded by [contracts/persistence.md](contracts/persistence.md).
+
+- Independently authored SQLite schema, storage implementation and original
+  fixtures; no GPL consumer helpers or upstream material transferred.
+- Source and installed wheel/sdist on Python 3.13.15/3.14.7: each 1,185 passed,
+  one opt-in performance case deselected. Ruff lint/format, strict typing,
+  repository hooks and locked dependency audit pass. Installed imports resolve
+  inside their own environments; version/MIT metadata, license files, dependency
+  compatibility and `py.typed` checks pass.
+- Forty-four persistence cases use real disposable SQLite and public native
+  attempts. Legacy acceptance/rejection/unknown/pre-dispatch outcomes and modern
+  unknown/source-informed denial run through actual loopback HTTP, never live Librus.
+- Real competing processes prove one dispatch with the same token and with
+  different tokens for identical input. Killing the sender before credentials/send
+  or after send receipt leaves a durable claim; history reports UNKNOWN and blocks new-token
+  and duplicate-preview bypass. This is not exactly-once upstream delivery.
+- Sixteen independent synthetic logins execute 64 full 50-recipient/200-subject/
+  15,000-body messages at the maximum 64-worker/send admission, under one exact
+  144-request service budget. All outcomes persist; no owned requests remain.
+  A 4,096-record uncertain history is recoverable and refuses overflow without
+  eviction. Real SQLite lock contention and worker saturation fail before HTTP.
+- Repeated cancellation at claim, active send, final save and queued final save
+  joins owned work; shutdown joins workers. Final-save failure retains a claimed
+  UNKNOWN record even when the process-local result was ACCEPTED. Recovery works
+  without plaintext tokens and never implicitly reconciles uncertainty.
+- Pair-programmer self-review: TigerStyle #2 bounded work, #4 paired validation,
+  #6 unsupported states and #12 complete failure handling. Original regressions
+  failed before fixing extra-trigger acceptance, false-valued invalid limits,
+  exact-deadline expiry and cancellation discarding a queued acknowledged save.
+  They pass after the fixes. No independent agent review is claimed.
+- Corrupt/unknown/altered schemas, symlinks, unsafe permissions and oversized
+  files fail closed without resetting stored bytes. Credentials, message content,
+  recipient labels and token plaintext are absent from the actual database.
+
+No HTML/UI behavior or upstream wire layout changes in this slice; earlier same-
+byte browser semantics remain scoped to their original contracts. Qualified local
+archives in `dist/0.4.8/` total 554,187 bytes; sanitized hashes and results are in
+`release-evidence/0.4.8-persistence-qualification.json`. Their documentation captures
+the pre-artifact source checkpoint; this final log supersedes its pending gate.
+Task-owned environments, databases, workers and other scratch are removed.
+Notification storage/replay is the next separate slice;
+manual reconciliation, MCP migration, live qualification, merge and publication
+remain outside this delivery. No live requests, credential submissions or sends.
+
+## 0.4.7 (2026-10-03) - Explicit modern messaging, offline qualification
+
+### Scope and provenance
+
+The approved follow-up adds modern identity/type/council discovery and an explicit
+modern single-use JSON send API to PR #13. It does not alter settings or dispatch
+the separately planned live message. Three separately approved unauthenticated
+public-asset GETs completed with zero credential submissions, account data,
+script execution or sends. The scope is closed with no automatic rerun. Prior
+read-only modern identity/council observations remain evidence for one layout,
+not live qualification of the new installed implementation.
+
+The external app was inspected only as a behavior reference; no code, bundles,
+private captures or external fixtures are incorporated. Original fixtures use
+invented accounts and recipients on two loopback origins. No applicable modern
+apix operation is used as an oracle or fallback. Ordinary CI remains offline.
+
+### Qualification and review
+
+- Source, installed wheel and installed sdist each pass 1,141 portable tests on
+  Python 3.13.15 and 3.14.7; the one opt-in performance case remains deselected.
+  Ruff lint/format, strict typing, hooks, secret scans, locked dependency audit
+  and artifact metadata/license/py.typed checks pass.
+- OpenAPI parity covers 42 operation IDs on 41 distinct method/path pairs.
+  Six modern routes are centrally catalogued. Authentication redirects and
+  send requests cannot be entered through the generic request interface.
+- Eighty original modern cases exercise actual public prepare/execute and read
+  paths across separate native/modern fixture origins. Cookie assertions exclude
+  native tokens from modern requests and modern cookies from native requests;
+  four independent logins sharing one synthetic student retain different owners.
+- The exact JSON uses recipient account IDs, not user IDs, UTF-8 Base64 text,
+  null attachment storage and normal category. Backend-specific references reject
+  legacy/cross-account use before I/O. Single-use frozen outcomes retain the
+  backend, native identity and observation after potential dispatch.
+- Representative load includes four full 50-recipient/200-subject/15,000-body
+  submissions under one exact 36-request budget and a 2,048-leaf directory read.
+  The next leaf fails the bounded directory policy. Same-account distinct attempts
+  share authentication but not send results; saturated shared admission dispatches
+  no second send and leaves no owned active/queued work.
+- Cancellation, deadline and shutdown are exercised during native launch,
+  modern handoff, identity verification and send response waiting. Pre-dispatch
+  failures retain NOT_DISPATCHED; potential dispatch retains UNKNOWN. Expiry,
+  disconnect, partial EOF, redirects, wrong MIME and bounded-response failures
+  never replay, switch backend or claim acceptance. Sent-list caches invalidate
+  at potential dispatch while unrelated received summaries remain cached.
+- Pair-programmer checklist self-review covered TigerStyle #2 bounded work,
+  #6 unsupported states, #12 failure handling and #13 explicit transport defaults.
+  It identified raw plain-text markup being interpreted as HTML by the modern
+  reader. The exact-wire regression failed before HTML escaping, then passed
+  after escaping body literals before UTF-8 Base64 encoding. No independent
+  subagent review or universal upstream compatibility is claimed.
+- `scripts/crosscheck_modern_messages.py` independently renders actual original
+  loopback POST bytes in real offline Chromium. All three bodies, including
+  Unicode, literal script/tag/entity text and CR/LF/CRLF, match plain-text intent.
+  Networking and service workers are blocked; no external app code is executed.
+  This is a source-informed reader-semantics check, not a full modern-app replay
+  or proof of real server transformation. Prior captured-app directory replay
+  remains qualified only as described in the modern contract.
+
+### Retained artifacts and remaining gates
+
+Qualified local archives are in `dist/0.4.7/`; sanitized hashes and results are
+in `release-evidence/0.4.7*`. Task-owned assets, environments and logs are removed.
+The private live plan remains owner-only and not authorized to send. Cumulative
+approved discovery/asset scopes used 54 HTTP requests and four credential
+submissions, with zero live sends; the new increment used only the three public
+GETs. Unused older budgets do not authorize any further calls.
+
+Modern HTTP success is UNKNOWN until a definitive positive acknowledgement is
+independently established. Explicit validation denial envelopes are source-
+informed only, not live-qualified. Installed live handoff/discovery, broader
+roles/type/class layouts and the exact sole-recipient send still require fresh
+bounded authorization. Modern mailbox content, attachments and reconciliation
+remain unsupported. Consumer migration, credentialed CI, merge and publication
+were not performed.
+
+### Later expanded-0.4 installed verification and narrow diagnosis
+
+The owner expanded the 0.4 delivery to include consumer-owned send/notification
+persistence and ordered completion gates. Full consumer backend migration, live
+sending, event consumption, merge and publication remain separately authorized.
+
+Two new separately approved scopes each allowed one credential submission and
+16 requests maximum. The installed qualified 0.4.7 wheel used ten requests in
+each scope. The first verified native sender/student identity, then rejected the
+modern launch redirect before a modern handoff or directory request. A separate
+launch-only diagnosis verified native identity again and confirmed HTTP 302,
+the expected HTTPS modern host, no query/fragment, and a ten-field path whose
+fixed layout does not match the implemented contract. No token URL was retained.
+The available redacted facts do not establish the replacement path literals;
+guessing a route or loosening the allowlist is not justified.
+
+Both scopes are closed with no rerun. There were zero modern handoffs, message
+preparations/sends, content opens, downloads, setting changes or read-once calls.
+S1 is blocked, not completed: the installed modern handoff/directory path is
+still live-unqualified. Native authentication used nine requests in these
+contexts, unlike the shorter synthetic fixture handshake. The strict boundary
+stopped safely but exposed a real compatibility gap requiring independently
+established redirect requirements and an original regression before a fix.
+
+Cumulative approved discovery/asset/verification scopes now total 74 HTTP
+requests and six credential submissions, with zero sends. Only sanitized facts
+are retained in `release-evidence/0.4.7-installed-modern-qualification.json`.
+Task-owned private identity captures and diagnostic runners are removed after
+inspection; older qualified archives are unchanged.
+
+## 0.4.6 (2026-10-03) - Single-use sending, offline only
+
+### Design, scope and evidence boundary
+
+Owner-approved single-use attempts freeze validated payloads locally and retain
+inspectable outcomes across cancellation. This is the final library increment
+in the original PR #13 sequence, later extended by 0.4.7. Implementation approval
+did not authorize live discovery or sending:
+zero Librus requests and zero live send dispatches were made in this increment.
+The privately recorded one-recipient/one-message/one-dispatch qualification plan
+still requires exact sender/recipient/payload verification and fresh bounded
+approval. No group, extra, substitute or fallback recipient is allowed.
+
+The legacy send form and acknowledgement placement are source-informed, not
+independently observed live. Apix 1.5.3 remains a business reference only; no code
+or fixtures were copied. Public fixtures contain invented messages and IDs.
+Library acceptance does not prove delivery/read state, and no upstream
+idempotency or durable-outbox guarantee is claimed.
+
+### Offline qualification and review
+
+- Source, final installed wheel and final installed sdist each pass 1,061 tests
+  on Python 3.13.15 and 3.14.7; one opt-in performance case is deselected. Lint,
+  formatting, strict typing, hooks, worktree/history secret scans and locked
+  dependency audit pass. Built metadata, MIT license and py.typed are checked.
+- Route parity covers 36 explicit operation IDs on 35 distinct method/path
+  pairs. Sending is an explicit, independently validated OpenAPI request variant
+  on the sent-list URL, not an implicit catalogue alias. Missing/duplicate
+  variants, policy drift and invalid variant schemas fail validation. Generic
+  request cannot enter the send variant; pagination still permits only its own
+  exact two fields. No new arbitrary authenticated URL or form interface.
+- The public preparation/execute path proves exact repeated DoKogo fields and
+  fixed form values, preserved Unicode/line endings/order, immutable payloads,
+  field/count/control validation and a whole encoded-form byte boundary. Limits
+  are library policy, not observed upstream maxima. Distinct attempts do not
+  coalesce or reuse a send result; repeated/concurrent execution of the same
+  attempt cannot dispatch again.
+- Real loopback boundaries cover authentication, account-lock waiting, shared
+  scheduler waiting and HTTP dispatch. Cancellation, timeout and service shutdown
+  before dispatch retain NOT_DISPATCHED; after dispatch they retain UNKNOWN.
+  Joined completion prevents orphaned work, and terminal ACCEPTED/REJECTED
+  snapshots survive cancellation at worker completion. Closed service, invalid
+  budgets, exhausted auth/request budgets, denied credentials and saturated
+  operation/queue admission never falsely mark dispatch.
+- Disconnects before acknowledgement, partial response EOF, redirects, HTTP
+  errors, wrong MIME types, encoded response limits, parser-input limits and
+  response budgets never produce success or a retry. Session expiry invalidates
+  authentication without resubmitting credentials or sending again. Unknown and
+  contradictory markers remain uncertain; exact negative wording is not matched
+  as a positive substring. No sent-folder similarity heuristic is implemented.
+- Cache proofs invalidate sent-page and sent-batch results at potential dispatch,
+  including an unknown acknowledgement, without needlessly clearing received
+  summaries. Custom transport failures keep dispatch state and redact private
+  exception text/causes and diagnostics. Custom transports must uphold the
+  library-owned dispatch callback boundary; their actual network actions cannot
+  be independently inferred by the service.
+- Four isolated accounts representing the same synthetic student each submit a
+  maximum 50-recipient, 200-character subject, 15,000-character body under one
+  exact 24-request shared budget, with no account/session merging. These are
+  loopback fixtures, not permission to contact any additional live recipient.
+- Pair-programmer checklist self-review checked TigerStyle #2 bounded work,
+  #6 unsupported/negative space, #12 full failure handling and #13 explicit
+  transport defaults. It found that acknowledgement markup quoted inside a
+  message body could be mistaken for acceptance. An original regression failed
+  before the parser rejected message-content containers, then passed after the
+  correction. No independent subagent approval is claimed.
+- An optional inert apix comparison and real Chromium render use identical bytes
+  from three original acknowledgement fixtures, with scripts/networking disabled.
+  Native classifies accepted/rejected/unknown as designed; apix returns false for
+  all three, including the positive marker. This is a classified semantic
+  difference, not a fallback or live qualification. All final artifact suites
+  exercise actual installed public API loopback writes and their fault paths.
+
+### Retained artifacts and remaining gates
+
+Only sanitized `release-evidence/0.4.6*` and qualified local wheel/sdist archives
+in `dist/0.4.6/` are retained. Task-owned build/qualification environments and
+logs are deleted. No private live captures were created, and no message was sent.
+
+Live form compatibility, exact acknowledgement wording/placement and the
+single-recipient manual qualification remain pending. A missing/unknown success
+marker must not be broadened by guessing. Sender identity/recipient resolution
+and a fresh live budget remain required; the prior 0.4.5 allowance is exhausted.
+Consumer preview/confirmation, persistent attempts, crash recovery and manual
+reconciliation remain consumer-owned and separately authorized. MCP migration,
+credentialed CI, PR merge and PyPI publication were not performed.
+
+### Later recipient-only verification (2026-10-03)
+
+After implementation, the owner separately approved two bounded verification
+contexts on one selected login, with per-context ceilings of 32 and 16 requests
+and one credential submission each. The installed qualified 0.4.6 wheel used
+10 and 11 requests respectively. Both verified the same sender identity.
+No send attempt was prepared or executed, and no mailbox content, downloads,
+settings changes, deletes or read-once requests occurred. These were recipient
+discovery scopes, not live qualification of the send form or acknowledgement.
+
+The first context stopped because the privately specified directory caption
+did not exactly match either available council selector. Independent Chromium
+checked all eight displayed type labels on those same bytes. The owner then
+clarified the class-council selector and approved a fresh context. Its sole
+lookup returned the exact class-unavailable notice and no recipient labels,
+independently confirmed with Chromium scripts/networking disabled. The installed
+API returned UnsupportedCapabilityError, not an empty recipient success.
+
+The response does not establish that the represented student actually lacks a
+class; it establishes that this legacy selector/form did not resolve the intended
+class-qualified recipient. No numeric ID or class path was guessed. Unknown
+class/virtual-class selection remains a gap, and no alternative account, council
+or recipient was substituted. Unused requests authorize no rerun or widened scope.
+The two scopes total 21 requests and zero sends. Raw pages and temporary runner/
+wheel environments were deleted. Essential sender checks and the unresolved
+single-recipient plan remain in private owner-only state outside Git; only
+sanitized accounting is retained here and in the release-evidence sidecar.
+
+The owner then separately approved discovery on the corresponding student login,
+with a fresh 16-request ceiling, one credential submission and one class-council
+lookup. The installed wheel verified that independent account identity and used
+11 requests. The lookup again returned the explicit class-unavailable notice,
+with no recipient labels, independently checked in offline Chromium. This was
+an authorized discovery-context change, not a change of sender or permission to
+reuse another account's references. No recipient ID or class path was resolved,
+and no send attempt was prepared or executed. All three scopes total 32 requests
+and three credential submissions, with zero sends. The third task's private
+capture, runner and installed-wheel environment were deleted after recording
+the essential unresolved state privately. Further discovery needs fresh scope;
+no guessed form, alternate council or recipient is authorized by unused budget.
+
+### Later modern-composer investigation (2026-10-03)
+
+User-provided screenshots established that the intended directory is available
+in the modern messaging module, while the legacy selector remained unavailable.
+The owner separately approved one fresh original-sender context, capped at 32
+requests for authentication, composer assets and recipient discovery only, with
+no sending or settings changes. The isolated installed-wheel investigation used
+one credential submission and 19 requests. Native authentication/identity and
+all staged modern requests shared the native scheduler and one request/byte/
+deadline budget; reviewed redirects were separate explicit dispatches.
+
+The modern account identity matched the previously verified native owner. The
+modern types response and one council branch resolved the intended class and
+sole recipient uniquely, with distinct recipient account/user ID fields. The
+session was then closed. No modern ID was cast to a legacy recipient reference,
+and no send attempt was prepared or executed. All four separately approved
+contexts total 51 requests, four credential submissions and zero sends.
+
+Offline Chromium rendered the exact captured modern app bundles and directory
+response bytes, with all network requests intercepted and service workers
+disabled. Expanding only the receiver dialog and council/class branch rendered
+the unique intended recipient, with its leaf key matching the JSON account ID.
+No checkbox, draft/save or send action was selected. Ancillary subject captions,
+crossed-out metadata and signatures used explicit invented empty stubs; CSS was
+stubbed, unrelated reads and external/telemetry traffic were blocked. This is a
+bounded directory-semantics check, not whole-app or styling qualification.
+
+The newer system is a separate backend. The qualified 0.4.6 package still ships
+only legacy messaging; the private investigation adapter is not a supported
+public API. Modern JSON sending, payload encoding and acknowledgements remain
+source-informed/unimplemented and live-unqualified. Further implementation and
+the single-recipient live test need separate approvals. No legacy retirement
+date was established and no account settings were changed. Details and required
+next-increment gates are in [contracts/modern-messages.md](contracts/modern-messages.md).
+Token-bearing URLs, private pages/app captures, worker and temporary environment
+were deleted after the worker stopped and essential private plan state was saved.
+Only sanitized accounting is retained publicly.
+
+## 0.4.5 (2026-10-03) - Recipient and mailbox coverage
+
+### Contracts, proofs and review
+
+- Source and final installed wheel/sdist suites pass 981 tests on Python 3.13.15
+  and 3.14.7, with one opt-in performance case deselected. Ruff, formatting,
+  strict mypy, hooks, secret scans and dependency audit pass. OpenAPI parity stays
+  at 35 unique operations; choice discovery reuses the fixed recipient route.
+- New public `recipient_group_choices` models bounded nonzero `idGrupy` options.
+  Default-zero selection fields preserve existing constructor calls; positive
+  selections are allowed only for `grupa`, enter reference/result provenance and
+  cache keys, and retain the exact five-field transport form. Virtual classes
+  stay false. No arbitrary authenticated URL or extra send/body field is accepted.
+- Named recipients remain ID-bearing ordered records. The independently observed
+  unnamed hidden-target pair has `label=None`, not an invented name or empty
+  success. Class-unavailable and unknown notices remain explicit typed failures.
+  Empty group options are not empty recipient lists.
+- Sent content accepts the observed subject/date metadata with absent addressee,
+  preserving `correspondent=None`. Individual receipts keep displayed names,
+  raw status and civil dates without invented IDs or aggregate read time. Duplicate
+  labels/order survive. Unknown statuses, incorrect spans and mixed/duplicate
+  receipt tables fail the whole result. Received consent/retry semantics do not change.
+- Original regressions failed before fixes for sent metadata, unnamed targets,
+  unavailable class notices, inert page-level scripts and mixed receipt ambiguity.
+  Existing owner tests extend selector injection, exact wire forms, distinct
+  caches, malformed layouts, bounds and pre-I/O scope rejection without production
+  test hooks. Four maximum sent bodies with 256 receipts and 20 inert attachments
+  each complete under the same exact 24-request shared budget as received content.
+- Pair-programmer checklist self-review checked positive/negative layout space,
+  no silent partial output, joined existing lifecycle ownership, scoped cache keys,
+  and bounded fixed-form dispatch. Main-metadata parsing is separated from receipt
+  classification. No independent subagent approval is claimed for this increment.
+- Final artifact imports, MIT metadata/license, Python requirement and `py.typed`
+  are checked in four isolated environments. Each environment replays all 60
+  captured responses through public methods on loopback against private,
+  independently recorded Chromium expectations. Final library bytes match the
+  installed live-smoke wheel; documentation rebuilds do not require new logins.
+
+### Fresh bounded live scope and accounting
+
+Owner approval allowed four discovery logins on the four configured contexts,
+then one installed-artifact smoke login on a selected context. Each admitted
+one credential submission and at most 32 HTTP dispatches including authentication.
+Only identity, recipient composer/lookup forms, proven existing mailbox pages
+zero through two and at most one sent content selected from that login's own list
+were allowed. No received opens, downloads, settings changes, sends, deletes,
+read-once retrieval or consumer-state writes were authorized or made.
+
+The four discovery attempts used 20, 21, 20 and 22 requests. The installed 0.4.5
+wheel smoke used 22: one login, eight type lookups, two received pages, one sent
+page and one sent content open. All five logins are used; total dispatches are
+105, and unused per-attempt requests authorize no rerun or expanded operation.
+
+- All contexts show eight type tokens, five populated named recipient types with
+  62 displayed records, one unnamed target, one class-unavailable type and an
+  empty group-option selector. This does not establish populated group membership.
+- One discovery context shows 50 received rows on page zero and six on page one;
+  installed public bounded collection returns all 56. Other contexts have one
+  received page. Two show populated sent lists and permit the selected sent open.
+- Installed smoke returns 63 recipient records including the unnamed target,
+  one explicit unavailable type, zero group choices, 56 received and four sent
+  summaries, and one individual read receipt. Warm cached calls dispatch zero.
+- Chromium checks 47 discovery responses plus 13 installed-smoke responses with
+  page scripts/networking disabled: no semantic mismatches. All four final
+  artifact environments replay these independent expectations without live access.
+- Same-byte apix 1.5.3 agrees on all 12 mailbox responses (168 row observations),
+  five composer type lists and 25 populated named-recipient responses (310 row
+  observations). It omits all five unnamed targets, flattens unavailable/group
+  states to zero recipient rows, and rejects all three sent-content captures with
+  ParseError. Native agrees with Chromium on those intentional differences;
+  no apix fallback, copied implementation or fixture is used.
+
+### Remaining gaps and retained evidence
+
+Populated group choices/nonzero dispatch, recursive/virtual-class selection,
+explicit empty-recipient success, populated sent pagination, newer/richer mailbox
+layouts, multiple-recipient live receipts and other read-status variants remain
+unqualified. Source-informed populated selector fixtures are not live evidence.
+Nullable display fields require explicit future consumer adapters. No MCP state
+or spool compatibility, consumer migration or publication is claimed here.
+
+Sending is still unimplemented and is the final planned increment in PR #13,
+after design approval and offline at-most-one-dispatch fault proofs. Any live
+send needs fresh exact sender/recipient/payload approval and its own budget;
+this read-only scope authorizes none. Read-once qualification remains separate.
+
+Private captures, browser expectations, builds and artifact environments are
+deleted after final replay. Retain only sanitized `release-evidence/0.4.5*` and
+qualified local archives in `dist/0.4.5/`. No package has been published.
+
+## 0.4.4 (2026-10-02) - Notification and checkpoint primitives
+
+### Offline and review
+
+- Complete source suite: 939 passed on Python 3.13.15 and 3.14.7, one opt-in
+  performance case deselected. Ruff, format and strict mypy pass. OpenAPI parity
+  covers 35 unique operations; counts reuse the existing optional student landing
+  route under one catalogue ID and conservative authentication/no-replay policy.
+- Final installed wheel and installed sdist: 939 passed in each of four isolated
+  Python 3.13/3.14 environments. Import origins, version, Python requirement, MIT
+  license metadata/file and `py.typed` marker are checked. Each final environment
+  replays the captured count response through the public API on loopback against
+  independent private Chromium expectations. Native library bytes match the live
+  smoke wheel; documentation-only artifact rebuilds do not require another login.
+- Pre-commit hooks, staged/worktree/history secret scans and dependency audit
+  pass. Qualified local archives remain in `dist/0.4.4/`; nothing is published.
+- Public loopback tests own explicit consent, pre-I/O callback/interval validation,
+  single-login concurrency rejection, no caching/coalescing/replay, complete
+  encoded-payload receipt before checkpointing, unsupported MIME/coding and
+  malformed gzip preserved before parsing, bounds and whole-batch failure.
+- A consumer-owned temporary sink fsyncs file and parent directory. Full envelope
+  serialization/reconstruction, identity and gzip codecs, original identity and
+  observation, duplicate event order and zero-network local replay pass with a
+  fresh service. This is not compatibility with the existing MCP spool format.
+- Cancellation at the exact completed-receipt boundary, repeated cancellation,
+  service close, operation deadline, cooperative checkpoint timeout, cancellation
+  suppression and queued cancellation retain/join ownership before releasing
+  scheduler/account/operation capacity. Other-account reads queue behind held
+  checkpoint admission and resume afterwards.
+- Four independent full 1,024-event batches complete under one exact 24-request
+  cold-login/consume budget. Shared concurrency, byte and queue limits remain
+  enforced. This is representative offline load, not a live consumption claim.
+- Pair-programmer design intentionally strengthens P5 to complete encoded-response
+  checkpoint before semantic parsing. Post-review found self-cancellation bypassed
+  unknown acknowledgement, ambiguous layouts became valid events, and unexpected
+  custom-transport exceptions escaped with success diagnostics. Nine original
+  regressions failed before fixes, including two Python 3.14.7 duplicate loop-error
+  cases and an unfamiliar marked counter silently becoming zero. Corrected guards,
+  owned-task cancellation detection, redacted exception normalization and
+  cancellation-neutral waits now pass those proofs on both supported versions.
+- Pair-programmer re-review approved the offline scope with no remaining blockers.
+  Its optional close/failure and authentication-landing probes are retained as
+  cases in the existing owner tests, not duplicated as separate testing layers.
+- Ordinary counts extend the shared read guarantee matrix. Dedicated tests own
+  category/label/count semantics, absent versus malformed counters, duplicates,
+  unknown marked layouts and bounds. The scoped capture runner enforces one login,
+  24 attempts and one count-page dispatch, including authentication landings.
+
+### Bounded ordinary-count live qualification
+
+Fresh approval covered account index zero, one credential submission and 24 total
+HTTP attempts: authentication, identity and the ordinary count page only. The
+installed 0.4.4 wheel completed in ten requests and one login, including exactly
+one count-page GET. Warm cache reuse dispatched zero requests. Five categories
+were shown; a missing category is not invented. Counts are token-scoped snapshots,
+not fresh notification polling or seen-state updates.
+
+No read-once request, message open, sending, deletion or consumer-state change was
+allowed or made. The login allowance is exhausted; unused requests permit no
+rerun. Chromium checked the identical private response with scripting/networking
+disabled and recorded independent expectations. Apix 1.5.3 received the same bytes
+through an inert client: categories, labels and amounts agree. Original fixtures
+cover a broader counter styling variant that apix ignores while Chromium/native
+agree; apix is not the correctness oracle.
+
+### Evidence and remaining gaps
+
+- Sanitized evidence and distribution checksums are retained under
+  `release-evidence/0.4.4*`. External apix metadata advertises MIT but its bundled
+  license is GPLv3; later incorrect MIT-only labels are corrected. No external
+  implementation, test, fixture or documentation is incorporated.
+- Read-once schedule layouts remain source-informed and offline-qualified only.
+  No live event-consumption or apix live-event parity is claimed. Qualification
+  needs a dedicated test login with disposable events and separately approved
+  recovery integration; the current MCP spool cannot read raw envelopes.
+- Callback success is an application durability acknowledgement. Failure/timeout
+  means acknowledgement unknown, including after commit. Non-cooperative or
+  non-preemptible callback work can exceed its interval while ownership remains
+  retained. Loss before complete accepted receipt/checkpoint remains possible;
+  no exactly-once guarantee or automatic recovery is provided.
+- Broader roles/menu layouts/token freshness, consumer category selection, seen
+  IDs, canonical hashes, bounded spool replay, competing-process transactions
+  and state migrations remain pending. No consumer migration, sending,
+  credentialed CI, push or publication is part of this increment.
+- Private count captures/expectations, disposable builds and qualification
+  environments are deleted after final artifact replay. Only sanitized evidence
+  and the qualified local wheel/sdist are retained.
+
+## 0.4.3 (2026-10-02) - Bounded attachment streams
+
+### Offline and review
+
+- Complete source suite on Python 3.13/3.14: 865 passed in both environments,
+  one opt-in performance case deselected. Ruff, format and strict mypy pass.
+  OpenAPI parity covers 34 operations.
+- Installed wheel and sdist suites pass all 865 tests in four isolated Python
+  3.13/3.14 environments outside the checkout. Installed import location,
+  package version, MIT license, `py.typed` and dependency consistency pass.
+  Every environment replays both content captures against independent private
+  Chromium expectations, including the populated attachment linkage. Final
+  library package bytes match the wheel used for the live stream smoke.
+- Locked dependency audit reports no known vulnerabilities. Repository hooks
+  and staged/worktree/history secret scans pass.
+- Public stream tests exercise original two-origin HTTP, independent login
+  contexts, account-bound references, credential/cookie isolation, hostile
+  redirects, real streaming, 64 KiB chunks, exact byte bounds, unknown-length
+  cumulative budgets, framing/encoding failure and no automatic replay.
+- Representative offline load streams one full 50 MiB file with an exact
+  seven-request login/resolve/download budget. Four independent logins with mixed
+  reads/downloads saturate shared admission; paused streams retain scheduler
+  slots and an exact six-request warm shared budget completes queued work.
+- Early break, queued/entry/body cancellation, repeated cancellation during
+  delayed cleanup, service close and paused-consumer deadline cases release
+  capacity only after joining owned transport work. Subsequent reads succeed.
+- Pair-programmer design precedes implementation. Independent post-review found
+  a first-field-only encoding guard accepted duplicate Content-Encoding and
+  unsupported Transfer-Encoding with false completion. All three raw-wire
+  regressions failed before the fix. The corrected complete-field guard rejects
+  those representations before delivery; ordinary chunked framing succeeds.
+  Duplicate identity/chunked field cases also remain in the owning regression
+  table. Re-review approved the corrected offline scope with no blockers.
+- The qualification runner's original loopback tests enforce one login, 24
+  attempts, exact account-bound selection, already-read discovery, one bounded
+  smoke download, stop-on-ambiguity and no retained attachment bytes.
+
+### Bounded live qualification
+
+Fresh approval allowed up to four independent discovery logins and one reserved
+installed-smoke login, each with 24 total wire attempts. Scope: identity,
+received/sent page zero, at most one already-read received content open per
+login, and the selected smoke attachment's resolution/download up to 10 MiB.
+
+| Attempt | Logins | Requests | Content opens | Download | Result |
+| --- | --- | --- | --- | --- | --- |
+| Discovery A | 1 | 11 | 0 | None | No eligible attachment |
+| Discovery B | 1 | 11 | 0 | None | No eligible attachment |
+| Discovery C | 1 | 12 | 1 | None | One attachment reference observed |
+| Installed wheel smoke, same selected login/reference | 1 | 14 | 1 | 1 | 930,056 bytes, clean EOF |
+| Total | 4 of 5 allowed | 48 of 120 allowed | 2 | 1 | No expanded or repeated attempts |
+
+The fourth discovery login was unnecessary after an eligible message was found.
+Unused allowances are not permission for reruns. No unread or sent content was
+opened; no sending, deletion, read-once operation or consumer migration occurred.
+The download supplied no Content-Length; actual byte accounting and clean EOF
+confirmed stream completion. Attachment bytes were consumed and discarded,
+never saved. One successful file does not establish arbitrary key/header formats
+or the absence of upstream read effects.
+
+Chromium independently checked all ten captured responses with scripts and
+networking disabled. This extends list evidence to 35 received rows and eight
+populated sent rows on page zero, including attachment/unread flags. Two content
+responses include one displayed attachment and a read receipt. Rendered fields,
+body lines, filename and numeric route linkage agree. The browser check initially
+mistook popup-name/dimension numbers for attachment IDs; extracting only the
+inert route literal corrected that false mismatch without a parser change.
+
+Apix 1.5.3 received identical captured list/content bytes through inert parsers.
+Common summary and four content fields agree. Apix has no attachment-stream,
+attachment-metadata or read-receipt contract; those are native independently
+checked features, not inferred apix parity.
+
+### Evidence and remaining gaps
+
+- Sanitized accounting is in `release-evidence/0.4.3-streams.json`; local artifact
+  checksums are in `release-evidence/0.4.3.sha256`. No public evidence contains
+  account/message/file IDs, signed keys, filenames, cookies or body text.
+  Task-owned private captures, browser expectations, build trees and virtual
+  environments are deleted after qualification; only the two local distribution
+  archives and sanitized evidence remain.
+- Sent-message downloads, multiple/empty files, alternate attachment handlers,
+  key/header variants and upstream read effects remain live-unqualified.
+  Conservative key grammar and provisional `none` effect classification remain
+  source-informed restrictions. Populated pagination/new mailbox layouts and
+  other 0.4.x gaps not explicitly observed here remain pending.
+- Library file naming/saving/publication is intentionally absent. MCP atomic
+  publication, notifications, sending, credentialed CI and PyPI publication
+  retain their separate scopes. No push or publication is part of 0.4.3.
+
+## 0.4.2 (2026-10-02) - Message content and inert attachment metadata
+
+### Offline
+
+- Complete source suite, Python 3.13/3.14: 803 passed in both environments,
+  one opt-in performance case deselected. Installed wheel/sdist suites also pass
+  all 803 tests in four isolated environments outside the checkout; installed
+  imports, package metadata, license, `py.typed` and dependency consistency checked.
+- All four artifact environments replay the three captured content responses
+  and an original synthetic two-file response through the installed public API
+  on loopback. Every content field agrees with independently recorded Chromium
+  expectations, not a comparison against the same parser. Warm reuse dispatches
+  zero requests. The qualified library package bytes match the live-smoke wheel.
+- Ruff, format and strict mypy are clean. OpenAPI parity passes for 32 operations.
+- Repository hooks, staged/worktree/history secret scans and locked dependency
+  audit pass; no known dependency vulnerabilities were reported.
+- Four independent maximum-content reads (65,536 characters and 20 file
+  references each) pass through real loopback HTTP under one exact 24-request
+  login/content budget. This is representative bounded offline load, not a
+  performance-improvement or large live-mailbox claim.
+- Shared read tests own isolation, coalescing/cache, budget/deadline/cancellation,
+  notices, response limits, exact GET wire forms and no expiry replay.
+- Content tests own explicit consent, bound reference validation, metadata/body/
+  receipt semantics, whole-read failure, attachment linkage/cardinality/limits,
+  duplicate names versus IDs, and invalidation of both received page and batch
+  caches even when parsing fails. Capture tests exercise both approved flows,
+  unread-selection rejection, scope and actual-attempt/login caps offline.
+
+### Bounded live qualification
+
+Fresh owner approval: two attempts on one independent account context, each
+with one login submission, 24 total HTTP attempts, identity, received/sent page
+zero and at most two opens of one already-read received message. No unread
+opens, sending, downloads, deletion or read-once requests were allowed or made.
+
+| Attempt | Login submissions | Requests | Received opens | Result |
+| --- | --- | --- | --- | --- |
+| Source-route discovery | 1 | 12 | 1 | Main metadata, optional read receipt and body captured |
+| Installed 0.4.2 wheel public smoke | 1 | 13 | 2 | Two fresh results agree; warm reuse dispatches zero |
+| Total | 2 | 25 of 48 allowed | 3 | Login authorization exhausted |
+
+The selected already-read message has 395 normalized plain-text characters,
+a displayed read timestamp and no attachments. Received lists contained two
+rows (one unread) and sent lists were explicitly empty. Unread content was never
+opened. Unused requests do not permit a third login or expanded scope.
+
+Chromium independently checked all seven captured responses, including three
+content responses, with scripts/networking disabled. Every common field,
+rendered body line boundary and displayed read timestamp agrees. Two invented
+file entries also pass the independent browser check, which is offline evidence
+only. Apix 1.5.3 received the exact same three content responses through an inert
+client; all four comparable fields agree. Apix has no attachment or read-receipt
+contract, so those fields are independently checked, not parity-inferred.
+
+### Regressions and evidence boundary
+
+The observed page contains two exact `stretch` tables, not one: main metadata
+and the read receipt. An original regression failed before receipt-aware parsing.
+An HTML page comment caused a raw `TypeError` during attachment scanning; its
+regression failed before non-element nodes were skipped. Both fixes precede the
+successful installed live smoke.
+
+A real persistent-connection disconnect test detects aiohttp's hidden GET replay:
+it fails with the default retry behavior and passes with hidden retries disabled.
+The service still owns explicit safe expiry recovery. Content opens never recover
+or replay automatically. Potential read effects are not rolled back by parse,
+transport, timeout or cancellation failure.
+
+Privacy-safe metrics are retained in `release-evidence/0.4.2-content.json` and
+distribution checksums in `release-evidence/0.4.2.sha256`. Private captures and
+independent browser expectation files (0600, inside a task-owned 0700 directory
+outside Git), temporary builds and environments are deleted after qualification.
+No message text, field diffs, account/record IDs, cookies or screenshots remain.
+
+### Remaining gaps
+
+- Populated sent content, populated attachment metadata, empty/rich live bodies,
+  read-receipt variants, other account roles and newer mailbox layouts are not
+  live-qualified. Attachment handlers/labels have original offline proof and
+  source-informed consumer requirements only; no attachment route is enabled.
+- No credentialed CI, consumer migration, PyPI publication or push is included.
+  Earlier feature families were regression-tested offline, not rerun live except
+  for the two explicitly approved mailbox page-zero lists.
+- Bounded attachment streams are next in 0.4.3. Sending and read-once operations
+  remain separately planned and authorized.
+
+## 0.4.1 (2026-10-02) - Recipient discovery
+
+### Offline
+
+| Check | Result |
+| --- | --- |
+| Complete source suite, Python 3.13 and 3.14 | 748 passed in both environments; one opt-in performance case deselected |
+| Installed wheel and sdist, Python 3.13 and 3.14, outside checkout | 748 passed in each of four environments; imports, metadata, license and `py.typed` checked |
+| Installed public API replay of actual private captures through loopback HTTP | All four environments: eight group types and three lookups with 1/55/1 recipients; warm cache dispatches none |
+| Ruff, format and strict mypy | Clean |
+| OpenAPI / route catalogue parity | Pass, 30 operations |
+| Full bounded lookup | 2,000 distinct IDs sharing one display name survive one real loopback HTTP lookup |
+
+The shared read suite owns account isolation, cache/coalescing, notices,
+budgets, cancellation, exact forms and no selection replay for both operations.
+The family suite owns named selectors, header/body boundaries, label/checkbox
+linkage and cardinality, duplicate names versus duplicate IDs, foreign and
+injected references, unsupported subgroups, limits and cache selection keys.
+Capture tests own approved token selection, six-list and one-login limits, and
+the actual discovery/smoke flow on loopback. No external fixture or code was
+copied. `scripts/replay_recipients.py` exercises the installed runtime against
+real response bytes, not only synthetic tests.
+
+### Bounded live use
+
+One account context, initially two attempts of at most 24 requests each. The
+first scope allowed only numeric group types, which the real composer does not
+use. That attempt stopped after ten requests and one credential submission,
+before any recipient POST. The owner explicitly amended the remaining attempt
+to the observed `wychowawca`, `nauczyciel` and `sekretariat` tokens; no third
+attempt was authorized or performed.
+
+The installed 0.4.1 wheel public smoke then passed in sixteen requests, one
+login, one group GET and six recipient POSTs (two fresh reads per approved
+group). Group discovery and each group lookup also passed zero-request warm-cache
+checks. The three groups had 1, 55 and 1 recipients. Total: two logins, 26/48
+requests. Unused requests do not authorize another login.
+
+Chromium independently checked all eight captured responses: displayed group
+labels/tokens, availability and radio linkage; recipient labels, numeric IDs and
+checkbox/value linkage. The separately acquired apix 1.5.3 received
+identical bytes through an inert replay client. Group-token and recipient-pair
+mismatch counts were zero. No message open, sending, mark-read, download, deletion
+or read-once call occurred.
+
+### Review correction and evidence boundary
+
+The real group header initially failed parsing; an original headed-table test
+failed before the `tbody`-only correction. After the successful live smoke,
+review found that an unlabeled numeric checkbox could silently disappear. A new
+regression failed before a cardinality guard was added. The select-all checkbox
+is explicitly excluded, not misidentified as a recipient.
+
+The strengthened parser, conservative lookup-capability naming and updated
+route-evidence metadata were qualified
+offline against all private captured bytes, including Chromium comparison and
+the installed public runtime on loopback. That is not a fresh credentialed smoke
+of changed code and does not consume another login. Qualification uses real
+populated responses rather than apix/synthetic agreement as its oracle.
+
+Privacy-safe metrics are in `release-evidence/0.4.1-recipients.json`; distribution
+checksums are in `release-evidence/0.4.1.sha256`. Raw responses were private 0600
+captures outside Git, deleted after final offline replay. No names, numeric
+recipient IDs, raw diffs, cookies or message text are retained.
+
+### Gaps and next increment
+
+- Empty recipient layouts, subgroup/virtual-class selection, other group types,
+  disabled recipients and other account roles remain unqualified. `grupa` lookup
+  is explicitly unsupported; unknown/empty pages fail, never silently become `[]`.
+- No performance improvement, general-school compatibility, consumer migration,
+  credentialed CI or PyPI publication is claimed. Earlier school reads/message
+  lists were regression-tested offline, not rerun live outside this scope.
+- Full message content is next (0.4.2). Its potentially mark-read effect requires
+  a separate approved already-read/sent message selection before live access.
+- Sending remains plan-only; discovery never authorizes contact with a recipient.
+
+## 0.4.0 (2026-10-02) - Message lists only
+
+### Offline
+
+| Check | Result |
+| --- | --- |
+| Complete suite from source, Python 3.13 and 3.14 | 697 passed in both environments; one opt-in performance case deselected |
+| Installed wheel and sdist, Python 3.13 and 3.14, outside the checkout | 697 passed in each of four environments; installed imports, metadata, MIT license and `py.typed` checked |
+| Ruff, format, strict mypy | Clean |
+| Repository hooks, untracked-inclusive secret scan, locked dependency audit | Pass; no known vulnerabilities |
+| OpenAPI / route catalogue parity | Pass, 28 operations |
+| Full bounded mailbox workload | Four concurrently requested independent 250-row mailboxes, five pages each, 40 total login/list requests; warm batch reuse dispatches none |
+
+The shared read suite was extended for both mailbox folders, covering exact
+wire forms, account isolation, caching/coalescing, expiry, no POST replay,
+throttling, maintenance, notices, budgets and cancellation. Family tests own
+summary semantics, numeric references, explicit empty sent/received pages,
+header/row/date validation, limits, overlap deduplication, bounded continuation,
+mid-page drift, repeated/clamped/non-progress pages and later-page failure.
+Capture-scope tests execute discovery and installed-smoke flows on loopback,
+reject send fields, unapproved pages/operations and a second login, and enforce
+actual-attempt/list caps. No external code or fixtures were copied.
+
+### Live and identical-byte replay
+
+Fresh approval covered two attempts on one configured login, each capped at 24
+requests and ten fixed received/sent pagination POSTs on pages 0..2. Identity was
+allowed. Recipients, content opens, mark-read, downloads, sends, deletes and
+read-once events were excluded. There was no automatic login replay.
+
+| Attempt | Login submissions | Actual HTTP requests | Result |
+| --- | --- | --- | --- |
+| Early installed-route discovery | 1 | 11 | Populated received and explicit-empty sent page zero captured |
+| Installed 0.4.0 wheel public smoke | 1 | 14 | Page, bounded batch, mid-page resume and zero-request warm page cache passed |
+| Total | 2 | 25 of 48 allowed | Approval exhausted; unused requests do not authorize another login |
+
+The final received page had two rows, one read and one unread; sent was explicitly
+empty. Chromium, with networking and scripts disabled, independently checked
+every visible summary field, numeric reference, computed unread/attachment flag
+and empty marker in all seven captured list responses. The separately installed
+External apix 1.5.3 pure parsers received the exact same bytes; there were zero
+comparable summary-field mismatches. Neither replay used a live client.
+
+The live smoke exercised the installed library, not checkout imports. Final
+package documentation was updated afterwards; all library package bytes were
+compared with the live-smoke wheel and were identical. Rebuilt artifacts were
+qualified offline. Distribution checksums are in `release-evidence/0.4.0.sha256`;
+sanitized live accounting is in `release-evidence/0.4.0-messages.json`.
+
+Private captures were 0600 under a task-owned 0700 directory outside Git and
+deleted after replay. No raw page, private assertion dump, screenshot, record ID
+or message text is retained.
+
+### Live-derived corrections and gaps
+
+The first offline replay failed despite green synthetic tests: the real table
+has a blank footer, and both folders show a benign legacy-module banner. Four
+original regressions failed before the parser was corrected to read `tbody`
+only and allow that exact information banner. Unknown notices still fail.
+
+- Populated sent rows, multi-page metadata/continuation, attachment indicators,
+  other account roles and the newer mailbox layout have no live evidence yet.
+- Full mailboxes and pagination/drift limits were exercised offline. The small
+  live mailbox is not load verification or a performance-improvement claim.
+- Recipient discovery, full content, streams, notification checkpoints and
+  sending are not implemented in 0.4.0. Their separate versions and sending
+  approval plan are in [contracts/messages.md](contracts/messages.md).
+- Earlier school-read families were fully regression-tested offline, not rerun
+  live outside this approval. Their 0.3.0 evidence and follow-ups remain below.
+- No consumer migration, credentialed CI, macOS/Windows check, push,
+  hosted PR qualification or PyPI publication was performed in this increment.
+
 ## 0.3.0 (2026-10-02)
 
 ### Offline

@@ -9,9 +9,11 @@ aborted. Requires a local Chromium and Playwright:
 
 import asyncio
 import json
+import re
 import sys
 from collections.abc import Callable
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,10 @@ from playwright.async_api import Page, async_playwright
 
 from librus_python_api.completed_lessons import parse_completed_lessons
 from librus_python_api.exceptions import LibrusError
+from librus_python_api.messages import parse_messages
+from librus_python_api.models import MessageFolder, RecipientGroupReference
 from librus_python_api.parsers import parse_profile
+from librus_python_api.recipients import parse_recipient_groups, parse_recipients
 from librus_python_api.school_reads import (
     parse_agenda,
     parse_homework,
@@ -78,7 +83,47 @@ TIMETABLE_DOM = r"""() => [...document.querySelectorAll('td#timetableEntryBox')]
 PROFILE_DOM = """() => Object.fromEntries([...document.querySelectorAll('tr')]
  .filter(r => r.children.length === 2)
  .map(r => [r.children[0].innerText.replace(/:$/, '').trim(),
-  r.children[1].innerText]))"""
+   r.children[1].innerText]))"""
+
+MESSAGES_DOM = r"""() => {
+ const table = document.querySelector('table.decorated.stretch');
+ if (!table) throw Error('mailbox table absent');
+ const headers = [...table.tHead.rows[0].cells].map(c=>c.innerText.trim());
+ const sender = headers.indexOf('Nadawca'), recipient = headers.indexOf('Adresat');
+ const role = sender === -1 ? recipient : sender;
+ const subject = headers.indexOf('Temat');
+ const sent = headers.findIndex(t=>t.startsWith('Wysłano'));
+ const read = headers.indexOf('Przeczytano');
+ const rows = [...table.tBodies].flatMap(b=>[...b.rows]);
+ const empty = rows.length === 1 && rows[0].cells.length === 1 &&
+  rows[0].innerText.trim() === 'Brak wiadomości';
+ const pagination = [...document.querySelectorAll('div.pagination > span')]
+  .map(n=>n.innerText);
+ return {empty, pagination, rows: empty ? [] : rows.map(r=>({
+   correspondent:r.cells[role].innerText, subject:r.cells[subject].innerText,
+   timestamp:r.cells[sent].innerText,
+   links:[r.cells[role],r.cells[subject]].map(c=>c.querySelector('a').getAttribute('href')),
+   unread:sender === -1 ? null :
+    Number(getComputedStyle(r.cells[subject]).fontWeight) >= 700,
+   attachment:!!r.cells[1].querySelector('img'),
+   recipient_read_status:read === -1 ? null : r.cells[read].innerText,
+ }))};
+}"""
+
+GROUPS_DOM = r"""() => [...document.querySelectorAll(
+ 'table.message-recipients tbody tr')]
+ .map(r=>{
+   const radio=r.querySelector('input[type=radio]');
+   const label=r.querySelector('label');
+   return {type:radio.value, label:label.innerText, available:!radio.disabled,
+    linked:label.htmlFor === radio.id};
+ })"""
+
+RECIPIENTS_DOM = r"""() => [...document.querySelectorAll('label')].map(l=>{
+ const control=document.getElementById(l.htmlFor);
+ return {label:l.innerText, id:l.htmlFor.split('_').at(-1),
+   control_type:control?control.type:null, value:control?control.value:null};
+})"""
 
 
 def normalized(value: str | None) -> str:
@@ -198,7 +243,141 @@ def check_profile(body: bytes, form: Form, view: Any) -> str:
     return "profile fields"
 
 
+def check_messages(folder: MessageFolder, body: bytes, form: Form, view: Any) -> str:
+    items, count, _ = parse_messages(
+        body, folder, int(form["numer_strony105"]), "crosscheck"
+    )
+    if len(items) != len(view["rows"]) or (not items) != view["empty"]:
+        raise AssertionError("mailbox row count/empty marker differs")
+    for item, row in zip(items, view["rows"], strict=True):
+        fields = [
+            item.correspondent,
+            item.subject,
+            item.timestamp.raw,
+            item.recipient_read_status,
+        ]
+        rendered = [
+            row["correspondent"],
+            row["subject"],
+            row["timestamp"],
+            row["recipient_read_status"],
+        ]
+        if list(map(normalized, fields)) != list(map(normalized, rendered)):
+            raise AssertionError("mailbox visible fields differ")
+        if item.unread != row["unread"] or item.has_attachment != row["attachment"]:
+            raise AssertionError("mailbox rendered flags differ")
+        for link in row["links"]:
+            parts = link.split("/")
+            if parts[4] != item.reference.identifier or parts[3] != (
+                "5" if folder is MessageFolder.RECEIVED else "6"
+            ):
+                raise AssertionError("mailbox reference differs")
+    if not view["pagination"] and count != 1:
+        raise AssertionError("mailbox page count differs")
+    return (
+        f"{len(items)} messages, {count} pages; visible fields/references/flags agree"
+    )
+
+
+def check_recipient_groups(body: bytes, form: Form, view: Any) -> str:
+    groups = parse_recipient_groups(body, "crosscheck")
+    if len(groups) != len(view):
+        raise AssertionError("recipient group count differs")
+    for group, row in zip(groups, view, strict=True):
+        if (
+            group.reference.identifier != row["type"]
+            or normalized(group.label) != normalized(row["label"])
+            or group.available != row["available"]
+            or not row["linked"]
+        ):
+            raise AssertionError("recipient group fields or control linkage differ")
+    return f"{len(groups)} groups; labels, tokens, controls and availability agree"
+
+
+def check_recipients(body: bytes, form: Form, view: Any) -> str:
+    items = parse_recipients(
+        body, RecipientGroupReference(form["typAdresata"], "crosscheck")
+    )
+    if len(items) != len(view):
+        raise AssertionError("recipient count differs")
+    for item, row in zip(items, view, strict=True):
+        if (
+            normalized(item.label) != normalized(row["label"])
+            or item.reference.identifier != row["id"]
+            or row["value"] != row["id"]
+            or row["control_type"] != "checkbox"
+        ):
+            raise AssertionError("recipient visible label, ID or control differs")
+    return f"{len(items)} recipients; labels, IDs and controls agree"
+
+
+CONTENT_DOM = r"""() => {
+ const tables = [...document.querySelectorAll('table')].filter(
+  t => t.className.trim() === 'stretch');
+ const metadata = tables.map(t => [...t.rows].map(r => [...r.cells].map(
+  c => c.innerText.trim())));
+ const bodies = [...document.querySelectorAll('.container-message-content')];
+ const attachments = [...document.querySelectorAll('[onclick]')].filter(
+  e => e.getAttribute('onclick').includes('pobierz_zalacznik')).map(e => ({
+   handler:e.getAttribute('onclick'), name:e.closest('tr').cells[0].innerText,
+   tag:e.tagName
+  }));
+ return {metadata, bodies:bodies.map(b => b.innerText), attachments};
+}"""
+
+
+def check_content(body: bytes, form: Form, view: Any) -> str:
+    from librus_python_api.message_content import parse_message_content
+    from librus_python_api.models import MessageReference
+
+    ref = MessageReference(MessageFolder.RECEIVED, form["reference"], "offline")
+    data = parse_message_content(body, ref)
+    tables = view["metadata"]
+    main = [t for t in tables if len(t) == 3]
+    assert len(main) == 1, "metadata table cardinality"
+    assert [normalized(r[1]) for r in main[0]] == [
+        normalized(v) for v in (data.correspondent, data.subject, data.timestamp.raw)
+    ], "metadata values"
+    receipts = [t for t in tables if len(t) == 1 and t[0][0] == "Przeczytano"]
+    assert len(receipts) == int(data.read_timestamp is not None), "receipt presence"
+    if data.read_timestamp is not None:
+        assert normalized(receipts[0][0][1]) == normalized(data.read_timestamp.raw), (
+            "receipt timestamp"
+        )
+
+    def lines(value: str) -> str:
+        return "\n".join(
+            normalized(line) for line in value.splitlines() if normalized(line)
+        )
+
+    assert len(view["bodies"]) == 1, "body cardinality"
+    assert lines(view["bodies"][0]) == data.text, "rendered body line boundaries"
+    assert len(view["attachments"]) == len(data.attachments), "attachment count"
+    for native, other in zip(data.attachments, view["attachments"], strict=True):
+        assert native.filename == normalized(other["name"]), "attachment label"
+        assert other["tag"] == "IMG", "attachment marker"
+        # Popup names and window dimensions also contain numbers; only the
+        # inert route literal identifies the message/file pair. Never eval it.
+        route = re.search(
+            r"/wiadomosci/pobierz_zalacznik/([0-9]+)/([0-9]+)",
+            other["handler"].replace(r"\/", "/"),
+        )
+        assert route is not None, "attachment route literal"
+        assert list(route.groups()) == [ref.identifier, native.reference.identifier], (
+            "attachment IDs"
+        )
+    return "content fields, rendered lines, read receipt and inert files agree"
+
+
 CHECKS: dict[str, tuple[str, Callable[[bytes, Form, Any], str]]] = {
+    "message_content_received": (CONTENT_DOM, check_content),
+    "recipient_groups": (GROUPS_DOM, check_recipient_groups),
+    "recipients": (RECIPIENTS_DOM, check_recipients),
+    "messages_received": (
+        MESSAGES_DOM,
+        partial(check_messages, MessageFolder.RECEIVED),
+    ),
+    "messages_sent": (MESSAGES_DOM, partial(check_messages, MessageFolder.SENT)),
     "agenda": (AGENDA_DOM, check_agenda),
     "agenda_detail": (DETAIL_DOM, check_detail),
     "homework_detail": (DETAIL_DOM, check_detail),
@@ -219,9 +398,18 @@ async def check_directory(page: Page, directory: Path) -> bool:
         await page.set_content(body.decode())
         script, compare = check
         try:
-            detail = compare(body, entry["form"] or {}, await page.evaluate(script))
+            form = entry["form"] or {}
+            if entry["endpoint"] == "message_content_received":
+                form = {"reference": entry["reference"]}
+            detail = compare(body, form, await page.evaluate(script))
         except LibrusError as error:
             detail = f"typed {type(error).__name__}"
+            if entry["endpoint"].startswith("messages_") or entry["endpoint"] in {
+                "recipient_groups",
+                "recipients",
+                "message_content_received",
+            }:
+                passed = False
         except AssertionError as error:
             passed = False
             detail = f"MISMATCH {error}"

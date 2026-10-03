@@ -1,6 +1,8 @@
 """Public login-scoped account service under one shared traffic boundary."""
 
 import asyncio
+import hashlib
+import json
 import math
 import re
 import time
@@ -12,6 +14,7 @@ from typing import Any, Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
 
 from librus_python_api.announcements import parse_announcements
+from librus_python_api.attachments import AttachmentStream
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
 from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
@@ -20,17 +23,22 @@ from librus_python_api.attendance_frequency import (
     summarize_frequency,
 )
 from librus_python_api.budget import RequestBudget
+from librus_python_api.checkpoint import CHECKPOINT_SERVICE, validate_checkpoint
 from librus_python_api.completed_lessons import (
     parse_completed_lessons,
     validate_selection,
 )
 from librus_python_api.config import (
+    ATTACHMENT_MAX_BYTES,
     ATTENDANCE_MAX_WINDOW_DAYS,
     ATTENDANCE_METADATA_CACHE_SIZE,
     ATTENDANCE_METADATA_TTL_SECONDS,
     ATTENDANCE_RESULT_CACHE_SIZE,
+    CHECKPOINT_TIMEOUT_SECONDS,
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
+    MESSAGE_MAX_CURSOR_IDS,
+    SCHEDULE_RESPONSE_VERSION,
     SESSION_COOKIE,
     AccountCredentials,
     ConnectionSettings,
@@ -40,8 +48,12 @@ from librus_python_api.config import (
     agenda_form,
     attendance_view_form,
     completed_lessons_form,
+    encode_modern_send,
+    encode_send_form,
     grade_view_form,
     homework_form,
+    message_page_form,
+    recipient_form,
     timetable_form,
 )
 from librus_python_api.diagnostics import DiagnosticSink
@@ -49,7 +61,11 @@ from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredE
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.lifecycle import join_owned
+from librus_python_api.message_content import parse_message_content, validate_reference
+from librus_python_api.messages import parse_messages
+from librus_python_api.messages import validate_selection as validate_message_selection
 from librus_python_api.models import (
+    AccountContext,
     Agenda,
     Announcements,
     Attendance,
@@ -71,26 +87,72 @@ from librus_python_api.models import (
     Homework,
     Identity,
     LoginSubmission,
+    MessageAttachmentReference,
+    MessageContent,
+    MessageFolder,
+    MessageReference,
+    Messages,
+    MessagesCursor,
+    MessagesPage,
+    MessageSummary,
+    ModernAccountData,
+    ModernIdentity,
+    ModernRecipientReference,
+    ModernRecipients,
+    ModernRecipientTypeReference,
+    ModernRecipientTypes,
+    ModernSendSubmission,
+    NotificationCounts,
     Observation,
     OperationName,
+    RecipientGroupChoices,
+    RecipientGroupReference,
+    RecipientGroups,
+    RecipientReference,
+    Recipients,
     RequestForm,
+    ScheduleEventResponse,
+    ScheduleEvents,
+    ScheduleEventWire,
     SchedulerSnapshot,
     SchoolDetail,
     SchoolReference,
+    SendResult,
+    SendSubmission,
     StudentInformation,
     SubjectFrequencies,
     SubjectFrequency,
     Timetable,
     TransportResponse,
 )
+from librus_python_api.modern_messages import (
+    parse_modern_identity,
+    parse_modern_recipients,
+    parse_modern_send_response,
+    parse_modern_types,
+    validate_modern_type,
+)
+from librus_python_api.notifications import (
+    decode_payload,
+    parse_notification_counts,
+    parse_schedule_events,
+    validate_response,
+)
 from librus_python_api.parsers import parse_identity, parse_login, parse_profile
 from librus_python_api.parsing import ParserPool
+from librus_python_api.recipients import (
+    parse_recipient_group_choices,
+    parse_recipient_groups,
+    parse_recipients,
+    validate_group,
+)
 from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.school_reads import (
     parse_agenda,
     parse_homework,
     parse_school_detail,
 )
+from librus_python_api.sending import SendAttempt, parse_send_acknowledgement
 from librus_python_api.timetable import parse_timetable
 from librus_python_api.transport import (
     AccountTransport,
@@ -166,6 +228,8 @@ class LibrusService:
         return self._scheduler.snapshot()
 
     def _bind(self) -> None:
+        if CHECKPOINT_SERVICE.get() is self:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         loop = asyncio.get_running_loop()
         if self._loop is not None and self._loop is not loop:
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -194,6 +258,8 @@ class LibrusService:
         )
 
     async def aclose(self) -> None:
+        if CHECKPOINT_SERVICE.get() is self:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         loop = asyncio.get_running_loop()
         if self._loop is not None and self._loop is not loop:
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -264,6 +330,23 @@ class AccountClient:
         credentials: AccountCredentials,
     ) -> None:
         self._service, self._alias, self._credentials = service, alias, credentials
+        self._context = AccountContext(
+            alias,
+            hashlib.sha256(
+                json.dumps(
+                    [
+                        1,
+                        alias,
+                        credentials.login.get_secret_value(),
+                        service._connection.synergia_origin,
+                        service._connection.api_origin,
+                        service._connection.messages_origin,
+                    ],
+                    ensure_ascii=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest(),
+        )
         self._transport_instance: AccountTransport | None = None
         self._lock = asyncio.Lock()
         self._flights: dict[Hashable, _Flight] = {}
@@ -273,6 +356,8 @@ class AccountClient:
         self._cache: dict[Hashable, tuple[float, Any]] = {}
         self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
+        self._consuming_schedule = False
+        self._modern_account: ModernAccountData | None = None
 
     @property
     def _transport(self) -> AccountTransport:
@@ -280,7 +365,420 @@ class AccountClient:
             self._transport_instance = self._service._transport(self._alias)
         return self._transport_instance
 
+    def prepare_send(
+        self, *, recipients: tuple[RecipientReference, ...], subject: str, body: str
+    ) -> SendAttempt:
+        if self._service._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        submission = SendSubmission(recipients, subject, body)
+        encode_send_form(submission, self._alias)
+        return SendAttempt(self, submission)
+
+    async def _execute_send(
+        self, attempt: SendAttempt, budget: RequestBudget | None
+    ) -> SendResult:
+        if isinstance(attempt.submission, ModernSendSubmission):
+            return await self._execute_modern_send(attempt, attempt.submission, budget)
+        submission = attempt.submission
+        encode_send_form(submission, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> SendResult:
+            send = getattr(self._transport, "send_message", None)
+            if not callable(send):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+            def dispatched() -> None:
+                attempt._dispatch(
+                    self._session_identity(), self._observation("send_message")
+                )
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_sent":
+                        del self._cache[key]
+
+            response = await send(submission, budget, dispatched)
+            self._validate_read_response(response, HTML)
+            status = await self._service._parsers.run(
+                parse_send_acknowledgement, response.body, budget
+            )
+            return attempt._acknowledge(status)
+
+        return await self._uncached(
+            "send_message", fetch, budget, authenticate=True, preserve_cancellation=True
+        )
+
+    def prepare_modern_send(
+        self,
+        *,
+        recipients: tuple[ModernRecipientReference, ...],
+        subject: str,
+        body: str,
+    ) -> SendAttempt:
+        if self._service._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+        submission = ModernSendSubmission(recipients, subject, body)
+        encode_modern_send(submission, self._alias)
+        return SendAttempt(self, submission)
+
+    @property
+    def context(self) -> AccountContext:
+        """Configured login/origin provenance without authentication or storage I/O."""
+        return self._context
+
+    async def _modern_ready(
+        self, budget: RequestBudget, *, refresh: bool = False
+    ) -> ModernAccountData:
+        if self._modern_account is not None and not refresh:
+            return self._modern_account
+        authenticate = getattr(self._transport, "authenticate_modern", None)
+        if not callable(authenticate):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        try:
+            if self._modern_account is None:
+                await authenticate(self._credentials.login.get_secret_value(), budget)
+            account = await self._page(
+                "modern_identity", budget, parse_modern_identity, content_type=JSON
+            )
+            identity = self._session_identity()
+            if (
+                account.account_id != identity.owner.id
+                or (
+                    identity.owner.first_name is not None
+                    and account.first_name != identity.owner.first_name
+                )
+                or (
+                    identity.owner.last_name is not None
+                    and account.last_name != identity.owner.last_name
+                )
+            ):
+                raise LibrusError(ErrorKind.ACCESS_DENIED)
+            self._modern_account = account
+            return account
+        except BaseException:
+            self._modern_account = None
+            clear = getattr(self._transport, "clear_modern_auth", None)
+            if callable(clear):
+                clear()
+            raise
+
+    async def modern_identity(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernIdentity:
+        async def fetch(budget: RequestBudget, _: bool) -> ModernIdentity:
+            # Identity reads are fresh even if a modern session is already bound.
+            account = await self._modern_ready(budget, refresh=True)
+            return ModernIdentity(
+                self._session_identity(), account, self._observation("modern_identity")
+            )
+
+        return await self._read(("modern_identity",), fetch, budget, max_age_seconds)
+
+    async def modern_recipient_types(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernRecipientTypes:
+        async def fetch(budget: RequestBudget, _: bool) -> ModernRecipientTypes:
+            await self._modern_ready(budget)
+            items = await self._page(
+                "modern_recipient_types",
+                budget,
+                lambda body: parse_modern_types(body, self._alias),
+                content_type=JSON,
+            )
+            return ModernRecipientTypes(
+                self._session_identity(),
+                items,
+                self._observation("modern_recipient_types"),
+            )
+
+        return await self._read(
+            ("modern_recipient_types",),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def modern_recipients(
+        self,
+        recipient_type: ModernRecipientTypeReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernRecipients:
+        validate_modern_type(recipient_type, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernRecipients:
+            await self._modern_ready(budget)
+            items = await self._page(
+                "modern_recipients",
+                budget,
+                lambda body: parse_modern_recipients(body, recipient_type),
+                content_type=JSON,
+            )
+            return ModernRecipients(
+                self._session_identity(),
+                recipient_type,
+                items,
+                self._observation("modern_recipients"),
+            )
+
+        return await self._read(
+            ("modern_recipients", recipient_type.identifier),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def _execute_modern_send(
+        self,
+        attempt: SendAttempt,
+        submission: ModernSendSubmission,
+        budget: RequestBudget | None,
+    ) -> SendResult:
+        encode_modern_send(submission, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> SendResult:
+            send = getattr(self._transport, "send_modern_message", None)
+            if not callable(send):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            await self._modern_ready(budget)
+
+            def dispatched() -> None:
+                attempt._dispatch(
+                    self._session_identity(), self._observation("modern_send_message")
+                )
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_sent":
+                        del self._cache[key]
+
+            response = await send(submission, budget, dispatched)
+            if response.status in (400, 422):
+                if _media_type(response) != JSON:
+                    raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
+            else:
+                self._validate_read_response(response, JSON)
+            status = await self._service._parsers.run(
+                lambda body: parse_modern_send_response(body, response.status),
+                response.body,
+                budget,
+            )
+            return attempt._acknowledge(status)
+
+        return await self._uncached(
+            "modern_send_message",
+            fetch,
+            budget,
+            authenticate=True,
+            preserve_cancellation=True,
+        )
+
     # Public reads: validate input, then describe one fetch for _read.
+
+    async def notification_counts(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> NotificationCounts:
+        """Read token-scoped menu counters, not a fresh notification poll."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> NotificationCounts:
+            items = await self._page(
+                "notification_counts", budget, parse_notification_counts
+            )
+            return NotificationCounts(
+                self._session_identity(),
+                items,
+                self._observation("notification_counts"),
+            )
+
+        return await self._read(
+            ("notification_counts",), fetch, budget, max_age_seconds
+        )
+
+    async def consume_schedule_events(
+        self,
+        *,
+        checkpoint: Callable[[ScheduleEventResponse], Awaitable[None]],
+        allow_consume_events: bool = False,
+        checkpoint_timeout_seconds: float = CHECKPOINT_TIMEOUT_SECONDS,
+        budget: RequestBudget | None = None,
+    ) -> ScheduleEvents:
+        """Consume once, checkpoint complete encoded payload before parsing.
+
+        Callback success acknowledges consumer-owned durable storage. Callback
+        failure/timeout means acknowledgement unknown, never automatic replay.
+        """
+        if (
+            type(allow_consume_events) is not bool
+            or not allow_consume_events
+            or self._consuming_schedule
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        validate_checkpoint(checkpoint, checkpoint_timeout_seconds)
+        self._consuming_schedule = True
+
+        async def fetch(budget: RequestBudget, _: bool) -> ScheduleEvents:
+            accepted: ScheduleEventResponse | None = None
+
+            async def persist(wire: ScheduleEventWire) -> None:
+                nonlocal accepted
+                accepted = ScheduleEventResponse(
+                    SCHEDULE_RESPONSE_VERSION,
+                    self._session_identity(),
+                    wire,
+                    self._observation("consume_schedule_events"),
+                )
+                token = CHECKPOINT_SERVICE.set(self._service)
+                try:
+                    await checkpoint(accepted)
+                finally:
+                    CHECKPOINT_SERVICE.reset(token)
+
+            response = await self._transport.consume_schedule_events(
+                budget, persist, checkpoint_timeout_seconds
+            )
+            self._validate_read_response(response, HTML)
+            assert accepted is not None
+            return await self._decode_schedule(accepted, budget)
+
+        try:
+            return await self._uncached(
+                "consume_schedule_events", fetch, budget, authenticate=True
+            )
+        finally:
+            self._consuming_schedule = False
+
+    async def decode_schedule_events(
+        self, response: ScheduleEventResponse, *, budget: RequestBudget | None = None
+    ) -> ScheduleEvents:
+        """Replay a persisted envelope locally, without authentication or HTTP."""
+        validate_response(
+            response, self._alias, self._service._transport_limits.response_max_bytes
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ScheduleEvents:
+            budget._receive(len(response.wire.body))
+            return await self._decode_schedule(response, budget)
+
+        return await self._uncached(
+            "decode_schedule_events", fetch, budget, authenticate=False
+        )
+
+    async def _decode_schedule(
+        self, response: ScheduleEventResponse, budget: RequestBudget
+    ) -> ScheduleEvents:
+        limits, wire = self._service._transport_limits, response.wire
+        compressed = (
+            bool(wire.content_codings)
+            and wire.content_codings[0].strip().casefold() == "gzip"
+        )
+        bound = (
+            min(limits.parse_max_bytes, budget.remaining_response_bytes)
+            if compressed
+            else limits.parse_max_bytes
+        )
+        body = await self._service._parsers.run(
+            lambda raw: decode_payload(raw, wire, bound), wire.body, budget
+        )
+        if compressed:
+            budget._receive(len(body))
+        items = await self._service._parsers.run(parse_schedule_events, body, budget)
+        return ScheduleEvents(response.identity, items, response.observation)
+
+    async def _uncached[T](
+        self,
+        operation: OperationName,
+        fetch: Fetch[T],
+        budget: RequestBudget | None,
+        *,
+        authenticate: bool,
+        preserve_cancellation: bool = False,
+    ) -> T:
+        """Own one independent operation, without caching or coalescing."""
+        service = self._service
+        service._bind()
+        if budget is not None and not isinstance(budget, RequestBudget):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        actual = budget or service._budget()
+        actual._bind_loop()
+        actual.remaining_seconds()
+        self._admit_operation()
+        task = asyncio.create_task(
+            self._execute_uncached(operation, fetch, actual, authenticate)
+        )
+        service._tasks.add(task)
+        task.add_done_callback(service._tasks.discard)
+        cancelled = False
+        try:
+            await asyncio.wait((task,))
+            return task.result()
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        finally:
+            if cancelled and not task.done() and not task.cancelling():
+                task.cancel()
+            interrupted = await join_owned(task)
+            self._release_operation()
+            if (
+                not preserve_cancellation
+                and not task.cancelled()
+                and (error := task.exception()) is not None
+                and isinstance(error, LibrusError)
+                and error.kind is ErrorKind.CHECKPOINT
+            ):
+                raise LibrusError(ErrorKind.CHECKPOINT) from None
+            if cancelled or interrupted:
+                if service._closed and not preserve_cancellation:
+                    raise LibrusError(ErrorKind.CLOSED) from None
+                raise asyncio.CancelledError
+
+    async def _execute_uncached[T](
+        self,
+        operation: OperationName,
+        fetch: Fetch[T],
+        budget: RequestBudget,
+        authenticate: bool,
+    ) -> T:
+        started = time.monotonic()
+        outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
+        try:
+            async with asyncio.timeout(budget.remaining_seconds()):
+                async with self._lock:
+                    if authenticate:
+                        self._check_cooldown("authentication")
+                        self._check_cooldown(operation)
+                        return await self._authenticated(fetch, budget, False)
+                    return await fetch(budget, False)
+        except LibrusError as error:
+            outcome = error.kind
+            if authenticate and error.kind in (
+                ErrorKind.ACCESS_DENIED,
+                ErrorKind.SESSION_EXPIRED,
+            ):
+                self._cooldowns[operation] = (
+                    time.monotonic() + self._service._transport_limits.cooldown_seconds,
+                    error.kind,
+                )
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except TimeoutError:
+            outcome = ErrorKind.TIMEOUT
+            raise LibrusError(ErrorKind.TIMEOUT) from None
+        except Exception:
+            # A custom transport must not leak private exception text or
+            # produce a misleading success diagnostic at this owner boundary.
+            outcome = ErrorKind.CONNECTION
+        finally:
+            self._emit(
+                DiagnosticEvent(
+                    operation,
+                    outcome,
+                    time.monotonic() - started,
+                    budget.requests_dispatched,
+                    budget.response_bytes,
+                )
+            )
+
+        raise LibrusError(ErrorKind.CONNECTION)
 
     async def identity(
         self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
@@ -663,6 +1161,178 @@ class AccountClient:
             max_age_seconds,
         )
 
+    def stream_attachment(
+        self,
+        reference: MessageAttachmentReference,
+        *,
+        max_bytes: int = ATTACHMENT_MAX_BYTES,
+        budget: RequestBudget | None = None,
+    ) -> AttachmentStream:
+        """Construct an uncached stream context; no content open or file writes."""
+        return AttachmentStream(self, reference, max_bytes=max_bytes, budget=budget)
+
+    async def message_content(
+        self,
+        reference: MessageReference,
+        *,
+        allow_mark_read: bool = False,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> MessageContent:
+        """Open one message; received opens require explicit read-effect consent."""
+        validate_reference(reference, self._alias)
+        if type(allow_mark_read) is not bool or (
+            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        operation: Literal["message_content_received", "message_content_sent"] = (
+            "message_content_received"
+            if reference.folder is MessageFolder.RECEIVED
+            else "message_content_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> MessageContent:
+            # An upstream read effect can occur even if dispatch, parsing or
+            # cancellation later fails. Never retain pre-open mailbox summaries.
+            if reference.folder is MessageFolder.RECEIVED:
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "messages_received":
+                        del self._cache[key]
+            content = await self._page(
+                operation,
+                budget,
+                lambda body: parse_message_content(body, reference),
+                reference=reference.identifier,
+            )
+            return MessageContent(
+                self._session_identity(),
+                content,
+                reference.folder is MessageFolder.RECEIVED,
+                self._observation(operation),
+            )
+
+        return await self._read((operation, reference), fetch, budget, max_age_seconds)
+
+    async def messages_page(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        page: int = 0,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> MessagesPage:
+        """One explicit mailbox page; no body open, mark-read or send."""
+        message_page_form(folder, page)
+        operation: Literal["messages_received", "messages_sent"] = (
+            "messages_received" if folder is MessageFolder.RECEIVED else "messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> MessagesPage:
+            return await self._message_page(folder, page, budget)
+
+        return await self._read(
+            (operation, "page", page), fetch, budget, max_age_seconds
+        )
+
+    async def messages(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        cursor: MessagesCursor | None = None,
+        max_pages: int = 4,
+        limit: int = 128,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Messages:
+        """Bounded, deduplicated continuation under one account operation/budget."""
+        validate_message_selection(folder, cursor, max_pages, limit, self._alias)
+        operation: Literal["messages_received", "messages_sent"] = (
+            "messages_received" if folder is MessageFolder.RECEIVED else "messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> Messages:
+            return await self._message_batch(folder, cursor, max_pages, limit, budget)
+
+        return await self._read(
+            (operation, "batch", cursor, max_pages, limit),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def recipient_groups(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> RecipientGroups:
+        """Discover named group types; never send or open existing messages."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> RecipientGroups:
+            groups = await self._page(
+                "recipient_groups",
+                budget,
+                lambda body: parse_recipient_groups(body, self._alias),
+            )
+            return RecipientGroups(
+                self._session_identity(), groups, self._observation("recipient_groups")
+            )
+
+        return await self._read(("recipient_groups",), fetch, budget, max_age_seconds)
+
+    async def recipients(
+        self,
+        group: RecipientGroupReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Recipients:
+        """One typed group lookup; duplicate labels never overwrite distinct IDs."""
+        validate_group(group, self._alias)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Recipients:
+            items = await self._page(
+                "recipients",
+                budget,
+                lambda body: parse_recipients(body, group),
+                form=recipient_form(group.identifier, selection_id=group.selection_id),
+            )
+            return Recipients(
+                self._session_identity(), group, items, self._observation("recipients")
+            )
+
+        return await self._read(
+            ("recipients", group.identifier, group.selection_id),
+            fetch,
+            budget,
+            max_age_seconds,
+        )
+
+    async def recipient_group_choices(
+        self,
+        group: RecipientGroupReference,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> RecipientGroupChoices:
+        """Discover bounded nonzero group options, never guess virtual classes."""
+        validate_group(group, self._alias, choices=True)
+
+        async def fetch(budget: RequestBudget, _: bool) -> RecipientGroupChoices:
+            items = await self._page(
+                "recipients",
+                budget,
+                lambda body: parse_recipient_group_choices(body, group),
+                form=recipient_form(group.identifier),
+            )
+            return RecipientGroupChoices(
+                self._session_identity(), group, items, self._observation("recipients")
+            )
+
+        return await self._read(
+            ("recipients", "choices", group.identifier), fetch, budget, max_age_seconds
+        )
+
     # Shared read machinery.
 
     async def _school_detail(
@@ -729,13 +1399,7 @@ class AccountClient:
             budget.remaining_seconds()
         # Resolve policy before admission so a lookup failure cannot leak a slot.
         retry_safe = ENDPOINTS[endpoint or operation].retry_safe
-        if (
-            service._operations >= service._limits.operations
-            or self._operations >= service._limits.operations_per_account
-        ):
-            raise LibrusError(ErrorKind.LIMIT)
-        service._operations += 1
-        self._operations += 1
+        self._admit_operation()
         flight_key = (key, max_age, budget)
         flight = self._flights.get(flight_key)
         if flight is None:
@@ -769,8 +1433,23 @@ class AccountClient:
                 if not flight.task.done() and not flight.task.cancelling():
                     flight.task.cancel()
                 await join_owned(flight.task)
-            service._operations -= 1
-            self._operations -= 1
+            self._release_operation()
+
+    def _admit_operation(self) -> None:
+        service = self._service
+        if (
+            service._operations >= service._limits.operations
+            or self._operations >= service._limits.operations_per_account
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
+        service._operations += 1
+        self._operations += 1
+
+    def _release_operation(self) -> None:
+        self._service._operations -= 1
+        self._operations -= 1
+        assert self._operations >= 0
+        assert self._service._operations >= 0
 
     async def _execute[T](
         self,
@@ -897,6 +1576,7 @@ class AccountClient:
 
     def _invalidate(self) -> None:
         self._identity = None
+        self._modern_account = None
         self._cache.clear()
         self._metadata.clear()
         self._transport.clear_auth()
@@ -909,6 +1589,103 @@ class AccountClient:
         return Observation(self._alias, datetime.now(UTC), self._generation, source)
 
     # Multi-request reads.
+
+    async def _message_page(
+        self, folder: MessageFolder, page: int, budget: RequestBudget
+    ) -> MessagesPage:
+        operation = "messages_" + folder.value
+        items, count, fingerprint = await self._page(
+            operation,
+            budget,
+            lambda body: parse_messages(body, folder, page, self._alias),
+            form=message_page_form(folder, page),
+        )
+        return MessagesPage(
+            self._session_identity(),
+            folder,
+            page,
+            count,
+            items,
+            fingerprint,
+            self._observation(operation),
+        )
+
+    async def _message_batch(
+        self,
+        folder: MessageFolder,
+        cursor: MessagesCursor | None,
+        max_pages: int,
+        limit: int,
+        budget: RequestBudget,
+    ) -> Messages:
+        page, offset = (cursor.page, cursor.offset) if cursor else (0, 0)
+        count = cursor.page_count if cursor else None
+        history = list(cursor.seen_ids) if cursor else []
+        seen = set(history)
+        fingerprints = {cursor.fingerprint} if cursor and not offset else set()
+        items: list[MessageSummary] = []
+        duplicates = 0
+        next_cursor = None
+        for fetched in range(1, max_pages + 1):
+            result = await self._message_page(folder, page, budget)
+            drifted = (
+                cursor is not None
+                and fetched == 1
+                and offset > 0
+                and cursor.fingerprint != result.fingerprint
+            )
+            if (
+                (count is not None and count != result.page_count)
+                or drifted
+                or result.fingerprint in fingerprints
+                or (offset and offset >= len(result.items))
+                or (
+                    result.items
+                    and offset == 0
+                    and all(r.reference.identifier in seen for r in result.items)
+                )
+            ):
+                raise LibrusError(ErrorKind.PARSE)
+            count = result.page_count
+            fingerprints.add(result.fingerprint)
+            while offset < len(result.items) and len(items) < limit:
+                item = result.items[offset]
+                offset += 1
+                if item.reference.identifier in seen:
+                    duplicates += 1
+                    continue
+                if len(seen) >= MESSAGE_MAX_CURSOR_IDS:
+                    raise LibrusError(ErrorKind.LIMIT)
+                seen.add(item.reference.identifier)
+                history.append(item.reference.identifier)
+                items.append(item)
+            if offset == len(result.items):
+                if page + 1 == count:
+                    break
+                page, offset = page + 1, 0
+            if offset or len(items) == limit or fetched == max_pages:
+                next_cursor = MessagesCursor(
+                    self._alias,
+                    folder,
+                    page,
+                    offset,
+                    count,
+                    result.fingerprint,
+                    tuple(history),
+                )
+                break
+        return Messages(
+            self._session_identity(),
+            folder,
+            tuple(items),
+            fetched,
+            duplicates,
+            next_cursor,
+            ("item_limit" if len(items) == limit else "page_limit")
+            if next_cursor
+            else None,
+            self._observation("messages_" + folder.value),
+        )
 
     async def _lesson_page(
         self, start: date, end: date, page: int, budget: RequestBudget

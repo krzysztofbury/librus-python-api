@@ -96,7 +96,8 @@ class RequestScheduler:
                 worker = asyncio.ensure_future(action())
                 self._workers.add(worker)
                 try:
-                    result = await asyncio.shield(worker)
+                    await asyncio.wait((worker,))
+                    result = worker.result()
                     budget.remaining_seconds()
                     return result
                 except asyncio.CancelledError:

@@ -1,0 +1,26 @@
+{
+  "version": "0.4.0",
+  "date": "2026-10-02",
+  "scope": "ordinary received/sent message lists on one independently authenticated context",
+  "live_attempts": [
+    {"mode": "discovery", "logins": 1, "requests": 11, "received_requests": 1, "sent_requests": 1},
+    {"mode": "installed_smoke", "logins": 1, "requests": 14, "received_requests": 3, "sent_requests": 2}
+  ],
+  "totals": {"logins": 2, "requests": 25, "authorized_request_cap": 48},
+  "final_mailbox_coverage": {
+    "received": {"rows": 2, "pages": 1, "unread": 1, "attachments": 0, "resumed_rows": 1},
+    "sent": {"rows": 0, "pages": 1, "explicit_empty": true},
+    "fresh_page_batch_resume": "pass",
+    "warm_page_zero_requests": "pass"
+  },
+  "identical_byte_replay": {
+    "captured_list_responses": 7,
+    "chromium": "visible fields, numeric references, unread/attachment flags and empty markers agree",
+    "apix_version": "1.5.3",
+    "apix_common_summary_field_mismatches": 0,
+    "external_dependency_added": false
+  },
+  "excluded_live_operations": ["recipients", "message content", "mark-read", "attachments", "sending", "deletion", "read-once events"],
+  "pending_live_coverage": ["populated sent rows", "multi-page metadata", "attachment indicators", "other account roles", "newer mailbox layout"],
+  "authorization_remaining": "none; unused requests do not authorize another login"
+}

@@ -65,6 +65,10 @@ measurement.
 | Parser semantics for one family | `tests/test_<family>.py` |
 | Route catalogue matches the OpenAPI contract | `tests/test_contracts.py` |
 | Live capture safety | `tests/test_live_capture.py` |
+| Message summary semantics, continuation and full multi-account mailboxes | `tests/test_messages.py` |
+| Message-list live scope, one-login cap and installed-smoke execution | `tests/test_message_capture.py` |
+| Recipient selectors, IDs, scopes and limits | `tests/test_recipients.py` |
+| Recipient-only live scope and smoke flow | `tests/test_recipient_capture.py` |
 
 A new read goes into the tables in `tests/reads_support.py` and
 `tests/test_account_reads.py`; its family module covers only what is specific to
@@ -102,14 +106,44 @@ With the owner's authorization for a stated scope and request budget:
    [VERIFICATION.md](VERIFICATION.md).
 5. Delete the capture directory.
 
+For a separately approved message-list scope, `scripts/capture_messages.py`
+supports `--mode discovery` (early ordinary list capture) and `--mode smoke`
+(public installed page/batch/resume/cache path). Each invocation permits one
+credential submission, at most 24 actual HTTP attempts, ten list requests and
+pages 0..2 only. It stops on failure, never replays login or view POSTs, and does
+not enable recipients, content, sending, attachments or read-once routes. Use
+`--account` only for the separately approved account. A second invocation needs
+its own authorization, even when the first left requests unused.
+
+`scripts/compare_messages.py CAPTURE_DIR --reference EXTERNAL_INSTALL_DIR`
+replays apix 1.5.3 pure parsers on identical bytes without live access. Beautiful
+Soup and requests are ad hoc tooling dependencies, not library dependencies.
+It emits mismatch categories/counts only. `scripts/crosscheck.py CAPTURE_DIR`
+checks Chromium's visible message fields, references, flags and empty markers;
+a message parser error fails qualification, never counts as agreement. Retain
+no raw values or screenshots. Coverage and future feature approval gates are in
+[contracts/messages.md](contracts/messages.md).
+
+Recipient discovery has a separate `scripts/capture_recipients.py` allowlist:
+one credential submission, 24 requests, six recipient POSTs, and only the
+explicitly approved tutor/teacher/office tokens. `--mode smoke` exercises the
+public APIs and zero-request warm caches. Authentication/service errors stop
+the attempt. A parser failure preserves only the other approved groups' captures
+for offline diagnosis and is reported as failed qualification, not success.
+`scripts/compare_recipients.py` replays an external apix installation without
+network access. Always delete private captures after final offline comparisons.
+See [contracts/recipients.md](contracts/recipients.md) for the hierarchy and empty
+layout gates; recipient discovery does not authorize sending.
+
 Rules that past mistakes earned:
 
 - Look at the actual page before reasoning about a failure. Counters and
   structure summaries collected while discarding the bytes cost three logins
   and diagnosed nothing.
-- Run the whole read surface, not only the family being worked on. A full smoke
-  found broken profile, timetable and agenda parsing that earlier family-only
-  runs had missed.
+- Run the whole read surface when its live scope is approved. A full smoke found
+  broken profile, timetable and agenda parsing that earlier family-only runs had
+  missed. A bounded family-only approval does not authorize unrelated live reads;
+  run the full regression suite offline and record what was not rerun live.
 - An empty result is not populated coverage. A page that parses is not a
   correct page; compare counts and rendered text.
 - Typed outcomes beat guesses. A disabled view, a rejected date range and an

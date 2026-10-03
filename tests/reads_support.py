@@ -7,7 +7,13 @@ from typing import Any
 
 from aiohttp import web
 
-from librus_python_api import AccountClient, SchoolReference
+from librus_python_api import (
+    AccountClient,
+    MessageFolder,
+    MessageReference,
+    RecipientGroupReference,
+    SchoolReference,
+)
 from librus_python_api.config import ENDPOINTS
 from tests.announcements_support import announcement_table, page
 from tests.attendance_support import DETAIL, attendance_html, gateway_rows
@@ -15,6 +21,10 @@ from tests.completed_lessons_support import lessons_html
 from tests.grade_records_support import grades_html
 from tests.grade_support import summary_html
 from tests.http_support import SchoolFixture, profile_html
+from tests.message_content_support import content_html
+from tests.messages_support import message_row, messages_html
+from tests.notifications_support import counts_html
+from tests.recipients_support import groups_html, recipient_html
 from tests.school_reads_support import agenda_html, detail_html, homework_html
 from tests.timetable_support import MONDAY, timetable_html
 
@@ -33,6 +43,13 @@ VALID: dict[str, tuple[bytes, str]] = {
     "homework": (homework_html().encode(), HTML),
     "homework_detail": (detail_html("homework").encode(), HTML),
     "completed_lessons": (lessons_html().encode(), HTML),
+    "messages_received": (messages_html(count=3).encode(), HTML),
+    "messages_sent": (messages_html(MessageFolder.SENT, count=3).encode(), HTML),
+    "message_content_received": (content_html().encode(), HTML),
+    "message_content_sent": (content_html(MessageFolder.SENT).encode(), HTML),
+    "recipient_groups": (groups_html().encode(), HTML),
+    "recipients": (recipient_html().encode(), HTML),
+    "notification_counts": (counts_html().encode(), HTML),
 }
 OPERATIONS = tuple(VALID)
 
@@ -45,6 +62,13 @@ def selected(operation: str, form: dict[str, Any]) -> tuple[bytes, str]:
     if operation == "timetable":
         monday = date.fromisoformat(str(form["tydzien"]).partition("_")[0])
         return timetable_html(monday).encode(), HTML
+    if operation.startswith("messages_"):
+        folder = MessageFolder(operation.removeprefix("messages_"))
+        number = int(form["numer_strony105"])
+        items = message_row(str(101 + number * 2), folder=folder) + message_row(
+            str(102 + number * 2), folder=folder
+        )
+        return messages_html(folder, page=number, count=3, rows=items).encode(), HTML
     return VALID[operation]
 
 
@@ -71,6 +95,22 @@ def read(client: AccountClient, alias: str, operation: str) -> Read:
         "completed_lessons": lambda **kw: client.completed_lessons_page(
             date(2026, 10, 1), date(2026, 10, 31), **kw
         ),
+        "messages_received": lambda **kw: client.messages_page(
+            MessageFolder.RECEIVED, **kw
+        ),
+        "messages_sent": lambda **kw: client.messages_page(MessageFolder.SENT, **kw),
+        "message_content_received": lambda **kw: client.message_content(
+            MessageReference(MessageFolder.RECEIVED, "101", alias),
+            allow_mark_read=True,
+            **kw,
+        ),
+        "message_content_sent": lambda **kw: client.message_content(
+            MessageReference(MessageFolder.SENT, "101", alias), **kw
+        ),
+        "recipient_groups": client.recipient_groups,
+        "recipients": lambda **kw: client.recipients(
+            RecipientGroupReference("nauczyciel", alias), **kw
+        ),
     }
     method: Read = selections.get(operation) or getattr(client, operation)
     return method
@@ -82,6 +122,7 @@ class ReadsFixture(SchoolFixture):
         self.reads: list[tuple[str, str]] = []
         self.wire: dict[str, tuple[dict[str, str], str, bytes]] = {}
         self.bodies: dict[str, tuple[bytes, str]] = {}
+        self.page_bodies: dict[tuple[str, int], tuple[bytes, str]] = {}
         # Statuses served once each, in order, before the operation's body.
         self.failures: dict[str, list[int]] = {}
         self.hold: asyncio.Event | None = None
@@ -123,7 +164,12 @@ class ReadsFixture(SchoolFixture):
                 request.query_string,
                 body if not form else b"",
             )
-            page, kind = self.bodies.get(operation) or selected(operation, form)
+            selection = int(form.get("numer_strony105", "0"))
+            page, kind = (
+                self.bodies.get(operation)
+                or self.page_bodies.get((operation, selection))
+                or selected(operation, form)
+            )
             return web.Response(body=page, content_type=kind)
 
         return handle

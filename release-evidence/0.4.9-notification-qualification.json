@@ -1,0 +1,76 @@
+{
+  "version": "0.4.9",
+  "date": "2026-10-03",
+  "scope": "optional durable notification delivery and replay, offline only",
+  "implementation_commit": "0d5558f",
+  "provenance": "independently authored implementation and original fixtures",
+  "python_versions": ["3.13.15", "3.14.7"],
+  "source": {"passed_per_python": 1235, "deselected_per_python": 1},
+  "installed_wheel": {"passed_per_python": 1235, "deselected_per_python": 1},
+  "installed_sdist": {"passed_per_python": 1235, "deselected_per_python": 1},
+  "notification_cases": 50,
+  "existing_send_persistence_cases": 44,
+  "proofs": {
+    "six_categories_public_native_loopback": true,
+    "raw_before_parse_and_malformed_preservation": true,
+    "staged_delivery_and_acknowledgement": true,
+    "restart_replay_without_authentication_or_http": true,
+    "context_process_lock_one_consume": true,
+    "process_loss_partial_checkpoint_delivery_ack": true,
+    "save_failure_before_and_after_commit": true,
+    "repeated_cancellation_and_joined_shutdown": true,
+    "neutral_archive_atomic_import_and_cursor_validation": true,
+    "exact_context_binding_empty_seen_raw_delivery": true,
+    "unchanged_send_database_bytes": true,
+    "symlink_schema_and_raw_corruption_refusal": true,
+    "load_independent_fixture_logins": 4,
+    "load_events_per_login": 1024,
+    "load_exact_shared_http_budget": 24,
+    "maximum_encoded_wire_bytes": 4194304,
+    "byte_and_event_slices_and_shared_saturation": true
+  },
+  "regressions_failed_before_fix": [
+    "fresh receipt decoded twice against cumulative response-byte budget",
+    "archive event count inconsistent with raw envelope",
+    "imported cursor advanced despite omitted delivery event",
+    "last-committed acknowledgement retry rejected with newer staged batch"
+  ],
+  "quality": {
+    "ruff_lint_and_format": true,
+    "strict_mypy": true,
+    "repository_hooks": true,
+    "history_secret_scan": true,
+    "locked_dependency_audit": true,
+    "installed_location_and_metadata": true,
+    "installed_mit_license_and_py_typed": true,
+    "installed_dependency_compatibility": true
+  },
+  "artifacts": [
+    {
+      "name": "librus_python_api-0.4.9-py3-none-any.whl",
+      "bytes": 114420,
+      "sha256": "84fef9b9f4aa80bfbfc5b83fc808d46798240867f2d894bb60f46e0a671894af"
+    },
+    {
+      "name": "librus_python_api-0.4.9.tar.gz",
+      "bytes": 479135,
+      "sha256": "3161de803bae76777d47dc2a299adc70c811d807ce8c1ddd2794a9f412f42872"
+    }
+  ],
+  "live_http_requests": 0,
+  "live_credential_submissions": 0,
+  "live_send_dispatches": 0,
+  "mcp_code_or_production_state_changed": false,
+  "published": false,
+  "remaining": [
+    "0.5 modern authentication, broader coverage and live qualification",
+    "MCP adapter and production migration in separate repository",
+    "explicit manual send reconciliation policy"
+  ],
+  "limitations": [
+    "POSIX local-filesystem context locks, not global cross-process traffic coordination",
+    "at-least-once delivery, not exactly-once or historical catch-up",
+    "private notification archive bytes are not encrypted or authenticated",
+    "logical capacity reservation cannot eliminate physical storage or pre-checkpoint loss"
+  ]
+}

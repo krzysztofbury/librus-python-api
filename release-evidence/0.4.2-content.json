@@ -1,0 +1,20 @@
+{
+  "version": "0.4.2",
+  "date": "2026-10-02",
+  "scope": "one already-read received message on one independent account context",
+  "attempts": [
+    {"mode": "source_route_discovery", "logins": 1, "requests": 12, "received_lists": 1, "sent_lists": 1, "content_opens": 1, "result": "captured"},
+    {"mode": "installed_wheel_public_smoke", "logins": 1, "requests": 13, "received_lists": 1, "sent_lists": 1, "content_opens": 2, "result": "passed"}
+  ],
+  "totals": {"logins": 2, "requests": 25, "authorized_cap": 48, "content_opens": 3},
+  "observed": {"received_rows": 2, "unread_summaries": 1, "sent_rows": 0, "normalized_content_characters": 395, "attachments": 0, "read_timestamp_present": true},
+  "warm_content_cache_requests": 0,
+  "identical_byte_replay": {"content_responses": 3, "all_browser_responses": 7, "apix_version": "1.5.3", "comparable_fields_per_response": 4, "field_mismatches": 0, "chromium": "metadata, rendered line boundaries and read receipt agree"},
+  "offline_matrix": {"python_versions": ["3.13", "3.14"], "source_tests_each": 803, "installed_wheel_and_sdist_tests_each": 803, "installed_artifact_environments": 4, "private_content_replays_per_environment": 3, "independent_synthetic_file_markers": 2, "openapi_operations": 32},
+  "representative_offline_load": {"independent_accounts": 4, "content_characters_each": 65536, "file_references_each": 20, "exact_shared_login_read_requests": 24},
+  "regressions": ["separate read receipt table", "page comment attribute semantics", "hidden aiohttp persistent-connection GET replay"],
+  "excluded_live_operations": ["unread content opens", "sent content opens", "recipient discovery", "downloads", "sending", "deletion", "read-once events"],
+  "remaining_login_authorization": 0,
+  "gaps": ["populated sent content", "populated attachment metadata", "empty and rich live bodies", "read-receipt variants", "other roles", "new mailbox layouts"],
+  "publication": "local-only, not pushed or published"
+}

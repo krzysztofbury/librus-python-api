@@ -5,16 +5,20 @@ records source-informed routes with explicit offline/live evidence separation.
 There is intentionally no public arbitrary authenticated URL interface.
 """
 
+import base64
 import calendar
+import json
 import re
 import ssl
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
+from html import escape
 from types import MappingProxyType
 from typing import Annotated, Any, Literal, Self
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from pydantic import (
     BaseModel,
@@ -28,7 +32,15 @@ from pydantic import (
 )
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.models import AttendanceView, GradeView
+from librus_python_api.models import (
+    AttendanceView,
+    GradeView,
+    MessageFolder,
+    ModernRecipientReference,
+    ModernSendSubmission,
+    RecipientReference,
+    SendSubmission,
+)
 
 HttpMethod = Literal["GET", "POST"]
 
@@ -62,7 +74,7 @@ class Endpoint:
     side_effect: SideEffect
     retry_safe: bool
     evidence: Evidence
-    origin: Literal["synergia", "api"] = "synergia"
+    origin: Literal["synergia", "api", "download", "messages"] = "synergia"
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", self.operation_id):
@@ -83,23 +95,106 @@ class Endpoint:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         if self.side_effect != SideEffect.NONE and self.retry_safe:
             raise LibrusError(ErrorKind.INVALID_INPUT)
-        if self.origin not in ("synergia", "api"):
+        if self.origin not in ("synergia", "api", "download", "messages"):
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
 # Future login, JSON, messaging, and HTML routes all belong in this catalogue.
 # Contract checks compare every method/path against the versioned OpenAPI YAML.
 UPSTREAM_ORIGINS = MappingProxyType(
-    {"synergia": "https://synergia.librus.pl", "api": "https://api.librus.pl"}
+    {
+        "synergia": "https://synergia.librus.pl",
+        "api": "https://api.librus.pl",
+        "download": "https://sandbox.librus.pl",
+        "messages": "https://wiadomosci.librus.pl",
+    }
 )
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.3 (independent client)"
+USER_AGENT = "librus-python-api/0.4 (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
         for item in (
+            Endpoint(
+                "modern_launch",
+                "GET",
+                "/wiadomosci3",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "modern_handoff",
+                "GET",
+                "/pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
+                SideEffect.AUTHENTICATION,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_identity",
+                "GET",
+                "/api/me",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_recipient_types",
+                "GET",
+                "/api/receivers/types",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_recipients",
+                "GET",
+                "/api/receivers/groups/students-and-attendants",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_send_message",
+                "POST",
+                "/api/messages",
+                SideEffect.SEND_MESSAGE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "messages",
+            ),
+            Endpoint(
+                "consume_schedule_events",
+                "GET",
+                "/terminarz/dodane_od_ostatniego_logowania",
+                SideEffect.CONSUME_EVENTS,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "attachment_resolve",
+                "GET",
+                "/wiadomosci/pobierz_zalacznik/{message_id}/{file_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "attachment_download",
+                "GET",
+                "/GetFile/{key}/get",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "download",
+            ),
             Endpoint(
                 "login_portal",
                 "GET",
@@ -170,7 +265,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.SYNTHETIC_ONLY,
             ),
             Endpoint(
-                "login_student_landing",
+                "notification_counts",
                 "GET",
                 "/uczen/index",
                 SideEffect.AUTHENTICATION,
@@ -315,6 +410,62 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            Endpoint(
+                "messages_received",
+                "POST",
+                "/wiadomosci/1/5",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "messages_sent",
+                "POST",
+                "/wiadomosci/1/6",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "send_message",
+                "POST",
+                "/wiadomosci/1/6",
+                SideEffect.SEND_MESSAGE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "recipient_groups",
+                "GET",
+                "/wiadomosci/2/6",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "message_content_received",
+                "GET",
+                "/wiadomosci/1/5/{id}",
+                SideEffect.MARK_READ,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "message_content_sent",
+                "GET",
+                "/wiadomosci/1/6/{id}",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "recipients",
+                "POST",
+                "/getRecipients",
+                SideEffect.SELECT_VIEW,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
         )
     }
 )
@@ -448,6 +599,24 @@ TIMETABLE_START_ATTRIBUTE = "data-time_from"
 TIMETABLE_END_ATTRIBUTE = "data-time_to"
 
 SCHOOL_MAX_ITEMS = 2048
+CHECKPOINT_TIMEOUT_SECONDS = 5.0
+CHECKPOINT_MAX_TIMEOUT_SECONDS = 30.0
+SCHEDULE_RESPONSE_VERSION = 1
+SCHEDULE_MAX_EVENTS = 1024
+NOTIFICATION_MAX_MENU_ITEMS = 64
+NOTIFICATION_MAX_COUNT = 1000000
+NOTIFICATION_DESTINATIONS = MappingProxyType(
+    {
+        "/przegladaj_oceny/uczen": "grades",
+        "/przegladaj_nb/uczen": "attendance",
+        "/wiadomosci": "messages",
+        "/ogloszenia": "announcements",
+        "/terminarz": "agenda",
+        "/moje_zadania": "homework",
+    }
+)
+SCHEDULE_EVENT_HEADERS = ("lp.", "czas dodania", "rodzaj zdarzenia", "dane")
+SCHEDULE_EMPTY_LABEL = "Brak zdarzeń"
 SCHOOL_MAX_CONTENT_LENGTH = 65536
 SCHOOL_MAX_TOTAL_TEXT_LENGTH = 262144
 SCHOOL_MAX_DETAIL_FIELDS = 64
@@ -497,6 +666,225 @@ COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
+MESSAGE_MAX_PAGE_COUNT = 1000
+MESSAGE_MAX_PAGE_ITEMS = 50
+MESSAGE_MAX_BATCH_PAGES = 8
+MESSAGE_MAX_BATCH_ITEMS = 256
+MESSAGE_MAX_CURSOR_IDS = 2000
+MESSAGE_MAX_FIELD_LENGTH = 4096
+MESSAGE_MAX_TOTAL_TEXT_LENGTH = 262144
+MESSAGE_EMPTY_TEXT = "Brak wiadomości"
+MESSAGE_INFORMATION_NOTICES = frozenset(
+    {
+        "Korzystasz ze starej wersji modułu Wiadomości, która nie jest już rozwijana "
+        "i nie zawiera wszystkich dostępnych funkcji. Przejdź do ustawień i włącz "
+        "opcję: Używaj nowego systemu wiadomości."
+    }
+)
+MESSAGE_HEADER_LABELS = MappingProxyType(
+    {MessageFolder.RECEIVED: "Nadawca", MessageFolder.SENT: "Adresat"}
+)
+MESSAGE_PAGE_FIELDS = frozenset({"numer_strony105", "porcjowanie_pojemnik105"})
+# Reference and attachment paths are inert data, never arbitrary fetched URLs.
+MESSAGE_REFERENCE_PREFIXES = MappingProxyType(
+    {MessageFolder.RECEIVED: "/wiadomosci/1/5/", MessageFolder.SENT: "/wiadomosci/1/6/"}
+)
+MESSAGE_ATTACHMENT_PATH_PREFIX = "/wiadomosci/pobierz_zalacznik/"
+MESSAGE_MAX_CONTENT_LENGTH = 65536
+MESSAGE_MAX_ATTACHMENTS = 20
+MESSAGE_MAX_RECIPIENT_RECEIPTS = 256
+MESSAGE_MAX_RECEIPT_TEXT_LENGTH = 131072
+SEND_MAX_RECIPIENTS = 50
+SEND_MAX_SUBJECT_CHARACTERS = 200
+SEND_MAX_BODY_CHARACTERS = 15000
+SEND_MAX_REQUEST_BYTES = 64 * 1024
+SEND_ACCEPTED_TEXT = "Wiadomość została wysłana."
+SEND_REJECTED_TEXT = "Wiadomość nie została wysłana."
+MODERN_DIRECTORY_TYPE_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]{0,63}")
+MODERN_HANDOFF_PATTERN = re.compile(
+    r"/pobierz28/MultiDomainLogon/token/([A-Za-z0-9]{32,256})/login/([A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
+)
+MODERN_TERMINAL_PATHS = frozenset({"/nowy", "/nowy/"})
+MODERN_DIRECTORY_QUERIES = MappingProxyType(
+    {
+        "modern_recipient_types": (("includeClass", "true"),),
+        "modern_recipients": (("receiverType", "parentsCouncil"),),
+    }
+)
+MODERN_SUPPORTED_RECIPIENT_TYPE = "parentsCouncil"
+MODERN_SUPPORTED_ACCOUNT_GROUPS = frozenset({"5", "8", "9"})
+MODERN_MAX_CLASSES = 128
+MODERN_MAX_RECIPIENTS = 2048
+MODERN_MAX_TYPES = 32
+MODERN_MAX_LABEL = 1024
+MODERN_MAX_TOTAL_TEXT = 128 * 1024
+MODERN_REJECTION_CODES = frozenset(
+    {"DUPLICATED_RECEIVERS", "THE_RECEIVER_CANNOT_RECEIVE_A_NOTE_COPY"}
+)
+ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
+ATTACHMENT_CHUNK_BYTES = 64 * 1024
+ATTACHMENT_MAX_LOCATION_LENGTH = 2048
+ATTACHMENT_KEY_PATTERN = re.compile(r"[A-Za-z0-9_.~-]{1,512}\Z")
+ATTACHMENT_REDIRECT_PATH = "/GetFile/{key}"
+
+RECIPIENT_FORM_FIELDS = frozenset(
+    {"typAdresata", "poprzednia", "tabZaznaczonych", "czyWirtualneKlasy", "idGrupy"}
+)
+RECIPIENT_GROUP_TYPE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}\Z")
+RECIPIENT_MAX_GROUPS = 32
+RECIPIENT_MAX_ITEMS = 2048
+RECIPIENT_MAX_LABEL_LENGTH = 1024
+RECIPIENT_MAX_TOTAL_TEXT_LENGTH = 131072
+RECIPIENT_UNSUPPORTED_TYPES = frozenset({"grupa"})
+RECIPIENT_SELECTION_PROMPT = "Wybierz grupę"
+RECIPIENT_CLASS_UNAVAILABLE_NOTICE = (
+    "Uczeń nie jest przydzielony do klasy. W celu wyjaśnienia sytuacji prosimy "
+    "o kontakt ze szkołą"
+)
+
+
+def recipient_form(group_type: str, *, selection_id: str = "0") -> dict[str, str]:
+    if (
+        type(group_type) is not str
+        or RECIPIENT_GROUP_TYPE_PATTERN.fullmatch(group_type) is None
+        or type(selection_id) is not str
+        or re.fullmatch(r"0|[1-9][0-9]{0,63}", selection_id) is None
+        or (selection_id != "0" and group_type != "grupa")
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {
+        "typAdresata": group_type,
+        "poprzednia": "5",
+        "tabZaznaczonych": "",
+        "czyWirtualneKlasy": "false",
+        "idGrupy": selection_id,
+    }
+
+
+def encode_send_form(submission: SendSubmission, account: str) -> bytes:
+    """Exact bounded legacy send variant; text is never silently transformed."""
+    if (
+        not isinstance(submission, SendSubmission)
+        or type(submission.recipients) is not tuple
+        or not 1 <= len(submission.recipients) <= SEND_MAX_RECIPIENTS
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    for value, limit, whitespace in (
+        (submission.subject, SEND_MAX_SUBJECT_CHARACTERS, ""),
+        (submission.body, SEND_MAX_BODY_CHARACTERS, "\r\n\t"),
+    ):
+        if (
+            type(value) is not str
+            or not 1 <= len(value) <= limit
+            or not value.strip()
+            or any(
+                unicodedata.category(c) in {"Cc", "Cs"} and c not in whitespace
+                for c in value
+            )
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+    seen: set[str] = set()
+    fields = [("filtrUzytkownikow", "0"), ("idPojemnika", "")]
+    for reference in submission.recipients:
+        if (
+            not isinstance(reference, RecipientReference)
+            or reference.account != account
+            or type(reference.identifier) is not str
+            or re.fullmatch(r"[0-9]{1,64}", reference.identifier) is None
+            or reference.identifier in seen
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        recipient_form(reference.group_type, selection_id=reference.selection_id)
+        seen.add(reference.identifier)
+        fields.append(("DoKogo", reference.identifier))
+    fields.extend(
+        (
+            ("Rodzaj", "0"),
+            ("temat", submission.subject),
+            ("tresc", submission.body),
+            ("poprzednia", "5"),
+            ("fileStorageIdentifier", ""),
+            ("wyslij", "Wyślij"),
+        )
+    )
+    payload = urlencode(fields, encoding="utf-8", errors="strict").encode("ascii")
+    if len(payload) > SEND_MAX_REQUEST_BYTES:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return payload
+
+
+def encode_modern_send(submission: ModernSendSubmission, account: str) -> bytes:
+    """Source-informed ordinary school JSON, never OSIN/group/CC/BCC sending."""
+    if (
+        not isinstance(submission, ModernSendSubmission)
+        or type(submission.recipients) is not tuple
+        or not 1 <= len(submission.recipients) <= SEND_MAX_RECIPIENTS
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    for value, limit, whitespace in (
+        (submission.subject, SEND_MAX_SUBJECT_CHARACTERS, ""),
+        (submission.body, SEND_MAX_BODY_CHARACTERS, "\r\n\t"),
+    ):
+        if (
+            type(value) is not str
+            or not 1 <= len(value) <= limit
+            or not value.strip()
+            or any(
+                unicodedata.category(c) in {"Cc", "Cs"} and c not in whitespace
+                for c in value
+            )
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+    seen: set[str] = set()
+    recipients = []
+    for reference in submission.recipients:
+        if (
+            not isinstance(reference, ModernRecipientReference)
+            or reference.account != account
+            or reference.recipient_type != MODERN_SUPPORTED_RECIPIENT_TYPE
+            or type(reference.class_label) is not str
+            or not reference.class_label.strip()
+            or len(reference.class_label) > MODERN_MAX_LABEL
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if (
+            any(
+                type(v) is not str or re.fullmatch(r"[0-9]{1,64}", v) is None
+                for v in (reference.account_id, reference.user_id)
+            )
+            or reference.account_id in seen
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        seen.add(reference.account_id)
+        recipients.append({"accountId": reference.account_id})
+    payload = json.dumps(
+        {
+            "receivers": {"schoolReceivers": recipients},
+            "topic": base64.b64encode(submission.subject.encode()).decode("ascii"),
+            # The modern reader inserts decoded content as sanitized HTML.
+            # Preserve plain-text literals instead of letting tags disappear.
+            "content": base64.b64encode(
+                escape(submission.body, quote=False).encode()
+            ).decode("ascii"),
+            "storageId": None,
+            "category": "normal",
+        },
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("ascii")
+    if len(payload) > SEND_MAX_REQUEST_BYTES:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return payload
+
+
+def message_page_form(folder: MessageFolder, page: int) -> dict[str, str]:
+    if (
+        not isinstance(folder, MessageFolder)
+        or type(page) is not int
+        or not 0 <= page < MESSAGE_MAX_PAGE_COUNT
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {"numer_strony105": str(page), "porcjowanie_pojemnik105": "105"}
 
 
 def grade_view_form(view: GradeView) -> dict[str, str]:
@@ -588,6 +976,9 @@ FORM_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
                 "porcjowanie_pojemnik1001",
             }
         ),
+        "messages_received": MESSAGE_PAGE_FIELDS,
+        "messages_sent": MESSAGE_PAGE_FIELDS,
+        "recipients": RECIPIENT_FORM_FIELDS,
     }
 )
 FORM_MAX_VALUE_LENGTH = 64
@@ -744,12 +1135,17 @@ class ConnectionSettings(_ValidatedConfig):
     )
     synergia_origin: str = UPSTREAM_ORIGINS["synergia"]
     api_origin: str = UPSTREAM_ORIGINS["api"]
+    download_origin: str = UPSTREAM_ORIGINS["download"]
+    messages_origin: str = UPSTREAM_ORIGINS["messages"]
     proxy_url: SecretStr | None = Field(default=None, repr=False)
     ssl_context: ssl.SSLContext | None = Field(default=None, repr=False)
 
-    @field_validator("synergia_origin", "api_origin")
+    @field_validator(
+        "synergia_origin", "api_origin", "download_origin", "messages_origin"
+    )
     @classmethod
     def validate_origin(cls, value: str, info: ValidationInfo) -> str:
+        assert info.field_name is not None
         parsed = urlsplit(value)
         port = parsed.port
         if (
@@ -761,9 +1157,9 @@ class ConnectionSettings(_ValidatedConfig):
         ):
             raise ValueError("Only origin URLs are allowed")
         local = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        expected = (
-            "api.librus.pl" if info.field_name == "api_origin" else "synergia.librus.pl"
-        )
+        expected = urlsplit(
+            UPSTREAM_ORIGINS[info.field_name.removesuffix("_origin")]
+        ).hostname
         official = parsed.hostname == expected
         if not local and not (
             official and parsed.scheme == "https" and port in (None, 443)
@@ -789,4 +1185,9 @@ class ConnectionSettings(_ValidatedConfig):
         return self
 
     def origin(self, endpoint: Endpoint) -> str:
-        return self.api_origin if endpoint.origin == "api" else self.synergia_origin
+        return {
+            "api": self.api_origin,
+            "synergia": self.synergia_origin,
+            "download": self.download_origin,
+            "messages": self.messages_origin,
+        }[endpoint.origin]

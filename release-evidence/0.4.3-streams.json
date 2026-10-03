@@ -1,0 +1,58 @@
+{
+  "version": "0.4.3",
+  "date": "2026-10-02",
+  "offline": {
+    "source_tests_per_python": 865,
+    "installed_artifact_tests_per_environment": 865,
+    "installed_artifact_environments": 4,
+    "installed_content_replays_per_environment": 2,
+    "final_library_bytes_match_live_wheel": true,
+    "python_versions": ["3.13", "3.14"],
+    "openapi_operations": 34,
+    "maximum_file_bytes": 52428800,
+    "maximum_file_dispatches_including_login": 7,
+    "mixed_saturation_accounts": 4,
+    "mixed_warm_shared_dispatches": 6,
+    "encoding_regressions_failed_before_fix": 3,
+    "pair_programmer_design": "completed",
+    "pair_programmer_post_review": "approved_after_encoding_correction"
+  },
+  "live": {
+    "allowed_logins": 5,
+    "allowed_requests": 120,
+    "used_logins": 4,
+    "used_requests": 48,
+    "discovery_requests": [11, 11, 12],
+    "discovery_content_opens": [0, 0, 1],
+    "unused_discovery_logins": 1,
+    "installed_wheel_smoke_requests": 14,
+    "installed_wheel_smoke_content_opens": 1,
+    "attachment_resolutions": 1,
+    "attachment_downloads": 1,
+    "downloaded_bytes": 930056,
+    "download_complete": true,
+    "content_length_present": false,
+    "file_bytes_retained": false,
+    "unread_or_sent_content_opens": 0,
+    "sends_deletes_or_read_once_calls": 0
+  },
+  "comparison": {
+    "browser_responses": 10,
+    "browser_content_responses": 2,
+    "selected_received_rows": 35,
+    "selected_sent_rows": 8,
+    "attachment_metadata_per_content": 1,
+    "common_content_fields": 4,
+    "apix_version": "1.5.3",
+    "apix_common_field_mismatches": 0,
+    "apix_attachment_stream_support": false
+  },
+  "gaps": [
+    "sent and multiple or empty attachment downloads",
+    "broader signed-key, handler and header variants",
+    "upstream read effects",
+    "populated pagination and newer mailbox layouts",
+    "consumer atomic publication and migration",
+    "notifications, sending, credentialed CI and publication"
+  ]
+}

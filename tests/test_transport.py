@@ -2,6 +2,7 @@ import asyncio
 import gzip
 from contextlib import AsyncExitStack
 
+import aiohttp
 import pytest
 from aiohttp import web
 from pydantic import SecretStr
@@ -11,12 +12,88 @@ from librus_python_api.config import (
     ConnectionSettings,
     SchedulerLimits,
     TransportLimits,
+    recipient_form,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import LoginSubmission
 from librus_python_api.scheduler import RequestScheduler
 from librus_python_api.transport import AiohttpTransport
 from tests.http_support import serve
+
+
+def test_read_effect_get_is_not_replayed_after_stale_keepalive_disconnect() -> None:
+    async def scenario() -> None:
+        calls = 0
+
+        async def warm(request: web.Request) -> web.Response:
+            return web.Response(text="warm")
+
+        async def open_message(request: web.Request) -> web.Response:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                assert request.transport is not None
+                request.transport.close()
+            return web.Response(text="content")
+
+        app = web.Application()
+        app.router.add_get("/gateway/api/2.0/Me", warm)
+        app.router.add_get("/wiadomosci/1/5/{id}", open_message)
+        async with serve(app) as origin, RequestScheduler(("a",)) as scheduler:
+            transport = AiohttpTransport(
+                "a",
+                scheduler,
+                ConnectionSettings(synergia_origin=origin, api_origin=origin),
+                TransportLimits(),
+            )
+            try:
+                await transport.request("identity", RequestBudget())
+                budget = RequestBudget(max_requests=1)
+                with pytest.raises(LibrusError, match="^connection$"):
+                    await transport.request(
+                        "message_content_received", budget, reference_id="101"
+                    )
+                assert calls == budget.requests_dispatched == 1
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_missing_aiohttp_replay_switch_stops_traffic_before_any_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def scenario() -> None:
+        calls = 0
+
+        async def me(request: web.Request) -> web.Response:
+            nonlocal calls
+            calls += 1
+            return web.Response(text="{}")
+
+        app = web.Application()
+        app.router.add_get("/gateway/api/2.0/Me", me)
+        async with serve(app) as origin, RequestScheduler(("a",)) as scheduler:
+            transport = AiohttpTransport(
+                "a",
+                scheduler,
+                ConnectionSettings(synergia_origin=origin, api_origin=origin),
+                TransportLimits(),
+            )
+            # Simulates an aiohttp release that renamed the private attribute.
+            monkeypatch.setattr(
+                aiohttp.ClientSession,
+                "ATTRS",
+                aiohttp.ClientSession.ATTRS - {"_retry_connection"},
+            )
+            try:
+                with pytest.raises(LibrusError, match="^unsupported_capability$"):
+                    await transport.request("identity", RequestBudget())
+                assert calls == 0
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())
 
 
 def test_native_transport_preserves_account_cookies_and_isolates_sessions() -> None:
@@ -294,6 +371,42 @@ CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
         ("timetable", {"rok": "2026"}),  # another endpoint's field
         ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
         ("grades", {}),  # empty form
+        ("recipients", {"typAdresata": "nauczyciel"}),
+        ("recipients", recipient_form("nauczyciel") | {"idGrupy": "301"}),
+        ("recipients", recipient_form("grupa") | {"idGrupy": "0301"}),
+        ("recipients", recipient_form("grupa") | {"czyWirtualneKlasy": "true"}),
+        ("recipients", recipient_form("grupa") | {"wyslij": "1"}),
+        (
+            "recipients",
+            {
+                "typAdresata": "nauczyciel",
+                "poprzednia": "5",
+                "tabZaznaczonych": "1",
+                "czyWirtualneKlasy": "false",
+                "idGrupy": "0",
+            },
+        ),
+        (
+            "messages_sent",
+            {
+                "numer_strony105": "0",
+                "porcjowanie_pojemnik105": "105",
+                "wyslij": "Fixture",
+            },
+        ),
+        ("messages_sent", {"numer_strony105": "0"}),
+        (
+            "messages_received",
+            {"numer_strony105": "0", "porcjowanie_pojemnik105": "106"},
+        ),
+        (
+            "messages_received",
+            {"numer_strony105": "1000", "porcjowanie_pojemnik105": "105"},
+        ),
+        (
+            "messages_received",
+            {"numer_strony105": "-1", "porcjowanie_pojemnik105": "105"},
+        ),
     ],
 )
 def test_mismatched_forms_are_rejected_before_dispatch(

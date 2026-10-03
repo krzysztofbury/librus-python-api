@@ -11,7 +11,14 @@ from typing import Any
 
 import pytest
 
-from librus_python_api import AccountClient, RequestBudget, SchoolReference
+from librus_python_api import (
+    AccountClient,
+    MessageFolder,
+    MessageReference,
+    RecipientGroupReference,
+    RequestBudget,
+    SchoolReference,
+)
 from librus_python_api.config import ENDPOINTS, TransportLimits
 from librus_python_api.exceptions import (
     AccessDeniedError,
@@ -214,6 +221,11 @@ def invalid_calls(client: AccountClient) -> list[Callable[[], Awaitable[Any]]]:
             date(2026, 9, 1), date(2026, 9, 1), page=-1
         ),
         lambda: client.completed_lessons(date(2026, 9, 1), date(2026, 9, 1), limit=0),
+        lambda: client.messages_page("received"),  # type: ignore[arg-type]
+        lambda: client.messages_page(page=True),
+        lambda: client.messages_page(page=1000),
+        lambda: client.messages(max_pages=9),
+        lambda: client.messages(limit=0),
         lambda: client.identity(max_age_seconds=float("nan")),
         lambda: client.identity(max_age_seconds=3601),
     ]
@@ -283,6 +295,42 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
                 october[0], date(2026, 10, 30), **kw
             ),
         ),
+        "messages_received": (
+            lambda **kw: client.messages_page(**kw),
+            lambda **kw: client.messages_page(page=1, **kw),
+        ),
+        "messages_sent": (
+            lambda **kw: client.messages_page(MessageFolder.SENT, **kw),
+            lambda **kw: client.messages_page(MessageFolder.SENT, page=1, **kw),
+        ),
+        "recipients": (
+            lambda **kw: client.recipients(
+                RecipientGroupReference("nauczyciel", "student"), **kw
+            ),
+            lambda **kw: client.recipients(
+                RecipientGroupReference("wychowawca", "student"), **kw
+            ),
+        ),
+        "message_content_received": (
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.RECEIVED, "101", "student"),
+                allow_mark_read=True,
+                **kw,
+            ),
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.RECEIVED, "102", "student"),
+                allow_mark_read=True,
+                **kw,
+            ),
+        ),
+        "message_content_sent": (
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.SENT, "101", "student"), **kw
+            ),
+            lambda **kw: client.message_content(
+                MessageReference(MessageFolder.SENT, "102", "student"), **kw
+            ),
+        ),
     }
 
 
@@ -298,6 +346,11 @@ def selection_pairs(client: AccountClient) -> dict[str, tuple[Read, Read]]:
         "homework",
         "homework_detail",
         "completed_lessons",
+        "messages_received",
+        "messages_sent",
+        "recipients",
+        "message_content_received",
+        "message_content_sent",
     ],
 )
 def test_distinct_selections_are_never_served_from_each_others_cache(
@@ -343,6 +396,15 @@ def test_wrong_media_type_or_oversized_page_fails_without_raw_cause(
 
 
 WIRE_FORMS = {
+    "recipients": {
+        "typAdresata": "nauczyciel",
+        "poprzednia": "5",
+        "tabZaznaczonych": "",
+        "czyWirtualneKlasy": "false",
+        "idGrupy": "0",
+    },
+    "messages_received": {"numer_strony105": "0", "porcjowanie_pojemnik105": "105"},
+    "messages_sent": {"numer_strony105": "0", "porcjowanie_pojemnik105": "105"},
     "grades": {"zmiany_logowanie_wszystkie": "1"},
     "attendance": {"zmiany_logowanie_wszystkie": ""},
     "timetable": {"tydzien": "2026-10-05_2026-10-11"},

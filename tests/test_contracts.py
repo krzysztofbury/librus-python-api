@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 import yaml
+from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 
 from librus_python_api import __version__
 from librus_python_api.config import ENDPOINTS, Endpoint, Evidence, SideEffect
@@ -109,3 +110,31 @@ def test_referenced_path_cannot_hide_an_undocumented_operation() -> None:
     spec["paths"]["/fixture/identity"] = {"$ref": "#/x-fixture-path"}
     with pytest.raises(ValueError, match="Path-item references are not supported"):
         check_contract(spec, {})
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["missing", "duplicate", "wrong_effect", "retry", "wrong_form", "wrong_type"],
+)
+def test_shared_route_send_variant_is_explicit_validated_and_cannot_drift(
+    change: str,
+) -> None:
+    spec = yaml.safe_load(SPEC_PATH.read_text())
+    operation = spec["paths"]["/wiadomosci/1/6"]["post"]
+    variant = operation["x-request-variants"][0]
+    if change == "missing":
+        del operation["x-request-variants"]
+    elif change == "duplicate":
+        operation["x-request-variants"].append(deepcopy(variant))
+    elif change == "wrong_effect":
+        variant["x-side-effect"] = "select_view"
+    elif change == "retry":
+        variant["x-retry-safe"] = True
+    elif change == "wrong_form":
+        variant["requestBody"]["content"]["application/x-www-form-urlencoded"][
+            "schema"
+        ]["type"] = "invalid-type"
+    else:
+        operation["x-request-variants"] = {}
+    with pytest.raises((ValueError, OpenAPIValidationError)):
+        check_contract(spec, ENDPOINTS)
