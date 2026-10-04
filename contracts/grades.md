@@ -119,7 +119,9 @@ failure must not replay it or credentials. Date windows validate before login,
 filter inclusive civil dates over the same collection/cache, and exclude averages.
 No last-login time, timezone-based week, grade arithmetic, or publication date is
 inferred. View-specific caches and coalescing keys never substitute one selection
-for another. Date windows always use the all-view collection. Publication blocks
+for another. Date windows default to all-view and now accept an explicit view,
+either missing boundary, and supplied dates at most 370 days apart. The result
+retains its view and reuses only that view's collection. Publication blocks
 preserve date, teacher, and paragraphs; multiple blocks are retained. Semester
 stays unknown unless explicitly established by the title, unlike the baseline's
 implicit first-period default. Unknown layouts fail closed.

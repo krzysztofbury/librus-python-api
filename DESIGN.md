@@ -2,6 +2,11 @@
 
 ## Implementation boundary
 
+The [post-0.5 security and architecture review](contracts/api-security-review.md)
+records the service/gateway boundary, local repository and SQLite unit-of-work
+decisions. [MCP cutover contracts](contracts/mcp-cutover-review.md) distinguish
+reusable workflows from transport-specific DTO projection and migration.
+
 This is source-informed original work, not a clean-room implementation. Existing
 clients provide behavioural references, not source, tests or fixtures to copy.
 All HTTP fixtures are independently authored. Live behaviour is recorded in

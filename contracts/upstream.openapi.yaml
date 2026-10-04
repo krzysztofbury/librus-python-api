@@ -1233,6 +1233,10 @@ paths:
         and an optional "Zadanie oznaczono jako wykonane (date, time)" marker.
         No submissions, read-once agenda or attachments. Never replay the selection
         POST. Empty success requires the explicit empty marker and no notice.
+        The optional client homework_range workflow makes up to 13 such disjoint
+        selections for dates at most 370 days apart, under one total budget.
+        It is an all-or-error aggregate, not a larger upstream selection or a
+        transactional snapshot. Its multi-month wire proof is offline-only.
       security: [{SessionCookie: []}]
       requestBody:
         required: true

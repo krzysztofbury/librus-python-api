@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - Cutover contracts and security review
+
+- Add typed `HomeworkRangeRequest` and bounded `homework_range()` aggregation
+  across disjoint monthly selections, under one total budget. Conflicting duplicate
+  references and later failures produce errors, never partial cached success.
+- Grade/attendance windows accept optional date boundaries and explicit upstream
+  views, retain the selected view, and accept dates at most 370 days apart.
+- Reject non-standard non-finite JSON constants and overflowing decoded numbers,
+  including unknown fields. Four identity regressions fail before the correction.
+- Extend modern sent/archive/zero-byte attachment publication proof offline.
+- Record the MCP tool/type cutover matrix and Snyk-based security/architecture
+  review. Populated notes, observation cards and further live qualification remain
+  evidence-dependent; no consumer migration or new live access is included.
+
 ## 0.5.0 (2026-10-04) - Modern live qualification
 
 - Bounded server-selected numbered handoff namespaces, preserving exact origin,

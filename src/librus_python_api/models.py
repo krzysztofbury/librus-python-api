@@ -742,6 +742,16 @@ class HomeworkItem:
 
 
 @dataclass(frozen=True, slots=True)
+class HomeworkRangeRequest:
+    """Explicit bounded selection, validated by AccountClient before any I/O."""
+
+    start: date
+    end: date
+    max_windows: int = 13
+    max_items: int = 4096
+
+
+@dataclass(frozen=True, slots=True)
 class Homework:
     identity: Identity
     start: date = field(repr=False)
@@ -881,11 +891,12 @@ class Grades:
 @dataclass(frozen=True, slots=True)
 class GradeWindow:
     identity: Identity
-    start: date
-    end: date
+    start: date | None
+    end: date | None
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
     observation: Observation
+    view: GradeView = GradeView.ALL
 
 
 @dataclass(frozen=True, slots=True)
@@ -921,10 +932,11 @@ class Attendance:
 @dataclass(frozen=True, slots=True)
 class AttendanceWindow:
     identity: Identity
-    start: date
-    end: date
+    start: date | None
+    end: date | None
     items: tuple[AttendanceRecord, ...] = field(repr=False)
     observation: Observation
+    view: AttendanceView = AttendanceView.ALL
 
 
 @dataclass(frozen=True, slots=True)

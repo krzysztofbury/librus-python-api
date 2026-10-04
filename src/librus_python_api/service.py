@@ -53,6 +53,7 @@ from librus_python_api.config import (
     encode_send_form,
     grade_view_form,
     homework_form,
+    homework_range_forms,
     message_page_form,
     modern_directory_query,
     modern_mailbox_query,
@@ -63,6 +64,7 @@ from librus_python_api.diagnostics import DiagnosticSink
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
+from librus_python_api.homework_range import HomeworkAccumulator
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.message_content import parse_message_content, validate_reference
 from librus_python_api.messages import parse_messages
@@ -88,6 +90,7 @@ from librus_python_api.models import (
     GradeView,
     GradeWindow,
     Homework,
+    HomeworkRangeRequest,
     Identity,
     LoginSubmission,
     MessageAttachmentReference,
@@ -1069,25 +1072,38 @@ class AccountClient:
 
     async def grades_window(
         self,
-        start: date,
-        end: date,
+        start: date | None = None,
+        end: date | None = None,
         *,
+        view: GradeView = GradeView.ALL,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> GradeWindow:
-        """Inclusive civil dates, at most 366 days; averages are not dated rows.
+        """Optional inclusive dates, at most 370 days apart when both are supplied.
 
-        Filters the full grade collection, sharing its cache and coalescing.
+        Filters the selected upstream view, sharing its cache and coalescing.
+        Averages and undated summaries are not dated rows.
         """
         _require_dates(start, end, max_days=GRADE_MAX_WINDOW_DAYS)
-        result = await self.grades(budget=budget, max_age_seconds=max_age_seconds)
+        result = await self.grades(
+            view=view, budget=budget, max_age_seconds=max_age_seconds
+        )
         return GradeWindow(
             result.identity,
             start,
             end,
-            tuple(g for g in result.records.numeric if start <= g.day <= end),
-            tuple(g for g in result.records.descriptive if start <= g.day <= end),
+            tuple(
+                g
+                for g in result.records.numeric
+                if (start is None or start <= g.day) and (end is None or g.day <= end)
+            ),
+            tuple(
+                g
+                for g in result.records.descriptive
+                if (start is None or start <= g.day) and (end is None or g.day <= end)
+            ),
             result.observation,
+            result.view,
         )
 
     async def attendance(
@@ -1116,21 +1132,30 @@ class AccountClient:
 
     async def attendance_window(
         self,
-        start: date,
-        end: date,
+        start: date | None = None,
+        end: date | None = None,
         *,
+        view: AttendanceView = AttendanceView.ALL,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> AttendanceWindow:
-        """Inclusive civil-date selection over the cached all-view collection."""
+        """Optional inclusive civil dates over one explicit cached upstream view."""
         _require_dates(start, end, max_days=ATTENDANCE_MAX_WINDOW_DAYS)
-        result = await self.attendance(budget=budget, max_age_seconds=max_age_seconds)
+        result = await self.attendance(
+            view=view, budget=budget, max_age_seconds=max_age_seconds
+        )
         return AttendanceWindow(
             result.identity,
             start,
             end,
-            tuple(row for row in result.items if start <= row.day <= end),
+            tuple(
+                row
+                for row in result.items
+                if (start is None or start <= row.day)
+                and (end is None or row.day <= end)
+            ),
             result.observation,
+            result.view,
         )
 
     async def attendance_detail(
@@ -1325,6 +1350,44 @@ class AccountClient:
 
         return await self._read(
             ("homework", start, end), fetch, budget, max_age_seconds
+        )
+
+    async def homework_range(
+        self,
+        request: HomeworkRangeRequest,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Homework:
+        """Collect up to 370 days using bounded monthly selections and one budget.
+
+        Returns all selections or raises, with no partial cache publication.
+        Dates retain the upstream selection semantics, not an inferred due-date
+        filter. Identical reference-bearing rows are deduplicated in first-seen
+        order; conflicting observations fail rather than choosing a version.
+        """
+        forms = homework_range_forms(request)
+
+        async def fetch(budget: RequestBudget, _: bool) -> Homework:
+            accumulator = HomeworkAccumulator(request.max_items)
+            for form in forms:
+                items = await self._page(
+                    "homework",
+                    budget,
+                    lambda body: parse_homework(body, self._alias),
+                    form=form,
+                )
+                accumulator.extend(items)
+            return Homework(
+                self._session_identity(),
+                request.start,
+                request.end,
+                tuple(accumulator.items),
+                self._observation("homework"),
+            )
+
+        return await self._read(
+            ("homework", "range", request), fetch, budget, max_age_seconds
         )
 
     async def homework_detail(

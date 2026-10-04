@@ -1,7 +1,7 @@
 # Agenda and homework (0.3.0)
 
-Calls: `agenda(year, month)`, `agenda_detail(reference)`, `homework(start, end)`
-and `homework_detail(reference)`. These do not consume the read-once "added since
+Calls: `agenda(year, month)`, `agenda_detail(reference)`, `homework(start, end)`,
+`homework_range(request)` and `homework_detail(reference)`. These do not consume the read-once "added since
 last login" agenda, submit work, download attachments or mark anything as read.
 
 ## Agenda
@@ -60,7 +60,32 @@ apix maps the same cells as `lesson` (actually the subject), `subject` (actually
 the topic) and joined date and weekday strings. The previous native model copied
 that labelling, and its synthetic fixtures invented clock cells, so populated
 pages failed live. A consumer mapping to the legacy MCP output must translate
-the fields explicitly.
+  the fields explicitly.
+
+### Multi-month aggregation
+
+`HomeworkRangeRequest(start, end, max_windows=13, max_items=4096)` is a frozen
+typed request validated by `homework_range()` before login. Both values must be
+plain dates, at most 370 days apart; reversed ranges, coerced strings, booleans
+as limits and unsupported bounds fail locally. The planner starts at `start`,
+ends each inclusive window at the earlier of one calendar month later or `end`,
+then starts the next on the following day. Leap months and year rollover do not
+overlap or omit boundary dates. A smaller window cap fails before any request.
+
+All selections run sequentially inside one account operation, using its original
+budget, lock, scheduler and parser pool. Equal rows carrying the same scoped
+reference are included once in first-seen order; conflicting observations fail
+with `ParseError`. Rows without references are retained, since display equality
+does not establish identity. Aggregate items and rendered text (262144 characters)
+are bounded. A later failure discards the complete aggregate and publishes no
+partial result cache entry. Monthly POSTs are never automatically replayed.
+The method preserves upstream date-selection semantics and makes no snapshot or
+due-date-filter guarantee. Multi-month orchestration is offline-qualified only;
+the individual route and one-month constraint retain the earlier live evidence.
+
+`tests/test_homework_range.py` owns the additional multi-selection wire, budget,
+isolation, duplicate/conflict, failure/cache and calendar-boundary proof. It reuses
+the existing homework endpoint rather than enabling another upstream route.
 
 ## Details
 

@@ -139,8 +139,11 @@ source)` with an aware UTC timestamp.
   - `descriptive`: `DescriptiveGrade`, including publications (`PUBLICATION`).
   - `descriptive_summaries`: undated semester text, never in date windows.
   - `averages`: `SchoolAverage` as school-provided text. Nothing is computed.
-- `grades_window(start, end)` filters the `ALL` collection to an inclusive window
-  of at most 366 days.
+- `grades_window(start=None, end=None, view=GradeView.ALL)` filters the selected
+  collection to inclusive civil dates. Either boundary may be omitted; two
+  supplied dates may be at most 370 days apart. `GradeWindow.view` records the
+  selection. It reuses only that view's cache; averages and undated summaries
+  remain outside the window.
 
 The observation card ("Karta spostrzeżeń") shown on some grades pages is not
 read yet.
@@ -151,7 +154,9 @@ read yet.
   `AttendanceRecord`s (symbol, day, semester, type, teacher, period, excursion
   flag, topic, subject, numeric `detail_id`, tooltip metadata) and the semesters
   shown. The view POST is never replayed.
-- `attendance_window(start, end)` filters the `ALL` collection (at most 366 days).
+- `attendance_window(start=None, end=None, view=AttendanceView.ALL)` filters the
+  selected collection, with the same optional-date/370-day-difference rules.
+  `AttendanceWindow.view` records the selection.
 - `attendance_detail(detail_id)` takes a numeric string and returns ordered
   `fields` and `notes`.
 - `gateway_attendance()` returns the JSON records with a strict `AttendanceKind`
@@ -202,7 +207,18 @@ Nothing is marked as read.
   header. Each date is checked against the weekday shown beside it.
 - `homework_detail(reference)` returns `SchoolDetail`. The web page pairs
   opening a detail with a separate "mark as read" call; the library never makes
-  that call.
+   that call.
+
+For longer selections use `homework_range(HomeworkRangeRequest(start, end,
+max_windows=13, max_items=4096))`. The immutable request is validated before
+login. Dates must be at most 370 days apart. The service plans disjoint inclusive
+monthly windows, then fetches them sequentially under one account lock, shared
+scheduler and original request/byte/deadline budget. The existing `Homework`
+response contains the requested range and merged items. Equal reference-bearing
+rows are deduplicated; conflicting versions fail with `ParseError`. Reference-free
+rows remain separate. Aggregate text is capped at 262144 characters. Any failure
+discards the aggregate without caching partial results. This helper preserves
+upstream date-selection semantics and does not promise a transactional snapshot.
 
 ## Completed lessons
 

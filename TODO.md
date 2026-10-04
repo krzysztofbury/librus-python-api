@@ -61,8 +61,29 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   custom attendance types, full-year subject-frequency resolution, parallel
   group lessons in the timetable, empty and rich announcement layouts, and
   populated descriptive grades and publications.
-- [ ] Homework windows longer than one month: decide whether the library should
-  split them into monthly requests or leave that to the consumer.
+- [x] Homework windows longer than one month: explicit `homework_range()` with
+  typed request, disjoint monthly selections, shared total budget and bounded
+  all-or-error aggregation. Offline-only evidence; see contracts/school-reads.md.
+
+### Post-0.5 cutover readiness
+
+- [x] Compare default and optional MCP tools and typed response contracts against
+  native operations: [cutover matrix](contracts/mcp-cutover-review.md).
+- [x] Preserve optional date bounds and explicit views in native grade/attendance
+  windows; accept the consumer's maximum 370-day date difference.
+- [x] Review client security against Snyk API guidance and assess service,
+  repository and unit-of-work boundaries: [review](contracts/api-security-review.md).
+  Reject non-finite upstream JSON; retain explicit effects and context isolation.
+- [x] Extend offline modern attachment publication cases to sent references and
+  a zero-byte archived sent file. This does not establish new live compatibility.
+- [ ] Behaviour-note and observation-card implementation remains blocked on
+  independently established populated layout contracts. Experimental MCP note
+  assumptions and observation of a card title are insufficient.
+- [ ] Populated completed lessons, additional school/layout coverage and dedicated
+  disposable read-once qualification remain deferred live checks. Current offline
+  review neither opens nor renews a live scope.
+- [ ] Execute consumer DTO/stdio, migration/rollback and installed acceptance
+  checks during the separately scoped MCP integration.
 
 ### 0.4.x - Separate communication features
 

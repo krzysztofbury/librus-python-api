@@ -203,7 +203,7 @@ def invalid_calls(client: AccountClient) -> list[Callable[[], Awaitable[Any]]]:
         lambda: client.grades(view="all"),  # type: ignore[arg-type]
         lambda: client.attendance(view="all"),  # type: ignore[arg-type]
         lambda: client.grades_window(date(2026, 2, 1), date(2026, 1, 1)),
-        lambda: client.attendance_window(date(2026, 1, 1), date(2027, 1, 2)),
+        lambda: client.attendance_window(date(2026, 1, 1), date(2027, 1, 8)),
         lambda: client.attendance_detail("../2468"),
         lambda: client.subject_frequency(datetime(2026, 1, 1)),
         lambda: client.timetable(date(2026, 10, 6)),  # a Tuesday

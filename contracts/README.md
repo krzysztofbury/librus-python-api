@@ -21,6 +21,10 @@ source-informed only. [VERIFICATION.md](../VERIFICATION.md) holds the live
 results for the current release. An exercised route is not proof of every
 response variant.
 
+The [MCP cutover review](mcp-cutover-review.md) maps all consumer tools and typed
+contracts to native owners. The [API security review](api-security-review.md)
+records Snyk-guided controls, findings and architecture boundaries.
+
 ## Adding an endpoint
 
 Ship these together in the same change:
