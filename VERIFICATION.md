@@ -3,6 +3,39 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## External communication gap review (2026-10-04)
+
+Reviewed the latest published `librus-apix` 1.5.3 and pinned source revision
+`2fedfe8ffa4933abb884929716519ddbeb8eb32d`, also its `v1.5.3` tag. SHA256 checks
+established that the published wheel's messaging, route and client modules are
+byte-identical to that source. The package entry point, messaging documentation,
+README and metadata/license were reviewed as supporting evidence. The MIT
+metadata/GPLv3 license conflict persists. No external code was executed or
+installed; the wheel was inspected in memory without extraction or retention.
+No code, tests, documentation or fixtures were copied.
+
+The external client has legacy HTML messaging only. Virtual selection is fixed
+off, subgroup lookup fixes selection to zero, and there is no dedicated archive,
+withdrawn-original, expanded/CC/BCC receipt or attachment stream implementation.
+Its sent `unread` comparison is not reliable delivery evidence. No additional
+gap-closing logic was established, so runtime behavior and tests are unchanged.
+The review and hashes are recorded in `contracts/apix-communication-review.md`
+and `release-evidence/0.5-apix-communication-review.json`.
+
+Remaining work is explicitly separated as TODO C01-C05: unsupported independent
+delivery semantics; unavailable virtual/class-parent and subgroup live data;
+archive list/detail navigation contracts and archive/original live layouts; and
+expanded/CC/BCC receipt live layouts. Existing independently authored offline
+support remains available. No new live Librus request, credential submission,
+send, history/guard change, consumer migration, merge or publication occurred.
+Previously qualified implementation archives remain unchanged. This is a
+documentation-only continuation on PR #15, not new live or artifact qualification.
+Post-review source tests pass: **1,487 tests, one performance case deselected**.
+Ruff lint/format, repository hooks and diff checks pass. The Python manifest still
+matches the qualified implementation snapshot recorded below; no runtime or test
+changes are inferred from the external comparison. Current-head remote CI is
+checked separately on PR #15.
+
 ## Modern download, receipt and layout expansion (2026-10-04)
 
 The latest same-PR implementation is `5318757`, still version 0.5.0. It adds

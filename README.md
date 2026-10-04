@@ -54,9 +54,11 @@ The same-PR continuation adds modern mailbox reads and broader recipient lookup
 without changing the consumer backend. Ordinary modern attachment streams and
 recipient read observations are implemented and narrowly live-qualified;
 independent delivery status and unavailable layouts are not inferred. The optional
-`librus_python_api.files` layer safely publishes complete legacy attachment
+`librus_python_api.files` layer safely publishes complete legacy or modern attachment
 streams into an explicit caller-selected directory. See
 [contracts/modern-communication.md](contracts/modern-communication.md).
+The pinned [librus-apix communication review](contracts/apix-communication-review.md)
+found no external logic for the remaining gaps; these stay explicit in TODO C01-C05.
 See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 

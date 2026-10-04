@@ -167,3 +167,18 @@ unavailable in the established contract. No new send, read-once event consumptio
 MCP migration, merge or publication occurred. The original UNKNOWN send guard is
 unchanged. Further live qualification requires fresh authorization and suitable
 account data, not synthetic success claims or speculative requests.
+
+## External compatibility review and deferred work
+
+The pinned published `librus-apix` 1.5.3 review found no modern/archive, virtual,
+populated-subgroup or expanded-recipient implementation that closes these gaps.
+Its legacy sent boolean is not independent delivery evidence. The current
+independent implementation is retained without an external fallback or copied
+fixtures. See [apix-communication-review.md](apix-communication-review.md).
+
+Archive attachment resolution and archived flags in an ordinary detail response
+must not be confused with archive mailbox navigation: explicit archive list/detail
+APIs and archive-qualified message navigation are not implemented. That contract
+work, plus remaining live layout/availability evidence and independent delivery
+semantics, stays in TODO C01-C05. Suitable evidence and fresh authorization are
+required to resume; repeated checks on unavailable data are not planned.

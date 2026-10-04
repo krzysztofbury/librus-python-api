@@ -207,6 +207,46 @@ expanded receipt rosters have original offline tests but no live examples. See
 `release-evidence/0.5-communication-expansion-scopes.json` and the communication
 contract for exact evidence and limits. Consumer integration remains separate.
 
+### Deferred communication evidence and contract work (C01-C05)
+
+The pinned review of `librus-apix` 1.5.3 found no additional implementation for
+these gaps. The published wheel matches its source revision; generic legacy HTTP
+access and a sent `unread` flag are not modern coverage or delivery evidence.
+See [contracts/apix-communication-review.md](contracts/apix-communication-review.md).
+Do not add speculative routes, copy external implementations, relax guards or
+repeat unavailable-account probes to close these items. They do not block
+delivery of the explicitly qualified subset of 0.5.0.
+
+- [ ] **C01 - Independent delivery acknowledgements:** remain unknown. Resume
+  only with a distinct documented or independently observed field and clear
+  semantics, then original parser/wire regressions. Backend acceptance and
+  recipient read timestamps are not substitutes; durable UNKNOWN send history
+  and duplicate protection must remain untouched.
+- [ ] **C02 - Modern virtual/class-parent live coverage:** current explicit
+  selections/routes are implemented and offline-tested. Resume with advertised,
+  populated examples and fresh scoped approval. Legacy virtual selection is not
+  implemented; the reviewed external lookup also fixes it off.
+- [ ] **C03 - Populated legacy subgroup live coverage:** choice parsing and
+  positive-selection lookup are implemented and offline-tested. Resume with a
+  real populated selector and independently checked membership. Empty root
+  choices are unavailable evidence, not passed membership qualification.
+- [ ] **C04 - Archive/withdrawal coverage:** original-body/withdrawal metadata
+  and archive attachment resolution are implemented and offline-tested. Explicit
+  archive mailbox list/detail navigation is not implemented; add it only after
+  establishing fixed routes, archive-qualified references, side effects and
+  original offline wire contracts. Live archive/original/file layouts stay
+  deferred until suitable examples and fresh approval exist.
+- [ ] **C05 - Expanded and CC/BCC receipt live coverage:** parsing and channels
+  are implemented and offline-tested; reading observations do not imply delivery.
+  Resume with a qualifying existing multi-recipient example and independently
+  verified roster/status expectations. Do not send test messages merely to close
+  this item; any controlled send needs separate exact-recipient/payload approval.
+
+This review adds no live authorization, backend fallback, account-role expansion,
+CC/BCC sending, archive mutation, consumer migration or publication. New contract
+evidence can reopen these tasks without requiring current empty observations to
+be rerun. Source-informed support is not relabeled as independently observed.
+
 S1 progress: the first freshly approved 0.5 read-only scope used the qualified
 installed 0.4.11 wheel. Native identity matched the private plan, but the modern
 launch returned an unsupported path before handoff. Ten requests and one credential
