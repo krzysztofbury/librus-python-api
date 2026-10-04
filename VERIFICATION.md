@@ -3,6 +3,71 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Modern download, receipt and layout expansion (2026-10-04)
+
+The latest same-PR implementation is `5318757`, still version 0.5.0. It adds
+explicit modern/archive attachment resolution, credential-free bounded streams,
+recipient read/null/unknown observations, plain/HTML/XML body support and inert
+original/withdrawal metadata. Independent delivery acknowledgement remains unknown.
+The original durable UNKNOWN history/duplicate guard and consumer are unchanged.
+
+Two public contract-inspection scopes and four fresh authenticated scopes are
+closed. The authenticated inventory used four separate login security contexts;
+none exposed class-parent/virtual branches or populated legacy subgroups. It
+qualified empty student outboxes and a populated second sent page at size five.
+Dedicated content inspection then established the actual detail/resolver shapes.
+The first candidate stream stopped at its approved 5 MiB ceiling without saving
+partial bytes. A separately approved remaining-check scope qualified another
+complete stream of 7,004,902 bytes, ordinary plain/XML content, recipient read/null
+observations and one explicitly consented unread-to-read transition confirmed by
+before/after mailbox read timestamps. No new sends or read-once event calls.
+
+Total authenticated expansion traffic: 136 requests, eight credential submissions,
+12,623,091 response bytes; nine content opens, four resolver calls, two stream
+attempts and one complete stream. Only one previously-unread message was opened,
+with explicit approval. Every scope stopped on its first failure or completed,
+then closed without an automatic rerun. No bodies, attachment payloads, private
+response captures or signed URLs were retained. Sanitized evidence is in
+`release-evidence/0.5-communication-expansion-scopes.json`.
+
+The 36 original new regressions exercise real isolated HTTP origins, strict
+resolver routes and destinations, cookie/header isolation, shared four-account
+queue saturation, explicit archive references, consent/content parsing, XML
+entity/duplicate/nested-element rejection, ambiguous receipt failures, byte/request
+budgets, deadlines, cancellation and actual local-file publication. Legacy stream
+and file tests also pass, protecting the shared worker without duplicating all
+lifetime tests in the modern subclass. The initial eight detail regressions failed
+on the old parser before their fix. A fixture initially expected the viewer path
+rather than the independently established `/get` byte route; that was corrected
+offline, with no production route guessing.
+
+Final source, installed wheel and installed sdist each pass **1,487 tests, one
+performance case deselected**, on Python 3.13.15 and 3.14.7. Installed suites use
+tests/scripts/contracts from the actual sdist and prove installed imports,
+version/MIT license/Python floor/`py.typed`, compatible dependencies and runtime
+smoke behavior. Two builds produced byte-identical archives:
+
+- Wheel SHA256: `0b58d60115d12d44c9bfb9f0d632c47eb29ac45cdc0d4c4c8a5ac4bd89841073`.
+- Sdist SHA256: `90256b23c5f2de08a15a28c7d1a7204b9c01439155463c6b876e42d38bf4801f`.
+- Final Python manifest:
+  `87036e160f21318a60715984e9d7d5cb826f326940a946cd5dec4fa99689efee`.
+
+Only content endpoint evidence metadata changed after the live candidate snapshot;
+no runtime/parser/stream behavior changed. Live scopes qualify source API calls,
+not an installed authenticated run. Ruff lint/format, strict mypy, repository hooks,
+history secret scan, locked dependency audit and lock validation pass. Qualified
+artifacts and XML reports are retained in `dist/0.5.0-communication-expansion/`;
+all earlier qualified artifact directories are unchanged. This section supersedes
+older verification text bundled in that sdist. Machine-readable package evidence:
+`release-evidence/0.5.0-communication-expansion-qualification.json`.
+
+Remaining live gates require suitable data and fresh authorization: class-parent,
+virtual/class selections, populated legacy subgroups, archived/withdrawn originals
+and expanded/CC/BCC receipt rosters. Independent delivery acknowledgements remain
+unsupported by the established contract. Consumer integration, merge and
+publication remain separate gates. Current pushed-head remote CI is tracked in
+PR #15, separately from these local implementation archive hashes.
+
 ## Compatibility continuation (2026-10-04) - Locally qualified for PR #15
 
 The owner authorized additional library compatibility work on the same branch

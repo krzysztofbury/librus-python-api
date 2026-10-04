@@ -1,0 +1,31 @@
+{
+  "version": "0.5.0",
+  "candidate": "communication_expansion",
+  "implementation_commit": "53187570371449a0714fd9669556478a4e476596",
+  "source_python_manifest_sha256": "87036e160f21318a60715984e9d7d5cb826f326940a946cd5dec4fa99689efee",
+  "manifest_algorithm": "SHA256 over sorted src/**/*.py: relative path UTF-8 + NUL + bytes + NUL",
+  "reproducible_builds": true,
+  "archives": [
+    {"filename": "librus_python_api-0.5.0-py3-none-any.whl", "sha256": "0b58d60115d12d44c9bfb9f0d632c47eb29ac45cdc0d4c4c8a5ac4bd89841073", "bytes": 130578},
+    {"filename": "librus_python_api-0.5.0.tar.gz", "sha256": "90256b23c5f2de08a15a28c7d1a7204b9c01439155463c6b876e42d38bf4801f", "bytes": 547707}
+  ],
+  "results": [
+    {"python": "3.13.15", "kind": "source", "passed": 1487, "performance_deselected": 1},
+    {"python": "3.13.15", "kind": "wheel", "passed": 1487, "performance_deselected": 1},
+    {"python": "3.13.15", "kind": "sdist", "passed": 1487, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "source", "passed": 1487, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "wheel", "passed": 1487, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "sdist", "passed": 1487, "performance_deselected": 1}
+  ],
+  "installed_import_metadata_license_floor_typing_dependencies_and_smoke": "passed",
+  "installed_test_input": "tests/scripts/contracts from qualified sdist with disposable empty .git capture-boundary marker",
+  "quality": {"ruff": "passed", "format": "passed", "mypy": "passed", "hooks": "passed", "history_secret_scan": "passed", "locked_dependency_audit": "passed", "lock_check": "passed"},
+  "artifact_directory": "dist/0.5.0-communication-expansion",
+  "live_scope_evidence": "release-evidence/0.5-communication-expansion-scopes.json",
+  "installed_live_qualification": false,
+  "previous_artifact_directories_unchanged": true,
+  "durable_unknown_history_and_guard_changed": false,
+  "published": false,
+  "consumer_changed": false,
+  "remaining_gates": ["independent_delivery_acknowledgements", "virtual_class_and_class_parent_live_data", "populated_legacy_subgroups", "archive_and_withdrawn_original_live_layouts", "expanded_or_CC_BCC_recipient_rosters_live_layouts", "consumer_integration", "merge", "publication"]
+}
