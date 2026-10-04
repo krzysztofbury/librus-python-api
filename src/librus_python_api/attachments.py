@@ -7,19 +7,23 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Literal, Self
 
 from librus_python_api.attachment_routes import (
+    modern_attachment_key,
     signed_attachment_key,
     validate_attachment_reference,
     validate_max_bytes,
+    validate_modern_attachment_reference,
 )
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import ATTACHMENT_MAX_BYTES
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     AttachmentHeaders,
     AttachmentMetadata,
     DiagnosticEvent,
     MessageAttachmentReference,
+    ModernMessageAttachmentReference,
+    OperationName,
 )
 
 if TYPE_CHECKING:
@@ -33,15 +37,17 @@ class AttachmentStream(AsyncIterator[bytes]):
     close or failure, even when the consumer is paused. No filesystem writes.
     """
 
+    _operation: OperationName = "attachment_download"
+
     def __init__(
         self,
         client: "AccountClient",
-        reference: MessageAttachmentReference,
+        reference: MessageAttachmentReference | ModernMessageAttachmentReference,
         *,
         max_bytes: int = ATTACHMENT_MAX_BYTES,
         budget: RequestBudget | None = None,
     ) -> None:
-        validate_attachment_reference(reference, client._alias)
+        self._validate_reference(reference, client._alias)
         validate_max_bytes(max_bytes)
         if budget is not None and not isinstance(budget, RequestBudget):
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -62,6 +68,15 @@ class AttachmentStream(AsyncIterator[bytes]):
         if self._metadata is None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         return self._metadata
+
+    @staticmethod
+    def _validate_reference(
+        reference: MessageAttachmentReference | ModernMessageAttachmentReference,
+        account: str,
+    ) -> None:
+        if not isinstance(reference, MessageAttachmentReference):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        validate_attachment_reference(reference, account)
 
     @property
     def complete(self) -> bool:
@@ -132,7 +147,7 @@ class AttachmentStream(AsyncIterator[bytes]):
             self._client._session_identity(),
             self._reference,
             headers,
-            self._client._observation("attachment_download"),
+            self._client._observation(self._operation),
         )
         self._ready.set()
 
@@ -150,6 +165,7 @@ class AttachmentStream(AsyncIterator[bytes]):
 
     async def _fetch(self, budget: RequestBudget, _: bool) -> None:
         client = self._client
+        assert isinstance(self._reference, MessageAttachmentReference)
         response = await client._transport.resolve_attachment(self._reference, budget)
         if response.status == 302 and client._is_login_redirect(response):
             raise LibrusError(ErrorKind.SESSION_EXPIRED)
@@ -170,13 +186,13 @@ class AttachmentStream(AsyncIterator[bytes]):
             async with asyncio.timeout(budget.remaining_seconds()):
                 async with client._lock:
                     client._check_cooldown("authentication")
-                    client._check_cooldown("attachment_download")
+                    client._check_cooldown(self._operation)
                     await client._authenticated(self._fetch, budget, False)
             self._complete = True
         except LibrusError as error:
             self._error = outcome = error.kind
             if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
-                client._cooldowns["attachment_download"] = (
+                client._cooldowns[self._operation] = (
                     time.monotonic()
                     + client._service._transport_limits.cooldown_seconds,
                     error.kind,
@@ -197,7 +213,7 @@ class AttachmentStream(AsyncIterator[bytes]):
             self._delivery.set()
             client._emit(
                 DiagnosticEvent(
-                    "attachment_download",
+                    self._operation,
                     outcome,
                     time.monotonic() - started,
                     budget.requests_dispatched,
@@ -235,3 +251,47 @@ class AttachmentStream(AsyncIterator[bytes]):
         traceback: TracebackType | None,
     ) -> None:
         await self.aclose()
+
+
+class ModernAttachmentStream(AttachmentStream):
+    """Explicit modern resolution with the shared credential-free download worker."""
+
+    _operation: OperationName = "modern_attachment_download"
+
+    @staticmethod
+    def _validate_reference(
+        reference: MessageAttachmentReference | ModernMessageAttachmentReference,
+        account: str,
+    ) -> None:
+        if not isinstance(reference, ModernMessageAttachmentReference):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        validate_modern_attachment_reference(reference, account)
+
+    async def _fetch(self, budget: RequestBudget, _: bool) -> None:
+        client = self._client
+        assert isinstance(self._reference, ModernMessageAttachmentReference)
+        resolver = getattr(client._transport, "resolve_modern_attachment", None)
+        if not callable(resolver):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        await client._modern_ready(budget)
+        try:
+            response = await resolver(self._reference, budget)
+            client._validate_read_response(response, "application/json")
+            key = await client._service._parsers.run(
+                lambda body: modern_attachment_key(body, client._service._connection),
+                response.body,
+                budget,
+            )
+        except BaseException as error:
+            client._invalidate_modern()
+            if isinstance(error, SessionExpiredError):
+                error._messages_origin = True
+            raise
+        await client._transport.stream_download(
+            key,
+            budget,
+            self._max_bytes,
+            self._opened,
+            self._pull,
+            self._deliver,
+        )

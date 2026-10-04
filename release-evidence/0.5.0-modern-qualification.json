@@ -1,0 +1,110 @@
+{
+  "version": "0.5.0",
+  "date": "2026-10-04",
+  "scope": "Bounded modern authentication, identity and exact created/sent acknowledgement; one previously approved live context, no new live access",
+  "implementation_commit": "be87bc99ea0101b4c91e2c7f414538faaff0a445",
+  "source_python_manifest_sha256": "ae11dfaf1b6a5d610d876da71ab277b157611fa74a740a0ee70c9608d60ee3fd",
+  "review": {
+    "mode": "pair-programmer and test-audit skill-guided pre/post self-review",
+    "record": "contracts/modern-launch-diagnostics.md",
+    "independent_model_review_claimed": false
+  },
+  "artifacts": [
+    {
+      "name": "librus_python_api-0.5.0-py3-none-any.whl",
+      "bytes": 119164,
+      "sha256": "133bb82deb628815c9f08f55169da5fee8226ef45c02797efbc31853270ed74b"
+    },
+    {
+      "name": "librus_python_api-0.5.0.tar.gz",
+      "bytes": 518137,
+      "sha256": "af660ada4aa4383839096cd8b9bbe169b97613118bb3db104941489719d611b5"
+    }
+  ],
+  "checks": [
+    {
+      "python": "3.13.15",
+      "mode": "source",
+      "summary": "1385 passed, 1 deselected in 18.17s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": false
+    },
+    {
+      "python": "3.13.15",
+      "mode": "wheel",
+      "summary": "1385 passed, 1 deselected in 18.53s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": true
+    },
+    {
+      "python": "3.13.15",
+      "mode": "sdist",
+      "summary": "1385 passed, 1 deselected in 18.09s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "source",
+      "summary": "1385 passed, 1 deselected in 18.20s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": false
+    },
+    {
+      "python": "3.14.7",
+      "mode": "wheel",
+      "summary": "1385 passed, 1 deselected in 18.77s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "sdist",
+      "summary": "1385 passed, 1 deselected in 18.17s",
+      "import_location_verified": true,
+      "version_and_py_typed_verified": true,
+      "qualified_receipt_smoke_passed": true,
+      "installed_metadata_license_dependencies_verified": true
+    }
+  ],
+  "installed_test_environment": "Extracted sdist tests/scripts/contracts with empty disposable Git marker for checkout capture-safety tests; installed imports verified inside each environment",
+  "artifact_documentation_checkpoint": "Built before final evidence log; final VERIFICATION.md supersedes pending qualification text inside archives",
+  "ordinary_runtime_load_proofs": [
+    "real loopback HTTP, durable SQLite and competing-process/crash tests",
+    "four-account maximum modern payloads with accepted and uncertain receipts",
+    "qualified complete modern acceptance/rejection across return-time deadline",
+    "exact-status/envelope/type guards, duplicate-preview blocking and account isolation"
+  ],
+  "reproducible_builds": true,
+  "quality": {
+    "ruff_lint_and_format": true,
+    "strict_mypy": true,
+    "repository_hooks": true,
+    "history_secret_scan": true,
+    "worktree_secret_scan": true,
+    "locked_dependency_audit": true
+  },
+  "qualification_live_http_requests": 0,
+  "additional_live_send_dispatches": 0,
+  "live_history_rewritten": false,
+  "consumer_migration": false,
+  "published": false,
+  "artifact_directory": "dist/0.5.0/",
+  "scratch_retained": false,
+  "remaining_gates": [
+    "current-head remote PR CI and owner review/merge",
+    "separate consumer/MCP integration",
+    "broader recipient/mailbox/attachment/receipt compatibility and dedicated read-once qualification",
+    "publication deferred until 1.0.0rc1"
+  ]
+}

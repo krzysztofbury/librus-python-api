@@ -1,0 +1,52 @@
+{
+  "version": "0.5.0",
+  "kind": "communication_continuation_scope_evidence",
+  "public_asset_scopes": {
+    "closed_scopes": 4,
+    "requests": 6,
+    "response_bytes": 3914086,
+    "credentials": 0,
+    "cookies": 0,
+    "execution": false,
+    "retained_bundle": false,
+    "root_sha256": "e67cf8a0c3e360b8c24a73147967bdc58efe1965f2fea4efb8574ea962d7d12c",
+    "index_sha256": "3363ea430c71577a36e4453c1db0b9db8e0d5fd1c007d085aeb245e01f7b5972",
+    "app_sha256": "92922672102d78405e25487c45657b1189dcfb7bebe5a0e5cee5bdd34e961a9b",
+    "limitations": [
+      "First diagnostic skipped index filename; second established linked module only.",
+      "Public source establishes requirements, not authenticated availability."
+    ]
+  },
+  "authenticated_scopes": [
+    {
+      "scope": 1, "state": "closed_failure", "requests": 13,
+      "credential_submissions": 1, "response_bytes": 19949,
+      "failure": "optional absent flag indexed by diagnostic reporter",
+      "established": ["native_modern_identity", "inbox_json_shape"]
+    },
+    {
+      "scope": 2, "state": "closed_failure", "requests": 15,
+      "credential_submissions": 1, "response_bytes": 28768,
+      "source_python_manifest_sha256": "da137fdb3c882b9bc5f81fd209c5a41ca0a8fa07d188328ce6625b09815b511f",
+      "failure": "outbox omits readDate required by candidate parser",
+      "established": ["native_modern_identity", "inbox_page_1_public_api", "inbox_page_2_public_api", "outbox_json_shape"]
+    },
+    {
+      "scope": 3, "state": "closed_success", "requests": 20,
+      "credential_submissions": 1, "response_bytes": 76530,
+      "source_python_manifest_sha256": "aa9f2fc462feea394bcbfe76ff112c25707bc8e42325e5f9a8eb616a94935fb4",
+      "established": [
+        "native_modern_identity", "recipient_types", "teacher_directory",
+        "tutor_directory", "school_admin_directory", "parent_council_directory",
+        "outbox_page_1_public_api", "legacy_groups", "empty_legacy_group_selector"
+      ],
+      "unavailable": ["classParents_not_advertised", "populated_legacy_subgroups"]
+    }
+  ],
+  "python_manifest_algorithm": "SHA256 over sorted src/**/*.py: relative path UTF-8 + NUL + bytes + NUL",
+  "totals": {"requests": 48, "credential_submissions": 3, "response_bytes": 125247},
+  "content_opens": 0, "attachment_resolutions": 0, "downloads": 0,
+  "sends": 0, "read_once_calls": 0, "scope_reruns": 0,
+  "raw_captures_retained": false, "installed_live_qualification": false,
+  "consumer_changed": false, "merge_or_publication": false
+}

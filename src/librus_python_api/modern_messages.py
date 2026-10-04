@@ -1,5 +1,6 @@
 """Original bounded modern directory parsers; no scripts or backend fallback."""
 
+import json
 import re
 from typing import Any
 
@@ -10,9 +11,10 @@ from librus_python_api.config import (
     MODERN_MAX_RECIPIENTS,
     MODERN_MAX_TOTAL_TEXT,
     MODERN_MAX_TYPES,
+    MODERN_RECIPIENT_OPERATIONS,
     MODERN_REJECTION_CODES,
     MODERN_SUPPORTED_ACCOUNT_GROUPS,
-    MODERN_SUPPORTED_RECIPIENT_TYPE,
+    modern_directory_query,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
@@ -51,7 +53,12 @@ def _identifier(value: Any) -> str:
 
 def parse_modern_identity(body: bytes) -> ModernAccountData:
     data = _object(decode_json(body))
-    identifier = _identifier(data.get("accountId"))
+    raw_identifier = data.get("accountId")
+    # Identity alone independently returned a JSON integer. Keep recipient IDs
+    # strict and reject bool/float/negative/oversized values before normalization.
+    if type(raw_identifier) is int and 0 <= raw_identifier < 10**64:
+        raw_identifier = str(raw_identifier)
+    identifier = _identifier(raw_identifier)
     if (
         data.get("originSystem") != "synergia"
         or type(data.get("groupId")) is not str
@@ -78,7 +85,10 @@ def parse_modern_types(body: bytes, account: str) -> tuple[ModernRecipientType, 
         identifier = value.get("id")
         if (
             type(identifier) is not str
-            or MODERN_DIRECTORY_TYPE_PATTERN.fullmatch(identifier) is None
+            or (
+                identifier not in MODERN_RECIPIENT_OPERATIONS
+                and MODERN_DIRECTORY_TYPE_PATTERN.fullmatch(identifier) is None
+            )
             or identifier in seen
         ):
             raise LibrusError(ErrorKind.PARSE)
@@ -87,7 +97,7 @@ def parse_modern_types(body: bytes, account: str) -> tuple[ModernRecipientType, 
             ModernRecipientType(
                 ModernRecipientTypeReference(identifier, account),
                 _label(value.get("name")),
-                identifier == MODERN_SUPPORTED_RECIPIENT_TYPE,
+                identifier in MODERN_RECIPIENT_OPERATIONS,
             )
         )
     if "defaultGroup" in data and (
@@ -103,8 +113,9 @@ def validate_modern_type(reference: ModernRecipientTypeReference, account: str) 
         or reference.account != account
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
-    if reference.identifier != MODERN_SUPPORTED_RECIPIENT_TYPE:
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    modern_directory_query(
+        reference.identifier, include_virtual=reference.include_virtual
+    )
 
 
 def parse_modern_recipients(
@@ -112,9 +123,12 @@ def parse_modern_recipients(
 ) -> tuple[ModernRecipient, ...]:
     validate_modern_type(reference, reference.account)
     data = _object(decode_json(body))
-    classes = data.get("classes")
+    if MODERN_RECIPIENT_OPERATIONS[reference.identifier] != "modern_recipients":
+        return _employee_recipients(data, reference)
+    field = "classes" if "classes" in data else "data"
+    classes = data.get(field)
     if (
-        set(data) != {"classes"}
+        set(data) != {field}
         or not isinstance(classes, list)
         or len(classes) > MODERN_MAX_CLASSES
     ):
@@ -159,7 +173,12 @@ def parse_modern_recipients(
             result.append(
                 ModernRecipient(
                     ModernRecipientReference(
-                        identifier, user, reference.account, reference.identifier, label
+                        identifier,
+                        user,
+                        reference.account,
+                        reference.identifier,
+                        label,
+                        reference.include_virtual,
                     ),
                     name,
                 )
@@ -167,9 +186,77 @@ def parse_modern_recipients(
     return tuple(result)
 
 
+def _employee_recipients(
+    data: dict[str, Any], reference: ModernRecipientTypeReference
+) -> tuple[ModernRecipient, ...]:
+    entries = data.get("receivers")
+    if set(data) != {"receivers"} or not isinstance(entries, list):
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    if len(entries) > MODERN_MAX_RECIPIENTS:
+        raise LibrusError(ErrorKind.LIMIT)
+    result = []
+    seen = set()
+    total = 0
+    for raw in entries:
+        leaf = _object(raw)
+        if not {"accountId", "userId", "label"} <= set(leaf) or set(leaf) - {
+            "accountId",
+            "userId",
+            "label",
+            "availabilityStatus",
+        }:
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        identifier, user = _identifier(leaf["accountId"]), _identifier(leaf["userId"])
+        if identifier in seen:
+            raise LibrusError(ErrorKind.PARSE)
+        seen.add(identifier)
+        label = _label(leaf["label"])
+        # Availability is exposed as inert bounded JSON, not invented permission,
+        # work-hours or delivery semantics. It never changes the send payload.
+        availability = leaf.get("availabilityStatus")
+        try:
+            encoded = (
+                None
+                if availability is None
+                else json.dumps(
+                    availability,
+                    separators=(",", ":"),
+                    ensure_ascii=True,
+                    allow_nan=False,
+                )
+            )
+        except ValueError:
+            raise LibrusError(ErrorKind.PARSE) from None
+        if encoded is not None and len(encoded) > MODERN_MAX_LABEL:
+            raise LibrusError(ErrorKind.LIMIT)
+        total += len(label) + len(encoded or "")
+        if total > MODERN_MAX_TOTAL_TEXT:
+            raise LibrusError(ErrorKind.LIMIT)
+        result.append(
+            ModernRecipient(
+                ModernRecipientReference(
+                    identifier, user, reference.account, reference.identifier, ""
+                ),
+                label,
+                encoded,
+            )
+        )
+    return tuple(result)
+
+
 def parse_modern_send_response(body: bytes, status: int) -> SendStatus:
-    """No positive receipt established. Never infer acceptance from HTTP alone."""
+    """Accept only the observed created/sent envelope, never HTTP success alone."""
     data = _object(decode_json(body))
+    if status == 201 and set(data) == {"data"}:
+        receipt = data["data"]
+        if (
+            type(receipt) is dict
+            and set(receipt) == {"messageId", "status"}
+            and receipt["status"] == "sent"
+            and type(receipt["messageId"]) is int
+            and 0 < receipt["messageId"] < 10**64
+        ):
+            return SendStatus.ACCEPTED
     if status in (400, 422) and set(data) <= {"code", "errors", "message"}:
         codes = []
         if "code" in data:

@@ -3,6 +3,286 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## PR #15 pre-merge review (2026-10-04)
+
+Reviewed the branch diff against `main`: authentication and send boundaries,
+modern directory/mailbox/content parsing, attachment resolution and publication,
+session/cache isolation, public models, capture diagnostics, tests, OpenAPI and
+the release/API/contract documentation. Review and regression calls were offline;
+all authenticated live scopes remain closed. Existing UNKNOWN send history and
+consumer state were not opened or changed.
+
+Findings fixed, in priority order:
+
+- **Safety, TigerStyle #6: Positive and negative space.**
+  `modern_body.py` failed to recognize XML wrappers after a BOM or inert preamble.
+  The HTML fallback silently lost CDATA, included wrapper metadata as body text
+  and accepted duplicate Content elements. Recognize the XML prefix and retain
+  strict parsing. Reject non-UTF-8 declarations instead of silently misdecoding
+  the already UTF-8-decoded message. Six new public HTTP regression cases failed
+  before correction; the existing plain/HTML/XML cases still pass.
+- **Safety, TigerStyle #12: Full error handling.**
+  `encode_modern_send` used an unchecked recipient type as a dictionary key.
+  A malformed list-valued type leaked `TypeError` rather than `InvalidInputError`.
+  Validate its type before lookup; the existing preparation parameter table now
+  proves the typed error and zero network calls, failing before the fix.
+- **DX, TigerStyle #3: Assertions.**
+  `parse_modern_types` rejected the supported combined `parents,guardians` type.
+  Permit exact allowlisted identifiers before applying the simple-name pattern;
+  arbitrary compound selectors remain unsupported. The new public discovery-to-
+  lookup regression failed before the fix and checks the exact wire selection.
+- The active-HTML negative test previously failed at an inconsistent attachment
+  flag before reaching the body guard. Its fixture now reaches that guard and
+  requires `UNSUPPORTED_CAPABILITY` specifically.
+- README still reported 0.4.11, TODO called 0.5 planned, and several current-tense
+  notes described superseded qualification gates. Synchronize release status and
+  historical checkpoints, keeping C01-C05 open. OpenAPI and route evidence now
+  reflect the existing closed inbox/outbox and employee observations, with explicit
+  limits on which layouts/selections were observed. No new route was enabled.
+
+The corrected source suite passes **1,495 tests, one performance case deselected**.
+It includes real loopback HTTP, four-login shared-queue saturation, stream/file
+publication, cancellation, send uncertainty and SQLite/process tests, not just
+mocked parser results. OpenAPI validation checks every enabled path/method and its
+side-effect/retry/evidence metadata. Exact final source/wheel/sdist matrix, runtime
+smoke, hashes and static/security results are recorded in
+`release-evidence/0.5.0-pr15-review-qualification.json`. Review fixes have no new
+live qualification; earlier live manifests and archives remain historical.
+
+## External communication gap review (2026-10-04)
+
+Reviewed the latest published `librus-apix` 1.5.3 and pinned source revision
+`2fedfe8ffa4933abb884929716519ddbeb8eb32d`, also its `v1.5.3` tag. SHA256 checks
+established that the published wheel's messaging, route and client modules are
+byte-identical to that source. The package entry point, messaging documentation,
+README and metadata/license were reviewed as supporting evidence. The MIT
+metadata/GPLv3 license conflict persists. No external code was executed or
+installed; the wheel was inspected in memory without extraction or retention.
+No code, tests, documentation or fixtures were copied.
+
+The external client has legacy HTML messaging only. Virtual selection is fixed
+off, subgroup lookup fixes selection to zero, and there is no dedicated archive,
+withdrawn-original, expanded/CC/BCC receipt or attachment stream implementation.
+Its sent `unread` comparison is not reliable delivery evidence. No additional
+gap-closing logic was established, so runtime behavior and tests are unchanged.
+The review and hashes are recorded in `contracts/apix-communication-review.md`
+and `release-evidence/0.5-apix-communication-review.json`.
+
+Remaining work is explicitly separated as TODO C01-C05: unsupported independent
+delivery semantics; unavailable virtual/class-parent and subgroup live data;
+archive list/detail navigation contracts and archive/original live layouts; and
+expanded/CC/BCC receipt live layouts. Existing independently authored offline
+support remains available. No new live Librus request, credential submission,
+send, history/guard change, consumer migration, merge or publication occurred.
+Previously qualified implementation archives remain unchanged. This is a
+documentation-only continuation on PR #15, not new live or artifact qualification.
+Post-review source tests pass: **1,487 tests, one performance case deselected**.
+Ruff lint/format, repository hooks and diff checks pass. The Python manifest still
+matches the qualified implementation snapshot recorded below; no runtime or test
+changes are inferred from the external comparison. Current-head remote CI is
+checked separately on PR #15.
+
+## Modern download, receipt and layout expansion (2026-10-04)
+
+The latest same-PR implementation is `5318757`, still version 0.5.0. It adds
+explicit modern/archive attachment resolution, credential-free bounded streams,
+recipient read/null/unknown observations, plain/HTML/XML body support and inert
+original/withdrawal metadata. Independent delivery acknowledgement remains unknown.
+The original durable UNKNOWN history/duplicate guard and consumer are unchanged.
+
+Two public contract-inspection scopes and four fresh authenticated scopes are
+closed. The authenticated inventory used four separate login security contexts;
+none exposed class-parent/virtual branches or populated legacy subgroups. It
+qualified empty student outboxes and a populated second sent page at size five.
+Dedicated content inspection then established the actual detail/resolver shapes.
+The first candidate stream stopped at its approved 5 MiB ceiling without saving
+partial bytes. A separately approved remaining-check scope qualified another
+complete stream of 7,004,902 bytes, ordinary plain/XML content, recipient read/null
+observations and one explicitly consented unread-to-read transition confirmed by
+before/after mailbox read timestamps. No new sends or read-once event calls.
+
+Total authenticated expansion traffic: 136 requests, eight credential submissions,
+12,623,091 response bytes; nine content opens, four resolver calls, two stream
+attempts and one complete stream. Only one previously-unread message was opened,
+with explicit approval. Every scope stopped on its first failure or completed,
+then closed without an automatic rerun. No bodies, attachment payloads, private
+response captures or signed URLs were retained. Sanitized evidence is in
+`release-evidence/0.5-communication-expansion-scopes.json`.
+
+The 36 original new regressions exercise real isolated HTTP origins, strict
+resolver routes and destinations, cookie/header isolation, shared four-account
+queue saturation, explicit archive references, consent/content parsing, XML
+entity/duplicate/nested-element rejection, ambiguous receipt failures, byte/request
+budgets, deadlines, cancellation and actual local-file publication. Legacy stream
+and file tests also pass, protecting the shared worker without duplicating all
+lifetime tests in the modern subclass. The initial eight detail regressions failed
+on the old parser before their fix. A fixture initially expected the viewer path
+rather than the independently established `/get` byte route; that was corrected
+offline, with no production route guessing.
+
+Final source, installed wheel and installed sdist each pass **1,487 tests, one
+performance case deselected**, on Python 3.13.15 and 3.14.7. Installed suites use
+tests/scripts/contracts from the actual sdist and prove installed imports,
+version/MIT license/Python floor/`py.typed`, compatible dependencies and runtime
+smoke behavior. Two builds produced byte-identical archives:
+
+- Wheel SHA256: `0b58d60115d12d44c9bfb9f0d632c47eb29ac45cdc0d4c4c8a5ac4bd89841073`.
+- Sdist SHA256: `90256b23c5f2de08a15a28c7d1a7204b9c01439155463c6b876e42d38bf4801f`.
+- Final Python manifest:
+  `87036e160f21318a60715984e9d7d5cb826f326940a946cd5dec4fa99689efee`.
+
+Only content endpoint evidence metadata changed after the live candidate snapshot;
+no runtime/parser/stream behavior changed. Live scopes qualify source API calls,
+not an installed authenticated run. Ruff lint/format, strict mypy, repository hooks,
+history secret scan, locked dependency audit and lock validation pass. Qualified
+artifacts and XML reports are retained in `dist/0.5.0-communication-expansion/`;
+all earlier qualified artifact directories are unchanged. This section supersedes
+older verification text bundled in that sdist. Machine-readable package evidence:
+`release-evidence/0.5.0-communication-expansion-qualification.json`.
+
+Remaining live gates require suitable data and fresh authorization: class-parent,
+virtual/class selections, populated legacy subgroups, archived/withdrawn originals
+and expanded/CC/BCC receipt rosters. Independent delivery acknowledgements remain
+unsupported by the established contract. Consumer integration, merge and
+publication remain separate gates. Current pushed-head remote CI is tracked in
+PR #15, separately from these local implementation archive hashes.
+
+## Compatibility continuation (2026-10-04) - Locally qualified for PR #15
+
+The owner authorized additional library compatibility work on the same branch
+and PR #15, in separate scoped commits. Consumer migration, sends, event
+consumption, merge and publication are not part of this continuation.
+
+The optional local attachment publication boundary adds 15 original tests.
+Its combined stream/file suite passes 83 tests; the final full source suite passes
+1,451 tests with one opt-in performance case deselected. Ruff and strict mypy
+pass. The tests exercise real loopback HTTP, four concurrent account streams,
+non-overwriting symlink/file collisions, interrupted reads, byte ceilings,
+redacted disk failures and repeated cancellation while a real disk worker runs.
+This is offline local-file qualification, not new upstream attachment evidence.
+The continuation also adds bounded modern mailbox collection, consent-gated
+content parsing and inert attachment metadata, broader recipient directory routes
+and opt-in virtual query selection. Four-account mailbox queue saturation, account
+cookie/reference isolation, continuation drift, failed later pages, deadlines and
+cancellation are exercised through real loopback HTTP. Review retained explicit
+unknown sent read status, strict inbox read fields, bounded inert availability
+JSON and non-overwriting local-file commit/cancellation semantics. Modern download
+destinations and richer receipt layouts are deliberately not guessed.
+
+Four separately approved public-asset scopes are closed: two root/index scopes
+used two GETs and 827,129 bytes each; the linked app scope used one GET and
+1,129,914 bytes; targeted app inspection used one more GET of the same size.
+No credentials, cookies, redirects, script execution or writes.
+The first diagnostic skipped the index filename; the second established the
+linked app dependency; the third established source-informed inbox/outbox list,
+detail and attachment-resolution routes. Public source is an external behavior
+reference, not code or fixtures to copy and not authenticated live evidence.
+No app bundle is incorporated in this repository.
+
+Three additional authenticated scopes used 48 requests, three credential
+submissions and 125,247 response bytes, with zero content, attachment, download,
+send or read-once calls. Each stopped on failure or completed, then closed without
+automatic rerun. The first reporter error and second outbox layout error have
+original regressions; the third scope succeeded. Candidate source API observations
+qualify populated inbox pages 1-2, outbox page 1, teacher/tutor/school-admin/council
+branches and legacy groups with an empty subgroup selector on one account.
+Class-parent and populated legacy-subgroup evidence were unavailable. Live hashes
+identify observed source snapshots; subsequent availability JSON hardening was
+offline-qualified only. See `contracts/modern-communication.md` and
+`release-evidence/0.5-communication-scopes.json`. No installed live check is claimed.
+
+Implementation commits are separate: `ddc8397` for optional local files and
+`d18e3f2` for modern communication. Version stays 0.5.0 on the still-open PR.
+The actual final implementation source, installed wheel and installed sdist each
+pass **1,451 tests, one performance case deselected**, on both Python 3.13.15 and
+3.14.7. Installed imports, metadata/version, MIT license, Python floor, `py.typed`,
+dependency compatibility and runtime smoke checks pass. Installed suites use
+tests/scripts/contracts extracted from the actual sdist, not copied upstream
+fixtures, with an empty disposable `.git` marker for capture safety checks.
+Two builds produce byte-identical archives. The first build diagnostic counted
+uv's generated `.gitignore` as a distribution; correcting that file-selection
+check confirmed identical wheel and sdist hashes without a production change.
+
+- Wheel SHA256: `04496413371684dc3b3e57b0a76a383b72869ae675ad3bdb0ef9b738baa3380e`.
+- Sdist SHA256: `c8f5ac164b4f6d9c7caff74646f373f5acaaee6fe05b510baf90929a078e1207`.
+- Final implementation Python manifest:
+  `3ceeb3f611b594160d19d3f40f1e1c96a40de4e61f6c2a3152a618191154b986`.
+
+Artifacts and local XML reports are retained separately in
+`dist/0.5.0-communication-continuation/`; prior `dist/0.5.0/` archives are unchanged.
+This final verification text supersedes pending text inside the qualified sdist.
+Machine-readable evidence: `release-evidence/0.5.0-communication-qualification.json`.
+Ruff lint/format, strict typing, hooks, history secret scan, locked dependency
+audit and `uv lock --check` pass. Current-head remote CI remains a separate gate.
+No consumer installation, state migration, merge or publication occurred.
+
+## 0.5.0 (2026-10-04) - Modern authentication and sole-send qualification
+
+The implementation is committed separately from the 0.5.0 version/qualification
+increment. Earlier 0.4.11-version candidates are historical; their hashes do not
+identify 0.5.0. The main 0.4.11 release hashes below remain unchanged. This is a
+local-first delivery, not PyPI publication or a production consumer installation.
+Review and closed-scope evidence are in
+`contracts/modern-launch-diagnostics.md` and `release-evidence/0.5-modern-*`.
+
+- Seven separately approved scopes used 84 HTTP requests, seven credential
+  submissions and exactly one sole-recipient modern send. All scopes are closed.
+  No retry/fallback/additional recipient, read-once call, content open, attachment,
+  setting change, consumer migration or publication occurred.
+- Live launch namespaces varied between calls. The owner approved a bounded
+  server-selected numbered field; origin/login/token/target/source/terminal
+  guards remain. Original regressions failed before the namespace fix.
+- Modern identity returned integer accountId, independently compared against
+  native owner/name. Identity-only normalization fixes the original PARSE
+  regression; directory IDs remain strict. Installed sender/council verification
+  passed for one context; universal roles/layouts remain unqualified.
+- The one dispatch used native durable persistence and returned HTTP 201 with
+  exact created/sent JSON. The owner independently confirmed the exact sent
+  recipient/subject/body in the official UI. Recipient reading is not confirmed.
+  The original API/durable result remains UNKNOWN/PARSE, preserved rather than
+  automatically rewritten. A new narrow receipt-parser correction is qualified
+  offline, not through another live send.
+- Source, installed wheel and installed sdist each pass 1,385 portable tests on
+  Python 3.13.15 and 3.14.7, one performance test deselected. Installed imports and
+  the qualified receipt smoke are checked in each environment; two builds have
+  identical wheel/sdist bytes. Ruff lint/format, strict typing, changed-file hooks
+  and worktree secret scan pass. Final evidence:
+  `release-evidence/0.5-modern-ack-offline-candidate.json` records the pre-version
+  candidate. The 0.5.0 artifacts require their own qualification below. Earlier
+  1,326/1,353/1,366 candidate evidence remains historical, not final acceptance.
+- Scratch environments/builds are removed. The explicitly approved owner-only
+  durable send history and one bounded receipt are retained outside Git for
+  duplicate prevention/manual reconciliation. Private IDs, bodies, cookies,
+  credentials and screenshots are absent from public evidence.
+  The new approved claim directory contains a 20,480-byte SQLite file and a
+  149-byte receipt (20,629 bytes total). The existing private approval ledger was
+  updated, not reset or migrated. Nothing from these files enters Git.
+
+Broader 0.5 compatibility, live rejection/alternate acknowledgement shapes,
+modern mailbox/attachment support, read-once test-account qualification,
+consumer migration, PR merge and publication gates remain open. Versioned 0.5.0
+artifact qualification and current-head CI are recorded separately, not inferred
+from the pre-version candidate checks.
+
+### Versioned local artifacts
+
+The 0.5.0 source, installed wheel and installed sdist each pass 1,385 tests on
+Python 3.13.15 and 3.14.7, one opt-in performance case deselected. Each installed
+environment verifies import location, version, MIT license/files, Python floor,
+`py.typed`, dependency compatibility and the qualified receipt smoke. The suite
+includes real loopback/runtime, durable/process and maximum-payload load proofs.
+Two builds have byte-identical archives. Ruff lint/format, strict typing, repository
+hooks, history/worktree secret scans and the locked dependency audit pass.
+
+New local artifacts in `dist/0.5.0/`: wheel 119,164 bytes, sdist 518,137 bytes,
+637,301 bytes total. Hashes and commands/results are recorded in
+`release-evidence/0.5.0-modern-qualification.json`. The archives contain a
+pre-final-evidence documentation checkpoint; this final log supersedes pending
+qualification wording inside the sdist. Older `dist/0.4.11/` artifacts are unchanged.
+Disposable environments/builds are removed; only the new versioned archives are
+retained locally. No extra live requests, sends, history rewrites or publication
+were performed during packaging. Current-head PR CI is still a remote gate.
+
 ## 0.4.11 (2026-10-03) - Offline S10 storage and session follow-ups
 
 Pre-merge independent review (supersedes the counts, hashes and size below):

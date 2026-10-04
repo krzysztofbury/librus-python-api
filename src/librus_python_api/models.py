@@ -46,6 +46,15 @@ type OperationName = Literal[
     "modern_recipient_types",
     "modern_recipients",
     "modern_send_message",
+    "modern_school_recipients",
+    "modern_class_parents",
+    "modern_messages_received",
+    "modern_messages_sent",
+    "modern_content_received",
+    "modern_content_sent",
+    "modern_attachment_resolve",
+    "modern_archive_attachment_resolve",
+    "modern_attachment_download",
 ]
 
 
@@ -182,7 +191,9 @@ class AttachmentHeaders:
 @dataclass(frozen=True, slots=True)
 class AttachmentMetadata:
     identity: "Identity" = field(repr=False)
-    reference: MessageAttachmentReference = field(repr=False)
+    reference: "MessageAttachmentReference | ModernMessageAttachmentReference" = field(
+        repr=False
+    )
     headers: AttachmentHeaders = field(repr=False)
     observation: "Observation"
 
@@ -313,6 +324,7 @@ class Recipients:
 class ModernRecipientTypeReference:
     identifier: str = field(repr=False)
     account: str = field(repr=False)
+    include_virtual: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -329,12 +341,14 @@ class ModernRecipientReference:
     account: str = field(repr=False)
     recipient_type: str = field(repr=False)
     class_label: str = field(repr=False)
+    include_virtual: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class ModernRecipient:
     reference: ModernRecipientReference = field(repr=False)
     label: str = field(repr=False)
+    availability_status_json: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,6 +386,105 @@ class ModernSendSubmission:
     recipients: tuple[ModernRecipientReference, ...] = field(repr=False)
     subject: str = field(repr=False)
     body: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageReference:
+    folder: MessageFolder
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageSummary:
+    reference: ModernMessageReference = field(repr=False)
+    correspondent: str = field(repr=False)
+    subject: str = field(repr=False)
+    sent_at: datetime = field(repr=False)
+    raw_sent_at: str = field(repr=False)
+    read_at: datetime | None = field(repr=False)
+    unread: bool | None
+    has_attachment: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessagesPage:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    page: int
+    page_size: int
+    total_count: int
+    items: tuple[ModernMessageSummary, ...] = field(repr=False)
+    fingerprint: str = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessagesCursor:
+    account: str = field(repr=False)
+    folder: MessageFolder
+    page: int
+    offset: int
+    page_size: int
+    total_count: int
+    fingerprint: str = field(repr=False)
+    seen_ids: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessages:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    items: tuple[ModernMessageSummary, ...] = field(repr=False)
+    pages_fetched: int
+    duplicates_skipped: int
+    next_cursor: ModernMessagesCursor | None = field(repr=False)
+    truncation_reason: Literal["item_limit", "page_limit"] | None
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageAttachmentReference:
+    message: ModernMessageReference = field(repr=False)
+    identifier: str = field(repr=False)
+    archived: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageAttachment:
+    reference: ModernMessageAttachmentReference = field(repr=False)
+    filename: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageRecipientReceipt:
+    recipient_id: str = field(repr=False)
+    name: str = field(repr=False)
+    channel: Literal["to", "cc", "bcc"]
+    read: bool | None
+    read_at: datetime | None = field(repr=False)
+    # The observed readed field is not an independent delivery acknowledgement.
+    delivered: None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageContent:
+    identity: "Identity" = field(repr=False)
+    summary: ModernMessageSummary = field(repr=False)
+    text: str = field(repr=False)
+    attachments: tuple[ModernMessageAttachment, ...] = field(repr=False)
+    may_mark_read: bool
+    observation: "Observation"
+    recipient_receipts: tuple[ModernMessageRecipientReceipt, ...] = field(
+        default=(), repr=False
+    )
+    recipient_count: int | None = None
+    read_count: int | None = None
+    receipt_source: Literal["receivers", "individualRecipients"] | None = None
+    archived: bool = False
+    withdrawn: bool = False
+    original_subject: str | None = field(default=None, repr=False)
+    original_text: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

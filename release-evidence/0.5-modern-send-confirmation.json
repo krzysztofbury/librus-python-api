@@ -1,0 +1,31 @@
+{
+  "scope": "offline interpretation and independent owner confirmation of the sole approved live send",
+  "live_scope_evidence": "release-evidence/0.5-modern-scope-7.json",
+  "additional_network_requests": 0,
+  "additional_send_dispatches": 0,
+  "receipt": {
+    "http_status": 201,
+    "json_outer_keys": ["data"],
+    "json_data_keys": ["messageId", "status"],
+    "message_id_type": "integer",
+    "message_id_positive_and_within_policy": true,
+    "status_value": "sent",
+    "private_message_id_or_raw_receipt_in_repository": false,
+    "response_content_type_not_retained": true,
+    "candidate_acceptance_requires_application_json_as_explicit_policy": true
+  },
+  "independent_confirmation": {
+    "owner_confirmed_sent_in_official_ui": true,
+    "approved_recipient_matches": true,
+    "approved_subject_and_body_match": true,
+    "recipient_reading_confirmed": false,
+    "screenshot_in_repository": false
+  },
+  "original_api_result": "unknown, reason=parse because generic read validation rejected HTTP 201",
+  "original_durable_record": "unknown, preserved without automatic rewrite or reset",
+  "candidate_fix": "Accept only HTTP 201, application/json and the exact data/messageId/status=sent envelope with a positive bounded JSON integer ID; all unqualified receipt shapes remain UNKNOWN",
+  "receipt_fix_live_reexecuted": false,
+  "authorization_closed": true,
+  "retry_or_fallback_performed": false,
+  "not_a_0_5_release_qualification": true
+}

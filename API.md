@@ -5,6 +5,26 @@ Core public values are exported from `librus_python_api`; exceptions live in
 `librus_python_api.persistence`. Results are frozen dataclasses. Their reprs omit
 personal fields. Serializing them for MCP or anything else is the consumer's job.
 
+## Optional local attachment files
+
+```python
+from pathlib import Path
+from librus_python_api.files import publish_attachment
+
+stream = client.stream_attachment(attachment.reference, budget=budget)
+saved = await publish_attachment(
+    stream,
+    Path("/caller-selected/existing/directory"),
+    filename=attachment.filename,
+)
+```
+
+The optional file layer publishes complete owner-only files atomically without
+overwriting an existing path. It returns the local path, byte size, SHA256 and
+content type. It neither selects the destination nor opens message content.
+See [the file contract](contracts/attachment-files.md) for filesystem requirements,
+bounded naming and cancellation/commit semantics.
+
 ## Service and accounts
 
 ```python
@@ -80,6 +100,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   validate exact origin/login/target/source before the one handoff dispatch.
   The modern send callback, uncertainty and joined cleanup rules are identical.
   Generic modern launch/handoff/send requests are prohibited.
+  `request` additionally accepts optional `query: Mapping[str, str]` for fixed
+  allowlisted modern directory and mailbox selections only. Arbitrary query keys,
+  routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -243,7 +266,7 @@ apparently complete. Empty and shorter pager-less page-zero layouts remain suppo
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
-## Modern messaging (0.4.7, offline-qualified only)
+## Modern messaging (explicit backend, partial live qualification)
 
 0.4.11 revalidates bound modern identity with one fresh GET before each send.
 The initial handoff already includes that GET; subsequent sends cost one GET plus
@@ -257,14 +280,19 @@ read/send is automatically retried. A race after preflight can still yield UNKNO
   native `identity`, modern `account` metadata and an `observation`. Modern owner
   ID and available names must match the native owner. Only ordinary school roles
   are enabled, conservatively; unrelated origins and OSIN remain unsupported.
+  Modern identity `accountId` accepts a decimal string or a non-negative JSON
+  integer of at most 64 digits, normalized to a string before owner comparison.
+  Booleans, floats, negatives and larger integers are rejected. This does not
+  change recipient-ID validation or allow cross-backend ID substitution.
 - `modern_recipient_types(*, budget=None, max_age_seconds=0)` returns
   `ModernRecipientTypes`. Each item has a backend/account-bound `reference`,
   a `label` and `lookup_supported`. Unsupported types are metadata, not permission
   to look up another route.
 - `modern_recipients(recipient_type, *, budget=None, max_age_seconds=0)` returns
-  `ModernRecipients`. Only `parentsCouncil` is supported. Each item preserves
+  `ModernRecipients`. Allowlisted class and ordinary school-employee branches
+  are supported; availability and live coverage are account-specific. Each item preserves
   `label` and `ModernRecipientReference(account_id, user_id, account,
-  recipient_type, class_label)`. Duplicate account IDs/classes and unrecognized
+  recipient_type, class_label, include_virtual=False)`. Duplicate account IDs/classes and unrecognized
   layouts raise errors; IDs must never be substituted or passed to legacy APIs.
 - `prepare_modern_send(*, recipients: tuple[ModernRecipientReference, ...],
   subject: str, body: str) -> SendAttempt` is local, immutable and single-use.
@@ -289,13 +317,52 @@ are retained in the encoded payload and displayed as line breaks. The existing
 limits apply after escaping/Base64 expansion. No attachments, CC/BCC, groups,
 drafts, signatures or settings changes are supported.
 
-Modern HTTP 2xx remains UNKNOWN because no definitive positive acknowledgement
-has been established. An explicit allowlisted validation denial on HTTP 400/422
+Modern ACCEPTED requires HTTP 201, `application/json`, and exactly
+`{"data":{"messageId":<positive integer>,"status":"sent"}}`. The ID must be an
+actual JSON integer of at most 64 decimal digits, not a bool, float or string.
+This establishes upstream acceptance, not recipient reading. Other 2xx responses
+remain UNKNOWN; HTTP success alone is insufficient. An explicit allowlisted validation denial on HTTP 400/422
 can establish source-informed REJECTED. Unknown, malformed, contradictory or
 failed responses remain UNKNOWN after potential dispatch, with no retries,
 redirects, fallback, post-send lookup or implicit reauthentication. Cancel/shutdown
 propagate normally with an inspectable outcome after joined cleanup, as below.
-No modern mailbox reconciliation API is introduced.
+Modern list/content reads do not reconcile durable UNKNOWN send history.
+
+- `modern_messages_page(folder=RECEIVED, *, page=1, page_size=10, budget=None,
+  max_age_seconds=0)` returns `ModernMessagesPage`. Pages are one-based. This GET
+  returns summaries only; sent read status can be unknown.
+- `modern_messages(folder=RECEIVED, *, cursor=None, page_size=50, max_pages=4,
+  limit=128, budget=None, max_age_seconds=0)` returns `ModernMessages` with explicit
+  truncation, duplicate counts and account/folder/page-size-bound continuation.
+  Cursor drift and later-page errors never return partial output.
+  Page size is 1-50, page number 1-1,000, `max_pages` 1-8, `limit` 1-256 and
+  cursor history at most 2,000 IDs. These are library bounds, not upstream maxima.
+- `modern_message_content(reference, *, allow_mark_read=False, budget=None,
+  max_age_seconds=0)` requires a `ModernMessageReference`. Received opens require
+  consent and invalidate inbox summary caches before dispatch. Results have inert
+  rendered `text` and `ModernMessageAttachment` metadata. Optional inert original
+  subject/body, archive/withdrawal flags and bounded sent `recipient_receipts`
+  preserve observed layouts. `read` is true/false/unknown, `read_at` is optional,
+  and `delivered` stays unknown. Aggregate `recipient_count`/`read_count` are not
+  a claim that visible roster leaves are exhaustive. Modern metadata cannot be used with legacy
+  `stream_attachment`.
+  Base64 bodies must decode to UTF-8; XML BOM/preambles retain strict wrapper
+  validation. Conflicting encoding declarations, DTDs and entities are rejected.
+- `stream_modern_attachment(reference, *, max_bytes=50 * 1024 * 1024, budget=None)`
+  returns `ModernAttachmentStream`, a single-owner uncached async context manager
+  and iterator. It resolves only explicit modern/archived references, validates
+  the exact official sandbox destination, and shares the existing bounded
+  credential-free byte worker. It never opens content, follows redirects or
+  retries. Use the optional `files.publish_attachment` with an explicit directory
+  for durable, atomic, non-overwriting local saves. Its metadata reference is
+  backend-specific; `AttachmentMetadata.reference` can now be legacy or modern.
+
+Recipient type references accept `include_virtual=False`. Set it explicitly only
+for `students` or combined `parents,guardians`; virtual expansion is not automatic.
+Employee leaves have an empty `class_label` and optional inert
+`availability_status_json`, not interpreted as send permission.
+See [the communication contract](contracts/modern-communication.md) for limits,
+strict supported shapes and remaining layout/availability qualification gates.
 
 See [the modern contract](contracts/modern-messages.md) for evidence and live gates.
 

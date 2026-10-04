@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.5.0 (2026-10-04) - Modern live qualification
+
+- Bounded server-selected numbered handoff namespaces, preserving exact origin,
+  login, token, target/source and terminal checks without guessing or fallback.
+- Identity-only bounded integer account-ID normalization before native owner/name
+  comparison. Directory identifiers remain strict strings.
+- Exact HTTP 201 JSON created/sent receipt acceptance, grounded in one separately
+  approved dispatch and independent official-UI owner confirmation. Other positive
+  hints remain UNKNOWN; no second send qualified this parser correction.
+- Original wire/privacy/load/deadline/durable regressions and sanitized closed-scope
+  evidence. No consumer migration, read-once consumption or publication.
+- Same-PR continuation: optional atomic, non-overwriting local attachment file
+  publication; modern mailbox pages and bounded continuation; consent-gated inert
+  content/attachment metadata; ordinary school directory and virtual-query support.
+  Source API live checks qualify only available inbox/outbox and directory branches.
+  Final source, wheel and sdist qualification is recorded separately in
+  `VERIFICATION.md`; download and receipt expansion is described below.
+- Further same-PR expansion: explicit modern/archive attachment resolution and
+  bounded credential-free streams; recipient read/null/unknown observations with
+  unknown independent delivery status; plain/HTML/XML body decoding and inert
+  withdrawn original metadata. Narrow live scopes qualify available mailbox
+  layouts, a complete ordinary attachment and one consented mark-read transition.
+  Unavailable directories/subgroups and unobserved archive/expanded receipt layouts
+  remain explicit gates, without new sends or UNKNOWN history changes.
+- Pre-merge review: recognize XML wrappers after a UTF-8 BOM or inert preamble,
+  enforce their unique Content element and reject conflicting encoding declarations
+  instead of silently corrupting text. Discovery accepts the explicitly supported
+  combined parent/guardian type. Original HTTP regressions fail before these fixes.
+  Malformed recipient-type values fail locally with `InvalidInputError` instead
+  of leaking an untyped dictionary-key exception during send preparation.
+- Synchronize README/TODO release status and OpenAPI capability/evidence notes;
+  keep unavailable communication evidence tracked as C01-C05. Review is offline.
+
 ## 0.4.11 - Storage retention and communication review follow-ups
 
 Offline-only S10(a-i), on a separate branch after the 0.4.10 merge.

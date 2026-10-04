@@ -1,0 +1,59 @@
+{
+  "purpose": "Offline modern namespace candidate, not a 0.5 release or live qualification",
+  "package_version": "0.4.11",
+  "source_python_manifest_sha256": "046931e47398cff1ddaf84309bcc17197b0c5b8c5b1d5b071a00541c158e877c",
+  "artifacts": [
+    {
+      "filename": "librus_python_api-0.4.11-py3-none-any.whl",
+      "bytes": 118945,
+      "sha256": "5df8b0257b8963b0f951d5e908931547003044b23a0a42099d4d292faf9f4c97"
+    },
+    {
+      "filename": "librus_python_api-0.4.11.tar.gz",
+      "bytes": 508046,
+      "sha256": "873903269b26f5b955434c147e89a54297639336dc61f58677ea565c7dd6e986"
+    }
+  ],
+  "checks": [
+    {
+      "python": "3.13.15",
+      "mode": "source",
+      "summary": "1326 passed, 1 deselected in 17.69s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.13.15",
+      "mode": "wheel",
+      "summary": "1326 passed, 1 deselected in 18.23s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.13.15",
+      "mode": "sdist",
+      "summary": "1326 passed, 1 deselected in 17.67s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "source",
+      "summary": "1326 passed, 1 deselected in 17.91s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "wheel",
+      "summary": "1326 passed, 1 deselected in 18.49s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "sdist",
+      "summary": "1326 passed, 1 deselected in 17.94s",
+      "import_location_verified": true
+    }
+  ],
+  "installed_test_environment": "Tests/scripts/contracts from extracted sdist; empty disposable .git marker models the checkout boundary required by capture-safety tests; package imports must resolve inside each environment",
+  "initial_harness_issue": "First wheel suite omitted that Git marker: three capture-safety tests failed; corrected only the disposable test environment before complete rerun",
+  "live_http_requests": 0,
+  "artifacts_retained": false
+}

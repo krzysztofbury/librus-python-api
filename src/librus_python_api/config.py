@@ -128,7 +128,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
             Endpoint(
                 "modern_handoff",
                 "GET",
-                "/pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
+                "/{namespace}/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
@@ -167,7 +167,61 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/messages",
                 SideEffect.SEND_MESSAGE,
                 False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_school_recipients",
+                "GET",
+                "/api/receivers/groups/school-employees",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_class_parents",
+                "GET",
+                "/api/receivers/groups/class-parents",
+                SideEffect.NONE,
+                False,
                 Evidence.SOURCE_INFORMED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_messages_received",
+                "GET",
+                "/api/inbox/messages",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_messages_sent",
+                "GET",
+                "/api/outbox/messages",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_content_received",
+                "GET",
+                "/api/inbox/messages/{id}",
+                SideEffect.MARK_READ,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_content_sent",
+                "GET",
+                "/api/outbox/messages/{id}",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -202,6 +256,24 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "modern_attachment_resolve",
+                "GET",
+                "/api/attachments/{file_id}/messages/{message_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_archive_attachment_resolve",
+                "GET",
+                "/api/archive/attachments/{file_id}/messages/{message_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "messages",
             ),
             Endpoint(
                 "login_authorization",
@@ -702,7 +774,7 @@ SEND_ACCEPTED_TEXT = "Wiadomość została wysłana."
 SEND_REJECTED_TEXT = "Wiadomość nie została wysłana."
 MODERN_DIRECTORY_TYPE_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]{0,63}")
 MODERN_HANDOFF_PATTERN = re.compile(
-    r"/pobierz28/MultiDomainLogon/token/([A-Za-z0-9]{32,256})/login/([A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
+    r"/(?P<namespace>pobierz[0-9]{1,3})/MultiDomainLogon/token/(?P<token>[A-Za-z0-9]{32,256})/login/(?P<login>[A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
 )
 MODERN_TERMINAL_PATHS = frozenset({"/nowy", "/nowy/"})
 MODERN_DIRECTORY_QUERIES = MappingProxyType(
@@ -712,12 +784,116 @@ MODERN_DIRECTORY_QUERIES = MappingProxyType(
     }
 )
 MODERN_SUPPORTED_RECIPIENT_TYPE = "parentsCouncil"
+MODERN_RECIPIENT_OPERATIONS = MappingProxyType(
+    {
+        **{
+            name: "modern_recipients"
+            for name in (
+                "parentsCouncil",
+                "students",
+                "parents",
+                "guardians",
+                "parents,guardians",
+            )
+        },
+        **{
+            name: "modern_school_recipients"
+            for name in (
+                "schoolParentsCouncil",
+                "teachers",
+                "headteachers",
+                "pedagogue",
+                "admin",
+                "secretary",
+                "sadmin",
+                "tutors",
+                "librarian",
+                "otherSpecialist",
+                "careerAdvisor",
+                "speechTherapist",
+                "counsellor",
+                "specialCounsellor",
+                "psychologist",
+                "educationalTherapist",
+                "sensoryIntegrationTherapist",
+                "surdopedagogue",
+                "typhlopedagogue",
+            )
+        },
+        "classParents": "modern_class_parents",
+    }
+)
 MODERN_SUPPORTED_ACCOUNT_GROUPS = frozenset({"5", "8", "9"})
 MODERN_MAX_CLASSES = 128
 MODERN_MAX_RECIPIENTS = 2048
 MODERN_MAX_TYPES = 32
 MODERN_MAX_LABEL = 1024
 MODERN_MAX_TOTAL_TEXT = 128 * 1024
+
+
+def modern_directory_query(
+    identifier: str, *, include_virtual: bool = False
+) -> dict[str, str]:
+    if type(identifier) is not str or identifier not in MODERN_RECIPIENT_OPERATIONS:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    if type(include_virtual) is not bool or (
+        include_virtual and identifier not in {"students", "parents,guardians"}
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    expanded = identifier
+    if include_virtual:
+        expanded += (
+            ",virtualStudents"
+            if identifier == "students"
+            else ",virtualParents,virtualGuardians"
+        )
+    return {"receiverType": expanded}
+
+
+def modern_mailbox_query(
+    folder: MessageFolder, page: int, page_size: int
+) -> dict[str, str]:
+    if (
+        not isinstance(folder, MessageFolder)
+        or type(page) is not int
+        or not 1 <= page <= 1000
+        or type(page_size) is not int
+        or not 1 <= page_size <= 50
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return {"page": str(page), "limit": str(page_size)}
+
+
+def validate_modern_query(operation: str, query: Mapping[str, str]) -> None:
+    """Allow only fixed bounded directory or ordinary mailbox selections."""
+    if not isinstance(query, Mapping) or any(
+        type(v) is not str for v in query.values()
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    if operation in {"modern_messages_received", "modern_messages_sent"}:
+        if set(query) != {"page", "limit"} or any(
+            re.fullmatch(r"[1-9][0-9]{0,3}", query[name]) is None
+            for name in ("page", "limit")
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        modern_mailbox_query(
+            MessageFolder.RECEIVED, int(query["page"]), int(query["limit"])
+        )
+        return
+    allowed = [
+        modern_directory_query(name)
+        for name, route in MODERN_RECIPIENT_OPERATIONS.items()
+        if route == operation
+    ]
+    if operation == "modern_recipients":
+        allowed.extend(
+            modern_directory_query(name, include_virtual=True)
+            for name in ("students", "parents,guardians")
+        )
+    if dict(query) not in allowed:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
 MODERN_REJECTION_CODES = frozenset(
     {"DUPLICATED_RECEIVERS", "THE_RECEIVER_CANNOT_RECEIVE_A_NOTE_COPY"}
 )
@@ -841,12 +1017,25 @@ def encode_modern_send(submission: ModernSendSubmission, account: str) -> bytes:
         if (
             not isinstance(reference, ModernRecipientReference)
             or reference.account != account
-            or reference.recipient_type != MODERN_SUPPORTED_RECIPIENT_TYPE
+            or type(reference.recipient_type) is not str
+            or reference.recipient_type not in MODERN_RECIPIENT_OPERATIONS
             or type(reference.class_label) is not str
-            or not reference.class_label.strip()
+            or (
+                MODERN_RECIPIENT_OPERATIONS.get(reference.recipient_type)
+                == "modern_recipients"
+                and not reference.class_label.strip()
+            )
+            or (
+                MODERN_RECIPIENT_OPERATIONS.get(reference.recipient_type)
+                != "modern_recipients"
+                and reference.class_label != ""
+            )
             or len(reference.class_label) > MODERN_MAX_LABEL
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        modern_directory_query(
+            reference.recipient_type, include_virtual=reference.include_virtual
+        )
         if (
             any(
                 type(v) is not str or re.fullmatch(r"[0-9]{1,64}", v) is None

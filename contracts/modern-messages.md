@@ -1,18 +1,21 @@
-# Modern messaging: explicit 0.4.7 backend
+# Modern messaging: explicit backend and 0.5.0 qualification
 
 The modern composer at `https://wiadomosci.librus.pl/nowy/` is a separate
 messaging backend from the legacy Synergia HTML routes implemented in 0.4.6.
 Successful modern recipient discovery does not qualify legacy lookup or sending.
 0.4.7 implements an explicit, offline-qualified modern backend. No automatic
 fallback, account-setting mutation or cross-backend ID reuse is implemented.
-No modern send or positive acknowledgement has been observed live.
+0.5.0 qualification observed one separately approved sole-recipient send and its
+created/sent acknowledgement, independently confirmed by the owner in the official
+sent UI. This is not universal receipt/layout qualification or recipient reading.
 
 ## 0.4.11 offline session recovery
 
 A launch redirect to an exact native login route reports SESSION_EXPIRED, not
 ACCESS_DENIED, without following it. Foreign origins, mismatched login/token/target
-and unsupported handoff shapes remain denied. This classification does not establish
-the still-unqualified replacement live handoff layout.
+and unsupported handoff shapes remain denied. At the 0.4.11 checkpoint this
+classification did not establish a replacement live handoff layout; the subsequent
+0.5 qualification is recorded below.
 
 Every modern send freshly verifies the existing side-effect-free modern identity
 GET before dispatch. Cold binding already includes this GET; a warm binding adds
@@ -25,6 +28,37 @@ write. Revalidation cannot prevent expiry between GET and POST; potential dispat
 still means UNKNOWN until a definitive acknowledgement and is never replayed.
 
 ## Independently observed read-only discovery
+
+The separately approved 0.5 launch-only diagnostic independently established an
+additional exact namespace, `pobierz12`, with the same login/target/source field
+facts. An initial exact-number candidate preserved `pobierz28`, but the next
+installed verification returned `pobierz31` and safely stopped before handoff.
+The owner then approved a bounded server-selected namespace family: `pobierz`
+followed by 1-3 ASCII digits. This bound is library compatibility policy, not
+evidence that every number exists or proof of the numbering algorithm. The
+candidate follows only the validated URL actually returned, never constructs
+alternative namespaces, retries a handoff or falls back. Origin, exact login,
+token limits, fixed target/source and terminal route checks remain unchanged.
+See [modern-launch-diagnostics.md](modern-launch-diagnostics.md) for scope closure,
+policy decision, original regressions and installed live qualification status.
+The fourth approved installed scope successfully followed one validated numbered
+handoff, then stopped at modern identity parsing. No identity/recipient acceptance
+or send was established by that scope. All scopes are closed; the next identity
+diagnostic used a fresh approval.
+The fifth shape-only scope established that modern `accountId` is a JSON integer;
+its decimal value, names, string role and origin matched the verified native
+owner. No identity was accepted by that diagnostic. The candidate now normalizes
+only bounded non-negative identity integers to decimal strings before the existing
+owner/name comparison. Recipient identifiers remain unchanged; bool, float,
+negative and oversized identity values remain parse errors. This diagnostic alone
+did not qualify installed identity and council verification.
+That verification passed in the sixth freshly approved installed scope: native
+and modern sender matched, and the exact saved class-qualified council leaf
+matched uniquely. Fourteen requests, one credential submission, no send, scope
+closed. This qualifies one explicit account/council context, not arbitrary roles
+or directories. The seventh scope then executed its separately approved sole send;
+its exact receipt and unchanged UNKNOWN history are recorded in
+[modern-launch-diagnostics.md](modern-launch-diagnostics.md).
 
 One separately approved account context used the qualified installed 0.4.6 wheel
 for initial authentication and identity, followed by a private investigation
@@ -106,18 +140,24 @@ The approved 0.4.7 scope implements the following boundaries:
    breaks. Recipient payload contains `accountId`, never `userId`. Fixed fields
    are `storageId=null` and `category="normal"`; CC/BCC, groups, OSIN accounts,
    uploads, replies, forwards, signatures and drafts are excluded.
-   A successful HTTP response alone remains UNKNOWN. Only explicit allowlisted
-   source-informed denial codes on HTTP 400/422 can establish REJECTED; neither
-   real acknowledgement nor rejection envelopes have been live-qualified.
+    A successful HTTP response alone remains UNKNOWN. The 0.5 candidate accepts
+    only HTTP 201/application-json with exact `data` containing positive bounded
+    integer `messageId` and `status="sent"`. This observed envelope establishes
+    upstream acceptance, not recipient reading. Explicit allowlisted source-informed
+    denial codes on HTTP 400/422 can establish REJECTED; rejection envelopes remain
+    unqualified live.
 5. Qualification covers source and installed wheel/sdist under representative
-   offline load,
-   including one-dispatch fault proofs and account/backend isolation. Obtain fresh
-   exact payload and live-budget approval for the privately planned sole-recipient
-   manual test. Discovery approval is not send approval.
+    offline load, including one-dispatch fault proofs and account/backend isolation.
+    The 0.5 sole-recipient manual test had separate exact-payload and live-budget
+    approval. Its scope is closed; discovery approval is not send approval.
 
 `modern_identity`, `modern_recipient_types` and `modern_recipients` are ordinary
-bounded reads with explicit max-age caching. Only the `parentsCouncil` lookup
-is supported; other type metadata is returned with `lookup_supported=False`.
+bounded reads with explicit max-age caching. The original slice supported only
+`parentsCouncil`; the same-PR communication continuation adds allowlisted school
+employee and class/student/parent branches, explicit virtual query selection,
+modern mailbox lists and consent-gated content/attachment metadata. See
+[modern-communication.md](modern-communication.md) for precise live/offline gates.
+Unsupported type metadata is returned with `lookup_supported=False`.
 Directory parsing accepts only the established one-nested-array class shape,
 preserving class labels and unique account IDs; unsupported or ambiguous shapes
 raise errors rather than returning partial results. Empty classes are synthetic

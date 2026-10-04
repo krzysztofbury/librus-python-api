@@ -1,0 +1,37 @@
+{
+  "version": "0.5.0",
+  "candidate": "communication_continuation",
+  "implementation_commit": "d18e3f2120490f6e642c60b83d49c58a08da5ff4",
+  "source_python_manifest_sha256": "3ceeb3f611b594160d19d3f40f1e1c96a40de4e61f6c2a3152a618191154b986",
+  "manifest_algorithm": "SHA256 over sorted src/**/*.py: relative path UTF-8 + NUL + bytes + NUL",
+  "reproducible_builds": true,
+  "archives": [
+    {"filename": "librus_python_api-0.5.0-py3-none-any.whl", "sha256": "04496413371684dc3b3e57b0a76a383b72869ae675ad3bdb0ef9b738baa3380e", "bytes": 127655},
+    {"filename": "librus_python_api-0.5.0.tar.gz", "sha256": "c8f5ac164b4f6d9c7caff74646f373f5acaaee6fe05b510baf90929a078e1207", "bytes": 537524}
+  ],
+  "results": [
+    {"python": "3.13.15", "kind": "source", "passed": 1451, "performance_deselected": 1},
+    {"python": "3.13.15", "kind": "wheel", "passed": 1451, "performance_deselected": 1},
+    {"python": "3.13.15", "kind": "sdist", "passed": 1451, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "source", "passed": 1451, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "wheel", "passed": 1451, "performance_deselected": 1},
+    {"python": "3.14.7", "kind": "sdist", "passed": 1451, "performance_deselected": 1}
+  ],
+  "installed_import_metadata_license_floor_typing_dependencies_and_smoke": "passed",
+  "installed_test_input": "tests/scripts/contracts extracted from qualified sdist; disposable empty .git marker for capture boundaries",
+  "quality": {"ruff": "passed", "format": "passed", "mypy": "passed", "hooks": "passed", "history_secret_scan": "passed", "locked_dependency_audit": "passed", "lock_check": "passed"},
+  "artifact_directory": "dist/0.5.0-communication-continuation",
+  "live_scope_evidence": "release-evidence/0.5-communication-scopes.json",
+  "installed_live_qualification": false,
+  "remaining_gates": [
+    "modern_content_live_layout_and_read_effects", "modern_attachment_resolution_and_streaming",
+    "richer_recipient_read_receipts", "virtual_class_live_coverage",
+    "populated_legacy_subgroups", "class_parent_availability",
+    "sent_second_page_live_coverage", "dedicated_read_once_live_qualification",
+    "consumer_integration", "current_head_remote_CI", "merge", "publication"
+  ],
+  "prior_0.5.0_artifacts_unchanged": true,
+  "published": false,
+  "consumer_changed": false,
+  "automatic_migration": false
+}

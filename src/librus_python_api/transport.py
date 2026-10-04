@@ -20,6 +20,7 @@ from librus_python_api.attachment_routes import (
     validate_attachment_reference,
     validate_key,
     validate_max_bytes,
+    validate_modern_attachment_reference,
 )
 from librus_python_api.budget import RequestBudget
 from librus_python_api.checkpoint import CheckpointState, handoff, validate_checkpoint
@@ -43,12 +44,14 @@ from librus_python_api.config import (
     encode_modern_send,
     encode_send_form,
     recipient_form,
+    validate_modern_query,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.models import (
     AttachmentHeaders,
     LoginSubmission,
     MessageAttachmentReference,
+    ModernMessageAttachmentReference,
     ModernSendSubmission,
     RequestForm,
     ScheduleEventWire,
@@ -73,6 +76,7 @@ class AccountTransport(Protocol):
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> TransportResponse: ...
 
     async def send_message(
@@ -262,12 +266,15 @@ class AiohttpTransport:
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         if endpoint.origin == "download" or endpoint_id in {
             "attachment_resolve",
+            "modern_attachment_resolve",
+            "modern_archive_attachment_resolve",
             "consume_schedule_events",
             "send_message",
             "modern_send_message",
@@ -288,6 +295,20 @@ class AiohttpTransport:
             url = str(URL(url).with_query(OAUTH_QUERY))
         if endpoint_id in MODERN_DIRECTORY_QUERIES:
             url = str(URL(url).with_query(MODERN_DIRECTORY_QUERIES[endpoint_id]))
+        if (
+            endpoint_id
+            in {
+                "modern_school_recipients",
+                "modern_class_parents",
+                "modern_messages_received",
+                "modern_messages_sent",
+            }
+            and query is None
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if query is not None:
+            validate_modern_query(endpoint_id, query)
+            url = str(URL(url).with_query(query))
         return await self._request(endpoint, url, budget, form)
 
     async def authenticate_modern(
@@ -311,9 +332,9 @@ class AiohttpTransport:
             )
             parsed = urlsplit(url)
             match = MODERN_HANDOFF_PATTERN.fullmatch(parsed.path)
-            if match is None or match[2] != b64encode(expected_login.encode()).decode(
-                "ascii"
-            ).rstrip("="):
+            if match is None or match["login"] != b64encode(
+                expected_login.encode()
+            ).decode("ascii").rstrip("="):
                 raise LibrusError(ErrorKind.ACCESS_DENIED)
             response = await self._request(
                 ENDPOINTS["modern_handoff"], url, budget, None
@@ -561,6 +582,25 @@ class AiohttpTransport:
         endpoint = ENDPOINTS["attachment_resolve"]
         path = endpoint.path.format(
             message_id=reference.message.identifier, file_id=reference.identifier
+        )
+        return await self._request(
+            endpoint, self._connection.origin(endpoint) + path, budget, None
+        )
+
+    async def resolve_modern_attachment(
+        self,
+        reference: ModernMessageAttachmentReference,
+        budget: RequestBudget,
+    ) -> TransportResponse:
+        validate_modern_attachment_reference(reference, self._account)
+        endpoint = ENDPOINTS[
+            "modern_archive_attachment_resolve"
+            if reference.archived
+            else "modern_attachment_resolve"
+        ]
+        path = endpoint.path.format(
+            message_id=reference.message.identifier,
+            file_id=reference.identifier,
         )
         return await self._request(
             endpoint, self._connection.origin(endpoint) + path, budget, None

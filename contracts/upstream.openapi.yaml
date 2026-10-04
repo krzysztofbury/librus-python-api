@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.4.11
+  version: 0.5.0
   license:
     name: MIT
   description: |
@@ -29,7 +29,7 @@ paths:
       responses:
         '302': {$ref: '#/components/responses/Redirect'}
         default: {$ref: '#/components/responses/Failure'}
-  /pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
+  /{namespace}/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
     get:
       operationId: modern_handoff
       summary: One exact account-verified modern login handoff, with an isolated cookie jar
@@ -39,8 +39,9 @@ paths:
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One explicit handoff set the modern session and redirected to /nowy; secret token URLs were deleted. Login must bind to the current credential context; no arbitrary redirects. See contracts/modern-messages.md.
+      x-evidence-note: One historical pobierz28 handoff set the modern session and redirected to /nowy. Later launch-only scopes observed pobierz12 and pobierz31 with matching fixed field facts. The owner approved a bounded numbered-family compatibility policy, not a claim every member exists. Login binds to the current credential context; no arbitrary redirects, guessed namespace, retry or fallback. See contracts/modern-launch-diagnostics.md.
       parameters:
+        - {in: path, name: namespace, required: true, schema: {type: string, pattern: '^pobierz[0-9]{1,3}$'}, description: Server-selected numbered namespace; 1-3 ASCII digits is explicit library policy}
         - {in: path, name: token, required: true, schema: {type: string, pattern: '^[A-Za-z0-9]{32,256}$'}}
         - {in: path, name: login, required: true, schema: {type: string, minLength: 1, maxLength: 512}, description: Unpadded UTF-8 Base64 of the exact configured login}
         - {in: path, name: target, required: true, schema: {type: string, enum: [L25vd3k]}}
@@ -58,9 +59,9 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. No universal role/layout coverage. See contracts/modern-messages.md.
+      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. A fresh shape-only scope observed accountId as a JSON integer whose decimal value matched the native owner; bounded non-negative integer normalization is identity-only library policy. No universal role/layout coverage. See contracts/modern-messages.md.
       responses:
-        '200': {description: Modern account metadata, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
+        '200': {description: Modern account metadata with accountId normalized to a decimal string, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {oneOf: [{type: string, pattern: '^[0-9]{1,64}$'}, {type: integer, minimum: 0, maximum: 9999999999999999999999999999999999999999999999999999999999999999}]}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/receivers/types:
     get:
@@ -72,7 +73,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One populated type list observed; parentsCouncil discovery is enabled, other branch lookups remain unsupported. See contracts/modern-messages.md.
+      x-evidence-note: Populated type lists were independently observed. Allowlisted school, class and student/parent branches have lookup implementations; lookup support is not account availability or universal live qualification. Combined parents,guardians metadata is covered by original offline regression only. See contracts/modern-communication.md.
       parameters:
         - {in: query, name: includeClass, required: true, schema: {type: string, enum: ['true']}}
       responses:
@@ -82,15 +83,15 @@ paths:
     get:
       operationId: modern_recipients
       security: [{ModernSessionCookies: []}]
-      summary: One bounded parent-council branch preserving class, account and user IDs
+      summary: Explicit bounded council or student/parent selection preserving class, account and user IDs
       x-origin: messages
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One populated council/class layout independently checked with Chromium; no virtual classes, arbitrary receiverType selection or recursive lookup. See contracts/modern-messages.md.
+      x-evidence-note: One populated council/class layout independently checked with Chromium. Source-informed ordinary student/parent/guardian and virtual selections have original offline wire tests, not universal live availability. See contracts/modern-communication.md.
       parameters:
-        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [parentsCouncil]}}
+        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [parentsCouncil, students, parents, guardians, 'parents,guardians', 'students,virtualStudents', 'parents,guardians,virtualParents,virtualGuardians']}}
       responses:
         '200':
           description: Class-qualified nested recipient leaves
@@ -99,9 +100,11 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [classes]
+                oneOf:
+                  - required: [classes]
+                  - required: [data]
                 properties:
-                  classes:
+                  classes: &ModernClassList
                     type: array
                     maxItems: 128
                     items:
@@ -125,6 +128,151 @@ paths:
                                 accountId: {type: string, pattern: '^[0-9]{1,64}$'}
                                 userId: {type: string, pattern: '^[0-9]{1,64}$'}
                                 name: {type: string, minLength: 1, maxLength: 1024}
+                  data: *ModernClassList
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/groups/school-employees:
+    get:
+      operationId: modern_school_recipients
+      summary: Explicit allowlisted ordinary school employee directory branch
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed teacher, tutor and school-admin leaves on one login. Other allowlisted employee selections remain source-informed and offline-qualified only. See release-evidence/0.5-communication-scopes.json and contracts/modern-communication.md.
+      parameters:
+        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [schoolParentsCouncil, teachers, headteachers, pedagogue, admin, secretary, sadmin, tutors, librarian, otherSpecialist, careerAdvisor, speechTherapist, counsellor, specialCounsellor, psychologist, educationalTherapist, sensoryIntegrationTherapist, surdopedagogue, typhlopedagogue]}}
+      responses:
+        '200': {description: Bounded recipient branch JSON, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/groups/class-parents:
+    get:
+      operationId: modern_class_parents
+      summary: Explicit class-parent branch with no arbitrary directory route
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Separately approved public app maps classParents to this route. Original offline wire tests; authenticated availability remains separately qualified. See contracts/modern-communication.md.
+      parameters:
+        - {in: query, name: receiverType, required: true, schema: {type: string, enum: [classParents]}}
+      responses:
+        '200': {description: Bounded class-parent JSON, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/inbox/messages:
+    get:
+      operationId: modern_messages_received
+      summary: Ordinary modern inbox summaries without opening content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed populated inbox pages 1-2 and existing inboxes across four isolated logins. One-based page and bounded limit have original wire tests. No automatic fallback or body open. See release-evidence/0.5-communication-scopes.json and release-evidence/0.5-communication-expansion-scopes.json.
+      parameters:
+        - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        '200': {description: Bounded summaries and total count, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/outbox/messages:
+    get:
+      operationId: modern_messages_sent
+      summary: Ordinary modern sent summaries without opening content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed ordinary sent summaries, empty student outboxes and a populated second sent page at size five. Sent counts are not recipient acknowledgement. See release-evidence/0.5-communication-expansion-scopes.json and contracts/modern-communication.md.
+      parameters:
+        - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        '200': {description: Bounded sent summaries and total count, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/inbox/messages/{id}:
+    get:
+      operationId: modern_content_received
+      summary: Explicit received content open with potential mark-read effect
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: mark_read
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Separately approved source API reads qualify ordinary plain content and one consented unread-to-read transition. XML/original/archive layouts have original bounded offline proofs, not universal live compatibility. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200': {description: Bounded detail JSON with inert decoded body and attachment metadata, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/outbox/messages/{id}:
+    get:
+      operationId: modern_content_sent
+      summary: Explicit sent content open with inert metadata
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Approved source API reads qualify two ordinary XML-wrapped sent details and recipient read/null observations; delivery acknowledgements remain unknown. Expanded and CC/BCC rosters have source-informed offline tests only. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200': {description: Bounded sent detail JSON, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/attachments/{file_id}/messages/{message_id}:
+    get:
+      operationId: modern_attachment_resolve
+      summary: Explicit modern attachment resolution without opening message content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Approved inspection observed two data.downloadLink responses pointing to the exact official sandbox GetFile key shape. Original three-origin wire tests reject other destinations and preserve credential-free streaming. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: file_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+        - {in: path, name: message_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200':
+          description: Bounded resolver JSON; never follow redirects or return the signed URL to the caller
+          content:
+            application/json:
+              schema: &ModernAttachmentResolution
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [downloadLink]
+                    properties:
+                      downloadLink: {type: string, minLength: 1, maxLength: 2048}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/archive/attachments/{file_id}/messages/{message_id}:
+    get:
+      operationId: modern_archive_attachment_resolve
+      summary: Explicit archive-qualified modern attachment resolution
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Approved public reader establishes the separate archive route. Original wire fixtures cover routing and destination guards; no archived live file was observed. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: file_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+        - {in: path, name: message_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200': {description: Same bounded resolver envelope with credential-free signed destination policy, content: {application/json: {schema: *ModernAttachmentResolution}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/messages:
     post:
@@ -136,8 +284,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: send_message
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Independently inspected public app assets establish UTF-8 Base64 topic/content, schoolReceivers accountId, null storageId and normal category; original offline wire proof only. No live send or positive acknowledgement observed. See contracts/modern-messages.md.
+      x-evidence: independently_observed
+      x-evidence-note: Public app assets informed serialization, qualified with original wire fixtures. One separately approved sole-recipient send returned HTTP 201 with exact data/messageId/status=sent envelope; the owner independently confirmed recipient and payload in the official sent UI. This qualifies upstream acceptance for that envelope, not recipient reading or all receipt variants. See contracts/modern-messages.md.
       requestBody:
         required: true
         content:
@@ -164,6 +312,22 @@ paths:
                 category: {type: string, enum: [normal]}
       responses:
         '200': {description: No independently established positive acknowledgement; HTTP success alone remains UNKNOWN}
+        '201':
+          description: Only the exact observed JSON created/sent envelope establishes upstream ACCEPTED, not recipient reading
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required: [messageId, status]
+                    properties:
+                      messageId: {type: integer, minimum: 1, maximum: 9999999999999999999999999999999999999999999999999999999999999999}
+                      status: {type: string, enum: [sent]}
         '400': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
         '422': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
         default: {description: 'UNKNOWN after potential dispatch, with no retry, fallback, redirects or post-send reauthentication'}

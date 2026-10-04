@@ -135,12 +135,17 @@ def test_completed_legacy_send_receipt_survives_return_deadline(
     asyncio.run(scenario())
 
 
-def test_complete_modern_rejection_survives_return_deadline_without_replaying() -> None:
+@pytest.mark.parametrize("accepted", [False, True])
+def test_complete_modern_acknowledgement_survives_return_deadline_without_replaying(
+    accepted: bool,
+) -> None:
     async def scenario() -> None:
         fixture = ModernFixture()
         fixture.responses["send"] = (
-            422,
-            b'{"errors":[{"code":"DUPLICATED_RECEIVERS"}]}',
+            201 if accepted else 422,
+            b'{"data":{"messageId":19001,"status":"sent"}}'
+            if accepted
+            else b'{"errors":[{"code":"DUPLICATED_RECEIVERS"}]}',
             "application/json",
             {},
         )
@@ -148,9 +153,11 @@ def test_complete_modern_rejection_survives_return_deadline_without_replaying() 
             client = service.account("student")
             await client.modern_identity()
             budget = ReceiptDeadlineBudget(max_requests=2)
-            budget.chunks_remaining = 2  # Warm identity GET, then the rejected POST.
+            budget.chunks_remaining = 2  # Warm identity GET, then the completed POST.
             result = await prepare_modern(client).execute(budget=budget)
-            assert result.status is SendStatus.REJECTED
+            assert result.status is (
+                SendStatus.ACCEPTED if accepted else SendStatus.REJECTED
+            )
             assert len(fixture.sends) == 1 and budget.requests_dispatched == 2
 
     asyncio.run(scenario())

@@ -38,7 +38,8 @@ Rules that hold for every release:
 | `0.4.8` | Optional durable send confirmations, claims and restart recovery | Implemented; 44 original SQLite/public-native fault/load cases; see VERIFICATION.md for source/artifact qualification |
 | `0.4.9` | Optional notification persistence, bounded replay and delivery acknowledgement | Implemented; 50 original notification fault/load cases, source/wheel/sdist qualified on Python 3.13/3.14; final 0.4 persistence prerequisite, not full compatibility closure |
 | `0.4.10` | PR #13 review hardening | Implemented; independent review fixes with fail-before regressions, source/wheel/sdist qualified on Python 3.13/3.14 |
-| `0.5.x` | Modern authentication, broader communication coverage and live qualification | Planned; explicit evidence/consent gates below |
+| `0.4.11` | Session, storage retention and communication review follow-ups | Implemented and locally qualified on Python 3.13/3.14 |
+| `0.5.0` | Modern authentication, broader communication coverage and live qualification | Implemented and narrowly live-qualified; offline pre-merge review and artifact evidence in VERIFICATION.md; C01-C05 and consumer migration remain open |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
 | MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
@@ -111,22 +112,24 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   No cross-backend ID reuse, automatic fallback, setting changes or inferred
   retirement date. See
   [contracts/modern-messages.md](contracts/modern-messages.md).
-- [ ] Modern follow-ups: independently qualify positive acknowledgement and
-  rejection envelopes, installed live authentication/discovery and the separately
-  approved sole-recipient manual send. Other directory branches, virtual classes,
-  pagination, modern mailbox content and attachments remain unsupported.
+- [x] 0.5 modern installed sender/council verification and sole-recipient manual
+  send: one exact created/sent receipt, independently confirmed in the official UI.
+  The receipt-parser correction is offline-qualified, not exercised by another send.
+- [ ] Modern follow-ups: rejection envelopes and other positive send-acceptance
+  variants, independent delivery acknowledgements, unavailable directory/virtual
+  branches and unobserved archive/expanded recipient layouts remain gates.
+- [x] Modern ordinary content, recipient read observations, fixed credential-free
+  attachment streams, empty/sent-second-page layouts and one consented mark-read
+  transition are implemented and narrowly source-API qualified on this PR.
 - [x] 0.4.6, the legacy sending increment in the same PR: approved single-use
   attempt design implemented with typed uncertainty, exact fixed wire forms,
   shared limits and offline cancellation/fault proofs. See
   [contracts/sending.md](contracts/sending.md). MCP confirmation/token adapters
-  and persistent attempt state remain separate; never widen the
+  remain separate; optional API persistence was added in 0.4.8. Never widen the
   daily check to sends, mark-read content or event consumption.
-  Planned manual live test: at most one Polish automation-test message to one
-  privately specified recipient, explicitly requiring no response and apologizing
-  for the unsolicited test. Verify sender and exact recipient first; qualify the
-  native single-attempt path offline and agree on fresh authentication/discovery
-  budgets before execution. Never retry uncertain delivery. Keep personal target
-  details and the exact payload in owner-only local state outside Git.
+  The historical sole-recipient plan was executed through the modern backend in
+  0.5.0, not through legacy sending. Its closed scope grants no further sends.
+  Never retry uncertain delivery. Keep target details and payload outside Git.
 - [ ] Library and consumer regression evidence for these paths, exposing only
   public supported APIs to the adapter.
 
@@ -149,6 +152,10 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 
 ### 0.5 TODO - Compatibility and live communication qualification
 
+0.5.0 delivers S1/S8 and the available S4-S6 library subset. C01-C05, S7 and
+consumer integration remain separately qualified follow-ups. The package
+and OpenAPI versions advance together; publication is still deferred.
+
 The owner deferred the remaining authentication, coverage and live qualification
 work to 0.5. Completing 0.4.9 closes the planned optional persistence prerequisites,
 not universal upstream compatibility or the separate MCP migration. No live
@@ -156,13 +163,135 @@ authorization is created or renewed by moving these items.
 
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
-| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
+| S1 | Installed modern authentication, identity and council verification | Qualified for the one separately approved account/council context: scope 6 verified native/modern sender and uniquely matched the privately planned class-qualified recipient with the installed candidate. Fourteen requests, one credential submission, zero sends. All six scopes closed; no universal role/directory coverage claimed |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
 | S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
 | S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
 | S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
-| S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
-| S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
+| S8 | Sole-recipient send and acknowledgement qualification | Qualified one approved dispatch with durable claim, HTTP 201 exact created/sent receipt and independent owner confirmation in the official UI. Offline correction accepts only that envelope. Original UNKNOWN history is preserved; no retry, fallback or additional send; other receipt variants remain pending |
+| S9 | Delivery closure | 0.5.0 library source/wheel/sdist and representative-load qualification plus local artifacts. PR #15 merge is authorized after review fixes and exact-head CI pass; consumer integration and publication remain separate |
+
+The compatibility continuation stays on PR #15 in separate scoped commits.
+The optional `librus_python_api.files` layer now supplies bounded portable naming,
+owner-only temporary files, joined disk workers and atomic non-overwriting
+publication of complete API streams. Its original tests use real loopback HTTP
+and concurrent accounts, including the modern stream subclass. Broader upstream
+evidence remains separate. This does not change MCP's download destination or install
+anything into the consumer. See [contracts/attachment-files.md](contracts/attachment-files.md).
+
+The initial same-PR continuation implemented modern inbox/outbox pages and bounded
+collection, explicit read-consent content parsing with inert modern attachment
+metadata, employee/class/student/parent directory routes and opt-in virtual query
+selection. Source API live scopes qualify inbox pages 1-2, outbox page 1 and
+teacher/tutor/school-admin/council branches on one account. Legacy group discovery
+worked but returned no subgroup choices; classParents was not advertised. Unknown
+sent read status remained unknown. At that checkpoint modern content was
+offline-qualified only. The expansion below supersedes its content/download/receipt
+gates; populated legacy subgroups, virtual live coverage and consumer integration
+remain open. All three initial authenticated scopes are closed, with no
+send/content/download/read-once calls in those scopes. See
+[contracts/modern-communication.md](contracts/modern-communication.md) and
+`release-evidence/0.5-communication-scopes.json` for exact scope boundaries.
+
+The subsequent same-PR expansion implements explicit modern/archived attachment
+resolution and credential-free streaming, richer recipient read observations,
+plain/HTML/XML bodies and inert original/withdrawal metadata. Four fresh scopes
+qualify available empty/sent-second-page layouts, ordinary content, a complete
+7 MB modern stream and one consented unread-to-read transition. All four scopes
+are closed; the first candidate stream hit its approved ceiling and was not
+automatically rerun. Independent delivery acknowledgements are unknown. No login
+advertised class-parent/virtual selections or exposed populated legacy subgroups;
+those live checks remain unavailable, not passed. Archive/original layouts and
+expanded receipt rosters have original offline tests but no live examples. See
+`release-evidence/0.5-communication-expansion-scopes.json` and the communication
+contract for exact evidence and limits. Consumer integration remains separate.
+
+### Deferred communication evidence and contract work (C01-C05)
+
+The pinned review of `librus-apix` 1.5.3 found no additional implementation for
+these gaps. The published wheel matches its source revision; generic legacy HTTP
+access and a sent `unread` flag are not modern coverage or delivery evidence.
+See [contracts/apix-communication-review.md](contracts/apix-communication-review.md).
+Do not add speculative routes, copy external implementations, relax guards or
+repeat unavailable-account probes to close these items. They do not block
+delivery of the explicitly qualified subset of 0.5.0.
+
+- [ ] **C01 - Independent delivery acknowledgements:** remain unknown. Resume
+  only with a distinct documented or independently observed field and clear
+  semantics, then original parser/wire regressions. Backend acceptance and
+  recipient read timestamps are not substitutes; durable UNKNOWN send history
+  and duplicate protection must remain untouched.
+- [ ] **C02 - Modern virtual/class-parent live coverage:** current explicit
+  selections/routes are implemented and offline-tested. Resume with advertised,
+  populated examples and fresh scoped approval. Legacy virtual selection is not
+  implemented; the reviewed external lookup also fixes it off.
+- [ ] **C03 - Populated legacy subgroup live coverage:** choice parsing and
+  positive-selection lookup are implemented and offline-tested. Resume with a
+  real populated selector and independently checked membership. Empty root
+  choices are unavailable evidence, not passed membership qualification.
+- [ ] **C04 - Archive/withdrawal coverage:** original-body/withdrawal metadata
+  and archive attachment resolution are implemented and offline-tested. Explicit
+  archive mailbox list/detail navigation is not implemented; add it only after
+  establishing fixed routes, archive-qualified references, side effects and
+  original offline wire contracts. Live archive/original/file layouts stay
+  deferred until suitable examples and fresh approval exist.
+- [ ] **C05 - Expanded and CC/BCC receipt live coverage:** parsing and channels
+  are implemented and offline-tested; reading observations do not imply delivery.
+  Resume with a qualifying existing multi-recipient example and independently
+  verified roster/status expectations. Do not send test messages merely to close
+  this item; any controlled send needs separate exact-recipient/payload approval.
+
+This review adds no live authorization, backend fallback, account-role expansion,
+CC/BCC sending, archive mutation, consumer migration or publication. New contract
+evidence can reopen these tasks without requiring current empty observations to
+be rerun. Source-informed support is not relabeled as independently observed.
+
+S1 progress: the first freshly approved 0.5 read-only scope used the qualified
+installed 0.4.11 wheel. Native identity matched the private plan, but the modern
+launch returned an unsupported path before handoff. Ten requests and one credential
+submission were used; zero sends or read-once calls. That scope is closed without
+automatic rerun. Sanitized facts: `release-evidence/0.5-modern-scope-1.json`.
+The second separately approved launch-only diagnostic used ten requests and one
+credential submission, verified native identity and retained only a redacted
+`pobierz12` template and field facts. No handoff was followed and that scope is
+closed. Facts: `release-evidence/0.5-modern-scope-2.json`.
+`scripts/describe_modern_launch.py` is an offline redactor, not a network client
+or redirect permission. At this early checkpoint the package version was 0.4.11; the candidate exact
+route fix is not a qualified 0.5 release or a replacement for fresh installed
+verification and sole-send execution-budget approval.
+The third separately approved installed verification matched the qualified wheel
+hash but stopped on a new `pobierz31` launch after ten requests and one credential
+submission. No handoff or send. Facts: `release-evidence/0.5-modern-scope-3.json`.
+The numbered namespace varies; the exact-number fix is not live-qualified and
+adding numbers individually is not a proven complete contract.
+The approved bounded-family candidate passes 1,353 tests per source/wheel/sdist
+on both supported Python versions. The fourth fresh installed scope followed one
+validated `pobierz16` handoff but stopped at modern identity with PARSE after
+twelve requests and one credential submission. No recipient lookup or send.
+Facts: `release-evidence/0.5-modern-scope-4.json`; offline candidate evidence:
+`release-evidence/0.5-modern-family-offline-candidate.json`. The namespace fix is
+live-exercised, not complete modern authentication/identity qualification.
+Scope 5 established integer modern identity accountId with matching decimal owner
+ID and names, without accepting identity. Identity-only normalization fixes the
+original PARSE regression; directory IDs are unchanged. Twelve requests and one
+credential submission, no send, scope closed. Facts: `release-evidence/0.5-modern-scope-5.json`.
+Scope 6 passed installed native/modern identity and exact-recipient verification
+after the integer identity fix: fourteen requests, one credential submission,
+zero sends, scope closed. Facts: `release-evidence/0.5-modern-scope-6.json`.
+The pre-send source/wheel/sdist candidate passed 1,366 tests on Python 3.13/3.14:
+`release-evidence/0.5-modern-identity-offline-candidate.json`. S8 sole-message
+execution at that checkpoint still required its separately approved fresh budget and durable claim.
+Scope 7 consumed a fresh exact-message approval: sixteen requests, one credential
+submission and one modern send POST, with fresh sender/recipient checks and a
+native durable claim. HTTP 201 returned the exact created/sent receipt. Original
+API result was UNKNOWN/PARSE because generic read validation rejected 201; the
+owner independently confirmed the exact sent message in the official UI. The
+candidate receipt fix preserves uncertainty for all other shapes, and no send
+was replayed. Facts: `release-evidence/0.5-modern-scope-7.json` and
+`release-evidence/0.5-modern-send-confirmation.json`. All seven scopes are closed.
+The final receipt-corrected 0.5.0 library qualification is recorded separately in
+`release-evidence/0.5.0-modern-qualification.json` and `VERIFICATION.md`; older
+0.4.11-version candidate hashes remain historical and do not identify 0.5.0.
 
 Live verification is evidence gathering, not permission to guess undocumented
 wire shapes. Read-only discovery approvals do not authorize content opens,
@@ -190,9 +319,10 @@ and publication require separate authorization. PyPI remains deferred until
 Each version is independently qualified and packaged locally. No sending or
 live read-once operation is authorized by this sequence. Consumer migration,
 credentialed CI and publication keep their separate approval gates.
-The 0.4 series remains together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
-0.4.0-0.4.10 are implemented; 0.4.9 completes persistence and 0.4.10 applies review fixes. Sending is offline-qualified only, with the
-one-recipient live gate still pending. MCP migration is separate from this PR.
+The 0.4.0-0.4.10 series was delivered together in [PR #13](https://github.com/krzysztofbury/librus-python-api/pull/13):
+0.4.9 completed persistence and 0.4.10 applied review fixes. At that checkpoint
+sending was offline-qualified only. The later modern sole-recipient gate is
+recorded above; legacy sending and MCP migration remain separately qualified.
 The separately approved offline S10 follow-ups are implemented in 0.4.11 on a new
 branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live gates.
 

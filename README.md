@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.11`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.5.0`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -25,25 +25,40 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
 | Message lists | `messages_page`, `messages` | 0.4.5: one populated two-page received mailbox and page-zero sent rows; independent byte/browser comparison |
 | Recipient discovery | `recipient_groups`, `recipient_group_choices`, `recipients` | 0.4.5: four login contexts, five named types and an anonymous target; empty group options observed, populated selection remains offline-qualified |
-| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | One prior read-only council layout observed and browser-checked; 0.4.7 installed implementation is offline-qualified only |
+| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | Source API qualified teacher/tutor/school-admin/council branches on one approved login; other branches and virtual selections remain offline-qualified |
+| Modern mailbox | `modern_messages_page`, `modern_messages`, `modern_message_content` | Source API qualified available inbox/outbox pages, plain/XML details, per-recipient read/null observations and one consented mark-read transition |
+| Modern attachments | `stream_modern_attachment` | One complete ordinary modern file stream qualified; archive resolution is explicit and offline-qualified only |
 | Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
 | Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
 | Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
 | Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.5. School reads,
+not a claim that every family was called live again in 0.5.0. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Notification primitives do not own seen state or persistence. Sending is implemented
-and offline-qualified only, through `prepare_send` and a single-use `SendAttempt`.
-No live message has been sent; form/acknowledgement compatibility remains pending.
+Notification primitives do not own seen state or persistence. Legacy sending through
+`prepare_send` and a single-use `SendAttempt` remains offline-qualified only.
 The separate modern backend uses `prepare_modern_send`, backend-specific references
-and an isolated cookie jar. Modern HTTP success remains UNKNOWN until a definitive
-positive acknowledgement is established. No automatic fallback or settings changes.
+and an isolated cookie jar. 0.5.0 independently qualified one modern
+sender/council context and one separately approved sole-recipient send, confirmed
+by its owner in the official sent UI. Only the exact observed HTTP 201 JSON
+created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains
+UNKNOWN. No automatic fallback or settings changes; broader compatibility remains
+unqualified. The receipt-parser correction was tested offline, not by another send.
 See [contracts/modern-messages.md](contracts/modern-messages.md).
+
+The same-PR continuation adds modern mailbox reads and broader recipient lookup
+without changing the consumer backend. Ordinary modern attachment streams and
+recipient read observations are implemented and narrowly live-qualified;
+independent delivery status and unavailable layouts are not inferred. The optional
+`librus_python_api.files` layer safely publishes complete legacy or modern attachment
+streams into an explicit caller-selected directory. See
+[contracts/modern-communication.md](contracts/modern-communication.md).
+The pinned [librus-apix communication review](contracts/apix-communication-review.md)
+found no external logic for the remaining gaps; these stay explicit in TODO C01-C05.
 See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 

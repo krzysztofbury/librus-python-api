@@ -16,7 +16,7 @@ import asyncio
 import json
 import os
 import traceback
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import date, timedelta
 from functools import partial
 from pathlib import Path
@@ -118,7 +118,10 @@ class CapturingTransport(ReadOnlyCaptureTransport):
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> TransportResponse:
+        if query is not None:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         if endpoint_id == "login_submit":
             CapturingTransport.logins += 1
             if CapturingTransport.logins > 1:
