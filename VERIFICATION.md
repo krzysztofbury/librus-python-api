@@ -3,6 +3,65 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Post-0.5 cutover review (2026-10-04, unreleased)
+
+PR #15 was already merged. GitHub confirmed the merge and remote main at
+`7c9f4b7604f93ecb031963cc9cfb41483c44440a`. The new work is on
+`feat/0.6.0-cutover-contracts-security`; this entry is offline development
+evidence, not a released 0.6.0 package or completed consumer migration.
+
+Compared all 28 MCP async tool signatures and their output models, including
+optional tools, against the public library. The default-branch and opt-in adapter
+revisions, per-tool mappings and unresolved schema decisions are recorded in
+[contracts/mcp-cutover-review.md](contracts/mcp-cutover-review.md).
+[contracts/api-security-review.md](contracts/api-security-review.md) records the
+Snyk-guided security control map and service/repository/unit-of-work assessment.
+
+Implemented:
+
+- Bounded monthly homework aggregation with a typed request, original shared
+  budget, reference-aware deduplication and no partial result/cache publication.
+- Optional date boundaries and explicit upstream views for grade/attendance
+  windows, with a maximum 370-day difference and retained response view.
+- Strict rejection of non-finite JSON constants and overflowing decoded floats.
+  Four otherwise-valid identity cases failed before the fix and passed after it.
+- Additional original sent and empty-file modern attachment publication cases.
+  Existing tests own view/cache semantics; new workflow tests own calendar
+  boundaries, account isolation, budgets, conflicts and partial-failure behavior.
+
+Executed on Linux:
+
+| Python | Source | Installed wheel | Installed sdist |
+| --- | --- | --- | --- |
+| 3.13.15 | 1515 passed | 1515 passed | 1515 passed |
+| 3.14.7 | 1515 passed | 1515 passed | 1515 passed |
+
+One optional hardware-sensitive performance test was deselected in every run.
+The portable suite includes multi-account queue/rate/concurrency and fault-load
+checks, not just quiet-window observations. All four installed environments also
+ran a standalone runtime smoke: `homework_range`, last-login `grades_window` and
+weekly `attendance_window`, with 14 real loopback requests per smoke. Imports
+were asserted inside each installed environment, and MIT metadata, version,
+`py.typed` and installed dependency consistency were checked.
+
+Ruff, format check, strict mypy, repository hooks (including the new files),
+worktree/history secret scans and the hash-locked dependency audit passed.
+The audit reported no known vulnerabilities; no Snyk SaaS scan was run.
+
+The 40 source Python files identify the tested implementation through SHA256
+`7e8ea07992795659c0d08590169467d1da559229b8b279903fc67a99b4e3b78e`.
+This is SHA256 of UTF-8 JSON mapping sorted repository-relative `src/**/*.py`
+paths to file SHA256 values, serialized with sorted keys and compact separators.
+The disposable builds retained the existing 0.5.0 metadata because this is an
+unreleased branch; they are not replacements for the qualified 0.5.0 archives.
+Builds, test environments and task-owned temporary files were cleaned.
+
+No live Librus calls were made. Populated behaviour notes and observation-card
+contracts remain unavailable, so neither public parser is implemented by
+guessing. Populated completed-lessons, other school/layout qualification and
+disposable read-once tests remain deferred. The original send history and its
+duplicate-prevention guard were not opened or changed.
+
 ## PR #15 pre-merge review (2026-10-04)
 
 Reviewed the branch diff against `main`: authentication and send boundaries,
