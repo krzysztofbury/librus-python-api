@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - 0.5 modern live qualification
+
+- Bounded server-selected numbered handoff namespaces, preserving exact origin,
+  login, token, target/source and terminal checks without guessing or fallback.
+- Identity-only bounded integer account-ID normalization before native owner/name
+  comparison. Directory identifiers remain strict strings.
+- Exact HTTP 201 JSON created/sent receipt acceptance, grounded in one separately
+  approved dispatch and independent official-UI owner confirmation. Other positive
+  hints remain UNKNOWN; no second send qualified this parser correction.
+- Original wire/privacy/load/deadline/durable regressions and sanitized closed-scope
+  evidence. No consumer migration, read-once consumption or publication.
+
 ## 0.4.11 - Storage retention and communication review follow-ups
 
 Offline-only S10(a-i), on a separate branch after the 0.4.10 merge.

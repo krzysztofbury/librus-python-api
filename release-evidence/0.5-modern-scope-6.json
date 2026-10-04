@@ -1,0 +1,137 @@
+{
+  "scope": "sixth independently approved installed identity and exact-recipient verification",
+  "state": "completed_installed_identity_recipient_scope_closed",
+  "installed_version": "0.4.11",
+  "candidate_wheel_sha256": "485d297ae2f9ccea70e7f099629ea2dccbc97c5a225cb08b86ae0c7a5583035b",
+  "send_dispatches": 0,
+  "read_once_requests": 0,
+  "native_identity_verified": true,
+  "modern_identity_verified": true,
+  "recipient_reverified": true,
+  "limits": {
+    "account_contexts": 1,
+    "http_requests": 16,
+    "credential_submissions": 1,
+    "timeout_seconds": 120,
+    "response_bytes": 8388608
+  },
+  "requests": 14,
+  "credential_submissions": 1,
+  "budget_requests": 14,
+  "response_bytes": 16119,
+  "operations": {
+    "login_portal": 2,
+    "login_authorization": 2,
+    "login_submit": 1,
+    "login_continue": 1,
+    "login_perform": 1,
+    "login_grant": 1,
+    "identity": 1,
+    "modern_launch": 1,
+    "modern_handoff": 1,
+    "modern_identity": 1,
+    "modern_recipient_types": 1,
+    "modern_recipients": 1
+  },
+  "redirect": {
+    "status": 302,
+    "raw_url_or_token_retained": false,
+    "absolute_https": true,
+    "modern_origin_matches": true,
+    "userinfo_present": false,
+    "query_present": false,
+    "fragment_present": false,
+    "installed_handoff_pattern_matches": true,
+    "path_field_count": 10,
+    "redacted_template": "/pobierz13/MultiDomainLogon/token/<redacted>/login/<redacted>/target/<redacted>/from/<redacted>",
+    "token_length": 128,
+    "token_alphanumeric": true,
+    "token_hex": false,
+    "login_matches_unpadded_base64": true,
+    "login_matches_padded_base64": false,
+    "target_matches": [
+      "/nowy:unpadded"
+    ],
+    "source_matches": [
+      "synergia:unpadded"
+    ]
+  },
+  "response_shapes": {
+    "modern_identity": {
+      "status": 200,
+      "content_type": "application/json",
+      "raw_values_retained": false,
+      "top_level_type": "dict",
+      "recognized_field_types": {
+        "firstName": {
+          "str": 1
+        },
+        "lastName": {
+          "str": 1
+        },
+        "groupId": {
+          "str": 1
+        },
+        "accountId": {
+          "int": 1
+        },
+        "originSystem": {
+          "str": 1
+        }
+      }
+    },
+    "modern_recipient_types": {
+      "status": 200,
+      "content_type": "application/json",
+      "raw_values_retained": false,
+      "top_level_type": "dict",
+      "recognized_field_types": {
+        "data": {
+          "dict": 1
+        },
+        "defaultGroup": {
+          "str": 1
+        },
+        "list": {
+          "list": 1
+        },
+        "id": {
+          "str": 15
+        },
+        "name": {
+          "str": 15
+        }
+      }
+    },
+    "modern_recipients": {
+      "status": 200,
+      "content_type": "application/json",
+      "raw_values_retained": false,
+      "top_level_type": "dict",
+      "recognized_field_types": {
+        "classes": {
+          "list": 1
+        },
+        "label": {
+          "str": 1
+        },
+        "receivers": {
+          "list": 1
+        },
+        "accountId": {
+          "str": 3
+        },
+        "userId": {
+          "str": 3
+        },
+        "name": {
+          "str": 3
+        }
+      }
+    }
+  },
+  "live_worker_closed": true,
+  "private_captures_retained": false,
+  "authorization_closed": true,
+  "not_a_0_5_release_qualification": true
+}

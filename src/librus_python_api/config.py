@@ -128,7 +128,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
             Endpoint(
                 "modern_handoff",
                 "GET",
-                "/pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
+                "/{namespace}/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
@@ -167,7 +167,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/messages",
                 SideEffect.SEND_MESSAGE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -702,7 +702,7 @@ SEND_ACCEPTED_TEXT = "Wiadomość została wysłana."
 SEND_REJECTED_TEXT = "Wiadomość nie została wysłana."
 MODERN_DIRECTORY_TYPE_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9]{0,63}")
 MODERN_HANDOFF_PATTERN = re.compile(
-    r"/pobierz28/MultiDomainLogon/token/([A-Za-z0-9]{32,256})/login/([A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
+    r"/(?P<namespace>pobierz[0-9]{1,3})/MultiDomainLogon/token/(?P<token>[A-Za-z0-9]{32,256})/login/(?P<login>[A-Za-z0-9_=+-]{1,512})/target/L25vd3k/from/c3luZXJnaWE"
 )
 MODERN_TERMINAL_PATHS = frozenset({"/nowy", "/nowy/"})
 MODERN_DIRECTORY_QUERIES = MappingProxyType(

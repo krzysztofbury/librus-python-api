@@ -1,0 +1,47 @@
+{
+  "scope": "second separately approved 0.5 launch-only diagnostic",
+  "installed_version": "0.4.11",
+  "status": "completed_launch_only_scope_closed",
+  "limits": {
+    "account_contexts": 1,
+    "credential_submissions": 1,
+    "http_requests": 10,
+    "timeout_seconds": 120,
+    "response_bytes": 8388608
+  },
+  "used": {
+    "credential_submissions": 1,
+    "http_requests": 10,
+    "response_bytes": 14785,
+    "send_dispatches": 0,
+    "modern_handoffs": 0,
+    "read_once_requests": 0
+  },
+  "native_sender_identity_matches_private_plan": true,
+  "modern_identity_or_recipient_reverified": false,
+  "redirect": {
+    "status": 302,
+    "absolute_https": true,
+    "modern_origin_matches": true,
+    "userinfo_present": false,
+    "query_present": false,
+    "fragment_present": false,
+    "installed_handoff_pattern_matches": false,
+    "path_field_count": 10,
+    "redacted_template": "/pobierz12/MultiDomainLogon/token/<redacted>/login/<redacted>/target/<redacted>/from/<redacted>",
+    "token_length": 128,
+    "token_alphanumeric": true,
+    "token_hex": false,
+    "login_matches_unpadded_base64": true,
+    "login_matches_padded_base64": false,
+    "target_matches": ["/nowy:unpadded"],
+    "source_matches": ["synergia:unpadded"],
+    "raw_url_or_token_retained": false
+  },
+  "guard_proofs": "original offline two-origin cases proved launch inspection never follows known or unknown handoffs and rejects sends, read-once and attachments before dispatch",
+  "worker_closed": true,
+  "private_captures_retained": false,
+  "authorization_closed": true,
+  "remaining": "exact original offline route regression/fix and separately approved installed verification; sending awaits readiness and its own execution budget",
+  "not_a_0_5_release_qualification": true
+}

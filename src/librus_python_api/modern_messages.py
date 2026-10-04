@@ -51,7 +51,12 @@ def _identifier(value: Any) -> str:
 
 def parse_modern_identity(body: bytes) -> ModernAccountData:
     data = _object(decode_json(body))
-    identifier = _identifier(data.get("accountId"))
+    raw_identifier = data.get("accountId")
+    # Identity alone independently returned a JSON integer. Keep recipient IDs
+    # strict and reject bool/float/negative/oversized values before normalization.
+    if type(raw_identifier) is int and 0 <= raw_identifier < 10**64:
+        raw_identifier = str(raw_identifier)
+    identifier = _identifier(raw_identifier)
     if (
         data.get("originSystem") != "synergia"
         or type(data.get("groupId")) is not str
@@ -168,8 +173,18 @@ def parse_modern_recipients(
 
 
 def parse_modern_send_response(body: bytes, status: int) -> SendStatus:
-    """No positive receipt established. Never infer acceptance from HTTP alone."""
+    """Accept only the observed created/sent envelope, never HTTP success alone."""
     data = _object(decode_json(body))
+    if status == 201 and set(data) == {"data"}:
+        receipt = data["data"]
+        if (
+            type(receipt) is dict
+            and set(receipt) == {"messageId", "status"}
+            and receipt["status"] == "sent"
+            and type(receipt["messageId"]) is int
+            and 0 < receipt["messageId"] < 10**64
+        ):
+            return SendStatus.ACCEPTED
     if status in (400, 422) and set(data) <= {"code", "errors", "message"}:
         codes = []
         if "code" in data:

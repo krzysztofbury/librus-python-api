@@ -98,7 +98,7 @@ def test_invalid_store_limits_are_not_silently_defaulted(
     assert not (tmp_path / "state").exists()
 
 
-@pytest.mark.parametrize("mode", ["unknown", "rejected"])
+@pytest.mark.parametrize("mode", ["unknown", "rejected", "accepted"])
 def test_modern_public_attempts_use_same_durable_workflow_without_legacy_fallback(
     tmp_path: Path, mode: str
 ) -> None:
@@ -111,6 +111,13 @@ def test_modern_public_attempts_use_same_durable_workflow_without_legacy_fallbac
             fixture.responses["send"] = (
                 422,
                 b'{"errors":[{"code":"DUPLICATED_RECEIVERS"}]}',
+                "application/json",
+                {},
+            )
+        if mode == "accepted":
+            fixture.responses["send"] = (
+                201,
+                b'{"data":{"messageId":19001,"status":"sent"}}',
                 "application/json",
                 {},
             )
@@ -135,14 +142,16 @@ def test_modern_public_attempts_use_same_durable_workflow_without_legacy_fallbac
                 result = await store.execute_send(
                     confirmation.token, attempt, budget=RequestBudget(max_requests=9)
                 )
-                expected = (
-                    SendStatus.UNKNOWN if mode == "unknown" else SendStatus.REJECTED
-                )
+                expected = {
+                    "unknown": SendStatus.UNKNOWN,
+                    "rejected": SendStatus.REJECTED,
+                    "accepted": SendStatus.ACCEPTED,
+                }[mode]
                 assert result.status is expected
                 assert (
                     await store.send_outcome(confirmation.token, context=client.context)
                 ).status is expected
-                if mode == "unknown":
+                if mode != "rejected":
                     with pytest.raises(LibrusError):
                         await store.preview_send(modern())
                 else:

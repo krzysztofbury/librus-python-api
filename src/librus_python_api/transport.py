@@ -311,9 +311,9 @@ class AiohttpTransport:
             )
             parsed = urlsplit(url)
             match = MODERN_HANDOFF_PATTERN.fullmatch(parsed.path)
-            if match is None or match[2] != b64encode(expected_login.encode()).decode(
-                "ascii"
-            ).rstrip("="):
+            if match is None or match["login"] != b64encode(
+                expected_login.encode()
+            ).decode("ascii").rstrip("="):
                 raise LibrusError(ErrorKind.ACCESS_DENIED)
             response = await self._request(
                 ENDPOINTS["modern_handoff"], url, budget, None

@@ -47,6 +47,9 @@ class ModernFixture(ReadsFixture):
         self.release = asyncio.Event()
         self.responses: dict[str, tuple[int, bytes, str, dict[str, str]]] = {}
         self.launch_location: str | None = None
+        self.handoff_namespace = "pobierz28"
+        self.handoff_token = "Z" * 32
+        self.handoff_paths: list[str] = []
         self.handoff_location = "/nowy"
         self.identity_override: dict[str, Any] = {}
         self.disconnect = False
@@ -89,7 +92,7 @@ class ModernFixture(ReadsFixture):
         await self.held_stage("launch")
         encoded = base64.b64encode(login.encode()).decode().rstrip("=")
         location = self.launch_location or (
-            f"{self.modern_origin}/pobierz28/MultiDomainLogon/token/{'Z' * 32}"
+            f"{self.modern_origin}/{self.handoff_namespace}/MultiDomainLogon/token/{self.handoff_token}"
             f"/login/{encoded}/target/L25vd3k/from/c3luZXJnaWE"
         )
         return web.Response(status=302, headers={"Location": location})
@@ -97,7 +100,7 @@ class ModernFixture(ReadsFixture):
     def modern_app(self) -> web.Application:
         app = web.Application()
         app.router.add_get(
-            "/pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
+            "/{namespace}/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}",
             self.handoff,
         )
         app.router.add_get("/api/me", self.modern_identity)
@@ -124,6 +127,7 @@ class ModernFixture(ReadsFixture):
         return web.json_response(default)
 
     async def handoff(self, request: web.Request) -> web.Response:
+        self.handoff_paths.append(request.path)
         self.record_modern(request, "handoff")
         await self.held_stage("handoff")
         login = base64.b64decode(

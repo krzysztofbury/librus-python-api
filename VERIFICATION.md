@@ -3,6 +3,49 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Unreleased 0.5 - Modern authentication and sole-send qualification
+
+This candidate retains package version 0.4.11; it is not the merged 0.4.11
+release, a published 0.5 package or a production consumer installation. The main
+release hashes below remain unchanged. Review and closed-scope evidence are in
+`contracts/modern-launch-diagnostics.md` and `release-evidence/0.5-modern-*`.
+
+- Seven separately approved scopes used 84 HTTP requests, seven credential
+  submissions and exactly one sole-recipient modern send. All scopes are closed.
+  No retry/fallback/additional recipient, read-once call, content open, attachment,
+  setting change, consumer migration or publication occurred.
+- Live launch namespaces varied between calls. The owner approved a bounded
+  server-selected numbered field; origin/login/token/target/source/terminal
+  guards remain. Original regressions failed before the namespace fix.
+- Modern identity returned integer accountId, independently compared against
+  native owner/name. Identity-only normalization fixes the original PARSE
+  regression; directory IDs remain strict. Installed sender/council verification
+  passed for one context; universal roles/layouts remain unqualified.
+- The one dispatch used native durable persistence and returned HTTP 201 with
+  exact created/sent JSON. The owner independently confirmed the exact sent
+  recipient/subject/body in the official UI. Recipient reading is not confirmed.
+  The original API/durable result remains UNKNOWN/PARSE, preserved rather than
+  automatically rewritten. A new narrow receipt-parser correction is qualified
+  offline, not through another live send.
+- Source, installed wheel and installed sdist each pass 1,385 portable tests on
+  Python 3.13.15 and 3.14.7, one performance test deselected. Installed imports and
+  the qualified receipt smoke are checked in each environment; two builds have
+  identical wheel/sdist bytes. Ruff lint/format, strict typing, changed-file hooks
+  and worktree secret scan pass. Final evidence:
+  `release-evidence/0.5-modern-ack-offline-candidate.json`. Earlier
+  1,326/1,353/1,366 candidate evidence remains historical, not final acceptance.
+- Scratch environments/builds are removed. The explicitly approved owner-only
+  durable send history and one bounded receipt are retained outside Git for
+  duplicate prevention/manual reconciliation. Private IDs, bodies, cookies,
+  credentials and screenshots are absent from public evidence.
+  The new approved claim directory contains a 20,480-byte SQLite file and a
+  149-byte receipt (20,629 bytes total). The existing private approval ledger was
+  updated, not reset or migrated. Nothing from these files enters Git.
+
+Broader 0.5 compatibility, live rejection/alternate acknowledgement shapes,
+modern mailbox/attachment support, read-once test-account qualification,
+consumer migration, PR/version/release and publication gates remain open.
+
 ## 0.4.11 (2026-10-03) - Offline S10 storage and session follow-ups
 
 Pre-merge independent review (supersedes the counts, hashes and size below):

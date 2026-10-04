@@ -111,10 +111,12 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   No cross-backend ID reuse, automatic fallback, setting changes or inferred
   retirement date. See
   [contracts/modern-messages.md](contracts/modern-messages.md).
-- [ ] Modern follow-ups: independently qualify positive acknowledgement and
-  rejection envelopes, installed live authentication/discovery and the separately
-  approved sole-recipient manual send. Other directory branches, virtual classes,
-  pagination, modern mailbox content and attachments remain unsupported.
+- [x] 0.5 modern installed sender/council verification and sole-recipient manual
+  send: one exact created/sent receipt, independently confirmed in the official UI.
+  The receipt-parser correction is offline-qualified, not exercised by another send.
+- [ ] Modern follow-ups: rejection envelopes and other positive receipt variants,
+  other directory branches, virtual classes, pagination, modern mailbox content
+  and attachments remain unqualified or unsupported.
 - [x] 0.4.6, the legacy sending increment in the same PR: approved single-use
   attempt design implemented with typed uncertainty, exact fixed wire forms,
   shared limits and offline cancellation/fault proofs. See
@@ -156,13 +158,57 @@ authorization is created or renewed by moving these items.
 
 | Order | Work item | Owner and completion gate |
 | --- | --- | --- |
-| S1 | Installed modern authentication, identity and council verification | Blocked: 0.4.7 rejected the live launch layout before handoff; two separately approved ten-request scopes verified native identity and only redacted redirect facts. Require exact independently established redirect contract, regression/fix and fresh installed verification; no rerun under closed scopes |
+| S1 | Installed modern authentication, identity and council verification | Qualified for the one separately approved account/council context: scope 6 verified native/modern sender and uniquely matched the privately planned class-qualified recipient with the installed candidate. Fourteen requests, one credential submission, zero sends. All six scopes closed; no universal role/directory coverage claimed |
 | S4 | Recipient coverage | Library; legacy populated selections/virtual classes/explicit empty layouts plus modern non-council branches, with independently established contracts and unsupported states explicit |
 | S5 | Mailbox and receipt coverage | Library; sent pagination, richer/multiple-recipient receipts, modern received/sent lists and content, explicit read effects and backend-bound references |
 | S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
 | S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
-| S8 | Sole-recipient send and acknowledgement qualification | Fresh exact sender/recipient/payload approval and bounded authorization; at most one dispatch, no fallback/retry/additional recipients; unobserved receipt variants remain pending |
+| S8 | Sole-recipient send and acknowledgement qualification | Qualified one approved dispatch with durable claim, HTTP 201 exact created/sent receipt and independent owner confirmation in the official UI. Offline correction accepts only that envelope. Original UNKNOWN history is preserved; no retry, fallback or additional send; other receipt variants remain pending |
 | S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
+
+S1 progress: the first freshly approved 0.5 read-only scope used the qualified
+installed 0.4.11 wheel. Native identity matched the private plan, but the modern
+launch returned an unsupported path before handoff. Ten requests and one credential
+submission were used; zero sends or read-once calls. That scope is closed without
+automatic rerun. Sanitized facts: `release-evidence/0.5-modern-scope-1.json`.
+The second separately approved launch-only diagnostic used ten requests and one
+credential submission, verified native identity and retained only a redacted
+`pobierz12` template and field facts. No handoff was followed and that scope is
+closed. Facts: `release-evidence/0.5-modern-scope-2.json`.
+`scripts/describe_modern_launch.py` is an offline redactor, not a network client
+or redirect permission. Core package version remains 0.4.11; the candidate exact
+route fix is not a qualified 0.5 release or a replacement for fresh installed
+verification and sole-send execution-budget approval.
+The third separately approved installed verification matched the qualified wheel
+hash but stopped on a new `pobierz31` launch after ten requests and one credential
+submission. No handoff or send. Facts: `release-evidence/0.5-modern-scope-3.json`.
+The numbered namespace varies; the exact-number fix is not live-qualified and
+adding numbers individually is not a proven complete contract.
+The approved bounded-family candidate passes 1,353 tests per source/wheel/sdist
+on both supported Python versions. The fourth fresh installed scope followed one
+validated `pobierz16` handoff but stopped at modern identity with PARSE after
+twelve requests and one credential submission. No recipient lookup or send.
+Facts: `release-evidence/0.5-modern-scope-4.json`; offline candidate evidence:
+`release-evidence/0.5-modern-family-offline-candidate.json`. The namespace fix is
+live-exercised, not complete modern authentication/identity qualification.
+Scope 5 established integer modern identity accountId with matching decimal owner
+ID and names, without accepting identity. Identity-only normalization fixes the
+original PARSE regression; directory IDs are unchanged. Twelve requests and one
+credential submission, no send, scope closed. Facts: `release-evidence/0.5-modern-scope-5.json`.
+Scope 6 passed installed native/modern identity and exact-recipient verification
+after the integer identity fix: fourteen requests, one credential submission,
+zero sends, scope closed. Facts: `release-evidence/0.5-modern-scope-6.json`.
+The latest source/wheel/sdist candidate passes 1,366 tests on Python 3.13/3.14:
+`release-evidence/0.5-modern-identity-offline-candidate.json`. S8 sole-message
+execution still requires its separately approved fresh budget and durable claim.
+Scope 7 consumed a fresh exact-message approval: sixteen requests, one credential
+submission and one modern send POST, with fresh sender/recipient checks and a
+native durable claim. HTTP 201 returned the exact created/sent receipt. Original
+API result was UNKNOWN/PARSE because generic read validation rejected 201; the
+owner independently confirmed the exact sent message in the official UI. The
+candidate receipt fix preserves uncertainty for all other shapes, and no send
+was replayed. Facts: `release-evidence/0.5-modern-scope-7.json` and
+`release-evidence/0.5-modern-send-confirmation.json`. All seven scopes are closed.
 
 Live verification is evidence gathering, not permission to guess undocumented
 wire shapes. Read-only discovery approvals do not authorize content opens,

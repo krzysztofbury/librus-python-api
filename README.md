@@ -37,12 +37,15 @@ timetable, profile, messages and recipients were compared with Chromium's indepe
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 
-Notification primitives do not own seen state or persistence. Sending is implemented
-and offline-qualified only, through `prepare_send` and a single-use `SendAttempt`.
-No live message has been sent; form/acknowledgement compatibility remains pending.
+Notification primitives do not own seen state or persistence. Legacy sending through
+`prepare_send` and a single-use `SendAttempt` remains offline-qualified only.
 The separate modern backend uses `prepare_modern_send`, backend-specific references
-and an isolated cookie jar. Modern HTTP success remains UNKNOWN until a definitive
-positive acknowledgement is established. No automatic fallback or settings changes.
+and an isolated cookie jar. Unreleased 0.5 work independently qualified one modern
+sender/council context and one separately approved sole-recipient send, confirmed
+by its owner in the official sent UI. Only the exact observed HTTP 201 JSON
+created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains
+UNKNOWN. No automatic fallback or settings changes; broader compatibility remains
+unqualified. The receipt-parser correction was tested offline, not by another send.
 See [contracts/modern-messages.md](contracts/modern-messages.md).
 See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).

@@ -565,7 +565,7 @@ class AccountClient:
             try:
                 response = await send(submission, budget, dispatched)
                 receipt_budget = self._receipt_budget(deadline)
-                if response.status in (400, 422):
+                if response.status in (201, 400, 422):
                     if _media_type(response) != JSON:
                         self._invalidate_modern()
                         raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)

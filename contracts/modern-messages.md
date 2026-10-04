@@ -5,7 +5,9 @@ messaging backend from the legacy Synergia HTML routes implemented in 0.4.6.
 Successful modern recipient discovery does not qualify legacy lookup or sending.
 0.4.7 implements an explicit, offline-qualified modern backend. No automatic
 fallback, account-setting mutation or cross-backend ID reuse is implemented.
-No modern send or positive acknowledgement has been observed live.
+Unreleased 0.5 work observed one separately approved sole-recipient send and its
+created/sent acknowledgement, independently confirmed by the owner in the official
+sent UI. This is not universal receipt/layout qualification or recipient reading.
 
 ## 0.4.11 offline session recovery
 
@@ -25,6 +27,35 @@ write. Revalidation cannot prevent expiry between GET and POST; potential dispat
 still means UNKNOWN until a definitive acknowledgement and is never replayed.
 
 ## Independently observed read-only discovery
+
+The separately approved 0.5 launch-only diagnostic independently established an
+additional exact namespace, `pobierz12`, with the same login/target/source field
+facts. An initial exact-number candidate preserved `pobierz28`, but the next
+installed verification returned `pobierz31` and safely stopped before handoff.
+The owner then approved a bounded server-selected namespace family: `pobierz`
+followed by 1-3 ASCII digits. This bound is library compatibility policy, not
+evidence that every number exists or proof of the numbering algorithm. The
+candidate follows only the validated URL actually returned, never constructs
+alternative namespaces, retries a handoff or falls back. Origin, exact login,
+token limits, fixed target/source and terminal route checks remain unchanged.
+See [modern-launch-diagnostics.md](modern-launch-diagnostics.md) for scope closure,
+policy decision, original regressions and installed live qualification status.
+The fourth approved installed scope successfully followed one validated numbered
+handoff, then stopped at modern identity parsing. No identity/recipient acceptance
+or send is established. All scopes are closed; the next identity diagnostic
+requires fresh approval.
+The fifth shape-only scope established that modern `accountId` is a JSON integer;
+its decimal value, names, string role and origin matched the verified native
+owner. No identity was accepted by that diagnostic. The candidate now normalizes
+only bounded non-negative identity integers to decimal strings before the existing
+owner/name comparison. Recipient identifiers remain unchanged; bool, float,
+negative and oversized identity values remain parse errors. Fresh installed
+identity and council verification is still required.
+That verification passed in the sixth freshly approved installed scope: native
+and modern sender matched, and the exact saved class-qualified council leaf
+matched uniquely. Fourteen requests, one credential submission, no send, scope
+closed. This qualifies one explicit account/council context, not arbitrary roles
+or directories. The next sole-send execution has its own fresh approval gate.
 
 One separately approved account context used the qualified installed 0.4.6 wheel
 for initial authentication and identity, followed by a private investigation
@@ -106,9 +137,12 @@ The approved 0.4.7 scope implements the following boundaries:
    breaks. Recipient payload contains `accountId`, never `userId`. Fixed fields
    are `storageId=null` and `category="normal"`; CC/BCC, groups, OSIN accounts,
    uploads, replies, forwards, signatures and drafts are excluded.
-   A successful HTTP response alone remains UNKNOWN. Only explicit allowlisted
-   source-informed denial codes on HTTP 400/422 can establish REJECTED; neither
-   real acknowledgement nor rejection envelopes have been live-qualified.
+    A successful HTTP response alone remains UNKNOWN. The 0.5 candidate accepts
+    only HTTP 201/application-json with exact `data` containing positive bounded
+    integer `messageId` and `status="sent"`. This observed envelope establishes
+    upstream acceptance, not recipient reading. Explicit allowlisted source-informed
+    denial codes on HTTP 400/422 can establish REJECTED; rejection envelopes remain
+    unqualified live.
 5. Qualification covers source and installed wheel/sdist under representative
    offline load,
    including one-dispatch fault proofs and account/backend isolation. Obtain fresh

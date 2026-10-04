@@ -29,7 +29,7 @@ paths:
       responses:
         '302': {$ref: '#/components/responses/Redirect'}
         default: {$ref: '#/components/responses/Failure'}
-  /pobierz28/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
+  /{namespace}/MultiDomainLogon/token/{token}/login/{login}/target/{target}/from/{source}:
     get:
       operationId: modern_handoff
       summary: One exact account-verified modern login handoff, with an isolated cookie jar
@@ -39,8 +39,9 @@ paths:
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One explicit handoff set the modern session and redirected to /nowy; secret token URLs were deleted. Login must bind to the current credential context; no arbitrary redirects. See contracts/modern-messages.md.
+      x-evidence-note: One historical pobierz28 handoff set the modern session and redirected to /nowy. Later launch-only scopes observed pobierz12 and pobierz31 with matching fixed field facts. The owner approved a bounded numbered-family compatibility policy, not a claim every member exists. Login binds to the current credential context; no arbitrary redirects, guessed namespace, retry or fallback. See contracts/modern-launch-diagnostics.md.
       parameters:
+        - {in: path, name: namespace, required: true, schema: {type: string, pattern: '^pobierz[0-9]{1,3}$'}, description: Server-selected numbered namespace; 1-3 ASCII digits is explicit library policy}
         - {in: path, name: token, required: true, schema: {type: string, pattern: '^[A-Za-z0-9]{32,256}$'}}
         - {in: path, name: login, required: true, schema: {type: string, minLength: 1, maxLength: 512}, description: Unpadded UTF-8 Base64 of the exact configured login}
         - {in: path, name: target, required: true, schema: {type: string, enum: [L25vd3k]}}
@@ -58,9 +59,9 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. No universal role/layout coverage. See contracts/modern-messages.md.
+      x-evidence-note: One selected parent's modern account ID, name, group and origin matched native identity in separately approved discovery. A fresh shape-only scope observed accountId as a JSON integer whose decimal value matched the native owner; bounded non-negative integer normalization is identity-only library policy. No universal role/layout coverage. See contracts/modern-messages.md.
       responses:
-        '200': {description: Modern account metadata, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {type: string, pattern: '^[0-9]{1,64}$'}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
+        '200': {description: Modern account metadata with accountId normalized to a decimal string, content: {application/json: {schema: {type: object, required: [accountId, groupId, firstName, lastName, originSystem], properties: {accountId: {oneOf: [{type: string, pattern: '^[0-9]{1,64}$'}, {type: integer, minimum: 0, maximum: 9999999999999999999999999999999999999999999999999999999999999999}]}, groupId: {type: string, enum: ['5', '8', '9']}, firstName: {type: string}, lastName: {type: string}, originSystem: {type: string, enum: [synergia]}}}}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/receivers/types:
     get:
@@ -136,8 +137,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: send_message
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Independently inspected public app assets establish UTF-8 Base64 topic/content, schoolReceivers accountId, null storageId and normal category; original offline wire proof only. No live send or positive acknowledgement observed. See contracts/modern-messages.md.
+      x-evidence: independently_observed
+      x-evidence-note: Public app assets informed serialization, qualified with original wire fixtures. One separately approved sole-recipient send returned HTTP 201 with exact data/messageId/status=sent envelope; the owner independently confirmed recipient and payload in the official sent UI. This qualifies upstream acceptance for that envelope, not recipient reading or all receipt variants. See contracts/modern-messages.md.
       requestBody:
         required: true
         content:
@@ -164,6 +165,22 @@ paths:
                 category: {type: string, enum: [normal]}
       responses:
         '200': {description: No independently established positive acknowledgement; HTTP success alone remains UNKNOWN}
+        '201':
+          description: Only the exact observed JSON created/sent envelope establishes upstream ACCEPTED, not recipient reading
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required: [messageId, status]
+                    properties:
+                      messageId: {type: integer, minimum: 1, maximum: 9999999999999999999999999999999999999999999999999999999999999999}
+                      status: {type: string, enum: [sent]}
         '400': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
         '422': {description: Only allowlisted explicit denial codes can establish REJECTED; other evidence remains UNKNOWN}
         default: {description: 'UNKNOWN after potential dispatch, with no retry, fallback, redirects or post-send reauthentication'}

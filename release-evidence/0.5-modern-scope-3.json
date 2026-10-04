@@ -1,0 +1,49 @@
+{
+  "scope": "third separately approved 0.5 installed read-only verification",
+  "installed_version": "0.4.11",
+  "candidate_wheel_sha256": "5df8b0257b8963b0f951d5e908931547003044b23a0a42099d4d292faf9f4c97",
+  "status": "stopped_no_automatic_rerun",
+  "limits": {
+    "account_contexts": 1,
+    "credential_submissions": 1,
+    "http_requests": 16,
+    "timeout_seconds": 120,
+    "response_bytes": 8388608
+  },
+  "used": {
+    "credential_submissions": 1,
+    "http_requests": 10,
+    "response_bytes": 14785,
+    "send_dispatches": 0,
+    "modern_handoffs": 0,
+    "read_once_requests": 0
+  },
+  "native_sender_identity_matches_private_plan": true,
+  "modern_identity_or_recipient_reverified": false,
+  "redirect": {
+    "status": 302,
+    "absolute_https": true,
+    "modern_origin_matches": true,
+    "userinfo_present": false,
+    "query_present": false,
+    "fragment_present": false,
+    "installed_handoff_pattern_matches": false,
+    "path_field_count": 10,
+    "redacted_template": "/pobierz31/MultiDomainLogon/token/<redacted>/login/<redacted>/target/<redacted>/from/<redacted>",
+    "token_length": 128,
+    "token_alphanumeric": true,
+    "token_hex": false,
+    "login_matches_unpadded_base64": true,
+    "login_matches_padded_base64": false,
+    "target_matches": ["/nowy:unpadded"],
+    "source_matches": ["synergia:unpadded"],
+    "raw_url_or_token_retained": false
+  },
+  "error_kind": "access_denied",
+  "guard_proofs": "Qualified wheel hash matched before access; original installed two-origin cases proved both supported namespaces and unsupported-namespace refusal, plus zero forbidden dispatches",
+  "worker_closed": true,
+  "private_captures_retained": false,
+  "authorization_closed": true,
+  "remaining": "Numbered namespace varies between launches; decide a bounded family contract rather than assuming one exact number is stable. Any new live verification needs fresh approval",
+  "not_a_0_5_release_qualification": true
+}

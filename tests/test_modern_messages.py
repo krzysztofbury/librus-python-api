@@ -46,9 +46,14 @@ def prepare(client: Any, **changes: Any) -> Any:
     )
 
 
-def test_modern_discovery_binds_class_and_account_and_reuses_account_session() -> None:
+@pytest.mark.parametrize("integer_account_id", [False, True])
+def test_modern_discovery_binds_class_and_account_and_reuses_account_session(
+    integer_account_id: bool,
+) -> None:
     async def scenario() -> None:
         fixture = ModernFixture()
+        if integer_account_id:
+            fixture.identity_override = {"accountId": 301}
         async with fixture.running() as service:
             client = service.account("student")
             budget = RequestBudget(max_requests=10)
@@ -210,18 +215,23 @@ def test_modern_preparation_rejects_invalid_and_cross_backend_references_without
         "send_target",
         "wrong_target",
         "invalid_token",
+        "overlong_token",
+        "userinfo",
+        "backslash",
         "wrong_source",
         "terminal_send",
     ],
 )
+@pytest.mark.parametrize("namespace", ["pobierz12", "pobierz28", "pobierz31"])
 def test_modern_auth_redirects_cannot_leave_exact_account_handoff_or_dispatch_send(
     change: str,
+    namespace: str,
 ) -> None:
     async def scenario() -> None:
         fixture = ModernFixture()
         async with fixture.running() as service:
             base = (
-                f"{fixture.modern_origin}/pobierz28/MultiDomainLogon/token/{'Z' * 32}"
+                f"{fixture.modern_origin}/{namespace}/MultiDomainLogon/token/{'Z' * 32}"
                 "/login/c3R1ZGVudA/target/L25vd3k/from/c3luZXJnaWE"
             )
             fixture.launch_location = {
@@ -233,6 +243,9 @@ def test_modern_auth_redirects_cannot_leave_exact_account_handoff_or_dispatch_se
                 "send_target": fixture.modern_origin + "/api/messages",
                 "wrong_target": base.replace("L25vd3k", "L2FwaS9tZXNzYWdlcw"),
                 "invalid_token": base.replace("Z" * 32, "short"),
+                "overlong_token": base.replace("Z" * 32, "Z" * 257),
+                "userinfo": base.replace("://", "://fixture-user:fixture-secret@"),
+                "backslash": base.replace("/MultiDomainLogon", "\\MultiDomainLogon"),
                 "wrong_source": base.replace("c3luZXJnaWE", "b3RoZXI"),
             }.get(change, base)
             if change == "terminal_send":
@@ -247,7 +260,65 @@ def test_modern_auth_redirects_cannot_leave_exact_account_handoff_or_dispatch_se
             )
             assert fixture.logins == {"student": 1}
             assert all(stage == "handoff" for stage, _, _ in fixture.modern_calls)
+            assert len(fixture.handoff_paths) == (1 if change == "terminal_send" else 0)
             assert service.snapshot().active == service.snapshot().queued == 0
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "namespace",
+    ["pobierz12", "pobierz28", "pobierz31", "pobierz7", "pobierz987", "pobierz000"],
+)
+def test_bounded_handoff_namespace_is_followed_once_without_fallback(
+    namespace: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = ModernFixture()
+        fixture.handoff_namespace = namespace
+        fixture.handoff_token = "A1zQ" * 32
+        async with fixture.running() as service:
+            client = service.account("student")
+            budget = RequestBudget(max_requests=10)
+            types = await client.modern_recipient_types(budget=budget)
+            directory = await client.modern_recipients(TYPE, budget=budget)
+            assert len(types.items) == len(directory.items) == 2
+            assert fixture.handoff_paths == [
+                f"/{namespace}/MultiDomainLogon/token/{'A1zQ' * 32}"
+                "/login/c3R1ZGVudA/target/L25vd3k/from/c3luZXJnaWE"
+            ]
+            assert budget.requests_dispatched == 10
+            assert fixture.logins == {"student": 1} and fixture.sends == []
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "namespace",
+    [
+        "pobierz",
+        "pobierz1234",
+        "pobierz12x",
+        "Pobierz12",
+        "pobierz-12",
+        "pobierz１２",
+        "other12",
+    ],
+)
+def test_invalid_namespace_never_falls_back_to_a_valid_handoff(
+    namespace: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = ModernFixture()
+        fixture.handoff_namespace = namespace
+        async with fixture.running() as service:
+            with pytest.raises(LibrusError) as error:
+                await service.account("student").modern_identity()
+            assert error.value.kind is ErrorKind.ACCESS_DENIED
+            assert fixture.handoff_paths == []
+            assert fixture.modern_calls == []
+            assert fixture.sends == []
+            assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
 
@@ -256,6 +327,11 @@ def test_modern_auth_redirects_cannot_leave_exact_account_handoff_or_dispatch_se
     "override",
     [
         {"accountId": "999"},
+        {"accountId": 999},
+        {"accountId": True},
+        {"accountId": -301},
+        {"accountId": 301.0},
+        {"accountId": 10**64},
         {"firstName": "Other"},
         {"lastName": "Other"},
         {"groupId": "50"},
@@ -348,6 +424,85 @@ def test_modern_send_never_replays_or_infers_acceptance_from_unqualified_marker(
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        "none",
+        "status_200",
+        "status_202",
+        "queued",
+        "string_id",
+        "bool_id",
+        "zero_id",
+        "negative_id",
+        "float_id",
+        "oversized_id",
+        "missing_id",
+        "extra_outer",
+        "extra_inner",
+        "html",
+        "malformed",
+        "duplicate_key",
+    ],
+)
+def test_exact_created_sent_receipt_accepts_only_qualified_shape_and_never_replays(
+    change: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = ModernFixture()
+        data: dict[str, Any] = {"data": {"messageId": 19001, "status": "sent"}}
+        status = {"status_200": 200, "status_202": 202}.get(change, 201)
+        replacements: dict[str, Any] = {
+            "string_id": "19001",
+            "bool_id": True,
+            "zero_id": 0,
+            "negative_id": -19001,
+            "float_id": 19001.0,
+            "oversized_id": 10**64,
+        }
+        if change in replacements:
+            data["data"]["messageId"] = replacements[change]
+        if change == "missing_id":
+            del data["data"]["messageId"]
+        if change == "queued":
+            data["data"]["status"] = "queued"
+        if change == "extra_outer":
+            data["errors"] = []
+        if change == "extra_inner":
+            data["data"]["other"] = True
+        body = json.dumps(data).encode()
+        if change == "malformed":
+            body = b"not-json"
+        if change == "duplicate_key":
+            body = b'{"data":{"messageId":19001,"status":"queued","status":"sent"}}'
+        fixture.responses["send"] = (
+            status,
+            body,
+            "text/html" if change == "html" else "application/json",
+            {},
+        )
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.modern_identity()
+            before = len(fixture.modern_calls)
+            attempt = prepare(client)
+            budget = RequestBudget(max_requests=2)
+            result = await attempt.execute(budget=budget)
+            assert result.status is (
+                SendStatus.ACCEPTED if change == "none" else SendStatus.UNKNOWN
+            )
+            assert [stage for stage, _, _ in fixture.modern_calls[before:]] == [
+                "identity",
+                "send",
+            ]
+            assert len(fixture.sends) == 1 and budget.requests_dispatched == 2
+            with pytest.raises(InvalidInputError):
+                await attempt.execute()
+            assert len(fixture.sends) == 1
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("stage", ["launch", "handoff", "identity", "send"])
 @pytest.mark.parametrize("interrupt", ["cancel", "timeout", "shutdown"])
 def test_modern_interruptions_join_and_preserve_attempt_boundary(
@@ -413,9 +568,19 @@ def test_modern_budget_exhaustion_never_dispatches_a_send_or_reuses_consumed_att
     asyncio.run(scenario())
 
 
-def test_four_accounts_share_full_payload_budget_without_coalescing_sends() -> None:
+@pytest.mark.parametrize("qualified_receipt", [False, True])
+def test_four_accounts_share_full_payload_budget_without_coalescing_sends(
+    qualified_receipt: bool,
+) -> None:
     async def scenario() -> None:
         fixture = ModernFixture()
+        if qualified_receipt:
+            fixture.responses["send"] = (
+                201,
+                b'{"data":{"messageId":19001,"status":"sent"}}',
+                "application/json",
+                {},
+            )
         aliases = ("student", "parent", "other-student", "other-parent")
         async with fixture.running(aliases) as service:
             attempts = [
@@ -439,7 +604,8 @@ def test_four_accounts_share_full_payload_budget_without_coalescing_sends() -> N
             results = await asyncio.gather(
                 *(a.execute(budget=budget) for a in attempts)
             )
-            assert all(r.status is SendStatus.UNKNOWN for r in results)
+            expected = SendStatus.ACCEPTED if qualified_receipt else SendStatus.UNKNOWN
+            assert all(r.status is expected for r in results)
             assert budget.requests_dispatched == 36 and len(fixture.sends) == 4
             assert {login for login, _, _ in fixture.sends} == set(aliases)
             assert fixture.logins == {alias: 1 for alias in aliases}

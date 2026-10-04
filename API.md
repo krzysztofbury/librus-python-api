@@ -257,6 +257,10 @@ read/send is automatically retried. A race after preflight can still yield UNKNO
   native `identity`, modern `account` metadata and an `observation`. Modern owner
   ID and available names must match the native owner. Only ordinary school roles
   are enabled, conservatively; unrelated origins and OSIN remain unsupported.
+  Modern identity `accountId` accepts a decimal string or a non-negative JSON
+  integer of at most 64 digits, normalized to a string before owner comparison.
+  Booleans, floats, negatives and larger integers are rejected. This does not
+  change recipient-ID validation or allow cross-backend ID substitution.
 - `modern_recipient_types(*, budget=None, max_age_seconds=0)` returns
   `ModernRecipientTypes`. Each item has a backend/account-bound `reference`,
   a `label` and `lookup_supported`. Unsupported types are metadata, not permission
@@ -289,8 +293,11 @@ are retained in the encoded payload and displayed as line breaks. The existing
 limits apply after escaping/Base64 expansion. No attachments, CC/BCC, groups,
 drafts, signatures or settings changes are supported.
 
-Modern HTTP 2xx remains UNKNOWN because no definitive positive acknowledgement
-has been established. An explicit allowlisted validation denial on HTTP 400/422
+Modern ACCEPTED requires HTTP 201, `application/json`, and exactly
+`{"data":{"messageId":<positive integer>,"status":"sent"}}`. The ID must be an
+actual JSON integer of at most 64 decimal digits, not a bool, float or string.
+This establishes upstream acceptance, not recipient reading. Other 2xx responses
+remain UNKNOWN; HTTP success alone is insufficient. An explicit allowlisted validation denial on HTTP 400/422
 can establish source-informed REJECTED. Unknown, malformed, contradictory or
 failed responses remain UNKNOWN after potential dispatch, with no retries,
 redirects, fallback, post-send lookup or implicit reauthentication. Cancel/shutdown

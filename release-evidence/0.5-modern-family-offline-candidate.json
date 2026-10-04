@@ -1,0 +1,58 @@
+{
+  "purpose": "Approved bounded namespace-family candidate, not a 0.5 release",
+  "package_version": "0.4.11",
+  "source_python_manifest_sha256": "bc6cc005a5e7aac63e0b39a646a99edaadacf180358564beedb149604e705f69",
+  "artifacts": [
+    {
+      "filename": "librus_python_api-0.4.11-py3-none-any.whl",
+      "bytes": 118829,
+      "sha256": "3e61c6ef28a83388770b8739a9712f9696632eb284968c28c6683db12a1426f1"
+    },
+    {
+      "filename": "librus_python_api-0.4.11.tar.gz",
+      "bytes": 509616,
+      "sha256": "f3cf9cad52c1a8ead1d1caea0f5d1124b2daf7295956dcce29b0ddd3d3ceb819"
+    }
+  ],
+  "checks": [
+    {
+      "python": "3.13.15",
+      "mode": "source",
+      "summary": "1353 passed, 1 deselected in 17.89s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.13.15",
+      "mode": "wheel",
+      "summary": "1353 passed, 1 deselected in 18.30s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.13.15",
+      "mode": "sdist",
+      "summary": "1353 passed, 1 deselected in 17.95s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "source",
+      "summary": "1353 passed, 1 deselected in 17.93s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "wheel",
+      "summary": "1353 passed, 1 deselected in 18.50s",
+      "import_location_verified": true
+    },
+    {
+      "python": "3.14.7",
+      "mode": "sdist",
+      "summary": "1353 passed, 1 deselected in 18.07s",
+      "import_location_verified": true
+    }
+  ],
+  "installed_test_environment": "Extracted sdist tests/scripts/contracts with empty disposable Git marker for checkout capture-safety tests; installed imports must resolve inside each environment",
+  "qualification_live_http_requests": 0,
+  "artifacts_retained_after_worker_exit": false
+}
