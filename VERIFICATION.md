@@ -3,6 +3,30 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Compatibility continuation (2026-10-04) - Pending versioned delivery
+
+The owner authorized additional library compatibility work on the same branch
+and PR #15, in separate scoped commits. Consumer migration, sends, event
+consumption, merge and publication are not part of this continuation.
+
+The optional local attachment publication boundary adds 15 original tests.
+Its combined stream/file suite passes 83 tests; the full source suite passes
+1,400 tests with one opt-in performance case deselected. Ruff and strict mypy
+pass. The tests exercise real loopback HTTP, four concurrent account streams,
+non-overwriting symlink/file collisions, interrupted reads, byte ceilings,
+redacted disk failures and repeated cancellation while a real disk worker runs.
+This is offline local-file qualification, not new upstream attachment evidence.
+Source/wheel/sdist qualification of the final continuation is still pending.
+
+Three separately approved public-asset scopes are closed: two root/index scopes
+used two GETs and 827,129 bytes each; the linked app scope used one GET and
+1,129,914 bytes. No credentials, cookies, redirects, script execution or writes.
+The first diagnostic skipped the index filename; the second established the
+linked app dependency; the third established source-informed inbox/outbox list,
+detail and attachment-resolution routes. Public source is an external behavior
+reference, not code or fixtures to copy and not authenticated live evidence.
+No app bundle is incorporated in this repository.
+
 ## 0.5.0 (2026-10-04) - Modern authentication and sole-send qualification
 
 The implementation is committed separately from the 0.5.0 version/qualification

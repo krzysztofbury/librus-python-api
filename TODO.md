@@ -170,6 +170,14 @@ authorization is created or renewed by moving these items.
 | S8 | Sole-recipient send and acknowledgement qualification | Qualified one approved dispatch with durable claim, HTTP 201 exact created/sent receipt and independent owner confirmation in the official UI. Offline correction accepts only that envelope. Original UNKNOWN history is preserved; no retry, fallback or additional send; other receipt variants remain pending |
 | S9 | Delivery closure | 0.5.0 library source/wheel/sdist and representative-load qualification plus local artifacts; current-head PR CI and consumer integration remain separate gates. Merge requires separate authorization |
 
+The compatibility continuation stays on PR #15 in separate scoped commits.
+The optional `librus_python_api.files` layer now supplies bounded portable naming,
+owner-only temporary files, joined disk workers and atomic non-overwriting
+publication of complete API streams. Its original tests use real loopback HTTP
+and concurrent accounts; modern streams and broader upstream evidence remain
+separate. This does not change MCP's configured download destination or install
+anything into the consumer. See [contracts/attachment-files.md](contracts/attachment-files.md).
+
 S1 progress: the first freshly approved 0.5 read-only scope used the qualified
 installed 0.4.11 wheel. Native identity matched the private plan, but the modern
 launch returned an unsupported path before handoff. Ten requests and one credential

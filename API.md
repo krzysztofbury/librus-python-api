@@ -5,6 +5,26 @@ Core public values are exported from `librus_python_api`; exceptions live in
 `librus_python_api.persistence`. Results are frozen dataclasses. Their reprs omit
 personal fields. Serializing them for MCP or anything else is the consumer's job.
 
+## Optional local attachment files
+
+```python
+from pathlib import Path
+from librus_python_api.files import publish_attachment
+
+stream = client.stream_attachment(attachment.reference, budget=budget)
+saved = await publish_attachment(
+    stream,
+    Path("/caller-selected/existing/directory"),
+    filename=attachment.filename,
+)
+```
+
+The optional file layer publishes complete owner-only files atomically without
+overwriting an existing path. It returns the local path, byte size, SHA256 and
+content type. It neither selects the destination nor opens message content.
+See [the file contract](contracts/attachment-files.md) for filesystem requirements,
+bounded naming and cancellation/commit semantics.
+
 ## Service and accounts
 
 ```python
