@@ -223,6 +223,24 @@ def test_attendance_views_cache_and_windows_use_one_all_collection() -> None:
                     date(2026, 10, 4), date(2026, 10, 4), max_age_seconds=60
                 )
                 assert empty.items == ()
+                selected = await client.attendance_window(
+                    start=date(2026, 10, 2),
+                    view=AttendanceView.WEEK,
+                    max_age_seconds=60,
+                )
+                assert selected.view is AttendanceView.WEEK and selected.end is None
+                assert selected.items == week.items
+                assert selected.observation == week.observation
+                before = await client.attendance_window(
+                    end=date(2026, 10, 2),
+                    view=AttendanceView.LAST_LOGIN,
+                    max_age_seconds=60,
+                )
+                assert before.items == () and before.start is None
+                unfiltered = await client.attendance_window(
+                    view=AttendanceView.LAST_LOGIN, max_age_seconds=60
+                )
+                assert unfiltered.items == last.items
                 assert len(fixture.view_posts) == 3
                 assert len(fixture.logins) == 1
 

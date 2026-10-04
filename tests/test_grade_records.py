@@ -5,6 +5,7 @@ import pytest
 
 from librus_python_api import (
     Availability,
+    GradeView,
 )
 from librus_python_api.config import GRADE_MAX_METADATA_LENGTH, GRADE_MAX_RECORDS
 from librus_python_api.exceptions import (
@@ -216,5 +217,25 @@ def test_public_grade_read_and_windows_share_one_account_scoped_collection() -> 
                 assert len(fixture.calls) == service.snapshot().requests_dispatched == 6
                 assert await client.grades() is not result
                 assert len(fixture.view_posts) == 2
+                last = await client.grades_window(
+                    end=date(2026, 9, 29), view=GradeView.LAST_LOGIN
+                )
+                assert last.view is GradeView.LAST_LOGIN and last.start is None
+                assert [g.day for g in last.numeric] == [date(2026, 9, 29)]
+                assert last.descriptive == ()
+                assert fixture.view_posts[-1][1] == {"zmiany_logowanie": "1"}
+                unfiltered = await client.grades_window(
+                    view=GradeView.LAST_LOGIN, max_age_seconds=60
+                )
+                assert len(unfiltered.numeric) == 2
+                assert len(unfiltered.descriptive) == 1
+                assert unfiltered.observation == last.observation
+                assert len(fixture.view_posts) == 3
+                # MCP's accepted 370-day difference also remains cache-only.
+                wide = await client.grades_window(
+                    date(2026, 1, 1), date(2027, 1, 6), max_age_seconds=60
+                )
+                assert len(wide.numeric) == 2 and len(wide.descriptive) == 1
+                assert len(fixture.view_posts) == 3
 
     asyncio.run(scenario())

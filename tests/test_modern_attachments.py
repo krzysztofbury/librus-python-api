@@ -98,31 +98,40 @@ class DownloadFixture(CommunicationFixture):
                 yield service
 
 
-@pytest.mark.parametrize("archived", [False, True])
+@pytest.mark.parametrize(
+    "folder,archived,body",
+    [
+        (MessageFolder.RECEIVED, False, b"Fixture ordinary"),
+        (MessageFolder.RECEIVED, True, b"Fixture archive"),
+        (MessageFolder.SENT, False, b"Fixture sent"),
+        (MessageFolder.SENT, True, b""),
+    ],
+)
 def test_modern_download_is_distinct_bounded_credential_free_and_publishable(
-    archived: bool, tmp_path: Path
+    folder: MessageFolder, archived: bool, body: bytes, tmp_path: Path
 ) -> None:
     async def scenario() -> None:
         fixture = DownloadFixture()
+        fixture.body = body
+        selected = ModernMessageAttachmentReference(
+            ModernMessageReference(folder, "19001", "student"), "401", archived
+        )
         async with fixture.running() as service:
             client = service.account("student")
             await client.modern_identity()
             budget = RequestBudget(max_requests=4, max_response_bytes=4096)
-            stream = client.stream_modern_attachment(
-                reference(archived=archived), budget=budget
-            )
+            stream = client.stream_modern_attachment(selected, budget=budget)
             assert not fixture.downloads
             saved = await publish_attachment(
                 stream, tmp_path, filename="../../Fixture.txt"
             )
             assert saved.path.read_bytes() == fixture.body
             assert saved.path.stat().st_mode & 0o077 == 0
-            assert stream.complete and stream.metadata.reference == reference(
-                archived=archived
-            )
+            assert stream.complete and stream.metadata.reference == selected
+            assert saved.size_bytes == len(body)
             assert stream.metadata.observation.source == "modern_attachment_download"
             async with client.stream_modern_attachment(
-                reference(archived=archived), budget=budget
+                selected, budget=budget
             ) as again:
                 assert b"".join([chunk async for chunk in again]) == fixture.body
             assert budget.requests_dispatched == 4
@@ -135,6 +144,7 @@ def test_modern_download_is_distinct_bounded_credential_free_and_publishable(
             )
             assert paths == [expected, expected]
             assert not any("/inbox/messages/" in p for p, _, _ in fixture.modern_calls)
+            assert not any("/outbox/messages/" in p for p, _, _ in fixture.modern_calls)
             assert not fixture.sends and service.snapshot().active == 0
 
     asyncio.run(scenario())

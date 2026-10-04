@@ -357,6 +357,18 @@ def test_identity_parser_rejects_required_field_and_id_failures(body: bytes) -> 
     assert caught.value.__context__ is None
 
 
+@pytest.mark.parametrize("number", ["NaN", "Infinity", "-Infinity", "1e9999"])
+def test_nonfinite_json_in_unknown_fields_is_not_trusted(number: str) -> None:
+    # Otherwise-valid identity: must fail at JSON validation, not missing fields.
+    body = (
+        '{"Me":{"Account":{"Id":"17","FirstName":"Fixture"},'
+        '"User":{"Id":"43","FirstName":"Fixture"}},"extra":' + number + "}"
+    ).encode()
+    with pytest.raises(ParseError) as caught:
+        parse_identity(body)
+    assert caught.value.__context__ is None
+
+
 def test_profile_parser_uses_semantics_and_explicit_optional_availability() -> None:
     fields = parse_profile(profile_html(lucky="").encode())
     assert fields.register_number == 12

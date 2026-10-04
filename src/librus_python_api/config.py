@@ -35,6 +35,7 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     AttendanceView,
     GradeView,
+    HomeworkRangeRequest,
     MessageFolder,
     ModernRecipientReference,
     ModernSendSubmission,
@@ -585,7 +586,7 @@ GRADE_AVERAGE_HEADERS = MappingProxyType(
 GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32
-GRADE_MAX_WINDOW_DAYS = 366
+GRADE_MAX_WINDOW_DAYS = 371
 GRADE_PERIOD_HEADERS = MappingProxyType(
     {
         "Ocena śródroczna z pierwszego okresu": 1,
@@ -634,7 +635,7 @@ ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
 )
 ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
 ATTENDANCE_MAX_RECORDS = 2048
-ATTENDANCE_MAX_WINDOW_DAYS = 366
+ATTENDANCE_MAX_WINDOW_DAYS = 371
 # Collection recognition and detail retrieval share this central path family.
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 ATTENDANCE_DETAIL_MAX_FIELDS = 32
@@ -1120,6 +1121,32 @@ def homework_form(start: date, end: date) -> dict[str, str]:
         "przedmiot": "-1",
         "status": "-1",
     }
+
+
+def homework_range_forms(request: HomeworkRangeRequest) -> tuple[dict[str, str], ...]:
+    """Plan disjoint inclusive windows before login; never silently clip a range."""
+    if (
+        not isinstance(request, HomeworkRangeRequest)
+        or type(request.start) is not date
+        or type(request.end) is not date
+        or request.start.year > 9998
+        or request.end.year > 9998
+        or not 0 <= (request.end - request.start).days <= 370
+        or type(request.max_windows) is not int
+        or not 1 <= request.max_windows <= 13
+        or type(request.max_items) is not int
+        or not 1 <= request.max_items <= 4096
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    forms: list[dict[str, str]] = []
+    start = request.start
+    while start <= request.end:
+        if len(forms) == request.max_windows:
+            raise LibrusError(ErrorKind.LIMIT)
+        end = min(request.end, _one_month_after(start))
+        forms.append(homework_form(start, end))
+        start = end + timedelta(days=1)
+    return tuple(forms)
 
 
 def timetable_form(monday: date) -> dict[str, str]:

@@ -1,6 +1,7 @@
 """Pure, bounded, independently authored JSON and semantic HTML parsers."""
 
 import json
+import math
 import re
 from typing import Any
 
@@ -42,12 +43,28 @@ def decode_json(body: bytes) -> Any:
     failed = False
     result: Any = None
     try:
-        result = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
+        result = json.loads(
+            body.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_invalid_constant,
+            parse_float=_finite_float,
+        )
     except (ValueError, UnicodeError, RecursionError):
         failed = True
     if failed:
         raise LibrusError(ErrorKind.PARSE)
     return result
+
+
+def _invalid_constant(value: str) -> Any:
+    raise ValueError("Non-standard JSON number")
+
+
+def _finite_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("Non-finite JSON number")
+    return number
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
