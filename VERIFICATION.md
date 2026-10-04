@@ -3,11 +3,13 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
-## Unreleased 0.5 - Modern authentication and sole-send qualification
+## 0.5.0 (2026-10-04) - Modern authentication and sole-send qualification
 
-This candidate retains package version 0.4.11; it is not the merged 0.4.11
-release, a published 0.5 package or a production consumer installation. The main
-release hashes below remain unchanged. Review and closed-scope evidence are in
+The implementation is committed separately from the 0.5.0 version/qualification
+increment. Earlier 0.4.11-version candidates are historical; their hashes do not
+identify 0.5.0. The main 0.4.11 release hashes below remain unchanged. This is a
+local-first delivery, not PyPI publication or a production consumer installation.
+Review and closed-scope evidence are in
 `contracts/modern-launch-diagnostics.md` and `release-evidence/0.5-modern-*`.
 
 - Seven separately approved scopes used 84 HTTP requests, seven credential
@@ -32,7 +34,8 @@ release hashes below remain unchanged. Review and closed-scope evidence are in
   the qualified receipt smoke are checked in each environment; two builds have
   identical wheel/sdist bytes. Ruff lint/format, strict typing, changed-file hooks
   and worktree secret scan pass. Final evidence:
-  `release-evidence/0.5-modern-ack-offline-candidate.json`. Earlier
+  `release-evidence/0.5-modern-ack-offline-candidate.json` records the pre-version
+  candidate. The 0.5.0 artifacts require their own qualification below. Earlier
   1,326/1,353/1,366 candidate evidence remains historical, not final acceptance.
 - Scratch environments/builds are removed. The explicitly approved owner-only
   durable send history and one bounded receipt are retained outside Git for
@@ -44,7 +47,28 @@ release hashes below remain unchanged. Review and closed-scope evidence are in
 
 Broader 0.5 compatibility, live rejection/alternate acknowledgement shapes,
 modern mailbox/attachment support, read-once test-account qualification,
-consumer migration, PR/version/release and publication gates remain open.
+consumer migration, PR merge and publication gates remain open. Versioned 0.5.0
+artifact qualification and current-head CI are recorded separately, not inferred
+from the pre-version candidate checks.
+
+### Versioned local artifacts
+
+The 0.5.0 source, installed wheel and installed sdist each pass 1,385 tests on
+Python 3.13.15 and 3.14.7, one opt-in performance case deselected. Each installed
+environment verifies import location, version, MIT license/files, Python floor,
+`py.typed`, dependency compatibility and the qualified receipt smoke. The suite
+includes real loopback/runtime, durable/process and maximum-payload load proofs.
+Two builds have byte-identical archives. Ruff lint/format, strict typing, repository
+hooks, history/worktree secret scans and the locked dependency audit pass.
+
+New local artifacts in `dist/0.5.0/`: wheel 119,164 bytes, sdist 518,137 bytes,
+637,301 bytes total. Hashes and commands/results are recorded in
+`release-evidence/0.5.0-modern-qualification.json`. The archives contain a
+pre-final-evidence documentation checkpoint; this final log supersedes pending
+qualification wording inside the sdist. Older `dist/0.4.11/` artifacts are unchanged.
+Disposable environments/builds are removed; only the new versioned archives are
+retained locally. No extra live requests, sends, history rewrites or publication
+were performed during packaging. Current-head PR CI is still a remote gate.
 
 ## 0.4.11 (2026-10-03) - Offline S10 storage and session follow-ups
 

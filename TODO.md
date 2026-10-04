@@ -151,6 +151,10 @@ legacy paths. This supersedes the earlier consumer-owned persistence split.
 
 ### 0.5 TODO - Compatibility and live communication qualification
 
+0.5.0 delivers the bounded S1/S8 library slice, not universal messaging coverage.
+S4-S7 and consumer integration remain separately qualified follow-ups. The package
+and OpenAPI versions advance together; publication is still deferred.
+
 The owner deferred the remaining authentication, coverage and live qualification
 work to 0.5. Completing 0.4.9 closes the planned optional persistence prerequisites,
 not universal upstream compatibility or the separate MCP migration. No live
@@ -164,7 +168,7 @@ authorization is created or renewed by moving these items.
 | S6 | Attachment coverage | Library; sent/multiple/empty files, qualified signed routes/headers and modern metadata/streams; reusable safe naming and atomic publication move to an optional API file layer, with destination selected by MCP |
 | S7 | Read-once live qualification | Separate approved dedicated test login with disposable events and tested persistent recovery; never use production events or routine CI |
 | S8 | Sole-recipient send and acknowledgement qualification | Qualified one approved dispatch with durable claim, HTTP 201 exact created/sent receipt and independent owner confirmation in the official UI. Offline correction accepts only that envelope. Original UNKNOWN history is preserved; no retry, fallback or additional send; other receipt variants remain pending |
-| S9 | Delivery closure | Installed-library/consumer integration and representative-load acceptance, documentation and local artifacts, current-head CI; merge requires separate authorization |
+| S9 | Delivery closure | 0.5.0 library source/wheel/sdist and representative-load qualification plus local artifacts; current-head PR CI and consumer integration remain separate gates. Merge requires separate authorization |
 
 S1 progress: the first freshly approved 0.5 read-only scope used the qualified
 installed 0.4.11 wheel. Native identity matched the private plan, but the modern
@@ -176,7 +180,7 @@ credential submission, verified native identity and retained only a redacted
 `pobierz12` template and field facts. No handoff was followed and that scope is
 closed. Facts: `release-evidence/0.5-modern-scope-2.json`.
 `scripts/describe_modern_launch.py` is an offline redactor, not a network client
-or redirect permission. Core package version remains 0.4.11; the candidate exact
+or redirect permission. At this early checkpoint the package version was 0.4.11; the candidate exact
 route fix is not a qualified 0.5 release or a replacement for fresh installed
 verification and sole-send execution-budget approval.
 The third separately approved installed verification matched the qualified wheel
@@ -198,9 +202,9 @@ credential submission, no send, scope closed. Facts: `release-evidence/0.5-moder
 Scope 6 passed installed native/modern identity and exact-recipient verification
 after the integer identity fix: fourteen requests, one credential submission,
 zero sends, scope closed. Facts: `release-evidence/0.5-modern-scope-6.json`.
-The latest source/wheel/sdist candidate passes 1,366 tests on Python 3.13/3.14:
+The pre-send source/wheel/sdist candidate passed 1,366 tests on Python 3.13/3.14:
 `release-evidence/0.5-modern-identity-offline-candidate.json`. S8 sole-message
-execution still requires its separately approved fresh budget and durable claim.
+execution at that checkpoint still required its separately approved fresh budget and durable claim.
 Scope 7 consumed a fresh exact-message approval: sixteen requests, one credential
 submission and one modern send POST, with fresh sender/recipient checks and a
 native durable claim. HTTP 201 returned the exact created/sent receipt. Original
@@ -209,6 +213,9 @@ owner independently confirmed the exact sent message in the official UI. The
 candidate receipt fix preserves uncertainty for all other shapes, and no send
 was replayed. Facts: `release-evidence/0.5-modern-scope-7.json` and
 `release-evidence/0.5-modern-send-confirmation.json`. All seven scopes are closed.
+The final receipt-corrected 0.5.0 library qualification is recorded separately in
+`release-evidence/0.5.0-modern-qualification.json` and `VERIFICATION.md`; older
+0.4.11-version candidate hashes remain historical and do not identify 0.5.0.
 
 Live verification is evidence gathering, not permission to guess undocumented
 wire shapes. Read-only discovery approvals do not authorize content opens,

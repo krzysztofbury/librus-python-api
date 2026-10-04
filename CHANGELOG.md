@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - 0.5 modern live qualification
+## 0.5.0 (2026-10-04) - Modern live qualification
 
 - Bounded server-selected numbered handoff namespaces, preserving exact origin,
   login, token, target/source and terminal checks without guessing or fallback.

@@ -40,7 +40,7 @@ remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
 Notification primitives do not own seen state or persistence. Legacy sending through
 `prepare_send` and a single-use `SendAttempt` remains offline-qualified only.
 The separate modern backend uses `prepare_modern_send`, backend-specific references
-and an isolated cookie jar. Unreleased 0.5 work independently qualified one modern
+and an isolated cookie jar. 0.5.0 independently qualified one modern
 sender/council context and one separately approved sole-recipient send, confirmed
 by its owner in the official sent UI. Only the exact observed HTTP 201 JSON
 created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains

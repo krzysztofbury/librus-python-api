@@ -265,5 +265,29 @@ worktree secret scan pass. Final candidate evidence:
 `release-evidence/0.5-modern-ack-offline-candidate.json`. Scratch is empty. The
 explicitly approved private claim/receipt total 20,629 bytes and remain outside
 Git for duplicate protection/manual reconciliation. No live execution qualified
-the corrected receipt parser and no 0.5 release, PR, merge or publication is
-claimed. The source changes remain on the qualification branch for review.
+the corrected receipt parser. This pre-version candidate evidence does not claim
+a 0.5 release, PR, merge or publication. The implementation is now committed on
+the qualification branch; a separate 0.5.0 version/artifact increment follows.
+
+## Delivery review
+
+The pre-PR skill-guided review inspected the central route and receipt policies,
+public service/transport path, original owning wire tables, privacy redactors,
+durable workflow and completed-receipt deadline cases. No new blocker was found.
+TigerStyle #6: numbered namespaces do not bypass origin/login/token/target checks;
+integer identity normalization does not broaden directory IDs; a positive HTTP
+status alone does not prove acceptance. TigerStyle #12: the original uncertain
+history remains protected, and observed send success does not authorize replay.
+The tests exercise actual wire/storage boundaries without new test-only
+production seams. No independent-model review is claimed.
+
+0.5.0 ships this bounded library slice with local artifacts only. Wider directory,
+mailbox/attachment and consumer compatibility remain open rather than being
+silently claimed by the version change. No fresh live call, history rewrite,
+production installation, migration, merge or publication is part of this closure.
+Versioned 0.5.0 source/wheel/sdist qualification passes the same 1,385 portable
+tests on both Python versions with metadata/import/runtime checks and reproducible
+archives. New local artifacts total 637,301 bytes in `dist/0.5.0/`; no extra live
+calls were made. Final versioned evidence:
+`release-evidence/0.5.0-modern-qualification.json`. Remote PR CI remains pending
+until observed at the exact pushed head.

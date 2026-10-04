@@ -1,11 +1,11 @@
-# Modern messaging: explicit 0.4.7 backend
+# Modern messaging: explicit backend and 0.5.0 qualification
 
 The modern composer at `https://wiadomosci.librus.pl/nowy/` is a separate
 messaging backend from the legacy Synergia HTML routes implemented in 0.4.6.
 Successful modern recipient discovery does not qualify legacy lookup or sending.
 0.4.7 implements an explicit, offline-qualified modern backend. No automatic
 fallback, account-setting mutation or cross-backend ID reuse is implemented.
-Unreleased 0.5 work observed one separately approved sole-recipient send and its
+0.5.0 qualification observed one separately approved sole-recipient send and its
 created/sent acknowledgement, independently confirmed by the owner in the official
 sent UI. This is not universal receipt/layout qualification or recipient reading.
 
