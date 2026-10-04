@@ -40,6 +40,7 @@ class ModernFixture(ReadsFixture):
         super().__init__()
         self.aliases: tuple[str, ...] = ("student",)
         self.modern_origin = ""
+        self.download_origin = "https://sandbox.librus.pl"
         self.modern_calls: list[tuple[str, str, dict[str, str]]] = []
         self.sends: list[tuple[str, bytes, str]] = []
         self.started = asyncio.Event()
@@ -193,7 +194,10 @@ class ModernFixture(ReadsFixture):
         async with serve(self.app()) as native, serve(self.modern_app()) as modern:
             self.origin, self.modern_origin = native, modern
             settings = ConnectionSettings(
-                synergia_origin=native, api_origin=native, messages_origin=modern
+                synergia_origin=native,
+                api_origin=native,
+                messages_origin=modern,
+                download_origin=self.download_origin,
             )
             limits = kwargs.pop(
                 "scheduler_limits", SchedulerLimits(requests_per_second=1000, burst=32)

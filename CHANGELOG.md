@@ -17,6 +17,13 @@
   Source API live checks qualify only available inbox/outbox and directory branches.
   Modern downloads and richer receipts remain explicitly gated. Final source,
   wheel and sdist qualification is recorded separately in `VERIFICATION.md`.
+- Further same-PR expansion: explicit modern/archive attachment resolution and
+  bounded credential-free streams; recipient read/null/unknown observations with
+  unknown independent delivery status; plain/HTML/XML body decoding and inert
+  withdrawn original metadata. Narrow live scopes qualify available mailbox
+  layouts, a complete ordinary attachment and one consented mark-read transition.
+  Unavailable directories/subgroups and unobserved archive/expanded receipt layouts
+  remain explicit gates, without new sends or UNKNOWN history changes.
 
 ## 0.4.11 - Storage retention and communication review follow-ups
 

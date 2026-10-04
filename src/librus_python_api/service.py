@@ -14,7 +14,7 @@ from typing import Any, Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
 
 from librus_python_api.announcements import parse_announcements
-from librus_python_api.attachments import AttachmentStream
+from librus_python_api.attachments import AttachmentStream, ModernAttachmentStream
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
 from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
@@ -100,6 +100,7 @@ from librus_python_api.models import (
     MessageSummary,
     ModernAccountData,
     ModernIdentity,
+    ModernMessageAttachmentReference,
     ModernMessageContent,
     ModernMessageReference,
     ModernMessages,
@@ -695,7 +696,7 @@ class AccountClient:
                 for key in tuple(self._cache):
                     if isinstance(key, tuple) and key[0] == "modern_messages_received":
                         del self._cache[key]
-            summary, rendered, attachments = await self._page(
+            parsed = await self._page(
                 operation,
                 budget,
                 lambda body: parse_modern_message_content(body, reference),
@@ -704,11 +705,19 @@ class AccountClient:
             )
             return ModernMessageContent(
                 self._session_identity(),
-                summary,
-                rendered,
-                attachments,
+                parsed.summary,
+                parsed.text,
+                parsed.attachments,
                 reference.folder is MessageFolder.RECEIVED,
                 self._observation(operation),
+                parsed.receipts,
+                parsed.recipient_count,
+                parsed.read_count,
+                parsed.receipt_source,
+                parsed.archived,
+                parsed.withdrawn,
+                parsed.original_subject,
+                parsed.original_text,
             )
 
         return await self._read((operation, reference), fetch, budget, max_age_seconds)
@@ -1373,6 +1382,18 @@ class AccountClient:
             fetch,
             budget,
             max_age_seconds,
+        )
+
+    def stream_modern_attachment(
+        self,
+        reference: ModernMessageAttachmentReference,
+        *,
+        max_bytes: int = ATTACHMENT_MAX_BYTES,
+        budget: RequestBudget | None = None,
+    ) -> ModernAttachmentStream:
+        """Uncached explicit modern download; never opens message content."""
+        return ModernAttachmentStream(
+            self, reference, max_bytes=max_bytes, budget=budget
         )
 
     def stream_attachment(

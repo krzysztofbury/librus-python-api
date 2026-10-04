@@ -20,6 +20,7 @@ from librus_python_api.attachment_routes import (
     validate_attachment_reference,
     validate_key,
     validate_max_bytes,
+    validate_modern_attachment_reference,
 )
 from librus_python_api.budget import RequestBudget
 from librus_python_api.checkpoint import CheckpointState, handoff, validate_checkpoint
@@ -50,6 +51,7 @@ from librus_python_api.models import (
     AttachmentHeaders,
     LoginSubmission,
     MessageAttachmentReference,
+    ModernMessageAttachmentReference,
     ModernSendSubmission,
     RequestForm,
     ScheduleEventWire,
@@ -271,6 +273,8 @@ class AiohttpTransport:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         if endpoint.origin == "download" or endpoint_id in {
             "attachment_resolve",
+            "modern_attachment_resolve",
+            "modern_archive_attachment_resolve",
             "consume_schedule_events",
             "send_message",
             "modern_send_message",
@@ -578,6 +582,25 @@ class AiohttpTransport:
         endpoint = ENDPOINTS["attachment_resolve"]
         path = endpoint.path.format(
             message_id=reference.message.identifier, file_id=reference.identifier
+        )
+        return await self._request(
+            endpoint, self._connection.origin(endpoint) + path, budget, None
+        )
+
+    async def resolve_modern_attachment(
+        self,
+        reference: ModernMessageAttachmentReference,
+        budget: RequestBudget,
+    ) -> TransportResponse:
+        validate_modern_attachment_reference(reference, self._account)
+        endpoint = ENDPOINTS[
+            "modern_archive_attachment_resolve"
+            if reference.archived
+            else "modern_attachment_resolve"
+        ]
+        path = endpoint.path.format(
+            message_id=reference.message.identifier,
+            file_id=reference.identifier,
         )
         return await self._request(
             endpoint, self._connection.origin(endpoint) + path, budget, None

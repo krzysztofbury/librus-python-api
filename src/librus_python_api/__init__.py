@@ -1,6 +1,6 @@
 """Independent bounded async client. General live compatibility is unqualified."""
 
-from librus_python_api.attachments import AttachmentStream
+from librus_python_api.attachments import AttachmentStream, ModernAttachmentStream
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
     AccountCredentials,
@@ -66,6 +66,7 @@ from librus_python_api.models import (
     ModernMessageAttachment,
     ModernMessageAttachmentReference,
     ModernMessageContent,
+    ModernMessageRecipientReceipt,
     ModernMessageReference,
     ModernMessages,
     ModernMessagesCursor,
@@ -124,9 +125,11 @@ __all__ = [
     "ModernAccountData",
     "ModernIdentity",
     "ModernMessageAttachment",
+    "ModernAttachmentStream",
     "ModernMessageAttachmentReference",
     "ModernMessageContent",
     "ModernMessageReference",
+    "ModernMessageRecipientReceipt",
     "ModernMessages",
     "ModernMessagesCursor",
     "ModernMessagesPage",

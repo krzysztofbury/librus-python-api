@@ -338,16 +338,27 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
 - `modern_message_content(reference, *, allow_mark_read=False, budget=None,
   max_age_seconds=0)` requires a `ModernMessageReference`. Received opens require
   consent and invalidate inbox summary caches before dispatch. Results have inert
-  rendered `text` and `ModernMessageAttachment` metadata, not downloaded files
-  or inferred per-recipient receipts. Modern metadata cannot be used with legacy
+  rendered `text` and `ModernMessageAttachment` metadata. Optional inert original
+  subject/body, archive/withdrawal flags and bounded sent `recipient_receipts`
+  preserve observed layouts. `read` is true/false/unknown, `read_at` is optional,
+  and `delivered` stays unknown. Aggregate `recipient_count`/`read_count` are not
+  a claim that visible roster leaves are exhaustive. Modern metadata cannot be used with legacy
   `stream_attachment`.
+- `stream_modern_attachment(reference, *, max_bytes=50 * 1024 * 1024, budget=None)`
+  returns `ModernAttachmentStream`, a single-owner uncached async context manager
+  and iterator. It resolves only explicit modern/archived references, validates
+  the exact official sandbox destination, and shares the existing bounded
+  credential-free byte worker. It never opens content, follows redirects or
+  retries. Use the optional `files.publish_attachment` with an explicit directory
+  for durable, atomic, non-overwriting local saves. Its metadata reference is
+  backend-specific; `AttachmentMetadata.reference` can now be legacy or modern.
 
 Recipient type references accept `include_virtual=False`. Set it explicitly only
 for `students` or combined `parents,guardians`; virtual expansion is not automatic.
 Employee leaves have an empty `class_label` and optional inert
 `availability_status_json`, not interpreted as send permission.
 See [the communication contract](contracts/modern-communication.md) for limits,
-strict supported shapes and remaining content/download qualification gates.
+strict supported shapes and remaining layout/availability qualification gates.
 
 See [the modern contract](contracts/modern-messages.md) for evidence and live gates.
 

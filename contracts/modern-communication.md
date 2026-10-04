@@ -52,19 +52,65 @@ classifying the GET as potentially mark-read. Inbox summary caches are invalidat
 before dispatch. Sent content has no inferred read effect. Both paths use the
 modern session, shared scheduler and caller budget.
 
-The source-informed reader contract is a `data` object with Base64 UTF-8 `Message`
-HTML. The parser checks the ID, bounds body/markup/attachment counts, rejects
-active content and emits inert rendered text plus modern attachment references.
-It never executes scripts, follows markup links, resolves files or infers
-per-recipient receipts. This strict content layout is offline-qualified only;
-no content opens were approved in this continuation. Forwarded/archive layouts
-and unknown receipt variants remain unsupported.
+The reader contract is a `data` object with Base64 UTF-8 `Message`: plain text,
+HTML, or a bounded XML `Message` wrapper with exactly one text/CDATA `Content`.
+Physical line breaks are preserved before inert HTML text rendering. XML network,
+DTD and entity access is prohibited. Duplicate/nested content elements and active
+markup fail closed. Details derive attachment presence from the actual attachment
+list because independently observed responses omit the list-only flag. An explicit
+inconsistent flag is rejected rather than silently corrected.
 
-Modern attachment downloads are deliberately not enabled. Public source indicates
-resolution routes, but response envelopes, credential-free download origins and
-redirect/header behavior lack enough evidence for safe streaming. Modern metadata
-must not be passed to legacy `stream_attachment`. Legacy streams can use
-[the optional file layer](attachment-files.md) for safe local publication.
+Optional `originalMessage`/`originalTopic` preserve an inert original body/subject,
+with explicit `withdrawn` and `archived` flags. Archived attachment references
+carry their namespace and use a distinct resolver; no automatic archive fallback.
+Archive/withdrawal variants remain source-informed and offline-qualified, not
+live-qualified. Unknown or malformed receipt layouts fail without partial output.
+
+## Recipient read observations, not invented delivery acknowledgements
+
+Sent details expose `recipient_receipts`, `recipient_count`, `read_count` and
+`receipt_source`. The source-established `individualRecipients` roster takes
+precedence when present; otherwise `receivers` is used. Each receipt retains a
+strict decimal-string `recipient_id`, display `name`, `to`/`cc`/`bcc` channel and
+optional timestamp. Present `readed` null/empty means no reading was observed;
+an absent field means unknown. A valid timestamp means reading was observed at
+that time. Duplicate recipient IDs, ambiguous CC/BCC flags, malformed dates and
+invalid counts fail the entire parse. Receipt rosters and text have fixed bounds.
+
+Aggregate counts are upstream observations, not a library assertion that a group
+roster is exhaustive; they are not equated to the number of visible leaves.
+No independently meaningful delivery-status field was established. `delivered`
+therefore remains `None`, even when a read timestamp exists. Nothing here changes
+a durable send's acceptance status, reconciles UNKNOWN history or permits resends.
+Ordinary single-recipient read and null observations were candidate-API qualified;
+expanded rosters and CC/BCC were source-informed and independently tested offline.
+
+## Modern attachment streaming
+
+`stream_modern_attachment` is an explicit, uncached, single-owner async stream.
+Construction performs no I/O and validates account, backend, IDs and archive flag.
+It binds the isolated modern session and resolves the attachment through
+`modern_attachment_resolve`, or explicit `modern_archive_attachment_resolve`.
+The JSON `data.downloadLink` must match the existing exact official sandbox
+`/GetFile/{key}` contract. Userinfo, queries, fragments, alternate origins,
+encoded separators and unsupported key shapes are denied before download.
+
+Only the validated key enters the existing fixed `/GetFile/{key}/get` byte route.
+The resolver's URL is never followed or exposed. Downloads use the same separate
+cookie-free, credential-free session as legacy attachments, with no redirects,
+retries, Referer or ambient environment credentials. Account transport limits,
+shared admission, caller request/byte/deadline budgets, body-length checks,
+backpressure, consumer-idle timeouts and joined service-owned cancellation apply.
+Resolver expiry clears modern state without merging or clearing valid native
+sessions; sandbox denial does not prove account-session expiry.
+
+Modern references remain prohibited in legacy `stream_attachment`. Optional
+[file publication](attachment-files.md) accepts the modern stream subclass and
+requires the same explicit caller-selected destination. No new automatic file
+storage is introduced. Custom transports may optionally implement
+`resolve_modern_attachment(reference, budget)`; otherwise this feature reports
+`UNSUPPORTED_CAPABILITY`. The core transport contract stays usable by legacy
+implementations.
 
 ## Qualification and unavailable evidence
 
@@ -77,9 +123,10 @@ package. Across candidate source scopes, the API observed populated inbox pages 
 outbox page 1, teacher/tutor/school-admin/council leaves, type metadata, legacy
 group discovery and an empty legacy subgroup selector on one account.
 
-No populated legacy subgroup, modern class-parent availability, virtual class,
-empty modern mailbox, sent second page, nonstandard receipt, content open or modern
-download path was established. Missing account data is not a passing result.
+At that stage no populated legacy subgroup, modern class-parent availability,
+virtual class, empty modern mailbox, sent second page, richer receipt, content
+open or modern download path was established. The next expansion qualified the
+available subset below. Missing account data is not a passing result.
 Live candidate hashes and sanitized scope facts are in
 [../release-evidence/0.5-communication-scopes.json](../release-evidence/0.5-communication-scopes.json).
 
@@ -90,3 +137,33 @@ budgets. Source/artifact results are in [../VERIFICATION.md](../VERIFICATION.md)
 Availability JSON nonfinite-number hardening was subsequently qualified offline;
 live manifest hashes identify the exact earlier observed source snapshots.
 Consumer integration, merge and publication remain separate gates.
+
+## Subsequent expansion on the same PR
+
+Two public discovery scopes completed with five unauthenticated asset GETs total,
+without cookies, credentials, execution, writes or copied code/fixtures. Four
+fresh authenticated scopes are closed, totaling 136 requests and eight credential
+submissions across isolated login contexts. These are separate from the three
+historical scopes above. Evidence:
+`release-evidence/0.5-communication-expansion-scopes.json`.
+
+- Four-login inventory qualified empty student outboxes, populated second sent
+  page at size five, and existing inbox pages. None advertised class-parent,
+  student or combined-parent branches; all legacy subgroup selectors were empty.
+  No unsupported directory probe or identity-based session merging was attempted.
+- A dedicated inspection observed two already-read received details, two existing
+  sent details and two resolver envelopes. No downloads in that inspection.
+- The first candidate check parsed received content but stopped when the first
+  file exceeded its approved 5 MiB ceiling. Partial bytes were discarded, not
+  retained or published; the scope was closed and never rerun.
+- A separately approved remaining-check scope qualified another complete modern
+  stream (7,004,902 bytes, bounded at 8 MiB), plain and XML content, sent read/null
+  observations and one consented unread-to-read transition with before/after
+  mailbox timestamps. No payload bytes or signed URLs were retained.
+
+Archive/withdrawn originals, expanded recipient rosters, virtual/class-parent and
+populated legacy subgroups still lack live data. Independent delivery status is
+unavailable in the established contract. No new send, read-once event consumption,
+MCP migration, merge or publication occurred. The original UNKNOWN send guard is
+unchanged. Further live qualification requires fresh authorization and suitable
+account data, not synthetic success claims or speculative requests.

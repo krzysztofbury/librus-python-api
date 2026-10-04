@@ -52,6 +52,9 @@ type OperationName = Literal[
     "modern_messages_sent",
     "modern_content_received",
     "modern_content_sent",
+    "modern_attachment_resolve",
+    "modern_archive_attachment_resolve",
+    "modern_attachment_download",
 ]
 
 
@@ -188,7 +191,9 @@ class AttachmentHeaders:
 @dataclass(frozen=True, slots=True)
 class AttachmentMetadata:
     identity: "Identity" = field(repr=False)
-    reference: MessageAttachmentReference = field(repr=False)
+    reference: "MessageAttachmentReference | ModernMessageAttachmentReference" = field(
+        repr=False
+    )
     headers: AttachmentHeaders = field(repr=False)
     observation: "Observation"
 
@@ -442,12 +447,24 @@ class ModernMessages:
 class ModernMessageAttachmentReference:
     message: ModernMessageReference = field(repr=False)
     identifier: str = field(repr=False)
+    archived: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class ModernMessageAttachment:
     reference: ModernMessageAttachmentReference = field(repr=False)
     filename: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernMessageRecipientReceipt:
+    recipient_id: str = field(repr=False)
+    name: str = field(repr=False)
+    channel: Literal["to", "cc", "bcc"]
+    read: bool | None
+    read_at: datetime | None = field(repr=False)
+    # The observed readed field is not an independent delivery acknowledgement.
+    delivered: None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -458,6 +475,16 @@ class ModernMessageContent:
     attachments: tuple[ModernMessageAttachment, ...] = field(repr=False)
     may_mark_read: bool
     observation: "Observation"
+    recipient_receipts: tuple[ModernMessageRecipientReceipt, ...] = field(
+        default=(), repr=False
+    )
+    recipient_count: int | None = None
+    read_count: int | None = None
+    receipt_source: Literal["receivers", "individualRecipients"] | None = None
+    archived: bool = False
+    withdrawn: bool = False
+    original_subject: str | None = field(default=None, repr=False)
+    original_text: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

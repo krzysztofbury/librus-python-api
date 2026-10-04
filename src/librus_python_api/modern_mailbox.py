@@ -1,10 +1,9 @@
 """Bounded modern mailbox parsing and continuation, with distinct backend references."""
 
-import base64
-import binascii
 import hashlib
 import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -12,24 +11,24 @@ from librus_python_api.config import (
     MESSAGE_MAX_ATTACHMENTS,
     MESSAGE_MAX_BATCH_ITEMS,
     MESSAGE_MAX_BATCH_PAGES,
-    MESSAGE_MAX_CONTENT_LENGTH,
     MESSAGE_MAX_CURSOR_IDS,
     MESSAGE_MAX_FIELD_LENGTH,
     MESSAGE_MAX_TOTAL_TEXT_LENGTH,
     modern_mailbox_query,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.markup import text
 from librus_python_api.models import (
     MessageFolder,
     ModernMessageAttachment,
     ModernMessageAttachmentReference,
+    ModernMessageRecipientReceipt,
     ModernMessageReference,
     ModernMessagesCursor,
     ModernMessagesPage,
     ModernMessageSummary,
 )
-from librus_python_api.parsers import decode_json, parse_html_document
+from librus_python_api.modern_body import render_body
+from librus_python_api.parsers import decode_json
 
 MAX_TOTAL_MESSAGES = 50000
 
@@ -159,32 +158,132 @@ def parse_page(
     return items, total, fingerprint
 
 
-def parse_content(
-    body: bytes, reference: ModernMessageReference
-) -> tuple[ModernMessageSummary, str, tuple[ModernMessageAttachment, ...]]:
+@dataclass(frozen=True, slots=True, repr=False)
+class ParsedContent:
+    summary: ModernMessageSummary
+    text: str
+    attachments: tuple[ModernMessageAttachment, ...]
+    receipts: tuple[ModernMessageRecipientReceipt, ...]
+    recipient_count: int | None
+    read_count: int | None
+    receipt_source: Literal["receivers", "individualRecipients"] | None
+    archived: bool
+    withdrawn: bool
+    original_subject: str | None
+    original_text: str | None
+
+
+def _flag(value: Any) -> bool:
+    if type(value) not in (bool, int, str) or value not in (
+        False,
+        True,
+        0,
+        1,
+        "0",
+        "1",
+    ):
+        raise LibrusError(ErrorKind.PARSE)
+    return value in (True, 1, "1")
+
+
+def _receipts(
+    content: dict[str, Any], folder: MessageFolder
+) -> tuple[
+    tuple[ModernMessageRecipientReceipt, ...],
+    int | None,
+    int | None,
+    Literal["receivers", "individualRecipients"] | None,
+]:
+    if folder is MessageFolder.RECEIVED:
+        return (), None, None, None
+    counts = []
+    for key in ("receiversCount", "readedCount"):
+        value = content.get(key)
+        if value is not None and (
+            type(value) is not int or not 0 <= value <= MAX_TOTAL_MESSAGES
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        counts.append(value)
+    total, read_count = counts
+    if total is not None and read_count is not None and read_count > total:
+        raise LibrusError(ErrorKind.PARSE)
+    source: Literal["receivers", "individualRecipients"] | None = None
+    if (
+        "individualRecipients" in content
+        and content["individualRecipients"] is not None
+    ):
+        source = "individualRecipients"
+    elif "receivers" in content:
+        source = "receivers"
+    if source is None:
+        return (), total, read_count, None
+    rows = content[source]
+    if not isinstance(rows, list):
+        raise LibrusError(ErrorKind.PARSE)
+    if len(rows) > MESSAGE_MAX_BATCH_ITEMS:
+        raise LibrusError(ErrorKind.LIMIT)
+    result = []
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise LibrusError(ErrorKind.PARSE)
+        receiver_id = identifier(_string(row.get("receiverId")))
+        if receiver_id in seen:
+            raise LibrusError(ErrorKind.PARSE)
+        seen.add(receiver_id)
+        cc, bcc = row.get("isCc"), row.get("isBcc")
+        if (
+            type(cc) is not str
+            or type(bcc) is not str
+            or cc not in ("0", "1")
+            or bcc not in ("0", "1")
+            or cc == bcc == "1"
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        stamp = row.get("readed")
+        read_at = None if stamp in (None, "") else _date(stamp)
+        name = _string(row.get("name"))
+        if not name.strip():
+            raise LibrusError(ErrorKind.PARSE)
+        result.append(
+            ModernMessageRecipientReceipt(
+                receiver_id,
+                name,
+                "bcc" if bcc == "1" else "cc" if cc == "1" else "to",
+                read_at is not None if "readed" in row else None,
+                read_at,
+            )
+        )
+    if (
+        sum(len(r.name) + len(r.recipient_id) for r in result)
+        > MESSAGE_MAX_TOTAL_TEXT_LENGTH
+    ):
+        raise LibrusError(ErrorKind.LIMIT)
+    return tuple(result), total, read_count, source
+
+
+def parse_content(body: bytes, reference: ModernMessageReference) -> ParsedContent:
     data = decode_json(body)
     if not isinstance(data, dict) or not isinstance(data.get("data"), dict):
         raise LibrusError(ErrorKind.PARSE)
     content = data["data"]
-    if content.get("archive", False) not in (False, 0, "0"):
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    summary = _summary(content, reference.folder, reference.account)
-    if summary.reference != reference:
-        raise LibrusError(ErrorKind.PARSE)
-    encoded = _string(content.get("Message"), limit=4 * MESSAGE_MAX_CONTENT_LENGTH)
-    try:
-        decoded = base64.b64decode(encoded, validate=True)
-        decoded.decode("utf-8", errors="strict")
-    except (ValueError, UnicodeError, binascii.Error):
-        raise LibrusError(ErrorKind.PARSE) from None
-    if len(decoded) > MESSAGE_MAX_CONTENT_LENGTH:
-        raise LibrusError(ErrorKind.LIMIT)
-    rendered = text(
-        parse_html_document(decoded), MESSAGE_MAX_CONTENT_LENGTH, multiline=True
-    )
+    archived = _flag(content.get("archive", False))
+    withdrawn = _flag(content.get("isMessageWithdrawn", False))
     entries = content.get("attachments")
     if not isinstance(entries, list) or len(entries) > MESSAGE_MAX_ATTACHMENTS:
         raise LibrusError(ErrorKind.PARSE)
+    # Detail responses do not carry the mailbox's isAnyFileAttached field.
+    has_attachment = content.get("isAnyFileAttached", bool(entries))
+    if type(has_attachment) is not bool or has_attachment != bool(entries):
+        raise LibrusError(ErrorKind.PARSE)
+    summary = _summary(
+        content | {"isAnyFileAttached": has_attachment},
+        reference.folder,
+        reference.account,
+    )
+    if summary.reference != reference:
+        raise LibrusError(ErrorKind.PARSE)
+    rendered = render_body(content.get("Message"))
     attachments = []
     seen = set()
     for raw in entries:
@@ -196,10 +295,28 @@ def parse_content(
         seen.add(file_id)
         attachments.append(
             ModernMessageAttachment(
-                ModernMessageAttachmentReference(reference, file_id), name
+                ModernMessageAttachmentReference(reference, file_id, archived), name
             )
         )
-    return summary, rendered, tuple(attachments)
+    receipts, total, read_count, source = _receipts(content, reference.folder)
+    original = content.get("originalMessage")
+    original_text = None if original in (None, "") else render_body(original)
+    original_subject = (
+        None if original_text is None else _string(content.get("originalTopic"))
+    )
+    return ParsedContent(
+        summary,
+        rendered,
+        tuple(attachments),
+        receipts,
+        total,
+        read_count,
+        source,
+        archived,
+        withdrawn,
+        original_subject,
+        original_text,
+    )
 
 
 def validate_selection(

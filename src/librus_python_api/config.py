@@ -212,7 +212,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/inbox/messages/{id}",
                 SideEffect.MARK_READ,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -221,7 +221,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/outbox/messages/{id}",
                 SideEffect.NONE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -256,6 +256,24 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 SideEffect.AUTHENTICATION,
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "modern_attachment_resolve",
+                "GET",
+                "/api/attachments/{file_id}/messages/{message_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_archive_attachment_resolve",
+                "GET",
+                "/api/archive/attachments/{file_id}/messages/{message_id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+                "messages",
             ),
             Endpoint(
                 "login_authorization",

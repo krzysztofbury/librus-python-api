@@ -12,7 +12,14 @@ from librus_python_api.config import (
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.message_content import validate_reference
-from librus_python_api.models import MessageAttachmentReference
+from librus_python_api.models import (
+    MessageAttachmentReference,
+    ModernMessageAttachmentReference,
+)
+from librus_python_api.modern_mailbox import (
+    validate_reference as validate_modern_reference,
+)
+from librus_python_api.parsers import decode_json
 
 
 def validate_attachment_reference(
@@ -35,6 +42,28 @@ def validate_key(key: str) -> None:
         or key in {".", ".."}
     ):
         raise LibrusError(ErrorKind.ACCESS_DENIED)
+
+
+def validate_modern_attachment_reference(
+    reference: ModernMessageAttachmentReference,
+    account: str,
+) -> None:
+    if not isinstance(reference, ModernMessageAttachmentReference):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    validate_modern_reference(reference.message, account)
+    if (
+        type(reference.archived) is not bool
+        or type(reference.identifier) is not str
+        or re.fullmatch(r"[0-9]{1,64}", reference.identifier) is None
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
+def modern_attachment_key(body: bytes, connection: ConnectionSettings) -> str:
+    data = decode_json(body)
+    if not isinstance(data, dict) or not isinstance(data.get("data"), dict):
+        raise LibrusError(ErrorKind.PARSE)
+    return signed_attachment_key(data["data"].get("downloadLink"), connection)
 
 
 def validate_max_bytes(max_bytes: int) -> None:

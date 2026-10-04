@@ -205,8 +205,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: mark_read
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Public reader fetches this detail route and updates unread presentation. The library conservatively requires mark-read consent; original offline wire tests, not live read-effect evidence. See contracts/modern-communication.md.
+      x-evidence: independently_observed
+      x-evidence-note: Separately approved source API reads qualify ordinary plain content and one consented unread-to-read transition. XML/original/archive layouts have original bounded offline proofs, not universal live compatibility. See contracts/modern-communication.md.
       parameters:
         - {in: path, name: id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
       responses:
@@ -221,12 +221,58 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Approved public app inspection establishes this detail GET and data envelope. Original offline wire tests; richer receipt layouts remain separately qualified. See contracts/modern-communication.md.
+      x-evidence: independently_observed
+      x-evidence-note: Approved source API reads qualify two ordinary XML-wrapped sent details and recipient read/null observations; delivery acknowledgements remain unknown. Expanded and CC/BCC rosters have source-informed offline tests only. See contracts/modern-communication.md.
       parameters:
         - {in: path, name: id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
       responses:
         '200': {description: Bounded sent detail JSON, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/attachments/{file_id}/messages/{message_id}:
+    get:
+      operationId: modern_attachment_resolve
+      summary: Explicit modern attachment resolution without opening message content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Approved inspection observed two data.downloadLink responses pointing to the exact official sandbox GetFile key shape. Original three-origin wire tests reject other destinations and preserve credential-free streaming. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: file_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+        - {in: path, name: message_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200':
+          description: Bounded resolver JSON; never follow redirects or return the signed URL to the caller
+          content:
+            application/json:
+              schema: &ModernAttachmentResolution
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [downloadLink]
+                    properties:
+                      downloadLink: {type: string, minLength: 1, maxLength: 2048}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/archive/attachments/{file_id}/messages/{message_id}:
+    get:
+      operationId: modern_archive_attachment_resolve
+      summary: Explicit archive-qualified modern attachment resolution
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: Approved public reader establishes the separate archive route. Original wire fixtures cover routing and destination guards; no archived live file was observed. See contracts/modern-communication.md.
+      parameters:
+        - {in: path, name: file_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+        - {in: path, name: message_id, required: true, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+      responses:
+        '200': {description: Same bounded resolver envelope with credential-free signed destination policy, content: {application/json: {schema: *ModernAttachmentResolution}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/messages:
     post:

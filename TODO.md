@@ -114,9 +114,12 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [x] 0.5 modern installed sender/council verification and sole-recipient manual
   send: one exact created/sent receipt, independently confirmed in the official UI.
   The receipt-parser correction is offline-qualified, not exercised by another send.
-- [ ] Modern follow-ups: rejection envelopes and other positive receipt variants,
-  remaining directory branches, virtual classes, modern content live checks
-  and attachments remain unqualified or unsupported.
+- [ ] Modern follow-ups: rejection envelopes and other positive send-acceptance
+  variants, independent delivery acknowledgements, unavailable directory/virtual
+  branches and unobserved archive/expanded recipient layouts remain gates.
+- [x] Modern ordinary content, recipient read observations, fixed credential-free
+  attachment streams, empty/sent-second-page layouts and one consented mark-read
+  transition are implemented and narrowly source-API qualified on this PR.
 - [x] 0.4.6, the legacy sending increment in the same PR: approved single-use
   attempt design implemented with typed uncertainty, exact fixed wire forms,
   shared limits and offline cancellation/fault proofs. See
@@ -190,6 +193,19 @@ coverage and consumer integration remain gates. All three new authenticated
 scopes are closed, with no send/content/download/read-once calls. See
 [contracts/modern-communication.md](contracts/modern-communication.md) and
 `release-evidence/0.5-communication-scopes.json` for exact scope boundaries.
+
+The subsequent same-PR expansion implements explicit modern/archived attachment
+resolution and credential-free streaming, richer recipient read observations,
+plain/HTML/XML bodies and inert original/withdrawal metadata. Four fresh scopes
+qualify available empty/sent-second-page layouts, ordinary content, a complete
+7 MB modern stream and one consented unread-to-read transition. All four scopes
+are closed; the first candidate stream hit its approved ceiling and was not
+automatically rerun. Independent delivery acknowledgements are unknown. No login
+advertised class-parent/virtual selections or exposed populated legacy subgroups;
+those live checks remain unavailable, not passed. Archive/original layouts and
+expanded receipt rosters have original offline tests but no live examples. See
+`release-evidence/0.5-communication-expansion-scopes.json` and the communication
+contract for exact evidence and limits. Consumer integration remains separate.
 
 S1 progress: the first freshly approved 0.5 read-only scope used the qualified
 installed 0.4.11 wheel. Native identity matched the private plan, but the modern
