@@ -12,36 +12,45 @@ were inspected as requirements. No implementation, fixture or documentation was
 copied. Original library changes and examples follow this repository's MIT
 provenance rules. This review makes no consumer configuration or storage changes.
 
+## Migration decision
+
+Updated 2026-10-04 after PR #16: target native MCP 2.0 directly. There is no
+requirement to preserve MCP 1.x names, inputs, grouping, field aliases or null
+conventions. Replace its schemas and serialization with the library's native
+semantics. Preserve safety and durable-state invariants through explicit migration
+and rollback. The complete 18-item MCP 2.0 review is in the
+[roadmap review](mcp2-roadmap.md).
+
 ## Tool-by-tool mapping
 
 Names in the first column refer to `librus-mcp/src/server.py`; the typed schema
 reference is `src/output_models.py` at the consumer revision above.
 
-| MCP tool | Library owner | Required adapter semantics / remaining gap |
+| Current MCP tool | Library owner | Native integration semantics / remaining gap |
 | --- | --- | --- |
 | `list_students` | Application account configuration | Return configured aliases, not upstream student IDs; separate logins remain separate contexts |
-| `get_student_information` | `student_information()` / `StudentInformation` | Rename register number; explicitly project lucky-number availability |
-| `get_final_grades` | `final_grades()` / `FinalGrades` | Project `predicted_annual` and `annual`; consumer owns unavailable-to-`-` compatibility policy |
-| `get_grades` | `grades(view=...)` / `Grades` | Group numeric/descriptive by semester/subject; school averages are raw values, not computed GPA |
+| `get_student_information` | `student_information()` / `StudentInformation` | Use native register number and explicit lucky-number availability |
+| `get_final_grades` | `final_grades()` / `FinalGrades` | Expose `predicted_annual`, `annual` and availability; no fabricated `-` sentinel |
+| `get_grades` | `grades(view=...)` / `Grades` | Expose typed numeric/descriptive records; school averages are raw values, not computed GPA |
 | `get_grades_window` | `grades_window(start, end, view=...)` / `GradeWindow` | Optional inclusive boundaries and original view now supported. Preserve numeric-then-descriptive ordering; consumer owns compact projection and response offset/limit |
-| `get_attendance` | `attendance(view=...)` / `Attendance` | Group records by semester, retaining empty displayed semesters |
+| `get_attendance` | `attendance(view=...)` / `Attendance` | Expose records and displayed semesters without legacy map grouping |
 | `get_attendance_window` | `attendance_window(start, end, view=...)` / `AttendanceWindow` | Optional inclusive boundaries and view now supported; consumer owns compact projection and offset/limit |
-| `get_attendance_detail` | `attendance_detail(id)` / `AttendanceDetail` | Ordered upstream labels and ancillary notes require deliberate dictionary projection |
+| `get_attendance_detail` | `attendance_detail(id)` / `AttendanceDetail` | Expose stable `normalized_fields`, preserving unknown/raw data and ancillary notes |
 | `get_attendance_frequency` | `attendance_frequency()` / `AttendanceFrequency` | Ratios are 0..1; unknown or zero-denominator results are `None`, not fabricated 0 or 1 |
-| `get_subject_frequency` | `subject_frequency(start, end)` / `SubjectFrequencies` | Convert ratios to percentages only in adapter; handle unknowns and duplicate display labels without silently merging subject IDs |
-| `get_homework` | `homework()` or `homework_range(request)` / `Homework` | Consumer chooses default dates. Native `subject` maps to legacy `lesson`; native `topic` maps to legacy `subject`. Multi-month helper now implements the consumer's accepted 370-day date difference |
-| `get_homework_detail` | `homework_detail(reference)` / `SchoolDetail` | Reconstruct a validated same-account homework reference from a numeric ID; preserve full text |
-| `get_schedule` | `agenda(year, month)` / `Agenda` | Parse validated integers; project civil-day keys, metadata, optional lesson/time and reference |
-| `get_schedule_detail` | `agenda_detail(reference)` / `SchoolDetail` | Accept only the established detail-reference namespace in the adapter, never dispatch the MCP href as an arbitrary URL |
-| `get_timetable` | `timetable(monday)` / `Timetable` | Consumer chooses default Monday; flatten nested days/periods/lessons deliberately, retaining changes and optional recess |
-| `get_announcements` | `announcements()` / `Announcements` | Map `content` to description and preserve raw displayed date; native content fingerprint is not an upstream ID |
+| `get_subject_frequency` | `subject_frequency(start, end)` / `SubjectFrequencies` | Expose native ratios, unknowns and subject records without merging duplicate display labels |
+| `get_homework` | `homework()` or `homework_range(request)` / `Homework` | Consumer chooses default dates; keep native `subject` and `topic`. Multi-month helper supports a 370-day date difference |
+| `get_homework_detail` | `homework_detail(reference)` / `SchoolDetail` | Accept the native same-account reference; expose normalized fields and preserve full text |
+| `get_schedule` | `agenda(year, month)` / `Agenda` | Integer inputs and typed day/event arrays, retaining metadata, lesson/time and reference |
+| `get_schedule_detail` | `agenda_detail(reference)` / `SchoolDetail` | Native same-account reference and normalized detail fields; no arbitrary URL input |
+| `get_timetable` | `timetable(monday)` / `Timetable` | Consumer chooses default Monday; expose nested days/periods/lessons, changes and optional recess |
+| `get_announcements` | `announcements()` / `Announcements` | Keep `content` and displayed/typed dates; content fingerprint is not an upstream ID |
 | `get_completed_lessons` | `completed_lessons()` / `CompletedLessons` | Continue bounded batches with one shared total budget; preserve combined subject/teacher information without guessed splitting |
 | `get_completed_lessons_page` | `completed_lessons_page()` or `completed_lessons()` | Native page count differs from last-page index; native cursor includes fingerprint/account/range. Preserve it rather than inventing one from offsets |
-| `get_messages` | `messages_page()` / `messages()`; explicit modern equivalents | Choose backend explicitly; convert page count to last index, retain truncation and cursor drift. Full pager-less legacy sent pages remain unsupported rather than silently treated as complete |
+| `get_messages` | `messages_page()` / `messages()`; explicit modern equivalents | Choose backend explicitly; keep native page counts, truncation and cursor drift. Full pager-less legacy sent pages remain unsupported rather than silently treated as complete |
 | `get_message_content` | `message_content()` or `modern_message_content()` | Native references include folder/backend/account. Received opens need `allow_mark_read=True`; current MCP read-only annotation does not express that side effect |
 | `get_message_attachments` | Content response attachment metadata | Listing via received content can mark read. Correct the consumer contract/consent before enabling, never silently grant permission |
 | `download_attachment` | Attachment streams plus `files.publish_attachment()` | MCP selects an existing destination. Native returns size, digest, media type and path; use final basename for MCP filename. No content open is needed |
-| `get_recipient_groups` | `recipient_groups()` / `modern_recipient_types()` | Native type/group references carry account/backend and hierarchy; flatten only established selections |
+| `get_recipient_groups` | `recipient_groups()` / `modern_recipient_types()` | Preserve native type/group records with account/backend and hierarchy |
 | `get_recipients` | `recipients()` / explicit modern directory methods | Preserve unsupported/empty distinction and qualified group selections; an ID/name map cannot represent every hierarchy |
 | `send_message` | Prepare/send attempts plus optional `PersistenceStore` | Consumer owns preview wording and human approval; library owns bounded single-use dispatch and durable payload/context binding. ACCEPTED is not independent delivery. UNKNOWN never becomes failed/retryable |
 | `get_recent_schedule_events` | `consume_schedule_events()` / `decode_schedule_events()` | Checkpoint complete bytes before parse; explicit consume consent, no retry; replay stored response locally |
@@ -50,6 +59,12 @@ reference is `src/output_models.py` at the consumer revision above.
 
 ## Reusable additions in this branch
 
+- Native MCP 2.0 follow-up: `DetailField` and family-specific stable detail keys,
+  preserving unknown labels, complete displayed values and ancillary notes.
+  Duplicate canonical labels fail before public result/cache publication. See
+  [detail fields](detail-fields.md). Other reusable A01-A18 foundations already
+  exist; unified MCP wire envelopes, packaging, config and resource hosting remain
+  consumer implementation work.
 - `HomeworkRangeRequest` and `homework_range()` implement explicit bounded
   aggregation. One budget covers authentication and all monthly POSTs. Partial
   failure is never a successful or cached aggregate. See [school reads](school-reads.md).
@@ -70,12 +85,12 @@ homework selection) are validated by public operations before I/O. Constructing
 a dataclass is not runtime validation. Configuration uses strict frozen Pydantic
 models; wire schemas/parsers validate upstream data. `py.typed` ships in the wheel.
 
-The consumer's Pydantic response models allow unknown fields and frequently
-require non-null strings/numbers where native values preserve unknown state.
-Direct `asdict()` is therefore not a drop-in adapter. In particular:
+The old consumer models frequently require non-null strings/numbers where native
+values preserve unknown state. Replace them for MCP 2.0 instead of coercing native
+results into legacy formats. Serialization still needs explicit decisions:
 
 - Absent grade weight/count/teacher, sent unread status, unavailable lucky number
-  and unknown attendance ratios require explicit consumer compatibility policy.
+  and unknown attendance ratios must retain their native absence/availability.
 - Civil dates and naive school wall times must not silently become UTC instants.
 - Empty, unavailable, disabled, malformed and bounded-partial results differ.
 - Native page-count, cursor, receipt and send-status values must not be reduced
@@ -105,7 +120,7 @@ calls were made for this review. C01-C05 retain their existing evidence limits.
 
 ## Consumer acceptance still required
 
-The mapping above is a requirements review, not executed MCP compatibility.
+The mapping above is a requirements review, not executed MCP 2.0 acceptance.
 Before cutover, run every default and enabled optional tool through stdio with
 the installed candidate, assert exact JSON keys/types/absence and error mapping,
 and exercise old-state migration/rollback with disposable stores. Confirm that

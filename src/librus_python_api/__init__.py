@@ -34,6 +34,8 @@ from librus_python_api.models import (
     CompletedLessonsPage,
     DescriptiveGrade,
     DescriptiveGradeSummary,
+    DetailField,
+    DetailFieldKey,
     FinalGrades,
     FrequencyMeasure,
     GatewayAttendance,
@@ -118,7 +120,7 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "AccountContext",
@@ -192,6 +194,8 @@ __all__ = [
     "HomeworkItem",
     "HomeworkRangeRequest",
     "SchoolDetail",
+    "DetailField",
+    "DetailFieldKey",
     "SchoolReference",
     "Announcements",
     "AttendanceDetail",

@@ -24,6 +24,8 @@ response variant.
 The [MCP cutover review](mcp-cutover-review.md) maps all consumer tools and typed
 contracts to native owners. The [API security review](api-security-review.md)
 records Snyk-guided controls, findings and architecture boundaries.
+The [detail-field contract](detail-fields.md) defines native stable keys used by
+the direct MCP 2.0 integration plan in the [roadmap review](mcp2-roadmap.md).
 
 ## Adding an endpoint
 

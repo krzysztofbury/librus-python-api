@@ -158,7 +158,7 @@ read yet.
   selected collection, with the same optional-date/370-day-difference rules.
   `AttendanceWindow.view` records the selection.
 - `attendance_detail(detail_id)` takes a numeric string and returns ordered
-  `fields` and `notes`.
+  `fields`, `notes` and stable-key `normalized_fields` (see below).
 - `gateway_attendance()` returns the JSON records with a strict `AttendanceKind`
   per stable type ID; unknown IDs stay `UNKNOWN`.
 - `attendance_frequency()` returns per-semester and overall `FrequencyMeasure`
@@ -193,8 +193,8 @@ Nothing is marked as read.
   `metadata` and unlabelled `metadata_notes`. A multi-line description continues
   the `Opis` field until the next known label.
 - `agenda_detail(reference)` takes the `SchoolReference` from an event of the
-  same login and returns `SchoolDetail(title, fields, notes)` with labels as
-  shown.
+  same login and returns `SchoolDetail` with a title, raw fields, notes and
+  stable-key `normalized_fields`.
 
 ## Homework
 
@@ -219,6 +219,15 @@ rows are deduplicated; conflicting versions fail with `ParseError`. Reference-fr
 rows remain separate. Aggregate text is capped at 262144 characters. Any failure
 discards the aggregate without caching partial results. This helper preserves
 upstream date-selection semantics and does not promise a transactional snapshot.
+
+### Stable detail keys
+
+School and attendance details expose ordered `DetailField(key, raw_label, value)`
+records in `normalized_fields`. `key` uses a known family-specific English name
+or `None` for unknown labels. Values remain full displayed strings, including
+empty values; dates/numbers in detail text are not silently converted. Raw fields
+and ancillary notes remain available. Ambiguous canonical labels fail before
+caching. See [the key mapping and evidence](contracts/detail-fields.md).
 
 ## Completed lessons
 

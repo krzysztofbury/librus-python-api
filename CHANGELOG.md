@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased - Cutover contracts and security review
+## 0.6.0 (2026-10-04) - Native MCP 2.0 foundations
 
+- Add `DetailField`/`DetailFieldKey` and stable-key `normalized_fields` to agenda,
+  homework and attendance details. Preserve unknown/raw values and reject
+  ambiguous labels before caching. No new upstream operation is introduced.
+- Keep original detail constructor arguments and equality/hash semantics:
+  derived normalized metadata defaults to an empty tuple for manually constructed
+  results and does not participate in equality. Service results populate it.
+- Target a direct native MCP 2.0 migration, replacing the planned intermediate
+  MCP 1.x compatibility layer. Review all 18 consumer roadmap items and retain
+  explicit durable-state migration, rollback and send-uncertainty safeguards.
 - Add typed `HomeworkRangeRequest` and bounded `homework_range()` aggregation
   across disjoint monthly selections, under one total budget. Conflicting duplicate
   references and later failures produce errors, never partial cached success.
@@ -13,6 +22,14 @@
 - Record the MCP tool/type cutover matrix and Snyk-based security/architecture
   review. Populated notes, observation cards and further live qualification remain
   evidence-dependent; no consumer migration or new live access is included.
+
+Compatibility: existing method calls and raw detail fields remain supported.
+Dataclass serialization includes additive `normalized_fields` and window `view`
+metadata; consumers needing exact wire schemas must project fields explicitly.
+Window boundary annotations now allow `None` for new open-ended calls; existing
+date-bounded calls still return their supplied dates. Non-finite JSON and
+ambiguous detail labels now raise parse errors rather than accepting invalid
+upstream data. This is a local-first release, not a PyPI publication.
 
 ## 0.5.0 (2026-10-04) - Modern live qualification
 
