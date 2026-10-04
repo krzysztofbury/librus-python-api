@@ -11,6 +11,12 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.markup import text
 from librus_python_api.parsers import parse_html_document
 
+_XML_PREFIX = re.compile(
+    r"\s*(?:(?:<!--.*?-->|<\?(?!xml\b).*?\?>)\s*)*"
+    r"(?:<\?xml\b|<Message(?=[\s/>]))",
+    re.DOTALL,
+)
+
 
 def render_body(encoded: str) -> str:
     if type(encoded) is not str:
@@ -25,7 +31,10 @@ def render_body(encoded: str) -> str:
         raise LibrusError(ErrorKind.LIMIT)
     if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", decoded, re.IGNORECASE):
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    if re.match(r"\s*(?:<\?xml\b|<Message(?:\s|>))", decoded):
+    decoded = decoded.removeprefix("\ufeff")
+    # XML comments/PIs and a UTF-8 BOM must not route a Message wrapper through
+    # the permissive HTML renderer, losing CDATA or bypassing Content checks.
+    if _XML_PREFIX.match(decoded):
         decoded = _xml_content(decoded)
     if not decoded:
         return ""
@@ -50,7 +59,10 @@ def _xml_content(decoded: str) -> str:
         root = etree.fromstring(decoded.encode(), parser=parser)
     except (ValueError, etree.LxmlError):
         raise LibrusError(ErrorKind.PARSE) from None
-    if root.tag != "Message":
+    if root.tag != "Message" or root.getroottree().docinfo.encoding.upper() not in {
+        "UTF-8",
+        "UTF8",
+    }:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     nodes = list(root.iter())
     if len(nodes) > 8192 or any(

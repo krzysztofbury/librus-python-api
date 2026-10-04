@@ -140,6 +140,17 @@ def test_exact_json_uses_account_id_and_single_attempt_remains_unknown_on_2xx() 
         {"recipients": ()},
         {"recipients": [REF]},
         {"recipients": (REF, REF)},
+        {
+            "recipients": (
+                ModernRecipientReference(
+                    "701",
+                    "901",
+                    "student",
+                    [],  # type: ignore[arg-type]
+                    "Fixture class",
+                ),
+            )
+        },
         {"recipients": (RecipientReference("701", "student", "rada_rodzicow"),)},
         {
             "recipients": (

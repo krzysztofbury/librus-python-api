@@ -85,7 +85,10 @@ def parse_modern_types(body: bytes, account: str) -> tuple[ModernRecipientType, 
         identifier = value.get("id")
         if (
             type(identifier) is not str
-            or MODERN_DIRECTORY_TYPE_PATTERN.fullmatch(identifier) is None
+            or (
+                identifier not in MODERN_RECIPIENT_OPERATIONS
+                and MODERN_DIRECTORY_TYPE_PATTERN.fullmatch(identifier) is None
+            )
             or identifier in seen
         ):
             raise LibrusError(ErrorKind.PARSE)

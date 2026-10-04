@@ -73,7 +73,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: One populated type list observed; parentsCouncil discovery is enabled, other branch lookups remain unsupported. See contracts/modern-messages.md.
+      x-evidence-note: Populated type lists were independently observed. Allowlisted school, class and student/parent branches have lookup implementations; lookup support is not account availability or universal live qualification. Combined parents,guardians metadata is covered by original offline regression only. See contracts/modern-communication.md.
       parameters:
         - {in: query, name: includeClass, required: true, schema: {type: string, enum: ['true']}}
       responses:
@@ -83,7 +83,7 @@ paths:
     get:
       operationId: modern_recipients
       security: [{ModernSessionCookies: []}]
-      summary: One bounded parent-council branch preserving class, account and user IDs
+      summary: Explicit bounded council or student/parent selection preserving class, account and user IDs
       x-origin: messages
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
@@ -139,8 +139,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Separately approved public app inspection establishes employee receiverType mappings. Original offline wire tests; authenticated layouts remain separately qualified. See contracts/modern-communication.md.
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed teacher, tutor and school-admin leaves on one login. Other allowlisted employee selections remain source-informed and offline-qualified only. See release-evidence/0.5-communication-scopes.json and contracts/modern-communication.md.
       parameters:
         - {in: query, name: receiverType, required: true, schema: {type: string, enum: [schoolParentsCouncil, teachers, headteachers, pedagogue, admin, secretary, sadmin, tutors, librarian, otherSpecialist, careerAdvisor, speechTherapist, counsellor, specialCounsellor, psychologist, educationalTherapist, sensoryIntegrationTherapist, surdopedagogue, typhlopedagogue]}}
       responses:
@@ -171,8 +171,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Approved public app inspection establishes GET, one-based page and limit with top-level data/total. Original offline wire tests; no automatic fallback or body open. See contracts/modern-communication.md.
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed populated inbox pages 1-2 and existing inboxes across four isolated logins. One-based page and bounded limit have original wire tests. No automatic fallback or body open. See release-evidence/0.5-communication-scopes.json and release-evidence/0.5-communication-expansion-scopes.json.
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
@@ -188,8 +188,8 @@ paths:
       x-upstream-origin: https://wiadomosci.librus.pl
       x-side-effect: none
       x-retry-safe: false
-      x-evidence: source_informed
-      x-evidence-note: Approved public app inspection establishes GET, one-based page and limit with top-level data/total. Original offline wire tests; sent counts are not recipient acknowledgement. See contracts/modern-communication.md.
+      x-evidence: independently_observed
+      x-evidence-note: Closed candidate-source scopes observed ordinary sent summaries, empty student outboxes and a populated second sent page at size five. Sent counts are not recipient acknowledgement. See release-evidence/0.5-communication-expansion-scopes.json and contracts/modern-communication.md.
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}

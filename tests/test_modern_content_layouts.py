@@ -45,7 +45,9 @@ def recipient(identifier: str, readed: str | None) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize("folder", list(MessageFolder))
-@pytest.mark.parametrize("encoding", ["plain", "html", "xml"])
+@pytest.mark.parametrize(
+    "encoding", ["plain", "html", "xml", "xml_bom", "xml_preamble"]
+)
 def test_detail_without_list_flag_decodes_original_body_not_wrapper(
     folder: MessageFolder,
     encoding: str,
@@ -57,6 +59,15 @@ def test_detail_without_list_flag_decodes_original_body_not_wrapper(
             "plain": b"Fixture first\nFixture second",
             "html": b"<p>Fixture first</p><p>Fixture second</p>",
             "xml": (
+                b"<Message><Topic>Not the body</Topic><Content>"
+                b"<![CDATA[Fixture first\nFixture second]]></Content></Message>"
+            ),
+            "xml_bom": (
+                b"\xef\xbb\xbf<Message><Topic>Not the body</Topic><Content>"
+                b"<![CDATA[Fixture first\nFixture second]]></Content></Message>"
+            ),
+            "xml_preamble": (
+                b"<!-- Fixture preamble --><?fixture layout?>\n"
                 b"<Message><Topic>Not the body</Topic><Content>"
                 b"<![CDATA[Fixture first\nFixture second]]></Content></Message>"
             ),
@@ -129,6 +140,8 @@ def test_archived_withdrawn_detail_preserves_inert_original_and_attachment_scope
         "xml_duplicate",
         "xml_entity",
         "xml_nested",
+        "xml_preamble_duplicate",
+        "xml_encoding",
         "attachment_mismatch",
         "bad_flag",
     ],
@@ -161,6 +174,14 @@ def test_detail_rejects_ambiguous_receipts_or_active_wrapper_without_partial_out
                 "xml_entity": b'<!DOCTYPE Message [<!ENTITY leak SYSTEM "file:///etc/passwd">]><Message><Content>&leak;</Content></Message>',
                 "xml_nested": (
                     b"<Message><Content><script>fixture()</script></Content></Message>"
+                ),
+                "xml_preamble_duplicate": (
+                    b"<!-- Fixture -->\n<Message><Content>A</Content>"
+                    b"<Content>B</Content></Message>"
+                ),
+                "xml_encoding": (
+                    b'<?xml version="1.0" encoding="ISO-8859-1"?>'
+                    b"<Message><Content>Fixture \xc3\xa9</Content></Message>"
                 ),
             }[invalid]
             data["Message"] = base64.b64encode(raw).decode()

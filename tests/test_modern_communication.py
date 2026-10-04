@@ -346,14 +346,16 @@ def test_modern_sent_content_is_inert_and_unqualified_body_fails_without_retry()
                                 b"<script>never execute</script>"
                             ).decode(),
                             "attachments": [],
+                            "isAnyFileAttached": False,
                         }
                     }
                 ).encode(),
                 "application/json",
                 {},
             )
-            with pytest.raises(LibrusError):
+            with pytest.raises(LibrusError) as error:
                 await client.modern_message_content(reference)
+            assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
             assert (
                 sum(
                     path == "/api/outbox/messages/19001"
@@ -424,6 +426,27 @@ def test_virtual_selection_has_exact_wire_and_separate_reference_cache(
             }
             assert await client.modern_recipients(ordinary, max_age_seconds=60) is first
             assert await client.modern_recipients(virtual, max_age_seconds=60) is second
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+def test_discovered_combined_parent_type_can_be_looked_up_without_rewriting() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        fixture.types_data = {
+            "data": {
+                "defaultGroup": "parents,guardians",
+                "list": [{"id": "parents,guardians", "name": "Fixture guardians"}],
+            }
+        }
+        async with fixture.running() as service:
+            client = service.account("student")
+            types = await client.modern_recipient_types()
+            assert len(types.items) == 1 and types.items[0].lookup_supported
+            recipients = await client.modern_recipients(types.items[0].reference)
+            assert recipients.items[0].reference.recipient_type == "parents,guardians"
+            assert fixture.modern_calls[-1][2] == {"receiverType": "parents,guardians"}
             assert not fixture.sends
 
     asyncio.run(scenario())

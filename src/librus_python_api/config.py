@@ -176,7 +176,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/receivers/groups/school-employees",
                 SideEffect.NONE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -194,7 +194,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/inbox/messages",
                 SideEffect.NONE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -203,7 +203,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "/api/outbox/messages",
                 SideEffect.NONE,
                 False,
-                Evidence.SOURCE_INFORMED,
+                Evidence.INDEPENDENTLY_OBSERVED,
                 "messages",
             ),
             Endpoint(
@@ -1017,6 +1017,7 @@ def encode_modern_send(submission: ModernSendSubmission, account: str) -> bytes:
         if (
             not isinstance(reference, ModernRecipientReference)
             or reference.account != account
+            or type(reference.recipient_type) is not str
             or reference.recipient_type not in MODERN_RECIPIENT_OPERATIONS
             or type(reference.class_label) is not str
             or (
