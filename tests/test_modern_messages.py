@@ -62,7 +62,7 @@ def test_modern_discovery_binds_class_and_account_and_reuses_account_session(
             )
             assert [
                 (t.reference.identifier, t.lookup_supported) for t in types.items
-            ] == [("parentsCouncil", True), ("teachers", False)]
+            ] == [("parentsCouncil", True), ("teachers", True)]
             recipients = await client.modern_recipients(
                 types.items[0].reference, budget=budget, max_age_seconds=60
             )
@@ -753,7 +753,7 @@ def test_modern_unsupported_and_cross_account_lookup_reject_before_io() -> None:
             client = service.account("student")
             for reference, expected in (
                 (
-                    ModernRecipientTypeReference("teachers", "student"),
+                    ModernRecipientTypeReference("customGroups", "student"),
                     ErrorKind.UNSUPPORTED_CAPABILITY,
                 ),
                 (

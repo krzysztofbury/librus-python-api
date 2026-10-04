@@ -115,7 +115,7 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   send: one exact created/sent receipt, independently confirmed in the official UI.
   The receipt-parser correction is offline-qualified, not exercised by another send.
 - [ ] Modern follow-ups: rejection envelopes and other positive receipt variants,
-  other directory branches, virtual classes, pagination, modern mailbox content
+  remaining directory branches, virtual classes, modern content live checks
   and attachments remain unqualified or unsupported.
 - [x] 0.4.6, the legacy sending increment in the same PR: approved single-use
   attempt design implemented with typed uncertainty, exact fixed wire forms,
@@ -177,6 +177,19 @@ publication of complete API streams. Its original tests use real loopback HTTP
 and concurrent accounts; modern streams and broader upstream evidence remain
 separate. This does not change MCP's configured download destination or install
 anything into the consumer. See [contracts/attachment-files.md](contracts/attachment-files.md).
+
+The same-PR continuation also implements modern inbox/outbox pages and bounded
+collection, explicit read-consent content parsing with inert modern attachment
+metadata, employee/class/student/parent directory routes and opt-in virtual query
+selection. Source API live scopes qualify inbox pages 1-2, outbox page 1 and
+teacher/tutor/school-admin/council branches on one account. Legacy group discovery
+worked but returned no subgroup choices; classParents was not advertised. Unknown
+sent read status remains unknown. Modern content is offline-qualified only;
+modern downloads, richer receipts, populated legacy subgroups, virtual live
+coverage and consumer integration remain gates. All three new authenticated
+scopes are closed, with no send/content/download/read-once calls. See
+[contracts/modern-communication.md](contracts/modern-communication.md) and
+`release-evidence/0.5-communication-scopes.json` for exact scope boundaries.
 
 S1 progress: the first freshly approved 0.5 read-only scope used the qualified
 installed 0.4.11 wheel. Native identity matched the private plan, but the modern

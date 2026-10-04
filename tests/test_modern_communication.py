@@ -1,0 +1,602 @@
+"""Original modern route/selection proofs over isolated real loopback HTTP."""
+
+import asyncio
+import base64
+import json
+from dataclasses import replace
+from typing import Any
+
+import pytest
+from aiohttp import web
+
+from librus_python_api import (
+    MessageFolder,
+    MessageReference,
+    ModernMessageReference,
+    ModernRecipientTypeReference,
+    RequestBudget,
+)
+from librus_python_api.config import SchedulerLimits
+from librus_python_api.exceptions import ErrorKind, LibrusError
+from tests.modern_support import ModernFixture, directory
+
+
+class CommunicationFixture(ModernFixture):
+    def __init__(self) -> None:
+        super().__init__()
+        self.message_count = 23
+        self.subject = "Fixture subject"
+        self.malformed_page: int | None = None
+
+    async def recipients(self, request: web.Request) -> web.Response:
+        self.record_modern(request, "directory")
+        return self.response("directory", self.directory_data)
+
+    def modern_app(self) -> web.Application:
+        app = super().modern_app()
+        for path in (
+            "/api/receivers/groups/school-employees",
+            "/api/receivers/groups/class-parents",
+            "/api/inbox/messages",
+            "/api/outbox/messages",
+            "/api/inbox/messages/{id}",
+            "/api/outbox/messages/{id}",
+        ):
+            app.router.add_get(path, self.communication)
+        return app
+
+    async def communication(self, request: web.Request) -> web.Response:
+        self.record_modern(request, request.path)
+        assert await request.read() == b""
+        await self.held_stage("communication")
+        default: dict[str, Any] = {"data": [], "total": 0}
+        if "/receivers/" in request.path:
+            default = {
+                "receivers": [
+                    {
+                        "accountId": "19001",
+                        "userId": "19002",
+                        "label": "Fixture employee",
+                        "availabilityStatus": {"fixture": True},
+                    }
+                ]
+            }
+        elif request.match_info.get("id"):
+            default = {
+                "data": self.message(int(request.match_info["id"]))
+                | {
+                    "Message": base64.b64encode(
+                        b"<p>Fixture &amp; body</p><p>Second line</p>"
+                    ).decode(),
+                    "attachments": [{"id": "401", "filename": "Fixture.txt"}],
+                }
+            }
+        else:
+            page, size = int(request.query["page"]), int(request.query["limit"])
+            first = (page - 1) * size
+            default = {
+                "data": [
+                    self.message(19001 + i)
+                    for i in range(first, min(first + size, self.message_count))
+                ],
+                "total": self.message_count,
+            }
+            if page == self.malformed_page:
+                default["data"] = []
+            if request.path == "/api/outbox/messages":
+                for item in default["data"]:
+                    del item["readDate"]
+        return self.response(request.path, default)
+
+    def message(self, identifier: int) -> dict[str, Any]:
+        return {
+            "messageId": str(identifier),
+            "senderName": "Fixture sender",
+            "receiverName": "Fixture recipient",
+            "topic": self.subject,
+            "sendDate": "2026-01-15T10:20:30+01:00",
+            "readDate": "",
+            "isAnyFileAttached": True,
+            "content": "Fixture preview, not an opened full body",
+        }
+
+
+@pytest.mark.parametrize("folder", list(MessageFolder))
+def test_modern_collection_resumes_inside_and_across_pages_without_content_open(
+    folder: MessageFolder,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            first = await client.modern_messages(folder, page_size=10, limit=7)
+            assert first.next_cursor is not None and first.next_cursor.offset == 7
+            second = await client.modern_messages(
+                folder, cursor=first.next_cursor, page_size=10, max_pages=1
+            )
+            assert (
+                second.next_cursor is not None
+                and second.next_cursor.page == 2
+                and second.next_cursor.offset == 0
+            )
+            third = await client.modern_messages(
+                folder, cursor=second.next_cursor, page_size=10
+            )
+            assert third.next_cursor is None
+            all_items = first.items + second.items + third.items
+            assert [i.reference.identifier for i in all_items] == [
+                str(19001 + i) for i in range(23)
+            ]
+            assert all(
+                i.reference.account == "student" and i.reference.folder is folder
+                for i in all_items
+            )
+            if folder is MessageFolder.SENT:
+                assert all(i.unread is None and i.read_at is None for i in all_items)
+            assert fixture.modern_calls[-1][2] == {"page": "3", "limit": "10"}
+            assert all("/190" not in path for path, _, _ in fixture.modern_calls)
+            assert "Fixture" not in repr(third) and "19001" not in repr(
+                first.next_cursor
+            )
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+def test_four_account_mailbox_load_uses_shared_queue_and_isolated_references() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        fixture.block_stage = "communication"
+        aliases = tuple(f"fixture-{i}" for i in range(4))
+        async with fixture.running(
+            aliases,
+            scheduler_limits=SchedulerLimits(
+                active_requests=2,
+                active_requests_per_account=1,
+                requests_per_second=1000,
+                burst=32,
+            ),
+        ) as service:
+            await asyncio.gather(
+                *(service.account(a).modern_identity() for a in aliases)
+            )
+            tasks = [
+                asyncio.create_task(service.account(a).modern_messages())
+                for a in aliases
+            ]
+            try:
+                await fixture.started.wait()
+                for _ in range(1000):
+                    snapshot = service.snapshot()
+                    if snapshot.active == 2 and snapshot.queued == 2:
+                        break
+                    await asyncio.sleep(0.001)
+                assert snapshot.active == 2 and snapshot.queued == 2
+            finally:
+                fixture.release.set()
+            results = await asyncio.gather(*tasks)
+            assert all(len(result.items) == 23 for result in results)
+            assert [result.items[0].reference.account for result in results] == list(
+                aliases
+            )
+            assert {
+                login
+                for path, login, _ in fixture.modern_calls
+                if path == "/api/inbox/messages"
+            } == set(aliases)
+            assert service.snapshot().active == service.snapshot().queued == 0
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mode", ["cancel", "timeout", "budget"])
+def test_modern_mailbox_cancel_deadline_and_budget_release_slots(mode: str) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.modern_identity()
+            if mode != "budget":
+                fixture.block_stage = "communication"
+            budget = RequestBudget(
+                max_requests=1, timeout_seconds=0.1 if mode == "timeout" else 5
+            )
+            task = asyncio.create_task(
+                client.modern_messages(page_size=10, budget=budget)
+            )
+            try:
+                if mode == "cancel":
+                    await fixture.started.wait()
+                    task.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await task
+                else:
+                    with pytest.raises(LibrusError) as error:
+                        await task
+                    assert error.value.kind is (
+                        ErrorKind.TIMEOUT if mode == "timeout" else ErrorKind.LIMIT
+                    )
+                assert budget.requests_dispatched == 1
+                assert service.snapshot().active == service.snapshot().queued == 0
+                assert not fixture.sends
+            finally:
+                fixture.release.set()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("drift", ["total", "subject", "repeated", "late_failure"])
+def test_modern_continuation_refuses_drift_and_never_returns_partial_cache(
+    drift: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            first = await client.modern_messages(page_size=10, limit=7)
+            assert first.next_cursor is not None
+            if drift == "total":
+                fixture.message_count += 1
+            elif drift == "subject":
+                fixture.subject = "Changed fixture"
+            elif drift == "late_failure":
+                fixture.malformed_page = 2
+            else:
+                first = replace(
+                    first,
+                    next_cursor=replace(
+                        first.next_cursor,
+                        page=2,
+                        offset=0,
+                        seen_ids=tuple(str(19001 + i) for i in range(20)),
+                    ),
+                )
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(
+                    cursor=first.next_cursor, page_size=10, max_age_seconds=60
+                )
+            assert error.value.kind in {ErrorKind.STALE_CURSOR, ErrorKind.PARSE}
+            calls = len(fixture.modern_calls)
+            with pytest.raises(LibrusError):
+                await client.modern_messages(
+                    cursor=first.next_cursor, page_size=10, max_age_seconds=60
+                )
+            assert len(fixture.modern_calls) > calls
+            assert not fixture.sends and service.snapshot().active == 0
+
+    asyncio.run(scenario())
+
+
+def test_modern_received_open_requires_consent_and_clears_summary_cache() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            reference = ModernMessageReference(
+                MessageFolder.RECEIVED, "19001", "student"
+            )
+            with pytest.raises(LibrusError) as error:
+                await client.modern_message_content(reference)
+            assert error.value.kind is ErrorKind.INVALID_INPUT and fixture.calls == []
+            page = await client.modern_messages_page(max_age_seconds=60)
+            content = await client.modern_message_content(
+                reference, allow_mark_read=True
+            )
+            assert content.text == "Fixture & body\nSecond line"
+            assert content.attachments[0].reference.message == reference
+            modern_attachment: Any = content.attachments[0].reference
+            with pytest.raises(LibrusError) as error:
+                client.stream_attachment(modern_attachment)
+            assert error.value.kind is ErrorKind.INVALID_INPUT
+            assert (
+                content.attachments[0].filename == "Fixture.txt"
+                and content.may_mark_read
+            )
+            assert await client.modern_messages_page(max_age_seconds=60) is not page
+            assert (
+                sum(
+                    path == "/api/inbox/messages/19001"
+                    for path, _, _ in fixture.modern_calls
+                )
+                == 1
+            )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        MessageReference(MessageFolder.SENT, "19001", "student"),
+        ModernMessageReference(MessageFolder.SENT, "19001", "parent"),
+        ModernMessageReference(MessageFolder.SENT, "../19001", "student"),
+    ],
+)
+def test_modern_content_rejects_cross_backend_or_account_before_io(
+    reference: Any,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            with pytest.raises(LibrusError) as error:
+                await service.account("student").modern_message_content(reference)
+            assert error.value.kind is ErrorKind.INVALID_INPUT and fixture.calls == []
+
+    asyncio.run(scenario())
+
+
+def test_modern_sent_content_is_inert_and_unqualified_body_fails_without_retry() -> (
+    None
+):
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            reference = ModernMessageReference(MessageFolder.SENT, "19001", "student")
+            content = await client.modern_message_content(reference)
+            assert not content.may_mark_read and content.summary.read_at is None
+            fixture.responses["/api/outbox/messages/19001"] = (
+                200,
+                json.dumps(
+                    {
+                        "data": fixture.message(19001)
+                        | {
+                            "Message": base64.b64encode(
+                                b"<script>never execute</script>"
+                            ).decode(),
+                            "attachments": [],
+                        }
+                    }
+                ).encode(),
+                "application/json",
+                {},
+            )
+            with pytest.raises(LibrusError):
+                await client.modern_message_content(reference)
+            assert (
+                sum(
+                    path == "/api/outbox/messages/19001"
+                    for path, _, _ in fixture.modern_calls
+                )
+                == 2
+            )
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("identifier", ["teachers", "tutors", "sadmin", "classParents"])
+def test_employee_and_class_parent_directory_keeps_account_ids_and_no_fake_class(
+    identifier: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            result = await client.modern_recipients(
+                ModernRecipientTypeReference(identifier, "student")
+            )
+            leaf = result.items[0]
+            assert json.loads(leaf.availability_status_json or "null") == {
+                "fixture": True
+            }
+            assert leaf.label == "Fixture employee"
+            assert (
+                leaf.reference.account_id == "19001"
+                and leaf.reference.user_id == "19002"
+            )
+            assert (
+                leaf.reference.class_label == ""
+                and leaf.reference.recipient_type == identifier
+            )
+            assert fixture.modern_calls[-1][2] == {"receiverType": identifier}
+            attempt = client.prepare_modern_send(
+                recipients=(leaf.reference,), subject="Fixture", body="Fixture"
+            )
+            assert (
+                attempt.submission.recipients == (leaf.reference,) and not fixture.sends
+            )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("envelope", ["classes", "data"])
+def test_virtual_selection_has_exact_wire_and_separate_reference_cache(
+    envelope: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        fixture.directory_data = {envelope: directory()["classes"]}
+        async with fixture.running() as service:
+            client = service.account("student")
+            ordinary = ModernRecipientTypeReference("students", "student")
+            virtual = ModernRecipientTypeReference(
+                "students", "student", include_virtual=True
+            )
+            first = await client.modern_recipients(ordinary, max_age_seconds=60)
+            second = await client.modern_recipients(virtual, max_age_seconds=60)
+            assert first is not second
+            assert not first.items[0].reference.include_virtual
+            assert second.items[0].reference.include_virtual
+            assert fixture.modern_calls[-1][2] == {
+                "receiverType": "students,virtualStudents"
+            }
+            assert await client.modern_recipients(ordinary, max_age_seconds=60) is first
+            assert await client.modern_recipients(virtual, max_age_seconds=60) is second
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("invalid", ["numeric_id", "duplicate", "unknown", "nonfinite"])
+def test_employee_directory_refuses_ambiguous_ids_or_unqualified_metadata(
+    invalid: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        leaf: dict[str, Any] = {
+            "accountId": "19001",
+            "userId": "19002",
+            "label": "Fixture",
+        }
+        entries = [leaf]
+        if invalid == "numeric_id":
+            leaf["accountId"] = 19001
+        elif invalid == "duplicate":
+            entries.append(dict(leaf))
+        elif invalid == "unknown":
+            leaf["unknownRoutingField"] = "fixture"
+        else:
+            leaf["availabilityStatus"] = float("nan")
+        fixture.responses["/api/receivers/groups/school-employees"] = (
+            200,
+            json.dumps({"receivers": entries}).encode(),
+            "application/json",
+            {},
+        )
+        async with fixture.running() as service:
+            with pytest.raises(LibrusError) as error:
+                await service.account("student").modern_recipients(
+                    ModernRecipientTypeReference("teachers", "student")
+                )
+            assert error.value.kind in {
+                ErrorKind.PARSE,
+                ErrorKind.UNSUPPORTED_CAPABILITY,
+            }
+            assert (
+                sum(
+                    path == "/api/receivers/groups/school-employees"
+                    for path, _, _ in fixture.modern_calls
+                )
+                == 1
+            )
+            assert not fixture.sends
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "invalid", ["missing_read", "attachment_flag", "date", "duplicate"]
+)
+def test_inbox_page_rejects_incomplete_or_ambiguous_summaries(invalid: str) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        row = fixture.message(19001)
+        entries = [row]
+        if invalid == "missing_read":
+            del row["readDate"]
+        elif invalid == "attachment_flag":
+            row["isAnyFileAttached"] = "false"
+        elif invalid == "date":
+            row["sendDate"] = "2026-02-31T10:00:00"
+        else:
+            entries.append(dict(row))
+        fixture.responses["/api/inbox/messages"] = (
+            200,
+            json.dumps({"data": entries, "total": len(entries)}).encode(),
+            "application/json",
+            {},
+        )
+        async with fixture.running() as service:
+            with pytest.raises(LibrusError) as error:
+                await service.account("student").modern_messages_page()
+            assert error.value.kind is ErrorKind.PARSE
+            assert (
+                sum(
+                    path == "/api/inbox/messages" for path, _, _ in fixture.modern_calls
+                )
+                == 1
+            )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("operation", "query", "reference", "path"),
+    [
+        (
+            "modern_school_recipients",
+            {"receiverType": "teachers"},
+            None,
+            "/api/receivers/groups/school-employees",
+        ),
+        (
+            "modern_class_parents",
+            {"receiverType": "classParents"},
+            None,
+            "/api/receivers/groups/class-parents",
+        ),
+        (
+            "modern_messages_received",
+            {"page": "1", "limit": "10"},
+            None,
+            "/api/inbox/messages",
+        ),
+        (
+            "modern_messages_sent",
+            {"page": "2", "limit": "50"},
+            None,
+            "/api/outbox/messages",
+        ),
+        ("modern_content_received", None, "19001", "/api/inbox/messages/19001"),
+        ("modern_content_sent", None, "19001", "/api/outbox/messages/19001"),
+    ],
+)
+def test_fixed_modern_routes_keep_get_selection_and_isolated_cookies(
+    operation: str, query: dict[str, str] | None, reference: str | None, path: str
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            budget = RequestBudget(max_requests=9)
+            await client.modern_identity(budget=budget)
+            result = await client._transport.request(
+                operation,
+                budget,
+                query=query,
+                reference_id=reference,
+            )
+            assert result.status == 200
+            assert fixture.modern_calls[-1] == (path, "student", query or {})
+            assert budget.requests_dispatched == 9 and not fixture.sends
+            assert service.snapshot().active == service.snapshot().queued == 0
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("operation", "query", "reference"),
+    [
+        ("modern_messages_received", None, None),
+        ("modern_messages_received", {"page": "0", "limit": "10"}, None),
+        ("modern_messages_received", {"page": "1", "limit": "51"}, None),
+        ("modern_messages_sent", {"page": "1001", "limit": "10"}, None),
+        ("modern_messages_sent", {"page": "1", "limit": "10", "unreadOnly": "1"}, None),
+        ("modern_school_recipients", {"receiverType": "parentsCouncil"}, None),
+        ("modern_school_recipients", {"receiverType": "../messages"}, None),
+        ("modern_class_parents", {"receiverType": "teachers"}, None),
+        ("modern_content_sent", None, "19001/withdrawal"),
+        ("modern_content_received", {"page": "1", "limit": "10"}, "19001"),
+        ("identity", {"page": "1", "limit": "10"}, None),
+    ],
+)
+def test_invalid_modern_query_and_reference_never_dispatch(
+    operation: str, query: Any, reference: str | None
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            with pytest.raises(LibrusError) as error:
+                await client._transport.request(
+                    operation,
+                    RequestBudget(),
+                    query=query,
+                    reference_id=reference,
+                )
+            assert error.value.kind is ErrorKind.INVALID_INPUT
+            assert fixture.calls == [] and fixture.modern_calls == []
+
+    asyncio.run(scenario())

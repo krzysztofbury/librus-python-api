@@ -100,6 +100,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   validate exact origin/login/target/source before the one handoff dispatch.
   The modern send callback, uncertainty and joined cleanup rules are identical.
   Generic modern launch/handoff/send requests are prohibited.
+  `request` additionally accepts optional `query: Mapping[str, str]` for fixed
+  allowlisted modern directory and mailbox selections only. Arbitrary query keys,
+  routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
   `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
@@ -263,7 +266,7 @@ apparently complete. Empty and shorter pager-less page-zero layouts remain suppo
 
 Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
-## Modern messaging (0.4.7, offline-qualified only)
+## Modern messaging (explicit backend, partial live qualification)
 
 0.4.11 revalidates bound modern identity with one fresh GET before each send.
 The initial handoff already includes that GET; subsequent sends cost one GET plus
@@ -286,7 +289,8 @@ read/send is automatically retried. A race after preflight can still yield UNKNO
   a `label` and `lookup_supported`. Unsupported types are metadata, not permission
   to look up another route.
 - `modern_recipients(recipient_type, *, budget=None, max_age_seconds=0)` returns
-  `ModernRecipients`. Only `parentsCouncil` is supported. Each item preserves
+  `ModernRecipients`. Allowlisted class and ordinary school-employee branches
+  are supported; availability and live coverage are account-specific. Each item preserves
   `label` and `ModernRecipientReference(account_id, user_id, account,
   recipient_type, class_label)`. Duplicate account IDs/classes and unrecognized
   layouts raise errors; IDs must never be substituted or passed to legacy APIs.
@@ -322,7 +326,28 @@ can establish source-informed REJECTED. Unknown, malformed, contradictory or
 failed responses remain UNKNOWN after potential dispatch, with no retries,
 redirects, fallback, post-send lookup or implicit reauthentication. Cancel/shutdown
 propagate normally with an inspectable outcome after joined cleanup, as below.
-No modern mailbox reconciliation API is introduced.
+Modern list/content reads do not reconcile durable UNKNOWN send history.
+
+- `modern_messages_page(folder=RECEIVED, *, page=1, page_size=10, budget=None,
+  max_age_seconds=0)` returns `ModernMessagesPage`. Pages are one-based. This GET
+  returns summaries only; sent read status can be unknown.
+- `modern_messages(folder=RECEIVED, *, cursor=None, page_size=50, max_pages=4,
+  limit=128, budget=None, max_age_seconds=0)` returns `ModernMessages` with explicit
+  truncation, duplicate counts and account/folder/page-size-bound continuation.
+  Cursor drift and later-page errors never return partial output.
+- `modern_message_content(reference, *, allow_mark_read=False, budget=None,
+  max_age_seconds=0)` requires a `ModernMessageReference`. Received opens require
+  consent and invalidate inbox summary caches before dispatch. Results have inert
+  rendered `text` and `ModernMessageAttachment` metadata, not downloaded files
+  or inferred per-recipient receipts. Modern metadata cannot be used with legacy
+  `stream_attachment`.
+
+Recipient type references accept `include_virtual=False`. Set it explicitly only
+for `students` or combined `parents,guardians`; virtual expansion is not automatic.
+Employee leaves have an empty `class_label` and optional inert
+`availability_status_json`, not interpreted as send permission.
+See [the communication contract](contracts/modern-communication.md) for limits,
+strict supported shapes and remaining content/download qualification gates.
 
 See [the modern contract](contracts/modern-messages.md) for evidence and live gates.
 

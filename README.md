@@ -25,7 +25,8 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
 | Message lists | `messages_page`, `messages` | 0.4.5: one populated two-page received mailbox and page-zero sent rows; independent byte/browser comparison |
 | Recipient discovery | `recipient_groups`, `recipient_group_choices`, `recipients` | 0.4.5: four login contexts, five named types and an anonymous target; empty group options observed, populated selection remains offline-qualified |
-| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | One prior read-only council layout observed and browser-checked; 0.4.7 installed implementation is offline-qualified only |
+| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | Source API qualified teacher/tutor/school-admin/council branches on one approved login; other branches and virtual selections remain offline-qualified |
+| Modern mailbox | `modern_messages_page`, `modern_messages`, `modern_message_content` | Source API qualified inbox pages 1-2 and outbox page 1; content/read effects and inert modern attachment metadata are offline-qualified only |
 | Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
 | Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
 | Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
@@ -47,6 +48,13 @@ created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains
 UNKNOWN. No automatic fallback or settings changes; broader compatibility remains
 unqualified. The receipt-parser correction was tested offline, not by another send.
 See [contracts/modern-messages.md](contracts/modern-messages.md).
+
+The same-PR continuation adds modern mailbox reads and broader recipient lookup
+without changing the consumer backend. Modern attachment downloads and richer
+per-recipient receipts remain blocked by missing evidence. The optional
+`librus_python_api.files` layer safely publishes complete legacy attachment
+streams into an explicit caller-selected directory. See
+[contracts/modern-communication.md](contracts/modern-communication.md).
 See [contracts/sending.md](contracts/sending.md). Message-list live
 gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
 

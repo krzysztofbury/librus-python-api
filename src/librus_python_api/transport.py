@@ -43,6 +43,7 @@ from librus_python_api.config import (
     encode_modern_send,
     encode_send_form,
     recipient_form,
+    validate_modern_query,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.models import (
@@ -73,6 +74,7 @@ class AccountTransport(Protocol):
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> TransportResponse: ...
 
     async def send_message(
@@ -262,6 +264,7 @@ class AiohttpTransport:
         *,
         form: RequestForm = None,
         reference_id: str | None = None,
+        query: Mapping[str, str] | None = None,
     ) -> TransportResponse:
         endpoint = ENDPOINTS.get(endpoint_id)
         if endpoint is None:
@@ -288,6 +291,20 @@ class AiohttpTransport:
             url = str(URL(url).with_query(OAUTH_QUERY))
         if endpoint_id in MODERN_DIRECTORY_QUERIES:
             url = str(URL(url).with_query(MODERN_DIRECTORY_QUERIES[endpoint_id]))
+        if (
+            endpoint_id
+            in {
+                "modern_school_recipients",
+                "modern_class_parents",
+                "modern_messages_received",
+                "modern_messages_sent",
+            }
+            and query is None
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if query is not None:
+            validate_modern_query(endpoint_id, query)
+            url = str(URL(url).with_query(query))
         return await self._request(endpoint, url, budget, form)
 
     async def authenticate_modern(

@@ -150,8 +150,12 @@ The approved 0.4.7 scope implements the following boundaries:
    manual test. Discovery approval is not send approval.
 
 `modern_identity`, `modern_recipient_types` and `modern_recipients` are ordinary
-bounded reads with explicit max-age caching. Only the `parentsCouncil` lookup
-is supported; other type metadata is returned with `lookup_supported=False`.
+bounded reads with explicit max-age caching. The original slice supported only
+`parentsCouncil`; the same-PR communication continuation adds allowlisted school
+employee and class/student/parent branches, explicit virtual query selection,
+modern mailbox lists and consent-gated content/attachment metadata. See
+[modern-communication.md](modern-communication.md) for precise live/offline gates.
+Unsupported type metadata is returned with `lookup_supported=False`.
 Directory parsing accepts only the established one-nested-array class shape,
 preserving class labels and unique account IDs; unsupported or ambiguous shapes
 raise errors rather than returning partial results. Empty classes are synthetic

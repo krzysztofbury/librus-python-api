@@ -38,6 +38,7 @@ from librus_python_api.config import (
     ENDPOINTS,
     GRADE_MAX_WINDOW_DAYS,
     MESSAGE_MAX_CURSOR_IDS,
+    MODERN_RECIPIENT_OPERATIONS,
     SCHEDULE_RESPONSE_VERSION,
     SESSION_COOKIE,
     AccountCredentials,
@@ -53,6 +54,8 @@ from librus_python_api.config import (
     grade_view_form,
     homework_form,
     message_page_form,
+    modern_directory_query,
+    modern_mailbox_query,
     recipient_form,
     timetable_form,
 )
@@ -97,6 +100,11 @@ from librus_python_api.models import (
     MessageSummary,
     ModernAccountData,
     ModernIdentity,
+    ModernMessageContent,
+    ModernMessageReference,
+    ModernMessages,
+    ModernMessagesCursor,
+    ModernMessagesPage,
     ModernRecipientReference,
     ModernRecipients,
     ModernRecipientTypeReference,
@@ -124,6 +132,17 @@ from librus_python_api.models import (
     SubjectFrequency,
     Timetable,
     TransportResponse,
+)
+from librus_python_api.modern_mailbox import collect as collect_modern_messages
+from librus_python_api.modern_mailbox import (
+    parse_content as parse_modern_message_content,
+)
+from librus_python_api.modern_mailbox import parse_page as parse_modern_message_page
+from librus_python_api.modern_mailbox import (
+    validate_reference as validate_modern_message_reference,
+)
+from librus_python_api.modern_mailbox import (
+    validate_selection as validate_modern_message_selection,
 )
 from librus_python_api.modern_messages import (
     parse_modern_identity,
@@ -514,14 +533,19 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> ModernRecipients:
         validate_modern_type(recipient_type, self._alias)
+        operation = MODERN_RECIPIENT_OPERATIONS[recipient_type.identifier]
+        query = modern_directory_query(
+            recipient_type.identifier, include_virtual=recipient_type.include_virtual
+        )
 
         async def fetch(budget: RequestBudget, _: bool) -> ModernRecipients:
             await self._modern_ready(budget)
             items = await self._page(
-                "modern_recipients",
+                operation,
                 budget,
                 lambda body: parse_modern_recipients(body, recipient_type),
                 content_type=JSON,
+                query=query,
             )
             return ModernRecipients(
                 self._session_identity(),
@@ -531,11 +555,163 @@ class AccountClient:
             )
 
         return await self._read(
-            ("modern_recipients", recipient_type.identifier),
+            (
+                "modern_recipients",
+                recipient_type.identifier,
+                recipient_type.include_virtual,
+            ),
+            fetch,
+            budget,
+            max_age_seconds,
+            endpoint=operation,
+        )
+
+    async def _modern_message_page(
+        self, folder: MessageFolder, page: int, page_size: int, budget: RequestBudget
+    ) -> ModernMessagesPage:
+        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
+            "modern_messages_received"
+            if folder is MessageFolder.RECEIVED
+            else "modern_messages_sent"
+        )
+        items, total, fingerprint = await self._page(
+            operation,
+            budget,
+            lambda body: parse_modern_message_page(
+                body, folder, page, page_size, self._alias
+            ),
+            content_type=JSON,
+            query=modern_mailbox_query(folder, page, page_size),
+        )
+        return ModernMessagesPage(
+            self._session_identity(),
+            folder,
+            page,
+            page_size,
+            total,
+            items,
+            fingerprint,
+            self._observation(operation),
+        )
+
+    async def modern_messages_page(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        page: int = 1,
+        page_size: int = 10,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernMessagesPage:
+        """One one-based ordinary modern page, without any content open."""
+        modern_mailbox_query(folder, page, page_size)
+        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
+            "modern_messages_received"
+            if folder is MessageFolder.RECEIVED
+            else "modern_messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernMessagesPage:
+            await self._modern_ready(budget)
+            return await self._modern_message_page(folder, page, page_size, budget)
+
+        return await self._read(
+            (operation, "page", page, page_size), fetch, budget, max_age_seconds
+        )
+
+    async def modern_messages(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        cursor: ModernMessagesCursor | None = None,
+        page_size: int = 50,
+        max_pages: int = 4,
+        limit: int = 128,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernMessages:
+        """Bounded modern collection with selection-bound continuation."""
+        validate_modern_message_selection(
+            folder, cursor, page_size, max_pages, limit, self._alias
+        )
+        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
+            "modern_messages_received"
+            if folder is MessageFolder.RECEIVED
+            else "modern_messages_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernMessages:
+            await self._modern_ready(budget)
+            result = await collect_modern_messages(
+                lambda page: self._modern_message_page(folder, page, page_size, budget),
+                folder,
+                self._alias,
+                cursor,
+                page_size,
+                max_pages,
+                limit,
+            )
+            items, pages, duplicates, continuation, reason = result
+            return ModernMessages(
+                self._session_identity(),
+                folder,
+                items,
+                pages,
+                duplicates,
+                continuation,
+                reason,
+                self._observation(operation),
+            )
+
+        return await self._read(
+            (operation, "batch", cursor, page_size, max_pages, limit),
             fetch,
             budget,
             max_age_seconds,
         )
+
+    async def modern_message_content(
+        self,
+        reference: ModernMessageReference,
+        *,
+        allow_mark_read: bool = False,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernMessageContent:
+        validate_modern_message_reference(reference, self._alias)
+        if type(allow_mark_read) is not bool or (
+            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
+        ):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        operation: Literal["modern_content_received", "modern_content_sent"] = (
+            "modern_content_received"
+            if reference.folder is MessageFolder.RECEIVED
+            else "modern_content_sent"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernMessageContent:
+            await self._modern_ready(budget)
+            if reference.folder is MessageFolder.RECEIVED:
+                for key in tuple(self._cache):
+                    if isinstance(key, tuple) and key[0] == "modern_messages_received":
+                        del self._cache[key]
+            summary, rendered, attachments = await self._page(
+                operation,
+                budget,
+                lambda body: parse_modern_message_content(body, reference),
+                reference=reference.identifier,
+                content_type=JSON,
+            )
+            return ModernMessageContent(
+                self._session_identity(),
+                summary,
+                rendered,
+                attachments,
+                reference.folder is MessageFolder.RECEIVED,
+                self._observation(operation),
+            )
+
+        return await self._read((operation, reference), fetch, budget, max_age_seconds)
 
     async def _execute_modern_send(
         self,
@@ -559,7 +735,10 @@ class AccountClient:
                     self._session_identity(), self._observation("modern_send_message")
                 )
                 for key in tuple(self._cache):
-                    if isinstance(key, tuple) and key[0] == "messages_sent":
+                    if isinstance(key, tuple) and key[0] in {
+                        "messages_sent",
+                        "modern_messages_sent",
+                    }:
                         del self._cache[key]
 
             try:
@@ -1604,12 +1783,18 @@ class AccountClient:
         form: RequestForm = None,
         reference: str | None = None,
         content_type: str = HTML,
+        query: Mapping[str, str] | None = None,
     ) -> T:
         """One authenticated request whose body a pure parser turns into data."""
         try:
-            response = await self._transport.request(
-                endpoint, budget, form=form, reference_id=reference
-            )
+            if query is None:
+                response = await self._transport.request(
+                    endpoint, budget, form=form, reference_id=reference
+                )
+            else:
+                response = await self._transport.request(
+                    endpoint, budget, form=form, reference_id=reference, query=query
+                )
             self._validate_read_response(response, content_type)
             return await self._service._parsers.run(parse, response.body, budget)
         except BaseException as error:
