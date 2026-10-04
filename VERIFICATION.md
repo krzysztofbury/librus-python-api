@@ -3,29 +3,74 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
-## Compatibility continuation (2026-10-04) - Pending versioned delivery
+## Compatibility continuation (2026-10-04) - Locally qualified for PR #15
 
 The owner authorized additional library compatibility work on the same branch
 and PR #15, in separate scoped commits. Consumer migration, sends, event
 consumption, merge and publication are not part of this continuation.
 
 The optional local attachment publication boundary adds 15 original tests.
-Its combined stream/file suite passes 83 tests; the full source suite passes
-1,400 tests with one opt-in performance case deselected. Ruff and strict mypy
+Its combined stream/file suite passes 83 tests; the final full source suite passes
+1,451 tests with one opt-in performance case deselected. Ruff and strict mypy
 pass. The tests exercise real loopback HTTP, four concurrent account streams,
 non-overwriting symlink/file collisions, interrupted reads, byte ceilings,
 redacted disk failures and repeated cancellation while a real disk worker runs.
 This is offline local-file qualification, not new upstream attachment evidence.
-Source/wheel/sdist qualification of the final continuation is still pending.
+The continuation also adds bounded modern mailbox collection, consent-gated
+content parsing and inert attachment metadata, broader recipient directory routes
+and opt-in virtual query selection. Four-account mailbox queue saturation, account
+cookie/reference isolation, continuation drift, failed later pages, deadlines and
+cancellation are exercised through real loopback HTTP. Review retained explicit
+unknown sent read status, strict inbox read fields, bounded inert availability
+JSON and non-overwriting local-file commit/cancellation semantics. Modern download
+destinations and richer receipt layouts are deliberately not guessed.
 
-Three separately approved public-asset scopes are closed: two root/index scopes
+Four separately approved public-asset scopes are closed: two root/index scopes
 used two GETs and 827,129 bytes each; the linked app scope used one GET and
-1,129,914 bytes. No credentials, cookies, redirects, script execution or writes.
+1,129,914 bytes; targeted app inspection used one more GET of the same size.
+No credentials, cookies, redirects, script execution or writes.
 The first diagnostic skipped the index filename; the second established the
 linked app dependency; the third established source-informed inbox/outbox list,
 detail and attachment-resolution routes. Public source is an external behavior
 reference, not code or fixtures to copy and not authenticated live evidence.
 No app bundle is incorporated in this repository.
+
+Three additional authenticated scopes used 48 requests, three credential
+submissions and 125,247 response bytes, with zero content, attachment, download,
+send or read-once calls. Each stopped on failure or completed, then closed without
+automatic rerun. The first reporter error and second outbox layout error have
+original regressions; the third scope succeeded. Candidate source API observations
+qualify populated inbox pages 1-2, outbox page 1, teacher/tutor/school-admin/council
+branches and legacy groups with an empty subgroup selector on one account.
+Class-parent and populated legacy-subgroup evidence were unavailable. Live hashes
+identify observed source snapshots; subsequent availability JSON hardening was
+offline-qualified only. See `contracts/modern-communication.md` and
+`release-evidence/0.5-communication-scopes.json`. No installed live check is claimed.
+
+Implementation commits are separate: `ddc8397` for optional local files and
+`d18e3f2` for modern communication. Version stays 0.5.0 on the still-open PR.
+The actual final implementation source, installed wheel and installed sdist each
+pass **1,451 tests, one performance case deselected**, on both Python 3.13.15 and
+3.14.7. Installed imports, metadata/version, MIT license, Python floor, `py.typed`,
+dependency compatibility and runtime smoke checks pass. Installed suites use
+tests/scripts/contracts extracted from the actual sdist, not copied upstream
+fixtures, with an empty disposable `.git` marker for capture safety checks.
+Two builds produce byte-identical archives. The first build diagnostic counted
+uv's generated `.gitignore` as a distribution; correcting that file-selection
+check confirmed identical wheel and sdist hashes without a production change.
+
+- Wheel SHA256: `04496413371684dc3b3e57b0a76a383b72869ae675ad3bdb0ef9b738baa3380e`.
+- Sdist SHA256: `c8f5ac164b4f6d9c7caff74646f373f5acaaee6fe05b510baf90929a078e1207`.
+- Final implementation Python manifest:
+  `3ceeb3f611b594160d19d3f40f1e1c96a40de4e61f6c2a3152a618191154b986`.
+
+Artifacts and local XML reports are retained separately in
+`dist/0.5.0-communication-continuation/`; prior `dist/0.5.0/` archives are unchanged.
+This final verification text supersedes pending text inside the qualified sdist.
+Machine-readable evidence: `release-evidence/0.5.0-communication-qualification.json`.
+Ruff lint/format, strict typing, hooks, history secret scan, locked dependency
+audit and `uv lock --check` pass. Current-head remote CI remains a separate gate.
+No consumer installation, state migration, merge or publication occurred.
 
 ## 0.5.0 (2026-10-04) - Modern authentication and sole-send qualification
 

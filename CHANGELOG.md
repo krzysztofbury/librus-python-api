@@ -11,6 +11,12 @@
   hints remain UNKNOWN; no second send qualified this parser correction.
 - Original wire/privacy/load/deadline/durable regressions and sanitized closed-scope
   evidence. No consumer migration, read-once consumption or publication.
+- Same-PR continuation: optional atomic, non-overwriting local attachment file
+  publication; modern mailbox pages and bounded continuation; consent-gated inert
+  content/attachment metadata; ordinary school directory and virtual-query support.
+  Source API live checks qualify only available inbox/outbox and directory branches.
+  Modern downloads and richer receipts remain explicitly gated. Final source,
+  wheel and sdist qualification is recorded separately in `VERIFICATION.md`.
 
 ## 0.4.11 - Storage retention and communication review follow-ups
 
