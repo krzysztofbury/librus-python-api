@@ -15,8 +15,8 @@
   publication; modern mailbox pages and bounded continuation; consent-gated inert
   content/attachment metadata; ordinary school directory and virtual-query support.
   Source API live checks qualify only available inbox/outbox and directory branches.
-  Modern downloads and richer receipts remain explicitly gated. Final source,
-  wheel and sdist qualification is recorded separately in `VERIFICATION.md`.
+  Final source, wheel and sdist qualification is recorded separately in
+  `VERIFICATION.md`; download and receipt expansion is described below.
 - Further same-PR expansion: explicit modern/archive attachment resolution and
   bounded credential-free streams; recipient read/null/unknown observations with
   unknown independent delivery status; plain/HTML/XML body decoding and inert
@@ -24,6 +24,14 @@
   layouts, a complete ordinary attachment and one consented mark-read transition.
   Unavailable directories/subgroups and unobserved archive/expanded receipt layouts
   remain explicit gates, without new sends or UNKNOWN history changes.
+- Pre-merge review: recognize XML wrappers after a UTF-8 BOM or inert preamble,
+  enforce their unique Content element and reject conflicting encoding declarations
+  instead of silently corrupting text. Discovery accepts the explicitly supported
+  combined parent/guardian type. Original HTTP regressions fail before these fixes.
+  Malformed recipient-type values fail locally with `InvalidInputError` instead
+  of leaking an untyped dictionary-key exception during send preparation.
+- Synchronize README/TODO release status and OpenAPI capability/evidence notes;
+  keep unavailable communication evidence tracked as C01-C05. Review is offline.
 
 ## 0.4.11 - Storage retention and communication review follow-ups
 

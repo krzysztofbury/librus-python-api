@@ -8,7 +8,7 @@ bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.4.11`, local-first. Nothing is published to PyPI yet; publication
+Status: `0.5.0`, local-first. Nothing is published to PyPI yet; publication
 starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 
 ## What it reads
@@ -34,7 +34,7 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.4.5. School reads,
+not a claim that every family was called live again in 0.5.0. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
 remaining gaps are in [VERIFICATION.md](VERIFICATION.md).

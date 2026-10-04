@@ -1,0 +1,65 @@
+{
+  "kind": "offline_pre_merge_review_qualification",
+  "version": "0.5.0",
+  "date": "2026-10-04",
+  "pr": 15,
+  "implementation_commit": "6ec42a0f861383ca3805520b59886218249c8e08",
+  "source_python_manifest_sha256": "d95f6fa78586af3aa264d615906a249a97c032bbc9218738eacab35d3048b73e",
+  "scope": "Branch review, original failing regressions, API loopback smoke, source and installed artifacts, OpenAPI and documentation synchronization",
+  "regressions_failed_before_fix": {
+    "XML_BOM_and_preamble_body_integrity_and_wrapper_guards": 6,
+    "combined_parent_guardian_discovery_to_lookup": 1,
+    "malformed_recipient_type_typed_local_refusal": 1
+  },
+  "existing_active_HTML_test_corrected_to_reach_owning_guard": true,
+  "artifacts": {
+    "wheel": {
+      "filename": "librus_python_api-0.5.0-py3-none-any.whl",
+      "sha256": "c6fc083ee29c90ba2f43c7aec5c88ee58bbd584a88768495cb2e1b475a8e2107",
+      "bytes": 130882
+    },
+    "sdist": {
+      "filename": "librus_python_api-0.5.0.tar.gz",
+      "sha256": "51cd38b7395fa2ba3e80593bd491ff4f52ad57a8aab2c0648ef64d24cd28f8ed",
+      "bytes": 554657
+    }
+  },
+  "reproducible_double_build": true,
+  "qualification_matrix": [
+    {"python": "3.13.15", "source_passed": 1495, "wheel_passed": 1495, "sdist_passed": 1495, "performance_deselected_per_run": 1},
+    {"python": "3.14.7", "source_passed": 1495, "wheel_passed": 1495, "sdist_passed": 1495, "performance_deselected_per_run": 1}
+  ],
+  "all_matrix_failures_errors_skips": 0,
+  "installed_runtime_smoke": {
+    "wheel_and_sdist_on_both_versions": "passed",
+    "requests_per_smoke": 15,
+    "requests_target": "three_real_loopback_HTTP_origins",
+    "operations": ["modern_identity", "modern_recipient_types", "modern_recipients", "modern_messages_page", "modern_message_content", "modern_messages", "stream_modern_attachment", "publish_attachment"],
+    "metadata_import_location_license_pytyped": "passed",
+    "pip_check": "passed",
+    "sends": 0
+  },
+  "representative_load": "Existing source and installed suites exercise four independent logins, shared active and queued limits, streaming, cancellation, and durable fault and competing-process paths",
+  "checks": {
+    "openapi_validation_and_route_policy_parity": "passed_in_each_full_suite",
+    "ruff_lint_and_format": "passed",
+    "mypy": "passed",
+    "uv_lock_check": "passed",
+    "repository_hooks": "passed",
+    "git_history_secret_scan": "passed",
+    "locked_dependency_audit": "no_known_vulnerabilities",
+    "diff_check": "passed"
+  },
+  "retained_artifact_directory": "dist/0.5.0-pr15-review/",
+  "retained_artifacts_and_six_XML_reports_bytes": 5243925,
+  "previous_archives_unchanged": true,
+  "task_scratch_cleaned": true,
+  "live_Librus_requests": 0,
+  "credential_submissions": 0,
+  "live_sends_or_read_once_consumption": 0,
+  "durable_UNKNOWN_history_or_guard_changed": false,
+  "consumer_or_production_changes": false,
+  "publication": false,
+  "remaining_communication_TODOs": ["C01", "C02", "C03", "C04", "C05"],
+  "merge_gate": "Separately authorized after exact pushed-head remote CI verification; outcome recorded on PR #15"
+}

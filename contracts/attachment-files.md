@@ -5,11 +5,11 @@ the application selects an existing, trusted local directory and supplies the
 attachment's display filename. It does not discover destinations, create directories,
 change consumer configuration, open message content or instantiate a network client.
 
-Publication consumes an ordinary API `AttachmentStream`, with its existing shared
+Publication consumes an API `AttachmentStream` or `ModernAttachmentStream`, with its existing shared
 traffic, byte, deadline, credential isolation and cancellation budgets. A second
 explicit byte ceiling protects the local writer. Only complete EOF publishes.
 Upstream filenames are reduced to portable bounded UTF-8 basenames, with control
-and bidi characters removed and reserved device names neutralized. Filenames and
+and bidi characters replaced and reserved device names neutralized. Filenames and
 paths are omitted from result reprs and storage errors.
 
 The writer pins an existing nonsymlink directory descriptor, creates one exclusive

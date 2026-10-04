@@ -13,8 +13,9 @@ sent UI. This is not universal receipt/layout qualification or recipient reading
 
 A launch redirect to an exact native login route reports SESSION_EXPIRED, not
 ACCESS_DENIED, without following it. Foreign origins, mismatched login/token/target
-and unsupported handoff shapes remain denied. This classification does not establish
-the still-unqualified replacement live handoff layout.
+and unsupported handoff shapes remain denied. At the 0.4.11 checkpoint this
+classification did not establish a replacement live handoff layout; the subsequent
+0.5 qualification is recorded below.
 
 Every modern send freshly verifies the existing side-effect-free modern identity
 GET before dispatch. Cold binding already includes this GET; a warm binding adds
@@ -42,20 +43,22 @@ See [modern-launch-diagnostics.md](modern-launch-diagnostics.md) for scope closu
 policy decision, original regressions and installed live qualification status.
 The fourth approved installed scope successfully followed one validated numbered
 handoff, then stopped at modern identity parsing. No identity/recipient acceptance
-or send is established. All scopes are closed; the next identity diagnostic
-requires fresh approval.
+or send was established by that scope. All scopes are closed; the next identity
+diagnostic used a fresh approval.
 The fifth shape-only scope established that modern `accountId` is a JSON integer;
 its decimal value, names, string role and origin matched the verified native
 owner. No identity was accepted by that diagnostic. The candidate now normalizes
 only bounded non-negative identity integers to decimal strings before the existing
 owner/name comparison. Recipient identifiers remain unchanged; bool, float,
-negative and oversized identity values remain parse errors. Fresh installed
-identity and council verification is still required.
+negative and oversized identity values remain parse errors. This diagnostic alone
+did not qualify installed identity and council verification.
 That verification passed in the sixth freshly approved installed scope: native
 and modern sender matched, and the exact saved class-qualified council leaf
 matched uniquely. Fourteen requests, one credential submission, no send, scope
 closed. This qualifies one explicit account/council context, not arbitrary roles
-or directories. The next sole-send execution has its own fresh approval gate.
+or directories. The seventh scope then executed its separately approved sole send;
+its exact receipt and unchanged UNKNOWN history are recorded in
+[modern-launch-diagnostics.md](modern-launch-diagnostics.md).
 
 One separately approved account context used the qualified installed 0.4.6 wheel
 for initial authentication and identity, followed by a private investigation
@@ -144,10 +147,9 @@ The approved 0.4.7 scope implements the following boundaries:
     denial codes on HTTP 400/422 can establish REJECTED; rejection envelopes remain
     unqualified live.
 5. Qualification covers source and installed wheel/sdist under representative
-   offline load,
-   including one-dispatch fault proofs and account/backend isolation. Obtain fresh
-   exact payload and live-budget approval for the privately planned sole-recipient
-   manual test. Discovery approval is not send approval.
+    offline load, including one-dispatch fault proofs and account/backend isolation.
+    The 0.5 sole-recipient manual test had separate exact-payload and live-budget
+    approval. Its scope is closed; discovery approval is not send approval.
 
 `modern_identity`, `modern_recipient_types` and `modern_recipients` are ordinary
 bounded reads with explicit max-age caching. The original slice supported only

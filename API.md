@@ -292,7 +292,7 @@ read/send is automatically retried. A race after preflight can still yield UNKNO
   `ModernRecipients`. Allowlisted class and ordinary school-employee branches
   are supported; availability and live coverage are account-specific. Each item preserves
   `label` and `ModernRecipientReference(account_id, user_id, account,
-  recipient_type, class_label)`. Duplicate account IDs/classes and unrecognized
+  recipient_type, class_label, include_virtual=False)`. Duplicate account IDs/classes and unrecognized
   layouts raise errors; IDs must never be substituted or passed to legacy APIs.
 - `prepare_modern_send(*, recipients: tuple[ModernRecipientReference, ...],
   subject: str, body: str) -> SendAttempt` is local, immutable and single-use.
@@ -335,6 +335,8 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
   limit=128, budget=None, max_age_seconds=0)` returns `ModernMessages` with explicit
   truncation, duplicate counts and account/folder/page-size-bound continuation.
   Cursor drift and later-page errors never return partial output.
+  Page size is 1-50, page number 1-1,000, `max_pages` 1-8, `limit` 1-256 and
+  cursor history at most 2,000 IDs. These are library bounds, not upstream maxima.
 - `modern_message_content(reference, *, allow_mark_read=False, budget=None,
   max_age_seconds=0)` requires a `ModernMessageReference`. Received opens require
   consent and invalidate inbox summary caches before dispatch. Results have inert
@@ -344,6 +346,8 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
   and `delivered` stays unknown. Aggregate `recipient_count`/`read_count` are not
   a claim that visible roster leaves are exhaustive. Modern metadata cannot be used with legacy
   `stream_attachment`.
+  Base64 bodies must decode to UTF-8; XML BOM/preambles retain strict wrapper
+  validation. Conflicting encoding declarations, DTDs and entities are rejected.
 - `stream_modern_attachment(reference, *, max_bytes=50 * 1024 * 1024, budget=None)`
   returns `ModernAttachmentStream`, a single-owner uncached async context manager
   and iterator. It resolves only explicit modern/archived references, validates

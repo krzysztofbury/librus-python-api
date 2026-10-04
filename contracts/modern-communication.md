@@ -17,6 +17,8 @@ Combined `parents,guardians` and virtual selection are explicit query choices.
 Only `students` and `parents,guardians` can opt into the source-established virtual
 suffixes. Metadata's `lookup_supported` marks a lookup implementation, not universal
 availability or live qualification. Unsupported metadata remains visible.
+Discovery accepts the exact allowlisted combined `parents,guardians` identifier;
+other compound identifiers are not treated as supported selections.
 
 The strict class shape also accepts the source-established `data` envelope.
 Employee results preserve account/user IDs and labels without inventing a class.
@@ -54,7 +56,10 @@ modern session, shared scheduler and caller budget.
 
 The reader contract is a `data` object with Base64 UTF-8 `Message`: plain text,
 HTML, or a bounded XML `Message` wrapper with exactly one text/CDATA `Content`.
-Physical line breaks are preserved before inert HTML text rendering. XML network,
+An optional UTF-8 BOM, comments and processing instructions before the XML root
+do not bypass wrapper validation. Conflicting XML encoding declarations are
+rejected rather than silently changing UTF-8 text. Physical line breaks are
+preserved before inert HTML text rendering. XML network,
 DTD and entity access is prohibited. Duplicate/nested content elements and active
 markup fail closed. Details derive attachment presence from the actual attachment
 list because independently observed responses omit the list-only flag. An explicit

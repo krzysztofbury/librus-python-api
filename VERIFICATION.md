@@ -3,6 +3,52 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## PR #15 pre-merge review (2026-10-04)
+
+Reviewed the branch diff against `main`: authentication and send boundaries,
+modern directory/mailbox/content parsing, attachment resolution and publication,
+session/cache isolation, public models, capture diagnostics, tests, OpenAPI and
+the release/API/contract documentation. Review and regression calls were offline;
+all authenticated live scopes remain closed. Existing UNKNOWN send history and
+consumer state were not opened or changed.
+
+Findings fixed, in priority order:
+
+- **Safety, TigerStyle #6: Positive and negative space.**
+  `modern_body.py` failed to recognize XML wrappers after a BOM or inert preamble.
+  The HTML fallback silently lost CDATA, included wrapper metadata as body text
+  and accepted duplicate Content elements. Recognize the XML prefix and retain
+  strict parsing. Reject non-UTF-8 declarations instead of silently misdecoding
+  the already UTF-8-decoded message. Six new public HTTP regression cases failed
+  before correction; the existing plain/HTML/XML cases still pass.
+- **Safety, TigerStyle #12: Full error handling.**
+  `encode_modern_send` used an unchecked recipient type as a dictionary key.
+  A malformed list-valued type leaked `TypeError` rather than `InvalidInputError`.
+  Validate its type before lookup; the existing preparation parameter table now
+  proves the typed error and zero network calls, failing before the fix.
+- **DX, TigerStyle #3: Assertions.**
+  `parse_modern_types` rejected the supported combined `parents,guardians` type.
+  Permit exact allowlisted identifiers before applying the simple-name pattern;
+  arbitrary compound selectors remain unsupported. The new public discovery-to-
+  lookup regression failed before the fix and checks the exact wire selection.
+- The active-HTML negative test previously failed at an inconsistent attachment
+  flag before reaching the body guard. Its fixture now reaches that guard and
+  requires `UNSUPPORTED_CAPABILITY` specifically.
+- README still reported 0.4.11, TODO called 0.5 planned, and several current-tense
+  notes described superseded qualification gates. Synchronize release status and
+  historical checkpoints, keeping C01-C05 open. OpenAPI and route evidence now
+  reflect the existing closed inbox/outbox and employee observations, with explicit
+  limits on which layouts/selections were observed. No new route was enabled.
+
+The corrected source suite passes **1,495 tests, one performance case deselected**.
+It includes real loopback HTTP, four-login shared-queue saturation, stream/file
+publication, cancellation, send uncertainty and SQLite/process tests, not just
+mocked parser results. OpenAPI validation checks every enabled path/method and its
+side-effect/retry/evidence metadata. Exact final source/wheel/sdist matrix, runtime
+smoke, hashes and static/security results are recorded in
+`release-evidence/0.5.0-pr15-review-qualification.json`. Review fixes have no new
+live qualification; earlier live manifests and archives remain historical.
+
 ## External communication gap review (2026-10-04)
 
 Reviewed the latest published `librus-apix` 1.5.3 and pinned source revision
