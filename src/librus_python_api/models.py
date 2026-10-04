@@ -760,6 +760,30 @@ class Homework:
     observation: Observation
 
 
+type DetailFieldKey = Literal[
+    "date",
+    "lesson_number",
+    "teacher",
+    "category",
+    "subject",
+    "room",
+    "description",
+    "published_at",
+    "topic",
+    "due_at",
+    "content",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class DetailField:
+    """Stable semantic key with bounded displayed text, not a parsed scalar."""
+
+    key: DetailFieldKey | None
+    raw_label: str = field(repr=False)
+    value: str = field(repr=False)
+
+
 @dataclass(frozen=True, slots=True)
 class SchoolDetail:
     identity: Identity
@@ -768,6 +792,9 @@ class SchoolDetail:
     fields: tuple[tuple[str, str], ...] = field(repr=False)
     notes: tuple[str, ...] = field(repr=False)
     observation: Observation
+    normalized_fields: tuple[DetailField, ...] = field(
+        default=(), repr=False, compare=False
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -952,6 +979,9 @@ class AttendanceDetail:
     fields: tuple[tuple[str, str], ...] = field(repr=False)
     notes: tuple[str, ...] = field(repr=False)
     observation: Observation
+    normalized_fields: tuple[DetailField, ...] = field(
+        default=(), repr=False, compare=False
+    )
 
 
 class AttendanceKind(StrEnum):

@@ -231,7 +231,7 @@ Live read-once qualification still needs a dedicated disposable-event account.
 | `librus-mcp/src/server.py` send confirmation helpers | Payload-bound expiring single-use confirmations and uncertainty | Optional API persistence; MCP presents approval and maps typed outcomes |
 | `librus-mcp/src/notification_state.py` | Private bounded files, atomic durability, locks, canonical IDs, pending replay and state preservation | Optional API persistence/notification workflow; explicit old-format adapter and restart/process proofs |
 | `librus-mcp/src/librus_client.py` notification transactions | First-run/category selection, seen-state commit, preserve consumed events across faults | Optional API notification orchestration; existing-state compatibility and exactly-once limitations explicit |
-| `librus-mcp/src/config.py`, `cli.py`, `server.py`, `output_models.py` | Configuration source precedence, feature gates, lifecycle, human consent, MCP schemas/errors/serialization | Thin consumer responsibilities; preserve catalog/contract snapshots and installed stdio behavior |
+| `librus-mcp/src/config.py`, `cli.py`, `server.py`, `output_models.py` | Configuration source precedence, feature gates, lifecycle, human consent, MCP schemas/errors/serialization | Thin consumer responsibilities; define new native MCP 2.0 catalog/contracts and verify installed stdio behavior |
 
 This inventory is a requirement map, not a claim that every extraction is complete.
 Build the prerequisites in this repository now; implement adapters in the separate

@@ -9,6 +9,10 @@ This is not a completed 0.3.0 release or general compatibility claim.
 
 ## Baseline and provenance
 
+Unreleased detail-key semantics are documented in [detail fields](detail-fields.md).
+Only the established date/topic detail labels are normalized; unknown fields
+remain explicit. This adds no upstream route or expanded live-evidence claim.
+
 The business reference is installed, unmodified librus-apix 1.5.3 and the existing
 consumer's attendance, window, detail, and frequency requirements. Those references
 were reviewed read-only. No implementation, documentation, fixtures, or captures

@@ -4,7 +4,8 @@
 
 Replace `librus-apix` in [librus-mcp](https://github.com/krzysztofbury/librus-mcp)
 with this independently implemented, MIT-licensed library, published on PyPI,
-while preserving the MCP v1.7.0 public contract. The library gives MCP a small,
+with a direct MCP 2.0 cutover to native contracts. No MCP 1.x wire compatibility
+layer or intermediate compatible release is required. The library gives MCP a small,
 typed async API over several independent Librus logins with shared, bounded
 traffic. Optional API workflows own reusable durable state and orchestration;
 MCP chooses accounts, configures paths, presents consent and owns its tool schemas.
@@ -40,9 +41,10 @@ Rules that hold for every release:
 | `0.4.10` | PR #13 review hardening | Implemented; independent review fixes with fail-before regressions, source/wheel/sdist qualified on Python 3.13/3.14 |
 | `0.4.11` | Session, storage retention and communication review follow-ups | Implemented and locally qualified on Python 3.13/3.14 |
 | `0.5.0` | Modern authentication, broader communication coverage and live qualification | Implemented and narrowly live-qualified; offline pre-merge review and artifact evidence in VERIFICATION.md; C01-C05 and consumer migration remain open |
+| `0.6.0` | Bounded homework ranges, native detail keys, JSON hardening and direct MCP 2.0 plan | Implemented offline; constructor compatibility retained; consumer migration pending |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
-| `1.0.0` | Stable API, backward-compatible MCP 1.x backend cutover | Planned |
-| MCP `2.0.0` | Consumer modernization (P9, ownership map A01-A18) | Separate |
+| `1.0.0` | Stable API for the native MCP 2.0 cutover | Planned |
+| MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Separate consumer release |
 
 P0-P9 below are the detailed acceptance checklist for 1.0. Each release
 completes their requirements for the operations it enables. Live evidence for
@@ -67,6 +69,12 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 
 ### Post-0.5 cutover readiness
 
+- [x] Reassess all 18 MCP 2.0 items for direct native integration:
+  [native roadmap review](contracts/mcp2-roadmap.md). Remove the intermediate MCP 1.x
+  compatibility phase; retain explicit durable-state migration and rollback.
+- [x] Add stable, family-specific detail keys for agenda, homework and attendance.
+  Preserve bounded unknown/raw fields and notes; reject ambiguous labels before
+  publishing or caching. See [detail fields](contracts/detail-fields.md).
 - [x] Compare default and optional MCP tools and typed response contracts against
   native operations: [cutover matrix](contracts/mcp-cutover-review.md).
 - [x] Preserve optional date bounds and explicit views in native grade/attendance
@@ -117,7 +125,7 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 - [x] 0.4.9: API notification seen state, canonical identities, raw/pending replay,
   explicit acknowledgement and neutral empty-target archive import/export through
   the optional persistence layer. No automatic schema or production-state migration.
-  MCP's thin old-format compatibility adapter remains a separate migration task.
+  MCP's direct native schema and state integration remains a separate task.
 - [x] 0.4.5: bounded group-choice discovery, account/type/selection provenance and
   exact nonzero group forms qualified offline. Four independent contexts observe
   five named types, an anonymous target, unavailable class-dependent lookup,
@@ -368,10 +376,10 @@ branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live g
   and capability semantics, and compatibility policy.
 - [ ] Publish the final artifact and rerun installed acceptance against it before
   releasing the consumer.
-- [ ] Release a backward-compatible MCP 1.x pinned to the tested library, and
+- [ ] Release MCP 2.0 pinned to the tested native library, and
   verify its public `uvx` installation, dependency graph, CLI and contract.
 
-### MCP 2.0.0 - Separate consumer modernization
+### MCP 2.0.0 - Direct consumer modernization and backend replacement
 
 - [ ] Complete ownership-map items A01-A18 in consumer PRs (typed wire contracts,
   deprecated-tool removal, packaging, configuration and state migration,
@@ -400,7 +408,8 @@ contract; keep narrowly scoped HTML adapters for missing fields and operations.
 | Message send transport and typed delivery outcome | Library |
 | Durable send confirmation expiry/binding, single-use claims and recovery | Optional API persistence layer |
 | Human approval and permission to invoke a write | MCP or other application |
-| Legacy field names, Polish-label detail maps, ratio/percentage conversion, MCP schemas | MCP adapter |
+| Stable detail keys and explicit attendance ratios | Library |
+| MCP schemas, JSON serialization, response envelopes and context limits | MCP |
 
 During migration, keep existing safeguards until the replacement owner is
 proven. Retire duplicate retry/cooldown logic in the same slice that enables
@@ -452,9 +461,9 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   OpenAPI YAML for every enabled operation, including raw HTML/form contracts.
   Validate method/path/operation/policy parity offline and document fixture
    provenance and live gaps. 30 operations, checked by `tests/test_contracts.py`.
-- [ ] Freeze the consumer's current MCP schema/annotation snapshot and document
-  adapters for missing versus null fields, detail labels, default dates,
-  `sort_by` filtering, string IDs, and legacy list/map output shapes.
+- [ ] Define native MCP 2.0 schemas and annotations from the library's typed
+  records, references, units, errors and effects. Replace legacy wire snapshots;
+  retain independent safety and durable-state regressions.
 - [ ] Use ownership-map A01-A08 to design clean library contracts before they
   become public. Track extraction of each existing consumer responsibility
   against that map; avoid building a second copy in MCP's 2.0 work.
@@ -797,23 +806,22 @@ Exit: independently installable public library with a reproducible release path.
 
 Dependencies: P3-P7 for the required feature set.
 
-- [ ] Add a small backend adapter behind `LibrusManager` without changing MCP
-  tool signatures or replacing `server.py`. Select one backend per operation
-  during development; never shadow-run real side-effecting calls.
+- [ ] Replace MCP's manager/tool internals with native library calls and new
+  MCP 2.0 schemas. Change signatures and responses directly; no old-format
+  compatibility adapter is required. Never shadow-run side-effecting calls.
 - [ ] Reuse one library service for every account/tool in the MCP process so
   concurrent summary requests share the traffic budget. Document that separate
   processes/runners require coordination to enforce a combined budget.
 - [ ] Migrate one family per reviewable slice. Authentication/session and retry
   policy must move coherently; do not shuttle flattened cookies between clients.
-- [ ] Preserve MCP's 24 default/28 all-feature tool catalog, output schemas,
-  text JSON and structuredContent, existing input validation, feature defaults,
-  config sources, and legacy absent/null fields. Review any required change
-  explicitly instead of refreshing the snapshot to hide a regression.
-- [ ] Preserve grade/GPA grouping, timetable presentation, detail maps, frequency
-  units, message/lesson cursors, notification first-run semantics, and all
-  currently supported optional tools. Experimental notes remain default-off.
-- [ ] Translate domain records explicitly: new `date`/enum/ID types must not
-  accidentally pass through the old dataclass serializer with changed values.
+- [ ] Publish the new catalog, argument/output schemas, text JSON and
+  structuredContent contract. Preserve typed missing/unknown states, validate
+  native references and declare read/consume/send effects accurately.
+- [ ] Use native record arrays, normalized detail keys, explicit ratios and
+  bounded continuation. Retain account isolation, notification first-run/replay
+  guarantees and UNKNOWN-send protection. Unsupported notes remain default-off.
+- [ ] Serialize dates/enums/references deliberately under new schemas; verify
+  response limits after serialization and preserve honest completeness metadata.
 - [ ] Replace imports from `librus_apix` in `src/librus_client.py`,
   `src/librus_optimizations.py`, `src/scraping.py`, and
   `src/notification_state.py`, including state DTO construction on restart.
@@ -824,9 +832,9 @@ Dependencies: P3-P7 for the required feature set.
 - [ ] Remove `librus-apix` from the manifest/lock and prove its absence from the
   installed consumer dependency graph. Remove direct scraper/network dependencies
   only when no consumer-owned implementation still needs them.
-- [ ] Run current MCP contract/runtime suites with the new backend and installed
-  artifacts. Confirm old state and pending-spool data remain readable and that
-  downgrading to the previous consumer release does not lose pending events.
+- [ ] Run new MCP 2.0 contract/stdio tests and retained safety/runtime suites
+  against installed artifacts. Exercise explicit state import or quarantine and
+  rollback without losing pending events or replaying UNKNOWN sends.
 - [ ] After explicit authorization and reconnection, run bounded live reads
   across supported account types. Record which responses are populated; do not
   treat empty results as parser coverage. No routine live sends/read-once reads.
@@ -838,11 +846,12 @@ Dependencies: P3-P7 for the required feature set.
   is not a license migration.
 
 Exit: public `uvx librus-mcp` installation uses only supported library APIs,
-without `librus-apix`, and preserves the established consumer contracts.
+without `librus-apix`, exposes native MCP 2.0 contracts and preserves safety and
+durable-state guarantees.
 
-## P9 - Enable the separately released MCP 2.0 contract
+## P9 - MCP 2.0 contract, packaging and configuration
 
-Dependencies: P8 for rollout; A01-A08 library design starts in P0/P1.
+Dependencies: coordinated with P8 in the same consumer major release.
 This phase is coordinated work in `librus-mcp`, not library release scope.
 
 - [ ] Use the ownership map to update MCP's 2.0 TODO with released library
@@ -850,7 +859,7 @@ This phase is coordinated work in `librus-mcp`, not library release scope.
   complete merely because a domain type is available.
 - [ ] Expose the normalized records, collection envelopes, named units, `scope`,
   references, calendar inputs, and error mapping; publish explicit old/new tool
-  examples, new schemas, and a compatibility/migration guide.
+  examples, new schemas, and a breaking-change migration guide.
 - [ ] Remove `all_pages` and the standalone read-once schedule tool only after
   bounded pagination and stateful notifications cover the replacement paths.
   Retain the library's underlying consume capability and checkpoint contract.
@@ -875,6 +884,6 @@ transport/parsing implementations and documented breaking consumer changes.
   consumers before implementation. If session persistence is added, preserve
   full cookie restrictions and define secure storage ownership explicitly.
 - Rust and a copied upstream compatibility namespace are outside this roadmap.
-  MCP 2.0 rollout is tracked in P9, separately from the backend replacement.
+  MCP 2.0 rollout is tracked jointly in P8/P9 with the backend replacement.
 - Populated behaviour-note evidence remains an explicit research dependency;
   it does not justify enabling the tool or claiming production readiness.

@@ -93,6 +93,8 @@ the existing homework endpoint rather than enabling another upstream route.
 same login. The kind, account and numeric identifier are checked before any
 request. Each returns `SchoolDetail`: an optional heading, ordered label/value
 `fields` with labels exactly as shown, and full-width `notes`.
+It also includes ordered `normalized_fields` with stable per-family keys and
+explicit unknown labels; see [detail fields](detail-fields.md).
 
 Observed labels:
 

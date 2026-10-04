@@ -60,6 +60,7 @@ from librus_python_api.config import (
     recipient_form,
     timetable_form,
 )
+from librus_python_api.detail_fields import normalize_detail_fields
 from librus_python_api.diagnostics import DiagnosticSink
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.grade_parsers import parse_final_grades
@@ -1181,6 +1182,7 @@ class AccountClient:
                 content.fields,
                 content.notes,
                 self._observation("attendance_detail"),
+                normalize_detail_fields(content.fields, "attendance"),
             )
 
         return await self._read(
@@ -1664,6 +1666,7 @@ class AccountClient:
                 fields,
                 notes,
                 self._observation(operation),
+                normalize_detail_fields(fields, reference.kind),
             )
 
         return await self._read(

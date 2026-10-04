@@ -3,6 +3,70 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.6.0 release preparation (2026-10-04)
+
+The pre-merge compatibility review found that required `normalized_fields`
+constructor arguments would break callers constructing detail results. The new
+metadata now defaults to `()` and is excluded from equality/hash comparisons.
+All three public detail workflow cases failed with the original constructor
+calls before this correction and passed afterward, including equality/hash
+comparison to populated service results. Existing calls and raw fields remain
+available. Additive dataclass serialization keys, optional window boundary
+annotations and stricter malformed-response rejection are documented in the
+changelog; exact-schema serialization remains the consumer's responsibility.
+
+Updated package, OpenAPI and release documentation to 0.6.0. Local Python 3.14.7
+source suite: 1520 passed, one optional performance case deselected. Rebuilt
+0.6.0 wheel/sdist and exercised each on Python 3.13.15 and 3.14.7: all five detail
+workflow/regression cases and a standalone three-operation loopback smoke passed
+in all four installed configurations. Verified import location, version/MIT
+metadata, `py.typed` and dependency consistency. Ruff and strict mypy passed.
+The full source/artifact CI matrix is a required merge gate for the final PR head.
+
+Final 41-file source manifest SHA256:
+`381b003fcd52cd83192b6fccac5f9741a0df74c15e4a4818278e33c69695805d`.
+Disposable release builds and environments were removed. No PyPI publication,
+consumer installation, new live access or production-state change is included.
+
+## Native MCP 2.0 foundations (2026-10-04, before release preparation)
+
+Reviewed all 18 consumer 2.0 roadmap items and changed the delivery plan to a
+direct native MCP 2.0 cutover. The public review is
+[contracts/mcp2-roadmap.md](contracts/mcp2-roadmap.md); consumer code and state
+were not changed. No MCP 1.x wire-compatibility layer is required.
+
+Added `DetailField`/`DetailFieldKey` and `normalized_fields` to school and
+attendance details. Family-specific keys retain complete displayed values,
+unknown labels and ancillary notes. Ambiguous attendance labels now fail before
+public result/cache publication. The initial three workflow cases and known-label
+ambiguity regression failed before implementation. The final five original
+loopback cases also cover unknown-label ambiguity and recovery without a cached
+failed result; existing parser cases retain ownership of structural limits.
+
+Executed on Linux:
+
+| Python | Source | Installed wheel | Installed sdist |
+| --- | --- | --- | --- |
+| 3.13.15 | 1520 passed | 1520 passed | 1520 passed |
+| 3.14.7 | 1520 passed | 1520 passed | 1520 passed |
+
+One optional hardware-sensitive performance case was deselected per run. The
+portable suite includes existing representative concurrency, queue, rate and
+fault-load checks. Each of the four installed-artifact runs additionally exercised
+three native detail operations through real loopback HTTP in a standalone runtime
+smoke. Installed import location, version/MIT metadata, `py.typed` and dependency
+consistency were checked. Ruff, formatting, strict mypy, repository hooks,
+worktree/history secret scans and hash-locked dependency audit passed. The audit
+reported no known vulnerabilities.
+
+The tested 41-file source manifest SHA256 is
+`7a733ef4867505e17372ca3553492f3836ce200ad0685be1dd2e0f2434e4b980`,
+using the algorithm documented below. Later documentation edits do not change
+this implementation manifest. Disposable artifacts used the existing 0.5.0
+metadata; nothing was published or installed into MCP. Task-owned builds, test
+environments and temporary files were cleaned. No live Librus calls were made;
+existing send uncertainty and notification state were not opened or changed.
+
 ## Post-0.5 cutover review (2026-10-04, unreleased)
 
 PR #15 was already merged. GitHub confirmed the merge and remote main at
