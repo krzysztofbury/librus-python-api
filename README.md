@@ -8,9 +8,11 @@ Use it in personal scripts, notification services or application backends. One
 service can manage multiple logins while keeping their sessions and data separate.
 It is not an official Librus product.
 
-**Requirements:** Python 3.13 or newer. Linux and macOS are tested in CI.
-Persistence and saving attachments require POSIX filesystem features, such as
-those on Linux or macOS; Windows disk workflows are unsupported.
+**Requirements:** Python 3.13 or newer. Disk workflows require a trusted local
+POSIX filesystem on Linux/macOS, or a fixed local NTFS volume on Windows with
+private ACLs. Windows installations include `pywin32` and `tzdata` automatically.
+Network paths, reparse-point paths and unsafe storage permissions fail closed.
+See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
 **Status:** `1.0.0rc1`, a library-only beta prerelease, not stable 1.0 or an MCP
 cutover. MCP integration, legacy-state migration and broader live qualification
@@ -169,8 +171,10 @@ silently returning incomplete data. Cursors detect changes; they are not snapsho
 - **Notifications:** optional `NotificationStore` and `NotificationWorkflow`
   provide durable checkpoints, pending delivery and explicit acknowledgement.
 - **Persistent sends:** optional `PersistenceStore` records confirmations, claims
-  and uncertain outcomes across restarts. These stores require private POSIX
-  directories. Core reads do not create files.
+  and uncertain outcomes across restarts. Stores create or validate private
+  caller-selected directories; core reads do not create files. Use explicit
+  `files.prepare_attachment_directory(path)` to provision a private download
+  directory without writing platform-specific ACL code.
 
 The legacy and modern messaging backends have distinct references and permissions;
 select one explicitly. See the [API reference][api] for complete workflows.

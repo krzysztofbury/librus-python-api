@@ -4,11 +4,14 @@ import asyncio
 import hashlib
 import os
 import secrets
+import stat
+import sys
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from librus_python_api.attachment_routes import validate_max_bytes
 from librus_python_api.attachments import AttachmentStream
@@ -16,11 +19,16 @@ from librus_python_api.config import ATTACHMENT_MAX_BYTES
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.lifecycle import join_owned
 
+if TYPE_CHECKING:
+    from librus_python_api._windows_filesystem import WindowsDirectory
+
 MAX_FILENAME_BYTES = 180
 MAX_FILENAME_ATTEMPTS = 100
-_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
-    f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(1, 10)
-}
+_RESERVED = (
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(1, 10)}
+    | {f"{prefix}{i}" for prefix in ("COM", "LPT") for i in "¹²³"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +72,48 @@ def _write_all(descriptor: int, chunk: bytes) -> None:
         view = view[count:]
 
 
+async def prepare_attachment_directory(directory: Path) -> None:
+    """Explicitly create/validate a caller-selected private local directory.
+
+    Parent must exist. Never change an existing directory's permissions or ACL.
+    Cancellation may leave the complete empty directory, never an unjoined worker.
+    """
+    if not isinstance(directory, Path) or not directory.is_absolute():
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+
+    def prepare() -> None:
+        if sys.platform == "win32":
+            from librus_python_api._windows_filesystem import WindowsDirectory
+
+            WindowsDirectory(directory, create=True).close()
+        elif (
+            os.name == "posix"
+            and hasattr(os, "O_NOFOLLOW")
+            and hasattr(os, "O_DIRECTORY")
+        ):
+            directory.mkdir(mode=0o700, exist_ok=True)
+            descriptor = os.open(
+                directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+            try:
+                status = os.fstat(descriptor)
+                if (
+                    status.st_uid != os.geteuid()
+                    or stat.S_IMODE(status.st_mode) & 0o077
+                ):
+                    raise LibrusError(ErrorKind.STORAGE)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        else:
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+    try:
+        await _disk(prepare)
+    except OSError:
+        raise LibrusError(ErrorKind.STORAGE) from None
+
+
 def _publish(directory: int, descriptor: int, temporary: str, name: str) -> str:
     os.fsync(descriptor)
     path = Path(name)
@@ -103,23 +153,37 @@ async def publish_attachment(
     if not isinstance(stream, AttachmentStream) or not isinstance(directory, Path):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     validate_max_bytes(max_bytes)
-    # Directory-relative, no-follow opens are the safety boundary (POSIX only).
-    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+    # POSIX requires no-follow directory-relative opens; Windows uses pinned
+    # private NTFS handles instead, without emulating these flags by path checks.
+    if sys.platform != "win32" and (
+        not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW")
+    ):
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     name = safe_attachment_filename(filename)
     directory_fd = descriptor = None
+    windows_directory: WindowsDirectory | None = None
     temporary = ".librus-attachment-" + secrets.token_hex(16)
     size = 0
     digest = hashlib.sha256()
     failed = False
     try:
-        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        descriptor = os.open(
-            temporary,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=directory_fd,
-        )
+        if sys.platform == "win32":
+            from librus_python_api._windows_filesystem import (
+                WindowsDirectory as Directory,
+            )
+
+            windows_directory = Directory(directory, create=False)
+            descriptor = windows_directory.open_file(temporary, exclusive=True)
+        else:
+            directory_fd = os.open(
+                directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+            descriptor = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=directory_fd,
+            )
         async with stream:
             async for chunk in stream:
                 size += len(chunk)
@@ -130,7 +194,18 @@ async def publish_attachment(
             if not stream.complete:
                 raise LibrusError(ErrorKind.PARSE)
             content_type = stream.metadata.headers.content_type
-        final = await _disk(lambda: _publish(directory_fd, descriptor, temporary, name))
+        if windows_directory is not None:
+            from librus_python_api._windows_filesystem import publish_file
+
+            final = await _disk(
+                lambda: publish_file(
+                    windows_directory, descriptor, name, MAX_FILENAME_ATTEMPTS
+                )
+            )
+        else:
+            final = await _disk(
+                lambda: _publish(directory_fd, descriptor, temporary, name)
+            )
         return PublishedAttachment(
             directory / final, size, digest.hexdigest(), content_type
         )
@@ -141,14 +216,25 @@ async def publish_attachment(
         try:
             if descriptor is not None:
                 os.close(descriptor)
-                assert directory_fd is not None
-                os.unlink(temporary, dir_fd=directory_fd)
+                if windows_directory is not None:
+                    try:
+                        os.unlink(directory / temporary)
+                    except FileNotFoundError:
+                        pass  # A completed rename removed only our temporary name.
+                else:
+                    assert directory_fd is not None
+                    os.unlink(temporary, dir_fd=directory_fd)
         except OSError:
             failed = True
         finally:
             if directory_fd is not None:
                 try:
                     os.close(directory_fd)
+                except OSError:
+                    failed = True
+            if windows_directory is not None:
+                try:
+                    windows_directory.close()
                 except OSError:
                     failed = True
         if failed:

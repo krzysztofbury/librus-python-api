@@ -2,6 +2,12 @@
 
 ## 1.0.0
 
+- Support optional Windows disk workflows on fixed local NTFS: private protected
+  inheritable ACLs, pinned directory/ancestor handles, cross-process notification
+  locks and complete non-overwriting attachment publication by handle. Add explicit
+  private attachment-directory preparation and Windows-only pywin32/tzdata runtime
+  dependencies. Reject network namespaces, unsafe ACLs and reparse-point paths.
+
 - Add compact, account-bound offline notification recovery status and pending-batch
   lookup. Discover original categories/backend/receipt, retained raw progress and
   uncertain consumption without remembered selections or implicit acknowledgement.

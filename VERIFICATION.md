@@ -3,6 +3,34 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Windows disk qualification (#25, 2026-10-05)
+
+Initial Windows installed-artifact qualification failed on missing IANA timezone
+data and LF-only process-fixture handshakes, rather than being accepted from Linux
+checks. The Windows runtime now declares tzdata and tests normalize CRLF explicitly.
+[Run 37310538865](https://github.com/krzysztofbury/librus-python-api/actions/runs/37310538865)
+passed both Python 3.13/3.14 Windows jobs: 185 disk-boundary tests in each of four
+installed wheel/sdist configurations, eight POSIX-only cases skipped per run, and
+all installed loopback smokes passed. Its quality and Linux artifact jobs passed.
+
+The original implementation uses documented Microsoft Win32 APIs through the
+PSF-licensed pywin32 dependency. No consumer helpers or another Librus client's
+fixtures were copied. Required Windows cases use real ACLs, NTFS hardlinks,
+junctions, competing processes, killed send claims and raw checkpoint/replay/ack
+recovery. Capability-report injection separately exercises unsupported volume
+guards, not a fabricated filesystem. No live Librus requests occurred.
+
+Pair-programmer review applied TigerStyle #2 (bounded loops), #4 (paired
+validation), #6 (positive and negative space), #12 (full error handling) and
+#13 (explicit defaults). It caught ancestor rename races, SQLite journal ACL
+inheritance and temporary-handle cleanup after failed validation. Ancestors now
+remain pinned, journals require protected inheritable private directory ACLs,
+and failed CREATE_NEW validation deletes only the owned handle. Commit-point
+cancellation joins the rename worker and leaves only a complete final file.
+The public private-directory helper avoids consumer-owned Win32 provisioning.
+No remaining review blocker was identified; final-head hosted qualification,
+merge and stable-release gates remain separate from the earlier successful run.
+
 ## Typed notification recovery (#24, 2026-10-05)
 
 Focused source qualification passed 101 notification tests, including twelve new

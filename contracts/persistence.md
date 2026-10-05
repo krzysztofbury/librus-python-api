@@ -3,11 +3,61 @@
 ## Current format: 0.7.0
 
 SQLite and notification archives now use version 3, binding to application-keyed
-account identifiers. Opening a store requires POSIX and rejects other platforms
-before filesystem creation. Formats 1/2 are refused without modification or
+account identifiers. Stores require local POSIX safeguards or Windows fixed local
+NTFS with private ACLs; unsupported platforms reject before filesystem creation.
+Formats 1/2 are refused without modification or
 automatic migration. The historical version-2 design below describes the extra
 store-local HMAC layer, which is retained. The former public unkeyed hash is
 superseded by [the context-key contract and upgrade guide](account-context.md).
+
+### Windows disk boundary (#25)
+
+The optional stores retain Windows disk workflows on fixed local NTFS volumes
+with persistent ACLs. `pywin32` supplies documented Win32 bindings and `tzdata`
+supplies IANA zones for notification date windows; both are Windows-only runtime
+dependencies. Their implementations are dependencies, not copied Librus-client
+code. SQLite schema/archive format 3 and public recovery semantics are unchanged.
+
+Before creation/open, reject unsupported drive types, non-NTFS/ACL-free volumes,
+UNC/device namespaces, DOS-reserved names, alternate data streams and ambiguous
+path components. Pin every ancestor top-down and the selected directory with
+non-inheritable no-delete-share handles; reject every reparse point, including
+junctions. Paths have at most 128 components and 4,096 characters. The directory
+handle remains owned until shutdown joins all workflows and workers; failed opens
+also release all retained handles. This avoids check-then-open ancestor replacement.
+
+New directories have an explicit protected DACL and owner set to the process user.
+Existing directories must already have a protected private DACL with inheritable
+current-user full control, so SQLite-created journals also inherit privacy. Only
+current user, SYSTEM and built-in administrators may have allow entries; at most
+16 ordinary allow ACEs are accepted. Unknown ACE forms/null DACLs reject. Existing
+ACLs are never silently changed. Owner must match the process user or token's
+default owner. Administrators, SYSTEM, malicious same-user writers and compromised
+tokens remain outside the isolation claim. This is not at-rest encryption.
+
+Database and existing sidecar handles reject reparse points, directories, non-disk
+objects, multiply linked files, unsafe ACLs and configured size overflow. Retain
+database identity across operations. SQLite uses DELETE journal mode, FULL
+synchronous transactions and the same bounded busy/final-save budgets as POSIX;
+send claims commit before HTTP and never permit replay of CLAIMED/UNKNOWN work.
+No weaker path-based consumer storage implementation is substituted.
+
+Notifications use nonblocking `LockFileEx` on the first byte of each persistent
+zero-byte private context file. Lock failure returns LIMIT; closing the owning
+handle, including process death, releases the lock. Handles are non-inheritable.
+Explicit unlock/close happens only after acquisition/final-save workers are joined.
+Distinct login contexts remain independent. SQLite still serializes writes globally.
+Filesystem locks are not a distributed upstream rate limiter.
+
+Windows installed artifact CI exercises real files, processes, claims, process
+death, raw checkpoints, replay/acknowledgement, ACLs and junction rejection on
+Python 3.13/3.14. POSIX-only symlink/chmod cases have separate NTFS counterparts;
+unsupported volume capability tests inject OS capability reports, not a fabricated
+database. Real power loss, storage firmware, network filesystems, FAT/ReFS and
+non-x64 Windows deployments are not qualified by those runners. The Windows release
+gate must pass in addition to Linux/macOS qualification; it cannot be inferred from
+Linux tests or type checks. Attachment commit semantics are separately documented
+in [the file contract](attachment-files.md).
 
 ### Explicit notification mailbox selection (#22)
 
@@ -231,7 +281,8 @@ automatic schema migration: unknown layouts fail without resetting existing data
 
 ### Delivery, limits and compatibility boundaries
 
-The store uses POSIX `flock`, with one persistent zero-byte private lock file per
+The store uses POSIX `flock` or Windows `LockFileEx`, with one persistent zero-byte
+private lock file per
 registered context. Contending callers fail with LIMIT, not an unbounded wait.
 The same context is serialized across processes; distinct contexts remain separate.
 All actual HTTP work still uses the service scheduler and supplied shared budget.

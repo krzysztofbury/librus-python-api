@@ -61,6 +61,11 @@ class ClaimCrashFixture(SendFixture):
 def test_unsafe_existing_storage_stops_before_network(
     tmp_path: Path, tampering: str
 ) -> None:
+    if sys.platform == "win32" and tampering == "journal_symlink":
+        pytest.skip(
+            "POSIX symlink; Windows sidecar ACL and junction cases are separate"
+        )
+
     async def scenario() -> None:
         directory = tmp_path / "state"
         async with PersistenceStore(directory):
@@ -209,8 +214,7 @@ def test_independent_process_claims_and_killed_sender_never_replay(
                         assert process.stdout is not None
                         assert (
                             await asyncio.wait_for(process.stdout.readline(), 10)
-                            == b"ready\n"
-                        )
+                        ).replace(b"\r\n", b"\n") == b"ready\n"
                     for process in workers:
                         assert process.stdin is not None
                         process.stdin.write(b"go\n")
@@ -608,6 +612,15 @@ def test_maximum_record_load_preserves_history_and_refuses_overflow(
     ],
 )
 def test_invalid_existing_storage_is_not_reset(tmp_path: Path, damage: str) -> None:
+    if sys.platform == "win32" and damage in {
+        "database_symlink",
+        "directory_symlink",
+        "permissions",
+    }:
+        pytest.skip(
+            "POSIX permissions/symlinks; Windows ACL/reparse cases are separate"
+        )
+
     async def scenario() -> None:
         directory = tmp_path / "state"
         async with PersistenceStore(directory):

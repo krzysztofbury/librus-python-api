@@ -78,7 +78,7 @@ def test_invalid_context_key_is_rejected_before_any_transport(key: Any) -> None:
 
 
 @pytest.mark.parametrize("kind", [PersistenceStore, NotificationStore])
-def test_non_posix_storage_refuses_before_creating_files(
+def test_unsupported_platform_storage_refuses_before_creating_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: type
 ) -> None:
     async def scenario() -> None:
@@ -86,6 +86,7 @@ def test_non_posix_storage_refuses_before_creating_files(
         store = kind(directory)
         with monkeypatch.context() as patch:
             patch.setattr("librus_python_api._storage.os.name", "nt")
+            patch.setattr("librus_python_api._storage.sys.platform", "unsupported")
             with pytest.raises(UnsupportedCapabilityError):
                 await store.open()
         assert not directory.exists()

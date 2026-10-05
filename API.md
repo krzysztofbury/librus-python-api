@@ -25,6 +25,14 @@ content type. It neither selects the destination nor opens message content.
 See [the file contract](contracts/attachment-files.md) for filesystem requirements,
 bounded naming and cancellation/commit semantics.
 
+`await prepare_attachment_directory(directory: Path)` explicitly creates or
+validates an absolute caller-selected private directory whose parent exists.
+It creates mode 0700 on POSIX or a protected inheritable private ACL on local
+Windows NTFS. Unsafe existing directories reject, never have their permissions
+silently changed. It performs no HTTP and joins disk work on cancellation, which
+may leave a complete empty directory. `publish_attachment` still requires an
+existing directory; it never creates a destination implicitly.
+
 ## Service and accounts
 
 ```python
@@ -469,8 +477,10 @@ context identifiers are store-local HMAC-SHA256 pseudonyms, not the public
 `client.context.identifier` application-keyed pseudonym. `store.context_identifier(client.context.identifier)`
 returns that pseudonym only on an open store. Core clients remain storage-independent.
 Version-1/2 stores reject without modification; no automatic migration/reset.
-Opening either store requires POSIX; other platforms fail with
-`UnsupportedCapabilityError` before creating files.
+Opening either store requires local POSIX filesystem safeguards or fixed local
+Windows NTFS with private protected inheritable ACLs. Network/UNC/device paths,
+non-NTFS volumes and reparse-point paths are unsupported or rejected before unsafe
+work. See [the Windows boundary](contracts/persistence.md#windows-disk-boundary-25).
 
 `await store.prune_send_history(context=client.context, identifiers=(...),
 allow_accepted=False)` returns the number of deleted rows. Use identifiers from
@@ -525,7 +535,7 @@ creates state, reads old MCP files or starts background recovery.
   tokens and neither clears uncertainty nor authorizes another send.
 - SQLite FULL synchronous transactions serialize cross-process claims. Unknown
   schema, extra triggers, corrupt data, replaced files, symlinks, non-regular
-  files and unsafe POSIX permissions fail closed, never reset/migrate state.
+  files and unsafe POSIX permissions or Windows ACLs fail closed, never reset state.
   No automatic retry, reconciliation, deletion of consumed history or polling.
 - Defaults: 8 admitted storage workers and 8 send workflows, 256 total records,
   32 unused previews, 300-second expiry and 0.1-second SQLite busy timeout.
@@ -588,7 +598,8 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
 - `NotificationStore(directory: Path, *, limits=None)` opens the private separate
   `notifications.sqlite3` via `async with` or explicit `open()`/`aclose()`.
   Existing send databases remain unchanged. Select a trusted local filesystem
-  with SQLite/fsync/POSIX flock support; other platforms fail explicitly on
+  with SQLite/fsync and POSIX flock or Windows NTFS/Win32 lock support; unsupported
+  platforms fail explicitly on
   context operations. One store belongs to one event loop. Shutdown/cancellation
   joins owned work. Same-context competition fails with LIMIT, without HTTP.
 - `NotificationWorkflow(client, store, *, messages_backend=MessagingBackend.LEGACY)`

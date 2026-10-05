@@ -32,6 +32,7 @@ def verify(directory: Path) -> None:
     assert {
         "Framework :: AsyncIO",
         "Operating System :: POSIX",
+        "Operating System :: Microsoft :: Windows",
         "Development Status :: 4 - Beta",
     } <= set(metadata.get_all("Classifier", []))
     with tarfile.open(sdist) as archive:

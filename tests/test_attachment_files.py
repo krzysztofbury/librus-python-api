@@ -3,14 +3,28 @@
 import asyncio
 import hashlib
 import os
+import sys
 import threading
 from pathlib import Path
 
 import pytest
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.files import publish_attachment, safe_attachment_filename
+from librus_python_api.files import (
+    prepare_attachment_directory,
+    publish_attachment,
+    safe_attachment_filename,
+)
 from tests.attachments_support import reference, rig
+
+
+@pytest.fixture
+def tmp_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    root = tmp_path_factory.mktemp("publication")
+    if sys.platform == "win32":
+        root = root / "private"
+        asyncio.run(prepare_attachment_directory(root))
+    return root
 
 
 @pytest.mark.parametrize(
@@ -21,6 +35,7 @@ from tests.attachments_support import reference, rig
         (" .hidden\x00.txt ", "hidden_.txt"),
         ("...", "attachment"),
         ("CON.txt", "_CON.txt"),
+        ("COM¹.txt", "_COM¹.txt"),
         ("file\u202ename.txt", "file_name.txt"),
         ("fixture α.txt", "fixture α.txt"),
     ],
@@ -30,11 +45,39 @@ def test_filename_is_a_bounded_portable_basename(original: str, expected: str) -
     assert len(safe_attachment_filename("α" * 1024).encode()) <= 180
 
 
+def test_explicit_private_directory_preparation_is_inert_until_called(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        destination = tmp_path / "private-new"
+        assert not destination.exists()
+        await prepare_attachment_directory(destination)
+        await prepare_attachment_directory(destination)
+        assert destination.is_dir() and list(destination.iterdir()) == []
+        with pytest.raises(LibrusError) as error:
+            await prepare_attachment_directory(Path("relative-fixture"))
+        assert error.value.kind is ErrorKind.INVALID_INPUT
+        if sys.platform != "win32":
+            assert destination.stat().st_mode & 0o777 == 0o700
+            destination.chmod(0o755)
+            with pytest.raises(LibrusError) as error:
+                await prepare_attachment_directory(destination)
+            assert error.value.kind is ErrorKind.STORAGE
+            assert destination.stat().st_mode & 0o777 == 0o755
+
+    asyncio.run(scenario())
+
+
 def test_publication_never_overwrites_files_or_symlink_targets(tmp_path: Path) -> None:
     async def scenario() -> None:
         existing = tmp_path / "report.txt"
         existing.write_bytes(b"keep existing")
-        (tmp_path / "report (1).txt").symlink_to(existing)
+        if sys.platform == "win32":
+            # An NTFS directory collision needs no symlink privilege. Real
+            # reparse-point targets are separately required by Windows tests.
+            (tmp_path / "report (1).txt").mkdir()
+        else:
+            (tmp_path / "report (1).txt").symlink_to(existing)
         async with rig() as (fixture, service):
             result = await publish_attachment(
                 service.account("student").stream_attachment(reference()),
@@ -45,7 +88,8 @@ def test_publication_never_overwrites_files_or_symlink_targets(tmp_path: Path) -
             assert result.path.read_bytes() == fixture.body
             assert result.size_bytes == len(fixture.body)
             assert result.sha256 == hashlib.sha256(fixture.body).hexdigest()
-            assert result.path.stat().st_mode & 0o777 == 0o600
+            if sys.platform != "win32":
+                assert result.path.stat().st_mode & 0o777 == 0o600
             assert "report" not in repr(result)
             assert fixture.downloads and "Cookie" not in fixture.downloads[0]
         assert existing.read_bytes() == b"keep existing"
@@ -182,6 +226,9 @@ def test_disk_failure_is_redacted_and_does_not_publish(
     asyncio.run(scenario())
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX symlink; NTFS junction tested separately"
+)
 def test_directory_symlink_is_rejected_before_network(tmp_path: Path) -> None:
     async def scenario() -> None:
         target = tmp_path / "target"
@@ -202,6 +249,9 @@ def test_directory_symlink_is_rejected_before_network(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("flag", ["O_DIRECTORY", "O_NOFOLLOW"])
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX open flags; Windows uses handles"
+)
 def test_platform_without_safe_open_flags_is_unsupported_before_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flag: str
 ) -> None:

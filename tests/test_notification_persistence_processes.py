@@ -32,7 +32,9 @@ async def launch(
     )
     assert process.stdout is not None and process.stdin is not None
     try:
-        assert await asyncio.wait_for(process.stdout.readline(), 10) == b"ready\n"
+        assert (await asyncio.wait_for(process.stdout.readline(), 10)).replace(
+            b"\r\n", b"\n"
+        ) == b"ready\n"
         process.stdin.write(b"go\n")
         await process.stdin.drain()
         return process
