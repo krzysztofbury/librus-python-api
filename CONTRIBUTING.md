@@ -31,6 +31,10 @@ pre-commit run gitleaks-history --hook-stage manual
 
 ## Checks
 
+Release preparation, Trusted Publishing fields, approval gates and recovery are
+documented in [RELEASE.md](RELEASE.md). Release checks use the same offline suite
+against a single sealed artifact pair; they never call real Librus.
+
 ```sh
 uv run ruff check .
 uv run ruff format --check .

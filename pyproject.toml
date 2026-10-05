@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
@@ -28,6 +28,8 @@ Issues = "https://github.com/krzysztofbury/librus-python-api/issues"
 
 [dependency-groups]
 dev = [
+  "hatchling==1.32.4",
+  "twine>=7,<8",
   "mypy>=1.19,<3",
   "openapi-spec-validator>=0.7,<0.10",
   "pytest>=9,<10",

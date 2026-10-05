@@ -3,6 +3,34 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Release pipeline preparation (2026-10-05, local only)
+
+Package version remains 0.7.0. The manual `workflow.yaml` targets are `verify`
+and `pypi`; TestPyPI is not configured. Release gates seal one archive pair,
+check remote identity, qualify installed distributions, and separate upload
+authority from build/test jobs. See [RELEASE.md](RELEASE.md).
+
+Locally exercised one wheel/sdist pair with archive/metadata verification,
+strict Twine checks, manifest sealing and digest verification. All eight installed
+combinations passed 1,559 offline tests each, with one optional performance test
+deselected: wheel/sdist, Python 3.13.15/3.14.7, locked/latest dependencies. All
+eight installed loopback smokes passed. Fresh latest resolution selected the
+same runtime versions as the lock at this checkpoint. No live Librus was called.
+
+The final local source suite also passed 1,559 tests with one deselected. Ruff,
+format checks, strict mypy, repository hooks/actionlint, worktree/history secret
+scans and the hash-locked dependency audit passed. All task-owned disposable
+builds and environments were cleaned up; no release archives were retained.
+
+GitHub API confirms the `pypi` environment requires owner review, permits only
+branch `main`, allows self-review and disables administrator bypass. The existing
+main ruleset remains disabled and was not changed. PyPI pending publisher setup
+is owner-reported, not an exercised OIDC upload or project-name reservation.
+
+Hosted workflow execution, macOS qualification, weekly dependency-drift runs,
+publication, public checksum confirmation and fresh PyPI installation remain
+pending. This preparation does not close MCP migration or 1.0 readiness gates.
+
 ## 0.7.0 library readiness (2026-10-05, local development)
 
 Started from remote main `90dead4d8f49975f2800e974ed3c097be7c80b1d` (0.6.1),
