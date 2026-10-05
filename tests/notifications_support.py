@@ -109,7 +109,10 @@ async def rig(
     async with serve(fixture.app()) as origin:
         fixture.origin = origin
         async with LibrusService(
-            {a: AccountCredentials(login=a, password=FIXTURE_SECRET) for a in aliases},
+            context_key=bytes(range(32)),
+            accounts={
+                a: AccountCredentials(login=a, password=FIXTURE_SECRET) for a in aliases
+            },
             connection=ConnectionSettings(synergia_origin=origin, api_origin=origin),
             scheduler_limits=options.pop(
                 "scheduler_limits", SchedulerLimits(requests_per_second=1000, burst=40)

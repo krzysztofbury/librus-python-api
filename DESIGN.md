@@ -39,14 +39,14 @@ typed errors before any family parser runs. Shared HTML helpers are in
 | Pydantic 2 | Strict, frozen configuration with runtime validation | MIT |
 | aiohttp | Native async account-isolated HTTP transport | Apache-2.0 AND MIT |
 | lxml | Bounded semantic HTML identity parsing | BSD-3-Clause |
-| Tenacity | Explicit two-attempt recovery for proven session expiry only | Apache-2.0 |
-| Loguru | Opt-in allowlisted structured diagnostic sink, no global setup | MIT |
 | yarl | Typed URL construction and origin checks | Apache-2.0 |
 
 Pydantic configuration does not read environment variables. Validation errors
 are translated to a closed library category without attaching their raw input
 or validation exception. Domain records remain independent of MCP wire schemas.
 Runtime dependency distribution metadata is checked when building/installing.
+Session recovery is implemented directly. Optional diagnostics use standard-library
+logging or a caller-supplied sink; neither Tenacity nor Loguru is a dependency.
 
 An initial loopback experiment selected aiohttp. Its separate HTTP implementation
 was retired once production-boundary tests covered isolation, scoped duplicate

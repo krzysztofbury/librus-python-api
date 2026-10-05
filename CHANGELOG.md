@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.0 (2026-10-05) - Application-keyed contexts and package usability
+
+Pre-1.0 breaking changes: service construction now requires `context_key`, and
+old persistent stores/notification archives need explicit migration outside this
+release. See [the upgrade guide](contracts/account-context.md).
+
+- Replace the public unkeyed login digest with domain-separated HMAC-SHA256 using
+  a required application-owned 32-byte key. Password rotation remains stable;
+  key changes deliberately change the namespace. No implicit key generation.
+- Advance SQLite and notification archive formats to 3. Refuse older formats
+  without reset or automatic migration, preserving old pending/UNKNOWN records.
+- Remove Loguru from dependencies and replace the optional `loguru_sink` with
+  standard-library `logging_sink`. The inspected MCP source and manifest do not
+  use Loguru; custom diagnostic callbacks remain supported.
+- Mark the package Beta with AsyncIO and POSIX/macOS classifiers. Document Linux
+  qualification and the POSIX requirement for persistence/attachment publication;
+  stores fail explicitly on unsupported platforms before creating files.
+- Ship a lean sdist with runtime sources, build metadata and user documentation;
+  exclude agent instructions, roadmap, capture scripts, tests and evidence logs.
+  Check built archive contents and metadata in CI.
+- Rewrite the README around installation, first requests, common tasks, error
+  handling and upgrades. Execute its Python examples against offline HTTP fixtures.
+
+No PyPI publication or live Librus access is included.
+
 ## 0.6.1 (2026-10-05) - Pre-1.0 readiness review
 
 No public API, wire contract or storage format change. Offline only.

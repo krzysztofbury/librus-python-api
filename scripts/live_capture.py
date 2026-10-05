@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import json
 import os
+import secrets
 import traceback
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import date, timedelta
@@ -173,6 +174,7 @@ async def capture(
     previous = month_start - timedelta(days=1)
     async with LibrusService(
         {"capture": credentials},
+        context_key=secrets.token_bytes(32),
         transport_factory=CapturingTransport,
         operation_limits=OperationLimits(max_requests=max_requests),
     ) as service:

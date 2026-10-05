@@ -506,7 +506,17 @@ def test_archive_import_rejects_cursor_past_undelivered_events(
 
 
 @pytest.mark.parametrize(
-    "damage", ["body", "total", "missing_event", "legacy_id", "version", "alias"]
+    "damage",
+    [
+        "body",
+        "total",
+        "missing_event",
+        "legacy_id",
+        "version",
+        "alias",
+        "old_archive_version",
+        "old_payload_version",
+    ],
 )
 def test_invalid_archive_import_rolls_back_without_state_reset(
     tmp_path: Path, damage: str
@@ -538,6 +548,8 @@ def test_invalid_archive_import_rolls_back_without_state_reset(
                 elif damage == "missing_event":
                     record["delivery"]["batch"]["items"] = []
                     record["delivery"]["state_after"]["seen"][4]["identifiers"] = []
+                elif damage == "old_payload_version":
+                    record["version"] = 2
                 changed = replace(
                     archive,
                     payload=json.dumps(
@@ -549,6 +561,8 @@ def test_invalid_archive_import_rolls_back_without_state_reset(
                 )
                 if damage == "version":
                     changed = replace(changed, version=77)
+                if damage == "old_archive_version":
+                    changed = replace(changed, version=2)
                 if damage == "alias":
                     changed = replace(
                         changed, context=replace(client.context, alias="parent")

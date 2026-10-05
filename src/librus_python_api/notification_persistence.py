@@ -678,7 +678,7 @@ class NotificationStore(_SQLiteStore):
     async def export_archive(self, *, context: AccountContext) -> NotificationArchive:
         async def export() -> NotificationArchive:
             payload = await self._io(lambda: self._export(context))
-            return NotificationArchive(2, context, payload)
+            return NotificationArchive(3, context, payload)
 
         return await self._transaction(context, export)
 
@@ -725,7 +725,7 @@ class NotificationStore(_SQLiteStore):
             return dump(
                 {
                     "state": asdict(state),
-                    "version": 2,
+                    "version": 3,
                     "context": asdict(
                         replace(
                             context, identifier=self._context_key(context.identifier)
@@ -746,7 +746,7 @@ class NotificationStore(_SQLiteStore):
         if (
             not isinstance(archive, NotificationArchive)
             or type(archive.version) is not int
-            or archive.version != 2
+            or archive.version != 3
             or type(archive.payload) is not bytes
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -836,7 +836,7 @@ class NotificationStore(_SQLiteStore):
         }:
             raise LibrusError(ErrorKind.PARSE)
         context = archive.context
-        if type(record["version"]) is not int or record["version"] != 2:
+        if type(record["version"]) is not int or record["version"] != 3:
             raise LibrusError(ErrorKind.PARSE)
         self._rebind_archive(record, context)
         with self._connection() as connection:

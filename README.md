@@ -1,141 +1,225 @@
 # librus-python-api
 
-An independent, typed, async Python client for Librus Synergia. It is the backend
-of [librus-mcp](https://github.com/krzysztofbury/librus-mcp).
+Read grades, attendance, homework, timetables and messages from **Librus Synergia**
+in Python. This independent, asynchronous client handles login, session recovery,
+pagination and request limits, returning typed Python objects rather than HTML.
 
-One `LibrusService` manages several independent Librus logins under a shared,
-bounded traffic policy and returns immutable, typed results. A parent login and
-a student login stay separate security contexts even when they belong to the
-same student.
+Use it in personal scripts, notification services or application backends. One
+service can manage multiple logins while keeping their sessions and data separate.
+It is not an official Librus product.
 
-Status: `0.6.1`, local-first. Nothing is published to PyPI yet; publication
-starts at `1.0.0rc1`. See [TODO.md](https://github.com/krzysztofbury/librus-python-api/blob/main/TODO.md) for the roadmap.
+**Requirements:** Python 3.13 or newer. Linux is tested. Persistence and saving
+attachments require POSIX filesystem features, such as those on Linux or macOS;
+Windows disk workflows are unsupported. macOS has not yet been qualified in CI.
 
-## What it reads
+**Status:** `0.7.0`, beta and local-first. The package is not yet published to PyPI;
+publication is planned from `1.0.0rc1`. School features depend on what each account
+can access. See [limitations](#supported-features-and-limitations) below.
 
-| Family | Calls | Latest live evidence |
-| --- | --- | --- |
-| Identity, profile | `identity`, `student_information` | Verified on two student contexts |
-| Grades | `final_grades`, `grades`, `grades_window` | Verified on two student contexts |
-| Attendance | `attendance`, `attendance_window`, `attendance_detail`, `gateway_attendance`, `attendance_frequency`, `subject_frequency` | Verified on two student contexts |
-| Timetable | `timetable` (explicit week) | Verified on two contexts, including substitution notices |
-| Announcements | `announcements` | Verified on two student contexts |
-| Agenda | `agenda`, `agenda_detail` | Verified on two contexts, two months each |
-| Homework | `homework`, `homework_detail` | Verified: populated and empty |
-| Completed lessons | `completed_lessons_page`, `completed_lessons` | Disabled by the school on every available account; returns `ViewDisabledError` |
-| Message lists | `messages_page`, `messages` | 0.4.5: one populated two-page received mailbox and page-zero sent rows; independent byte/browser comparison |
-| Recipient discovery | `recipient_groups`, `recipient_group_choices`, `recipients` | 0.4.5: four login contexts, five named types and an anonymous target; empty group options observed, populated selection remains offline-qualified |
-| Modern discovery | `modern_identity`, `modern_recipient_types`, `modern_recipients` | Source API qualified teacher/tutor/school-admin/council branches on one approved login; other branches and virtual selections remain offline-qualified |
-| Modern mailbox | `modern_messages_page`, `modern_messages`, `modern_message_content` | Source API qualified available inbox/outbox pages, plain/XML details, per-recipient read/null observations and one consented mark-read transition |
-| Modern attachments | `stream_modern_attachment` | One complete ordinary modern file stream qualified; archive resolution is explicit and offline-qualified only |
-| Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
-| Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
-| Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte reference-client and independent Chromium agree |
-| Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
+## Install
 
-"Verified" refers to the release-specific observations in the verification log,
-not a claim that every family is called live again in each release. School reads,
-timetable, profile, messages and recipients were compared with Chromium's independent
-rendering of the same bytes. It is not a claim about every school's layout. Details and
-remaining gaps are in [VERIFICATION.md](https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md).
+From a checkout of this repository, install into a virtual environment:
 
-Notification primitives do not own seen state or persistence. Legacy sending through
-`prepare_send` and a single-use `SendAttempt` remains offline-qualified only.
-The separate modern backend uses `prepare_modern_send`, backend-specific references
-and an isolated cookie jar. 0.5.0 independently qualified one modern
-sender/council context and one separately approved sole-recipient send, confirmed
-by its owner in the official sent UI. Only the exact observed HTTP 201 JSON
-created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains
-UNKNOWN. No automatic fallback or settings changes; broader compatibility remains
-unqualified. The receipt-parser correction was tested offline, not by another send.
-See [contracts/modern-messages.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/modern-messages.md).
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
+```
 
-The same-PR continuation adds modern mailbox reads and broader recipient lookup
-without changing the consumer backend. Ordinary modern attachment streams and
-recipient read observations are implemented and narrowly live-qualified;
-independent delivery status and unavailable layouts are not inferred. The optional
-`librus_python_api.files` layer safely publishes complete legacy or modern attachment
-streams into an explicit caller-selected directory. See
-[contracts/modern-communication.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/modern-communication.md).
-The pinned reference-client communication review (see [VERIFICATION.md](https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md#reference-client-and-provenance))
-found no external logic for the remaining gaps; these stay explicit in TODO C01-C05.
-See [contracts/sending.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/sending.md). Message-list live
-gaps and the reference-client coverage comparison are in [contracts/messages.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/messages.md).
+To install a locally built wheel instead:
 
-Explicit optional `librus_python_api.persistence.PersistenceStore` supplies
-durable send confirmation binding, atomic single-use claims and conservative
-restart recovery, with no core storage dependency or automatic retry. Applications
-select a private directory and obtain human approval. Optional `NotificationStore`
-and `NotificationWorkflow` add durable raw checkpoints and explicitly acknowledged
-at-least-once notification delivery. Core clients still require no storage; no
-MCP code or production state is migrated here.
-See [contracts/persistence.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/persistence.md) and [API.md](https://github.com/krzysztofbury/librus-python-api/blob/main/API.md).
-Recipient gaps and reference-client coverage are in [contracts/recipients.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/recipients.md).
-Content requires explicit potential mark-read consent; see
-[contracts/message-content.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/message-content.md) for its qualification gaps.
-Stream lifecycle, byte budgets and destination restrictions are specified in
-[contracts/attachments.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/attachments.md).
-Read-once checkpoint ownership and its remaining loss windows are specified in
-[contracts/notifications.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/notifications.md); routine live checks never consume events.
-Behaviour notes stay unsupported until a populated page has been observed
-([decision](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/behaviour-notes.md)).
+```sh
+python -m pip install ./dist/librus_python_api-0.7.0-py3-none-any.whl
+```
 
-## Example
+Once a version has been published, installation from PyPI will use
+`python -m pip install librus-python-api==<published-version>`. That command is
+not available for this local-first release. No CLI or background process is
+installed: import the library in your own program.
+
+## First request
+
+Provide your login and password through your application's secret management.
+The example reads environment variables; the library itself does not discover
+environment variables or credential files.
+
+You also need an application context key. Generate it **once**, store it alongside
+your other application secrets, and reuse it across runs:
+
+```sh
+python -c 'import secrets; print(secrets.token_hex(32))'
+```
+
+Set `LIBRUS_LOGIN`, `LIBRUS_PASSWORD` and `LIBRUS_CONTEXT_KEY` in your environment.
+The last variable is the 64-character hex output from that command. Do not use
+your password as this key. Then run:
 
 ```python
 import asyncio
+import os
 from datetime import date
 
-from librus_python_api import AccountCredentials, LibrusService
+from librus_python_api import AccountCredentials, HomeworkRangeRequest, LibrusService
 
 
 async def main() -> None:
     accounts = {
-        "parent": AccountCredentials(login="...", password="..."),
-        "student": AccountCredentials(login="...", password="..."),
+        "school": AccountCredentials(
+            login=os.environ["LIBRUS_LOGIN"],
+            password=os.environ["LIBRUS_PASSWORD"],
+        )
     }
-    async with LibrusService(accounts) as service:
-        parent = service.account("parent")
-        homework = await parent.homework(date(2026, 9, 1), date(2026, 9, 30))
+    context_key = bytes.fromhex(os.environ["LIBRUS_CONTEXT_KEY"])
+    async with LibrusService(accounts, context_key=context_key) as service:
+        client = service.account("school")
+        profile = await client.student_information()
+        print(profile)
+
+        today = date.today()
+        homework = await client.homework_range(
+            HomeworkRangeRequest(today.replace(day=1), today)
+        )
         for item in homework.items:
-            print(item.subject, item.topic, item.due_on, item.marked_done_at)
+            print(item.subject, item.topic, item.due_on)
 
 
 asyncio.run(main())
 ```
 
-See [API.md](https://github.com/krzysztofbury/librus-python-api/blob/main/API.md) for every call, its result types and its limits.
+`"school"` is your local account alias, not a student ID. Login occurs on the first
+request. The async context manager closes sessions and outstanding work when it
+exits. Results are immutable dataclasses; personal fields are omitted from their
+`repr`, so access named attributes when displaying data intentionally.
 
-## Guarantees
+## Common tasks
 
-- **Bounded traffic.** Every request, including each login hop, passes one
-  service-wide scheduler: 5 requests/second with a burst of 10, two active
-  requests, one per account, bounded queues. Budgets cap requests, bytes and
-  time per operation.
-- **No silent partial data.** Unrecognized layouts raise typed errors instead
-  of returning empty or partial results. A view disabled by the school is
-  `ViewDisabledError`, not an empty list.
-- **No unsafe replays.** View-selection, content opens and sends are never replayed.
-  Hidden persistent-connection retries are disabled. Safe reads
-  recover a proven session expiry with at most one new login. Credentials are
-  never resubmitted by a retry policy.
-- **Isolation.** Each login has its own cookies, session, cache and cooldowns.
-- **Redaction.** Errors carry a closed kind only: no response bodies, URLs,
-  aliases or secrets. Result reprs omit personal fields.
+Inside the service context above:
 
-## Installation (local)
+```python
+from datetime import timedelta
 
-```sh
-uv build --no-sources
-uv pip install dist/*.whl
+# School-provided final grades, grouped into typed subject records.
+grades = await client.final_grades()
+for subject in grades.items:
+    print(subject.subject, subject.annual.raw)
+
+# A week always starts on Monday.
+today = date.today()
+monday = today - timedelta(days=today.weekday())
+timetable = await client.timetable(monday)
+
+# Inclusive date window. Neither attendance nor grades computes a GPA.
+attendance = await client.attendance_window(today.replace(day=1), today)
+
+# Permit reuse of this account's cached result for up to 60 seconds.
+announcements = await client.announcements(max_age_seconds=60)
 ```
 
-## Contributing
+Collections expose named record tuples, for example `homework.items`, rather than
+name-keyed dictionaries. Dates are Python `date` values where established by the
+upstream contract. Displayed detail values remain strings; missing or unknown
+values are not replaced with guessed zeros. Full signatures, result fields and
+examples are in the [API reference][api].
 
-See [CONTRIBUTING.md](https://github.com/krzysztofbury/librus-python-api/blob/main/CONTRIBUTING.md) for setup, checks, the test layout and
-the live verification workflow. Repository content is English and contains no
-private or school data.
+### Multiple accounts
 
-## License
+Add more aliases to `accounts`, then use `service.account(alias)` for each login.
+Reuse **one service** so concurrent calls share its request budget and connection
+limits. A parent login and a student login are separate contexts even when they
+refer to the same student. Separate processes need application-level coordination
+if they share an upstream traffic allowance.
 
-MIT. See [LICENSE](https://github.com/krzysztofbury/librus-python-api/blob/main/LICENSE).
+### Bounded pagination and errors
+
+```python
+from librus_python_api import RequestBudget
+from librus_python_api.exceptions import LibrusError, ViewDisabledError
+
+budget = RequestBudget(max_requests=20, timeout_seconds=60)
+try:
+    batch = await client.messages(limit=25, max_pages=2, budget=budget)
+    for message in batch.items:
+        print(message.subject)
+    # Request another batch with cursor=batch.next_cursor when it is not None.
+except ViewDisabledError:
+    print("This school has disabled the requested view.")
+except LibrusError as error:
+    print(f"Request failed: {error.kind.value}")
+```
+
+A budget covers login, queueing and all pages of an operation. Defaults allow
+5 requests/second, a burst of 10 and two simultaneous requests across the service.
+Fresh reads are the default. Unsupported layouts raise typed errors rather than
+silently returning incomplete data. Cursors detect changes; they are not snapshots.
+
+## Messages, files and notifications
+
+- **Message content:** opening received content can mark it read. Pass
+  `allow_mark_read=True` only when your application permits that effect.
+- **Sending:** prepare a single-use send attempt and obtain approval in your
+  application. An `UNKNOWN` result must not trigger an automatic resend.
+- **Attachments:** stream bytes with explicit limits, or use the optional
+  `files.publish_attachment()` helper to save atomically into an existing directory.
+- **Notifications:** optional `NotificationStore` and `NotificationWorkflow`
+  provide durable checkpoints, pending delivery and explicit acknowledgement.
+- **Persistent sends:** optional `PersistenceStore` records confirmations, claims
+  and uncertain outcomes across restarts. These stores require private POSIX
+  directories. Core reads do not create files.
+
+The legacy and modern messaging backends have distinct references and permissions;
+select one explicitly. See the [API reference][api] for complete workflows.
+
+## Context keys and upgrading from 0.6
+
+`LibrusService` now requires `context_key`, exactly 32 secret random bytes.
+`client.context.identifier` is an HMAC-SHA256 pseudonym bound to that key, the
+alias, login and configured origins. Password changes preserve it. Different
+application keys produce different identifiers; the identifier is not a login
+credential or permission token. The separate `context.alias` is still plain text.
+
+**Back up and reuse the key with persistent state.** Losing or rotating it changes
+all context identifiers. Do not treat an empty history under a different key as
+permission to resend a message. Version 0.7 uses storage and notification archive
+format 3 and refuses older formats without modifying them. Keep 0.6 stores and
+their pending/UNKNOWN records for reconciliation; there is no automatic migration.
+See the [upgrade guide][upgrade] before reusing a persistent application.
+
+Loguru is no longer a dependency. For optional diagnostics, pass
+`diagnostic_sink=librus_python_api.diagnostics.logging_sink` after importing that
+function. Configure handlers with Python's standard `logging` module. You can
+also pass your own callable; events contain allowlisted timing/outcome fields,
+not credentials, account aliases or response bodies. The old `loguru_sink` was
+removed in 0.7.
+
+## Supported features and limitations
+
+| Area | Available |
+| --- | --- |
+| School data | Profile, grades, attendance, timetable, announcements, agenda, homework and completed lessons |
+| Communication | Legacy/modern message lists and content, recipient discovery, bounded attachment streams and explicit sending |
+| Application workflows | Shared multi-account limits, caching, notification checkpoints, optional durable send/notification stores |
+
+Completed lessons may be disabled by the school. Behaviour notes and observation
+cards are not implemented. Some recipient, archive and receipt layouts remain
+unqualified; backend acceptance is not proof of delivery. Tests cover supported
+contracts, not every school or role. Detailed coverage is in the
+[verification log][verification] and [roadmap][roadmap].
+
+## Development and support
+
+Use a repository checkout for tests and development tools; they are deliberately
+excluded from published source archives. See [CONTRIBUTING.md][contributing] for
+setup and offline checks. Report bugs through [GitHub Issues][issues] and security
+concerns according to [SECURITY.md][security]. Do not attach credentials or raw
+school data to public reports.
+
+MIT licensed. See [LICENSE][license].
+
+[api]: https://github.com/krzysztofbury/librus-python-api/blob/main/API.md
+[upgrade]: https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/account-context.md
+[verification]: https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md
+[roadmap]: https://github.com/krzysztofbury/librus-python-api/blob/main/TODO.md
+[contributing]: https://github.com/krzysztofbury/librus-python-api/blob/main/CONTRIBUTING.md
+[issues]: https://github.com/krzysztofbury/librus-python-api/issues
+[security]: https://github.com/krzysztofbury/librus-python-api/blob/main/SECURITY.md
+[license]: https://github.com/krzysztofbury/librus-python-api/blob/main/LICENSE

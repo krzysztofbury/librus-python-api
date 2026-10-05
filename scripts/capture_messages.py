@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import re
+import secrets
 from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
@@ -197,7 +198,9 @@ async def capture(
 
     try:
         async with LibrusService(
-            {"capture": credentials}, transport_factory=factory
+            {"capture": credentials},
+            context_key=secrets.token_bytes(32),
+            transport_factory=factory,
         ) as service:
             budget = RequestBudget(max_requests=24, timeout_seconds=240)
             client = service.account("capture")

@@ -80,7 +80,10 @@ def test_every_capture_transport_keeps_write_and_read_once_refusals(
 
 def capture_service(origin: str) -> LibrusService:
     return LibrusService(
-        {"student": AccountCredentials(login="student", password=FIXTURE_SECRET)},
+        context_key=bytes(range(32)),
+        accounts={
+            "student": AccountCredentials(login="student", password=FIXTURE_SECRET)
+        },
         connection=ConnectionSettings(synergia_origin=origin, api_origin=origin),
         scheduler_limits=SchedulerLimits(requests_per_second=1000, burst=16),
         transport_factory=ReadOnlyCaptureTransport,

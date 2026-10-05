@@ -3,6 +3,59 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 0.7.0 library readiness (2026-10-05, local development)
+
+Started from remote main `90dead4d8f49975f2800e974ed3c097be7c80b1d` (0.6.1),
+confirmed through GitHub. This entry qualifies local source and disposable
+artifacts, not a merge, tag, PyPI publication or completed MCP migration.
+
+Implemented and checked:
+
+- Public account identifiers use domain-separated HMAC-SHA256 with a required
+  application-owned 32-byte key. An independent OpenSSL vector checks the exact
+  contract. Tests cover same-key restart stability, distinct-key isolation,
+  password/login/alias/origin binding and invalid-key refusal before transport.
+- Both SQLite formats and neutral notification archives advance to version 3.
+  Old version-1/2 stores fail with unchanged database bytes. Old archive envelopes
+  and payload versions fail without importing/resetting state. Existing real
+  SQLite restart, multi-process, fault and load tests retain ownership of send
+  uncertainty, duplicate prevention and notification replay guarantees.
+- Removed Loguru and its now-unused transitive dependency from the lock. The
+  inspected MCP manifest/source, including local native adapter files, has no
+  Loguru usage. MCP remote main remained
+  `0aaf658c657197817a7c8cae35d39f05484403fd`. No consumer code was changed.
+  Standard-library logging retains allowlisted diagnostic fields and no global
+  handler configuration.
+- Beta/AsyncIO/POSIX/macOS metadata and explicit POSIX-only disk workflows.
+  Both stores refuse unsupported platforms before creating files. Linux is the
+  exercised platform; macOS is documented as not yet qualified in CI.
+- Actual wheel/sdist inspection verifies metadata, `py.typed`, and lean contents.
+  AGENTS.md, TODO.md, tests, capture/development scripts and verification logs are
+  absent from the sdist. Hatch's automatically included `.gitignore` is allowed.
+  The same archive verifier is wired into CI after building.
+- README Python examples execute against real loopback HTTP and the public API,
+  covering profile, homework, final grades, timetable, attendance, announcements
+  and bounded messages. Installation text explicitly distinguishes local builds
+  from future PyPI availability.
+
+| Python | Source | Installed wheel | Installed sdist |
+| --- | --- | --- | --- |
+| 3.13.15 | 1536 passed | 1536 passed | 1536 passed |
+| 3.14.7 | 1536 passed | 1536 passed | 1536 passed |
+
+One optional hardware-sensitive performance case was deselected per run. All
+four installed configurations also ran a standalone profile/final-grade loopback
+smoke with the standard logging sink, verified the installed import location and
+0.7.0 metadata, and confirmed Loguru was not installed. Dependency consistency,
+Ruff, formatting, strict mypy, repository hooks, worktree/history secret scans
+and the hash-locked dependency audit passed. No known vulnerabilities were found.
+
+Tested 41-file source manifest SHA256, using the algorithm documented below:
+`97411d88b967dd9c2b1de2f6fbb3a2a897b1cb23f0944310aff8fe20877c0f57`.
+Disposable builds, test environments and the failed initial archive-inspection
+scratch were removed. No live Librus calls, credentials, production databases or
+existing UNKNOWN-send records were accessed or changed.
+
 ## Reference client and provenance
 
 Outside these validation records, the documentation calls `librus-apix` "the

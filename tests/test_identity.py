@@ -14,7 +14,7 @@ from librus_python_api.config import (
     AccountCredentials,
     ConnectionSettings,
 )
-from librus_python_api.diagnostics import loguru_sink
+from librus_python_api.diagnostics import logging_sink
 from librus_python_api.exceptions import (
     AccessDeniedError,
     AccountActionRequiredError,
@@ -322,7 +322,8 @@ def test_expected_identity_mismatch_is_not_an_accepted_login() -> None:
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with LibrusService(
-                {
+                context_key=bytes(range(32)),
+                accounts={
                     "student": AccountCredentials(
                         login="student",
                         password=FIXTURE_SECRET,
@@ -402,18 +403,22 @@ def test_factory_covers_all_error_kinds_without_arbitrary_messages() -> None:
         assert str(error) == kind.value
 
 
-def test_loguru_sink_emits_allowlisted_structured_fields() -> None:
-    import json
+def test_logging_sink_emits_allowlisted_structured_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
 
-    from loguru import logger
-
-    messages: list[str] = []
-    sink_id = logger.add(messages.append, serialize=True)
-    try:
-        loguru_sink(DiagnosticEvent("identity", "ok", 0.25, 7, 100))
-    finally:
-        logger.remove(sink_id)
-    extra = json.loads(messages[0])["record"]["extra"]
+    with caplog.at_level(logging.INFO, logger="librus_python_api"):
+        logging_sink(DiagnosticEvent("identity", "ok", 0.25, 7, 100))
+    (record,) = caplog.records
+    baseline = logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+    extra = {
+        key: value
+        for key, value in record.__dict__.items()
+        if key not in baseline and key not in {"message", "asctime"}
+    }
+    assert record.name == "librus_python_api"
+    assert record.getMessage() == "Librus operation completed"
     assert extra == {
         "component": "librus_python_api",
         "operation": "identity",

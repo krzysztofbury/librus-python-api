@@ -172,7 +172,8 @@ class SchoolFixture:
         scheduler_limits: SchedulerLimits | None = None,
     ) -> LibrusService:
         return LibrusService(
-            {
+            context_key=bytes(range(32)),
+            accounts={
                 alias: AccountCredentials(login=alias, password=FIXTURE_SECRET)
                 for alias in aliases
             },

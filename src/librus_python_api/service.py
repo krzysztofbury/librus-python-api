@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import hmac
 import json
 import math
 import re
@@ -204,12 +205,15 @@ class LibrusService:
 
     Construction performs no I/O and does not discover environment settings.
     One service is event-loop local. Always close it or use an async context.
+    context_key is a caller-owned 32-byte random secret, retained across restarts
+    whenever account identifiers are used with durable state.
     """
 
     def __init__(
         self,
         accounts: Mapping[str, AccountCredentials],
         *,
+        context_key: bytes,
         scheduler_limits: SchedulerLimits | None = None,
         transport_limits: TransportLimits | None = None,
         operation_limits: OperationLimits | None = None,
@@ -217,6 +221,9 @@ class LibrusService:
         transport_factory: TransportFactory = AiohttpTransport,
         diagnostic_sink: DiagnosticSink | None = None,
     ) -> None:
+        if type(context_key) is not bytes or len(context_key) != 32:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        self._context_key = context_key
         self._limits = scheduler_limits or SchedulerLimits()
         self._transport_limits = transport_limits or TransportLimits()
         self._operation_limits = operation_limits or OperationLimits()
@@ -356,10 +363,11 @@ class AccountClient:
         self._service, self._alias, self._credentials = service, alias, credentials
         self._context = AccountContext(
             alias,
-            hashlib.sha256(
+            hmac.new(
+                service._context_key,
                 json.dumps(
                     [
-                        1,
+                        "librus-python-api/account-context/v2",
                         alias,
                         credentials.login.get_secret_value(),
                         service._connection.synergia_origin,
@@ -368,7 +376,8 @@ class AccountClient:
                     ],
                     ensure_ascii=True,
                     separators=(",", ":"),
-                ).encode("utf-8")
+                ).encode("utf-8"),
+                hashlib.sha256,
             ).hexdigest(),
         )
         self._transport_instance: AccountTransport | None = None

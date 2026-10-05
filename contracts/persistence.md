@@ -1,5 +1,14 @@
 # Optional API persistence: approved 0.4 extraction design
 
+## Current format: 0.7.0
+
+SQLite and notification archives now use version 3, binding to application-keyed
+account identifiers. Opening a store requires POSIX and rejects other platforms
+before filesystem creation. Formats 1/2 are refused without modification or
+automatic migration. The historical version-2 design below describes the extra
+store-local HMAC layer, which is retained. The former public unkeyed hash is
+superseded by [the context-key contract and upgrade guide](account-context.md).
+
 ## 0.4.11 retention and storage format decision
 
 S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native

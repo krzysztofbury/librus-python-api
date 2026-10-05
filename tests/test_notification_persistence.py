@@ -35,7 +35,10 @@ AGENDA = (NotificationCategory.AGENDA,)
 
 def offline_service(origin: str) -> LibrusService:
     return LibrusService(
-        {"student": AccountCredentials(login="student", password=FIXTURE_SECRET)},
+        context_key=bytes(range(32)),
+        accounts={
+            "student": AccountCredentials(login="student", password=FIXTURE_SECRET)
+        },
         connection=ConnectionSettings(synergia_origin=origin, api_origin=origin),
     )
 

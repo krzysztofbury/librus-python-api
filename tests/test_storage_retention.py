@@ -259,7 +259,7 @@ def test_context_salts_are_durable_independent_and_not_leaked_as_plain_context(
                         )
                         assert batch.context == client.context
                         archive = await store.export_archive(context=client.context)
-                        assert archive.version == 2
+                        assert archive.version == 3
                         assert client.context.identifier.encode() not in archive.payload
                     assert (
                         client.context.identifier.encode()
@@ -371,8 +371,9 @@ def test_seen_saturation_can_prune_and_replay_retained_raw_without_reconsuming(
 
 
 @pytest.mark.parametrize("kind", [PersistenceStore, NotificationStore])
-def test_previous_unsalted_schema_is_not_silently_migrated_or_reset(
-    tmp_path: Path, kind: type
+@pytest.mark.parametrize("version", [1, 2])
+def test_previous_schema_is_not_silently_migrated_or_reset(
+    tmp_path: Path, kind: type, version: int
 ) -> None:
     async def scenario() -> None:
         directory = tmp_path / "state"
@@ -382,7 +383,7 @@ def test_previous_unsalted_schema_is_not_silently_migrated_or_reset(
             "state.sqlite3" if kind is PersistenceStore else "notifications.sqlite3"
         )
         with sqlite3.connect(directory / filename) as connection:
-            connection.execute("PRAGMA user_version=1")
+            connection.execute(f"PRAGMA user_version={version}")
         original = (directory / filename).read_bytes()
         with pytest.raises(LibrusError) as error:
             async with kind(directory):

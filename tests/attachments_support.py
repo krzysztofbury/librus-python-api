@@ -125,7 +125,10 @@ async def rig(
         download = options.pop("download_origin_override", download)
         fixture.origin, fixture.download_origin = source, download
         async with LibrusService(
-            {a: AccountCredentials(login=a, password=FIXTURE_SECRET) for a in aliases},
+            context_key=bytes(range(32)),
+            accounts={
+                a: AccountCredentials(login=a, password=FIXTURE_SECRET) for a in aliases
+            },
             connection=ConnectionSettings(
                 synergia_origin=source, api_origin=source, download_origin=download
             ),

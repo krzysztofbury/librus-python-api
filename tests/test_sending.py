@@ -607,7 +607,8 @@ def test_generic_request_cannot_enter_write_or_modern_handoff_with_any_form() ->
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with LibrusService(
-                {
+                context_key=bytes(range(32)),
+                accounts={
                     "student": AccountCredentials(
                         login="student", password=FIXTURE_SECRET
                     )
@@ -753,7 +754,8 @@ def test_custom_transport_private_failure_is_redacted_and_keeps_dispatch_state(
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with LibrusService(
-                {
+                context_key=bytes(range(32)),
+                accounts={
                     "student": AccountCredentials(
                         login="student", password=FIXTURE_SECRET
                     )
