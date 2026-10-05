@@ -32,6 +32,33 @@ qualification or evidence of a scheduled trigger.
 Earlier sections below record their evidence at each historical checkpoint;
 their then-pending upload/merge statements are superseded by this current entry.
 
+### Stable release preparation review
+
+Source 1.0.0 passed 1,607 tests on Python 3.13/3.14, with 25 Windows-only skips
+and one optional resource test deselected, plus Ruff/format, strict mypy, hooks,
+history scan, built metadata and strict Twine checks. The initial local seal
+correctly rejected uv's extra build-directory `.gitignore`; copying only the
+archives into a separate directory as the hosted workflow does passed sealing.
+
+Installed qualification then exposed an existing timeout-fixture race: its 30 ms
+deadline could expire in DNS before the first request reached the server, making
+the next request enter the stalled-response branch. Injecting 100 ms into the real
+socket resolver reproduced it with zero server calls. The existing owner test now
+warms the same single-slot connector, asserts an actual body byte was received
+before timeout, and completes the next request while the stalled fixture remains
+unreleased. Both ordinary and delayed-DNS cases passed, along with all 41 transport
+tests. No production transport seam or behavior was changed. Full final-head
+source/installed and hosted qualification remain pending after this test edit.
+
+Pair-programmer review applied TigerStyle #4 (paired validation), #6 (positive
+and negative space), #11 (warning clean) and #13 (explicit defaults): package,
+OpenAPI, classifier, artifact assertions and versioned documentation agree;
+library stability is explicitly distinct from consumer/live readiness. Existing
+artifact/runtime and release-boundary tests own this version-only change; no
+duplicated export-list or source-string tests were introduced. The fixture change
+strengthens observable connector cleanup with a demonstrated failure and no
+test-only production code. No remaining source review blocker was identified.
+
 ## Windows disk qualification (#25, 2026-10-05)
 
 Initial Windows installed-artifact qualification failed on missing IANA timezone
