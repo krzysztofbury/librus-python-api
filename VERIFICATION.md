@@ -50,6 +50,24 @@ unreleased. Both ordinary and delayed-DNS cases passed, along with all 41 transp
 tests. No production transport seam or behavior was changed. Full final-head
 source/installed and hosted qualification remain pending after this test edit.
 
+Local final-head qualification then passed 1,608 tests in both source runs and
+all eight installed wheel/sdist configurations (Python 3.13/3.14, locked/latest),
+with all eight loopback smokes and artifact/seal/security gates. Hosted run
+37313408236 still failed: Linux 3.13 and Windows 3.14 process-race cases observed
+LIMIT instead of INVALID_INPUT in the losing process. The public busy-timeout
+contract permits LIMIT before any upstream work; the race test had incorrectly
+required one scheduling-dependent error. Its existing real SQLite contention
+test independently proves LIMIT leaves a pending token and performs no HTTP.
+
+The process worker now reports its public dispatched-request count. The race
+test requires exactly one accepted sender and one loser reporting only
+INVALID_INPUT or LIMIT, with zero loser traffic. After restart it requires one
+accepted history record and explicitly rejects replay of both presented tokens
+with INVALID_INPUT, unused attempts and zero parent-service traffic. Actual
+fixture send count remains exactly one. All 47 persistence cases passed locally
+after the change. No production locking, busy budgets, retry behavior or UNKNOWN
+history changed. Full final-head CI must pass; failed jobs are not waived.
+
 Pair-programmer review applied TigerStyle #4 (paired validation), #6 (positive
 and negative space), #11 (warning clean) and #13 (explicit defaults): package,
 OpenAPI, classifier, artifact assertions and versioned documentation agree;

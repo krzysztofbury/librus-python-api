@@ -236,10 +236,18 @@ def test_independent_process_claims_and_killed_sender_never_replay(
                             if not stderr
                         ]
                         assert len(results) == 2
-                        assert sorted(results, key=str) == sorted(
-                            [{"status": "accepted"}, {"error": "invalid_input"}],
-                            key=str,
-                        )
+                        accepted = [
+                            result
+                            for result in results
+                            if result.get("status") == "accepted"
+                        ]
+                        stopped = [result for result in results if "error" in result]
+                        assert len(accepted) == len(stopped) == 1
+                        # Under actual disk contention, the loser can exhaust
+                        # its busy interval before inspecting the winner's claim.
+                        assert stopped[0]["error"] in {"invalid_input", "limit"}
+                        assert stopped[0]["requests"] == 0
+                        assert accepted[0]["requests"] > 0
                         assert all(process.returncode == 0 for process in workers)
                     async with PersistenceStore(directory) as recovered:
                         if crash:
@@ -266,6 +274,29 @@ def test_independent_process_claims_and_killed_sender_never_replay(
                                 await recovered.execute_send(
                                     second.token, prepare(client)
                                 )
+                        else:
+                            history = await recovered.send_history(
+                                context=client.context
+                            )
+                            assert len(history) == 2
+                            assert (
+                                sum(
+                                    record.outcome.status is SendStatus.ACCEPTED
+                                    for record in history
+                                )
+                                == 1
+                            )
+                            # LIMIT before a claim never permits duplicate work
+                            # after another process has accepted this payload.
+                            for confirmation in (first, second):
+                                attempt = prepare(client)
+                                with pytest.raises(LibrusError) as error:
+                                    await recovered.execute_send(
+                                        confirmation.token, attempt
+                                    )
+                                assert error.value.kind is ErrorKind.INVALID_INPUT
+                                assert not attempt.used
+                            assert service.snapshot().requests_dispatched == 0
                         with pytest.raises(LibrusError):
                             await recovered.preview_send(prepare(client))
                     assert len(fixture.send_calls) == (not before_send)
