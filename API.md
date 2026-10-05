@@ -566,7 +566,8 @@ notified again; no automatic school-year/age expiry is performed.
 Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
 `NotificationBatch`, `NotificationItem`, `NotificationState`, `NotificationSeen`,
 `NotificationArchive`, `NotificationProvenance`, `NotificationBaselineMapping`,
-`NotificationBootstrap`, `NotificationBootstrapResult` and
+`NotificationBootstrap`, `NotificationBootstrapResult`, `NotificationRecoveryStatus`,
+`NotificationPendingDelivery`, `NotificationRawCheckpointStatus` and
 `canonical_notification_id` from
 `librus_python_api.persistence`. Construction is inert; core clients remain
 independent of this optional layer.
@@ -636,6 +637,33 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   at 64 MiB and global staged delivery/candidate state at 16 MiB. Bounds fail closed
   without silently evicting history. A retained raw envelope can be recovered with
   explicit supported larger limits; oversized single events are never skipped.
+- `await store.recovery_status(context=client.context)` returns a compact
+  `NotificationRecoveryStatus(context, initialized, last_acknowledged_receipt,
+  pending, raw, uncertain_consume)` snapshot without HTTP or registration of a
+  missing context. `pending` is `NotificationPendingDelivery(receipt, categories,
+  messages_backend, first_run, item_count, has_more_schedule)` or None. `raw` is
+  `NotificationRawCheckpointStatus(identifier, cursor, total, wire_bytes)` or None;
+  total can be unknown until parsing. Cursor is acknowledged progress only.
+  These are independent facts: ordinary pending delivery can coexist with retained
+  raw or uncertainty. `has_pending_work` includes all three, not just delivery.
+  A conservative marker can also belong to an in-flight poll; it is not proof
+  that the owner has finished or that another consume is safe. Resolution still
+  requires exclusive context ownership and explicit acceptance of possible loss.
+  Status exposes no event bodies or seen-ID lists and never advances recovery,
+  acknowledges a receipt, clears ambiguity, prunes or authenticates.
+- `await store.pending_batch(context=client.context)` returns the original staged
+  `NotificationBatch` or None, without category/backend arguments or HTTP. It
+  performs no raw parsing/staging: None can coexist with raw or uncertain work;
+  inspect status before deciding no recovery is needed. Retrieval remains bounded
+  by the existing batch limits and repeats unchanged until acknowledgement.
+  Raw-only recovery still requires an explicit AGENDA poll to decode locally;
+  uncertainty still requires the separate loss-consenting resolution operation.
+  Unknown valid contexts return an empty status/None and do not consume capacity.
+  Invalid contexts, malformed persisted records and aliases inconsistent with
+  retained metadata reject; no foreign delivery is returned. Use the service-owned
+  account context, not fabricated values. Status and batch lookup each read an
+  atomic snapshot, but a competing acknowledgement between the two can make an
+  earlier status stale. Use the retrieved batch receipt, never reconstruct one.
 - `await store.export_archive(context=...)` returns a version-3 neutral archive
   containing exact context, seen IDs, receipt, raw bytes/progress, pending delivery
   and uncertainty. `await store.import_archive(archive)` is empty-target-only and
@@ -700,7 +728,9 @@ transaction under cross-process exclusion. Repeat attempts reject and cannot
 overwrite the prior import, whether its pending batch is acknowledged or not.
 
 `NotificationBootstrapResult(imported, unmapped, pending)` returns the successful
-staged batch and receipt. After a lost response or restart, replay it through
+staged batch and receipt. After a lost response or restart, discover it with
+`store.recovery_status(context=...)` and `store.pending_batch(context=...)`, or
+replay it through
 `NotificationWorkflow(client, store).poll(categories=(NotificationCategory.AGENDA,))`
 without consume consent or network, then acknowledge its receipt normally.
 `store.state(context=...)` exposes the mapped baseline; `export_archive` and
