@@ -9,6 +9,26 @@ automatic migration. The historical version-2 design below describes the extra
 store-local HMAC layer, which is retained. The former public unkeyed hash is
 superseded by [the context-key contract and upgrade guide](account-context.md).
 
+### Explicit notification mailbox selection (#22)
+
+`NotificationWorkflow(..., messages_backend=MessagingBackend.MODERN)` selects one
+bounded received summary page from the modern API. The default remains LEGACY.
+No fallback or message-content request is made. The backend is recorded on pending
+batches containing MESSAGES; replay requires the original categories and backend.
+Acknowledgement preserves every other seen category and backend namespace.
+
+Existing legacy canonical IDs are unchanged. Modern message identities use SHA256
+of compact JSON `[2,"messages","modern",folder,identifier]`, so identical numeric
+references cannot collide across mailboxes. Account separation remains owned by
+the keyed context and store-local namespace, not student identity.
+
+SQLite/archive version 3 is retained: schema and old seen state are unchanged.
+Missing `messages_backend` on an existing format-3 delivery means legacy. New
+writers include that field and modern typed summaries; older readers may reject
+new pending records. Preserve original stores/exports for rollback, never reset
+or rewrite them implicitly. Switching backend while a delivery is pending fails
+before HTTP; acknowledge or recover the original delivery first.
+
 ## 0.4.11 retention and storage format decision
 
 S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native

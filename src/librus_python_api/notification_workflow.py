@@ -19,6 +19,7 @@ from librus_python_api.models import (
     AttendanceView,
     GradeView,
     MessageFolder,
+    MessagingBackend,
     NotificationCategory,
     ScheduleEventResponse,
     ScheduleEvents,
@@ -41,12 +42,25 @@ class NotificationWorkflow:
     retrieval requires allow_consume_events=True every time; no hidden retry.
     """
 
-    def __init__(self, client: AccountClient, store: NotificationStore) -> None:
-        if not isinstance(client, AccountClient) or not isinstance(
-            store, NotificationStore
+    def __init__(
+        self,
+        client: AccountClient,
+        store: NotificationStore,
+        *,
+        messages_backend: MessagingBackend = MessagingBackend.LEGACY,
+    ) -> None:
+        if (
+            not isinstance(client, AccountClient)
+            or not isinstance(store, NotificationStore)
+            or not isinstance(messages_backend, MessagingBackend)
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
         self.client, self.store = client, store
+        self._messages_backend = messages_backend
+
+    @property
+    def messages_backend(self) -> MessagingBackend:
+        return self._messages_backend
 
     async def poll(
         self,
@@ -105,7 +119,10 @@ class NotificationWorkflow:
         context, store = self.client.context, self.store
         pending, raw, uncertain = await store._io(lambda: store._pending(context))
         if pending is not None:
-            if pending.categories != categories:
+            if pending.categories != categories or (
+                NotificationCategory.MESSAGES in categories
+                and pending.messages_backend is not self.messages_backend
+            ):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
             return pending
         agenda = NotificationCategory.AGENDA in categories
@@ -128,7 +145,15 @@ class NotificationWorkflow:
             ):
                 raise LibrusError(ErrorKind.LIMIT)
         provisional = NotificationBatch(
-            "0" * 64, context, not state.initialized, categories, items, False
+            "0" * 64,
+            context,
+            not state.initialized,
+            categories,
+            items,
+            False,
+            self.messages_backend
+            if NotificationCategory.MESSAGES in categories
+            else MessagingBackend.LEGACY,
         )
         encode_batch(provisional, store.limits.batch_bytes)
         events: ScheduleEvents | None = None
@@ -175,6 +200,9 @@ class NotificationWorkflow:
             categories,
             items,
             more,
+            self.messages_backend
+            if NotificationCategory.MESSAGES in categories
+            else MessagingBackend.LEGACY,
         )
         await store._io(
             lambda: store._stage(batch, raw_identifier, cursor, total), finishing=True
@@ -208,8 +236,14 @@ class NotificationWorkflow:
                     attendance.observation,
                 )
             elif category is NotificationCategory.MESSAGES:
-                messages = await self.client.messages_page(
-                    MessageFolder.RECEIVED, budget=budget
+                messages = (
+                    await self.client.modern_messages_page(
+                        MessageFolder.RECEIVED, budget=budget
+                    )
+                    if self.messages_backend is MessagingBackend.MODERN
+                    else await self.client.messages_page(
+                        MessageFolder.RECEIVED, budget=budget
+                    )
                 )
                 values, identity, observation = (
                     messages.items,

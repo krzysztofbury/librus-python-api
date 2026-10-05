@@ -18,6 +18,8 @@ from librus_python_api.models import (
     HomeworkItem,
     Identity,
     MessageSummary,
+    MessagingBackend,
+    ModernMessageSummary,
     NotificationCategory,
     NumericGrade,
     Observation,
@@ -45,6 +47,7 @@ _VALUE_TYPES: dict[str, type[Any]] = {
         DescriptiveGrade,
         AttendanceRecord,
         MessageSummary,
+        ModernMessageSummary,
         Announcement,
         HomeworkItem,
         RecentScheduleEvent,
@@ -53,7 +56,7 @@ _VALUE_TYPES: dict[str, type[Any]] = {
 _CATEGORY_TYPES: dict[NotificationCategory, tuple[type[Any], ...]] = {
     NotificationCategory.GRADES: (NumericGrade, DescriptiveGrade),
     NotificationCategory.ATTENDANCE: (AttendanceRecord,),
-    NotificationCategory.MESSAGES: (MessageSummary,),
+    NotificationCategory.MESSAGES: (MessageSummary, ModernMessageSummary),
     NotificationCategory.ANNOUNCEMENTS: (Announcement,),
     NotificationCategory.HOMEWORK: (HomeworkItem,),
     NotificationCategory.AGENDA: (RecentScheduleEvent,),
@@ -144,6 +147,14 @@ def canonical_notification_id(
     if isinstance(value, RecentScheduleEvent):
         # Independently specified three-field canonical identity, including data.
         canonical: Any = asdict(value)
+    elif isinstance(value, ModernMessageSummary):
+        canonical = [
+            2,
+            category.value,
+            MessagingBackend.MODERN.value,
+            value.reference.folder.value,
+            value.reference.identifier,
+        ]
     elif isinstance(value, MessageSummary):
         canonical = [
             1,
@@ -248,12 +259,17 @@ def encode_batch(batch: NotificationBatch, maximum: int) -> bytes:
 
 def restore_batch(payload: bytes, maximum: int) -> NotificationBatch:
     record = load(payload, maximum)
+    if type(record) is dict and "messages_backend" not in record:
+        # Existing format-3 deliveries could only contain legacy summaries.
+        record["messages_backend"] = MessagingBackend.LEGACY.value
     if (
         type(record) is not dict
         or set(record) != {f.name for f in fields(NotificationBatch)}
         or type(record["items"]) is not list
     ):
         raise LibrusError(ErrorKind.PARSE)
+    if len(record["items"]) > 4096:
+        raise LibrusError(ErrorKind.LIMIT)
     items = []
     for entry in record["items"]:
         if (
@@ -286,6 +302,21 @@ def restore_batch(payload: bytes, maximum: int) -> NotificationBatch:
         )
     record["items"] = []
     batch = typed(NotificationBatch, record, maximum)
+    _validate_batch_items(batch, items)
+    return NotificationBatch(
+        batch.receipt,
+        batch.context,
+        batch.first_run,
+        batch.categories,
+        tuple(items),
+        batch.has_more_schedule,
+        batch.messages_backend,
+    )
+
+
+def _validate_batch_items(
+    batch: NotificationBatch, items: list[NotificationItem]
+) -> None:
     if (
         HEX.fullmatch(batch.receipt) is None
         or HEX.fullmatch(batch.context.identifier) is None
@@ -300,11 +331,15 @@ def restore_batch(payload: bytes, maximum: int) -> NotificationBatch:
         for item in items
     ):
         raise LibrusError(ErrorKind.PARSE)
-    return NotificationBatch(
-        batch.receipt,
-        batch.context,
-        batch.first_run,
-        batch.categories,
-        tuple(items),
-        batch.has_more_schedule,
-    )
+    for item in items:
+        if isinstance(item.value, (MessageSummary, ModernMessageSummary)):
+            expected = (
+                MessagingBackend.MODERN
+                if isinstance(item.value, ModernMessageSummary)
+                else MessagingBackend.LEGACY
+            )
+            if (
+                batch.messages_backend is not expected
+                or item.value.reference.account != batch.context.alias
+            ):
+                raise LibrusError(ErrorKind.PARSE)
