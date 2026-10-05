@@ -4,8 +4,9 @@ import asyncio
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -199,6 +200,88 @@ def test_private_parent_stays_pinned_until_store_close(tmp_path: Path) -> None:
                 parent.rename(tmp_path / "moved")
         parent.rename(tmp_path / "moved")
         assert (tmp_path / "moved" / "state" / "notifications.sqlite3").is_file()
+
+    asyncio.run(scenario())
+
+
+def test_commit_point_cancellation_preserves_complete_file_and_releases_handles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import win32file
+
+    from librus_python_api._windows_filesystem import WindowsDirectory
+
+    entered, release = threading.Event(), threading.Event()
+    original = win32file.SetFileInformationByHandle
+
+    def after_commit(*args: Any) -> Any:
+        result = original(*args)
+        entered.set()
+        if not release.wait(5):
+            raise TimeoutError("Original fixture commit barrier")
+        return result
+
+    monkeypatch.setattr(win32file, "SetFileInformationByHandle", after_commit)
+
+    async def scenario() -> None:
+        directory = tmp_path / "private"
+        WindowsDirectory(directory, create=True).close()
+        async with rig() as (fixture, service):
+            task = asyncio.create_task(
+                publish_attachment(
+                    service.account("student").stream_attachment(reference()),
+                    directory,
+                    filename="fixture.txt",
+                )
+            )
+            try:
+                assert await asyncio.to_thread(entered.wait, 5)
+                for _ in range(4):
+                    task.cancel()
+                    await asyncio.sleep(0)
+                assert not task.done()
+            finally:
+                release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert (directory / "fixture.txt").read_bytes() == fixture.body
+            assert list(directory.glob(".librus-attachment-*")) == []
+            assert_private(directory / "fixture.txt")
+        directory.rename(tmp_path / "after-cancellation")
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("capability", ["filesystem", "drive", "acl_support"])
+def test_unsupported_volume_capability_stops_before_creation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capability: str
+) -> None:
+    import win32api
+    import win32con
+    import win32file
+
+    original = win32api.GetVolumeInformation
+
+    def volume(root: str) -> Any:
+        info = list(original(root))
+        if capability == "filesystem":
+            info[4] = "FAT32"
+        else:
+            info[3] = cast(int, info[3]) & ~win32con.FILE_PERSISTENT_ACLS
+        return tuple(info)
+
+    if capability == "drive":
+        monkeypatch.setattr(win32file, "GetDriveType", lambda _: win32con.DRIVE_REMOTE)
+    else:
+        monkeypatch.setattr(win32api, "GetVolumeInformation", volume)
+
+    async def scenario() -> None:
+        directory = tmp_path / "uncreated"
+        with pytest.raises(LibrusError) as error:
+            async with NotificationStore(directory):
+                pass
+        assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+        assert not directory.exists()
 
     asyncio.run(scenario())
 

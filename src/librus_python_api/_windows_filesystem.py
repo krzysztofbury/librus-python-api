@@ -69,7 +69,9 @@ def _attributes(user: str) -> Any:
     return attributes
 
 
-def _private(handle: Any, user: str, default_owner: str) -> None:
+def _private(
+    handle: Any, user: str, default_owner: str, *, directory: bool = False
+) -> None:
     descriptor = win32security.GetSecurityInfo(
         handle,
         win32security.SE_FILE_OBJECT,
@@ -83,12 +85,27 @@ def _private(handle: Any, user: str, default_owner: str) -> None:
     if acl is None or not 1 <= acl.GetAceCount() <= _MAX_ACES:
         raise LibrusError(ErrorKind.STORAGE)
     trusted = _TRUSTED_SYSTEM_SIDS | {user}
+    inheritable_user = False
     for index in range(acl.GetAceCount()):
         ace = acl.GetAce(index)
         if ace[0][0] != win32security.ACCESS_ALLOWED_ACE_TYPE or len(ace) != 3:
             raise LibrusError(ErrorKind.STORAGE)
         if win32security.ConvertSidToStringSid(ace[2]) not in trusted:
             raise LibrusError(ErrorKind.STORAGE)
+        if (
+            win32security.ConvertSidToStringSid(ace[2]) == user
+            and ace[0][1] & 3 == 3  # OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE
+            and not ace[0][1] & 4  # NO_PROPAGATE_INHERIT_ACE
+            and ace[1] & 0x1F01FF == 0x1F01FF  # FILE_ALL_ACCESS
+        ):
+            inheritable_user = True
+    if directory and (
+        not descriptor.GetSecurityDescriptorControl()[0] & 0x1000  # SE_DACL_PROTECTED
+        or not inheritable_user
+    ):
+        # SQLite creates its own journal files. A private directory without an
+        # inheritable ACL can give those files the process's broader default DACL.
+        raise LibrusError(ErrorKind.STORAGE)
 
 
 def _path_boundary(path: Path) -> None:
@@ -180,7 +197,7 @@ class WindowsDirectory:
             str(self.path)
         ):
             raise LibrusError(ErrorKind.STORAGE)
-        _call(lambda: _private(self._handle, self._user, self._owner))
+        _call(lambda: _private(self._handle, self._user, self._owner, directory=True))
 
     def close(self) -> None:
         handles = [*reversed(self._parents)]
