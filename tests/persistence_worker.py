@@ -43,9 +43,25 @@ async def main() -> None:
                     ),
                     budget=RequestBudget(max_requests=6),
                 )
-                print(json.dumps({"status": result.status.value}), flush=True)
+                print(
+                    json.dumps(
+                        {
+                            "status": result.status.value,
+                            "requests": service.snapshot().requests_dispatched,
+                        }
+                    ),
+                    flush=True,
+                )
             except LibrusError as error:
-                print(json.dumps({"error": error.kind.value}), flush=True)
+                print(
+                    json.dumps(
+                        {
+                            "error": error.kind.value,
+                            "requests": service.snapshot().requests_dispatched,
+                        }
+                    ),
+                    flush=True,
+                )
 
 
 if __name__ == "__main__":

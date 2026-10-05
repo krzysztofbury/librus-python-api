@@ -3,6 +3,90 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Current release evidence (2026-10-05)
+
+The library-only 1.0.0rc1 was published through real PyPI Trusted Publishing in
+[run 37281758063](https://github.com/krzysztofbury/librus-python-api/actions/runs/37281758063)
+at `01b32e0dd2407809cf89aec32b1e49b32b2a3363`. The public JSON reports non-yanked
+wheel/sdist uploaded on 2026-10-05. Hashes matched the sealed run, and its fresh
+Python 3.14 public-index installation and loopback runtime smoke passed:
+
+- Wheel SHA256: `c879dcb4fda13314254e0c0d012c9a2981e87f8b7a431247df9c3990a4fbe893`.
+- Sdist SHA256: `7ecbefdba84714dc95080665d4019adbc40c497475856e897d24a51b6433be13`.
+
+Prerequisites #22-#25 subsequently merged as PRs #28-#31 and closed separately.
+Remote main was confirmed at `68ae2197d636773bbf066df8ac818f3ce3f1532e` after #25.
+Stable 1.0.0 preparation freezes the documented native library contracts; its
+own source/artifact qualification, remote tag, hosted release matrix and public
+upload/confirmation remain pending. The rc1 upload does not qualify new bytes.
+MCP installed/stdio acceptance, production-state migration/rollback, comparative
+performance and broader live-school evidence remain separate unfinished gates.
+No new live Librus access or production-state change is authorized by this work.
+
+The deployed dependency-drift workflow passed its first manual run
+[37311653065](https://github.com/krzysztofbury/librus-python-api/actions/runs/37311653065)
+on both Python versions at pre-Windows main `b268124c88f20556bc95c9445a708fe4942568b2`.
+This exercises the newest-permitted-runtime Linux artifact path, not Windows
+qualification or evidence of a scheduled trigger.
+
+Earlier sections below record their evidence at each historical checkpoint;
+their then-pending upload/merge statements are superseded by this current entry.
+
+### Stable release preparation review
+
+Source 1.0.0 passed 1,607 tests on Python 3.13/3.14, with 25 Windows-only skips
+and one optional resource test deselected, plus Ruff/format, strict mypy, hooks,
+history scan, built metadata and strict Twine checks. The initial local seal
+correctly rejected uv's extra build-directory `.gitignore`; copying only the
+archives into a separate directory as the hosted workflow does passed sealing.
+
+Installed qualification then exposed an existing timeout-fixture race: its 30 ms
+deadline could expire in DNS before the first request reached the server, making
+the next request enter the stalled-response branch. Injecting 100 ms into the real
+socket resolver reproduced it with zero server calls. The existing owner test now
+warms the same single-slot connector, asserts an actual body byte was received
+before timeout, and completes the next request while the stalled fixture remains
+unreleased. Both ordinary and delayed-DNS cases passed, along with all 41 transport
+tests. No production transport seam or behavior was changed. Full final-head
+source/installed and hosted qualification remain pending after this test edit.
+
+Local final-head qualification then passed 1,608 tests in both source runs and
+all eight installed wheel/sdist configurations (Python 3.13/3.14, locked/latest),
+with all eight loopback smokes and artifact/seal/security gates. Hosted run
+37313408236 still failed: Linux 3.13 and Windows 3.14 process-race cases observed
+LIMIT instead of INVALID_INPUT in the losing process. The public busy-timeout
+contract permits LIMIT before any upstream work; the race test had incorrectly
+required one scheduling-dependent error. Its existing real SQLite contention
+test independently proves LIMIT leaves a pending token and performs no HTTP.
+
+The process worker now reports its public dispatched-request count. The race
+test requires exactly one accepted sender and one loser reporting only
+INVALID_INPUT or LIMIT, with zero loser traffic. After restart it requires one
+accepted history record and explicitly rejects replay of both presented tokens
+with INVALID_INPUT, unused attempts and zero parent-service traffic. Actual
+fixture send count remains exactly one. All 47 persistence cases passed locally
+after the change. No production locking, busy budgets, retry behavior or UNKNOWN
+history changed. Full final-head CI must pass; failed jobs are not waived.
+
+Run 37314309378 passed Linux source/installed and Windows 3.13, but Windows 3.14
+exposed a second-boundary assumption in the unused-preview expiry test: expiring
+the first token does not expire a later-created second token. The owner test now
+uses an explicit clock with same-second and one-second-staggered creation,
+advances to the later of the two actual expiries, and verifies both old tokens
+are gone and the new token remains pending without HTTP. The staggered case
+reproduced the original assertion failure locally before the test correction.
+Expiry implementation, production clock and TTL remain unchanged. Final-head
+qualification is required after this fixture-only edit.
+
+Pair-programmer review applied TigerStyle #4 (paired validation), #6 (positive
+and negative space), #11 (warning clean) and #13 (explicit defaults): package,
+OpenAPI, classifier, artifact assertions and versioned documentation agree;
+library stability is explicitly distinct from consumer/live readiness. Existing
+artifact/runtime and release-boundary tests own this version-only change; no
+duplicated export-list or source-string tests were introduced. The fixture change
+strengthens observable connector cleanup with a demonstrated failure and no
+test-only production code. No remaining source review blocker was identified.
+
 ## Windows disk qualification (#25, 2026-10-05)
 
 Initial Windows installed-artifact qualification failed on missing IANA timezone
@@ -28,8 +112,22 @@ remain pinned, journals require protected inheritable private directory ACLs,
 and failed CREATE_NEW validation deletes only the owned handle. Commit-point
 cancellation joins the rename worker and leaves only a complete final file.
 The public private-directory helper avoids consumer-owned Win32 provisioning.
-No remaining review blocker was identified; final-head hosted qualification,
-merge and stable-release gates remain separate from the earlier successful run.
+Final head `08ad8db59f615aeb9a9ffddcde27d310481793f5` passed all five CI jobs in
+[run 37311543233](https://github.com/krzysztofbury/librus-python-api/actions/runs/37311543233).
+Each of four Windows installed wheel/sdist configurations passed 193 tests and
+its loopback smoke, with eight POSIX-only cases skipped. Local source on Python
+3.13.15/3.14.7 and four Linux installed configurations passed 1,607 tests each,
+skipping 25 Windows-only cases and deselecting one optional performance test.
+Ruff, formatting, strict mypy including the Win32 module target, artifact/strict
+Twine checks, history secret scan and hash-locked dependency audit passed.
+No remaining review blocker was identified. PR #31 merged and #25 closed after
+comparing its exact head with the pushed SHA. Stable release is a separate gate.
+
+The existing maximum-body parser resource gate also passed separately on Python
+3.14: eight 262,144-byte jobs, 0.1085 seconds elapsed, 0.0156 seconds maximum
+heartbeat delay and 1,500,467 traced peak bytes. This is a coarse local resource
+check, not comparative MCP performance qualification. Disposable builds, reports
+and environments allocated by those commands were cleaned up.
 
 ## Typed notification recovery (#24, 2026-10-05)
 

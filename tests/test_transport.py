@@ -1,6 +1,9 @@
 import asyncio
 import gzip
+import socket
+import time
 from contextlib import AsyncExitStack
+from typing import Any
 
 import aiohttp
 import pytest
@@ -271,7 +274,18 @@ def test_redirects_cannot_dispatch_foreign_or_non_authentication_requests(
     asyncio.run(scenario())
 
 
-def test_slow_body_timeout_releases_connector_before_next_request() -> None:
+@pytest.mark.parametrize("startup_delay_seconds", [0, 0.1])
+def test_slow_body_timeout_releases_connector_before_next_request(
+    monkeypatch: pytest.MonkeyPatch, startup_delay_seconds: float
+) -> None:
+    resolve = socket.getaddrinfo
+
+    def delayed_resolve(*args: Any, **kwargs: Any) -> Any:
+        time.sleep(startup_delay_seconds)
+        return resolve(*args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", delayed_resolve)
+
     async def scenario() -> None:
         release = asyncio.Event()
         count = 0
@@ -283,11 +297,16 @@ def test_slow_body_timeout_releases_connector_before_next_request() -> None:
                 return web.Response(body=b"ok")
             response = web.StreamResponse()
             await response.prepare(request)
+            await response.write(b"x")
             await release.wait()
             return response
 
+        async def warm(request: web.Request) -> web.Response:
+            return web.Response(body=b"ready")
+
         app = web.Application()
         app.router.add_get("/gateway/api/2.0/Me", handler)
+        app.router.add_get("/OAuth/Authorization", warm)
         async with (
             serve(app) as url,
             RequestScheduler(
@@ -305,13 +324,23 @@ def test_slow_body_timeout_releases_connector_before_next_request() -> None:
                 TransportLimits(),
             )
             try:
-                with pytest.raises(LibrusError, match="^timeout$"):
-                    await transport.request(
-                        "identity", RequestBudget(timeout_seconds=0.03)
-                    )
+                # Initialization/DNS may outlast a tiny deadline. Warm the same
+                # connector, then prove timeout happened during an actual body.
                 assert (
-                    await transport.request("identity", RequestBudget())
+                    await transport.request("login_authorization", RequestBudget())
+                ).body == b"ready"
+                budget = RequestBudget(timeout_seconds=1)
+                with pytest.raises(LibrusError, match="^timeout$"):
+                    await transport.request("identity", budget)
+                assert count == 1, "The timeout must occur after the body starts"
+                assert budget.response_bytes == 1
+                assert scheduler.snapshot().active == 0
+                assert (
+                    await transport.request(
+                        "identity", RequestBudget(timeout_seconds=5)
+                    )
                 ).body == b"ok"
+                assert count == 2 and not release.is_set()
             finally:
                 release.set()
                 await transport.aclose()

@@ -5,6 +5,36 @@ Core public values are exported from `librus_python_api`; exceptions live in
 `librus_python_api.persistence`. Results are frozen dataclasses. Their reprs omit
 personal fields. Serializing them for MCP or anything else is the consumer's job.
 
+## Compatibility policy
+
+Version 1.0 freezes the documented public library contracts: root exports and
+explicit optional modules described here, typed account/source ownership, bounded
+traffic/resources, explicit effect consent and fail-closed error semantics.
+Private names, parser internals, SQLite SQL layout and encoded archive internals
+are not consumer integration APIs. Use the supported typed persistence methods.
+
+Within 1.x, patch releases repair documented behavior and security issues; minor
+releases add supported capabilities. Removal/renaming of public methods or
+required fields, incompatible argument/return types, or changes to established
+canonical IDs require a major release. Dataclass fields may be added with defaults;
+construct by keyword and serialize deliberately, not by assuming a fixed repr.
+Undocumented upstream layouts are not compatibility promises: they may fail with
+typed PARSE/UNSUPPORTED_CAPABILITY rather than produce guessed partial output.
+Security fixes can tighten validation of previously accepted invalid/unsafe input.
+
+Persisted supported records are validated without silent reset or reinterpretation.
+An incompatible future format requires explicit migration and preserved originals.
+Upgrades can introduce records older versions cannot read; keep original files and
+archives for consumer-owned rollback, never clear UNKNOWN sends or acknowledge
+notifications merely to make a downgrade work. The stable application context key
+remains required. The neutral bootstrap does not automatically migrate old consumer
+files or reconstruct missing identity/observation provenance.
+
+Library stability is not a Librus availability guarantee or completed MCP migration.
+The documented default-off features, unobserved layouts and pending live evidence
+stay limited as stated. Consumers qualify their own DTO/stdio contracts, mapped
+state migration/rollback and exact installed dependency before production cutover.
+
 ## Optional local attachment files
 
 ```python

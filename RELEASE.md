@@ -19,8 +19,9 @@ on PyPI with:
 No API token or PyPI password belongs in GitHub secrets. PyPI requires the owner
 to complete account security/2FA requirements. A pending publisher does not
 reserve the project name. See [PyPI's pending-publisher instructions][pending].
-The owner has reported setting these fields; a successful OIDC upload is still
-required to prove that registration works. TestPyPI is intentionally not used.
+The first real PyPI OIDC upload succeeded for 1.0.0rc1 in
+[run 37281758063](https://github.com/krzysztofbury/librus-python-api/actions/runs/37281758063).
+TestPyPI is intentionally not used.
 
 The GitHub `pypi` environment requires owner review, disallows administrator
 bypass and permits deployments only from branch `main`. Self-review is allowed
@@ -40,6 +41,12 @@ prerelease with the 0.7.0 API. It does not claim completed MCP integration,
 old-state migration/rollback, broader live qualification or stable 1.0 readiness.
 These remain separate tracked gates; publication does not close them.
 
+Stable 1.0.0 is scoped to the documented native library API, with the integration
+boundaries #22-#25 independently merged and qualified. It is the library dependency
+for the later native MCP cutover, not the consumer release itself. Its compatibility
+policy is in [API.md](API.md#compatibility-policy); general live-school guarantees,
+production migration and MCP acceptance are not inferred from its classifier.
+
 The pipeline supports `v1.0.0rc1`, `v1.0.0` and later version tags. It refuses
 publishing 0.x; `verify` mode can exercise a 0.x development tag without upload.
 It does not decide product readiness or imply completed consumer migration.
@@ -53,9 +60,10 @@ Required release decisions:
    are separate, unfinished roadmap gates, not provided by a publishing workflow.
 3. Preserve 0.6 persistent stores/UNKNOWN records. 0.7 introduced required context
    keys and format 3; no automatic legacy state migration exists.
-4. Prefer a first `1.0.0rc1` upload to real PyPI, then qualify the installed
-   consumer before final `1.0.0`. Skipping the candidate requires an explicit owner
-   readiness decision, not an automatic version bump by this workflow.
+4. The first `1.0.0rc1` upload is complete. The approved stable release remains
+   library-only; qualify the consumer against its exact installed dependency before
+   the later MCP cutover. Scope changes require an explicit readiness decision,
+   not an automatic version bump by this workflow.
 5. Update `__version__`, OpenAPI version, versioned changelog and README release
    status/install command together. Keep classifier assertions in the artifact
    verifier consistent with any intentional Beta-to-Stable change.
@@ -69,8 +77,8 @@ tests and runtime smokes use synthetic loopback servers, never real Librus.
    scripts and `workflow.yaml` must be present in both `main` and the tagged source.
 2. Create an annotated immutable tag at the intended merged commit. Push it and
    confirm the remote tag points to that commit. Never replace an uploaded tag.
-3. Run **Qualify and publish library** from **main**, with `tag=v1.0.0rc1` (or the
-   intended version) and `target=verify`. All checks must pass, including macOS.
+3. Run **Qualify and publish library** from **main**, with the intended version
+   and `target=verify`. All checks must pass, including macOS and Windows disk gates.
 4. Run again from **main** with the same tag and `target=pypi`. This run builds its
    own sealed pair once, qualifies it, then waits for `pypi` environment approval.
    Inspect that run's tag, commit and results before approving. Bytes from an
@@ -85,9 +93,9 @@ tests and runtime smokes use synthetic loopback servers, never real Librus.
 CLI equivalent after workflow deployment:
 
 ```sh
-gh workflow run workflow.yaml --ref main -f tag=v1.0.0rc1 -f target=verify
+gh workflow run workflow.yaml --ref main -f tag=v1.0.0 -f target=verify
 # After qualification and an explicit release decision:
-gh workflow run workflow.yaml --ref main -f tag=v1.0.0rc1 -f target=pypi
+gh workflow run workflow.yaml --ref main -f tag=v1.0.0 -f target=pypi
 ```
 
 ## What the pipeline proves
@@ -104,6 +112,9 @@ gh workflow run workflow.yaml --ref main -f tag=v1.0.0rc1 -f target=pypi
 - Both archives run the full offline suite and installed loopback smoke on Linux
   and macOS, Python 3.13/3.14, with locked and newest permitted runtime dependencies.
   Test tooling stays locked. Latest-runtime resolution is deliberately fresh.
+- Both archives separately run Windows x64 NTFS disk/persistence acceptance and
+  installed runtime smokes on Python 3.13/3.14, with locked/latest dependencies.
+  Every Windows job verifies the same manifest; publishing requires all of them.
 - Only the isolated, environment-gated publishing job has `id-token: write`.
 - Post-upload verification compares public PyPI wheel/sdist hashes with the
   sealed manifest and resolves the exact version from PyPI outside the checkout.
