@@ -437,7 +437,8 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
 - [ ] Decide distribution `librus-python-api` and import `librus_python_api`;
   confirm PyPI availability/ownership before release. Do not shadow `librus`,
   the legacy backend, or `src`, and do not depend on upstream as a hidden fallback.
-  Status: names decided and used; PyPI ownership is confirmed in P7.
+  Status: names decided and used; a pending PyPI publisher is configured in P7,
+  but project ownership remains unproved until the first successful upload.
 - [x] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
   bundled license, `py.typed`, and a single package-version source. Select and
   test supported Python versions; Python 3.14 compatibility is mandatory for
@@ -782,21 +783,33 @@ redacted evidence, and signals failure without unsafe retries or secret exposure
 
 ## P7 - PyPI release pipeline
 
+Publishing preparation is in `.github/workflows/workflow.yaml`, with manual
+verify/pypi targets, sealed artifact qualification and environment approval.
+See [RELEASE.md](RELEASE.md). The owner chose real PyPI only, not TestPyPI.
+GitHub environment setup is complete; PyPI OIDC, macOS hosted checks and actual
+publication remain pending until the new workflow is deployed and run.
+
 Dependencies: P0 packaging; PyPI publication starts at `1.0.0rc1`.
 Before that candidate, verify exact local wheel/sdist artifacts and the local
 consumer adapter without requiring publishing automation or a PyPI installation.
 
-- [ ] Configure PyPI/TestPyPI project ownership and a GitHub Trusted Publisher
+- [ ] Configure PyPI project ownership and a GitHub Trusted Publisher
   tied to the exact repository, workflow, and protected release environment.
   Keep publish credentials out of build/test jobs; preserve manual approval.
+  Pending publisher reported configured; GitHub environment protections verified
+  via API. No TestPyPI is planned. Actual OIDC upload and ownership remain pending.
 - [ ] Build wheel and sdist from a verified tag matching package metadata and
   event commit. Verify MIT license content, declared runtime dependencies,
   Python requirements, public exports, and `py.typed` in installed artifacts.
 - [ ] Build once, record distribution checksums, and publish those verified bytes
   after tests. Pin third-party Actions by SHA and document release recovery.
+  Build/seal/installed qualification is implemented and locally exercised;
+  hosted qualification and publication remain pending.
 - [ ] Test a clean install outside the checkout, including import, public async
   client lifecycle, and a fixture-server read. Test both locked and newest
   permitted dependencies; schedule dependency-drift checks.
+  Local Linux Python 3.13/3.14 wheel/sdist checks pass for both dependency modes.
+  The weekly workflow is prepared, not yet deployed; macOS is unverified.
 - [ ] Publish `1.0.0rc1` and document its coverage/limitations. Prove the consumer
   adapter against that PyPI artifact before the complete cutover; earlier 0.x
   adapter qualification uses exact local built artifacts.

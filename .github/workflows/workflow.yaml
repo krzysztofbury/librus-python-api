@@ -1,0 +1,207 @@
+name: Qualify and publish library
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Merged version tag, such as v1.0.0rc1 or v1.0.0'
+        required: true
+        type: string
+      target:
+        description: 'verify never publishes; uploads require environment approval'
+        type: choice
+        options: [verify, pypi]
+        default: verify
+
+permissions:
+  contents: read
+
+concurrency:
+  group: library-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.identity.outputs.identity }}
+      manifest: ${{ steps.manifest.outputs.seal }}
+      artifact: ${{ steps.archives.outputs.artifact-id }}
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select the versioned source
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(rc[1-9][0-9]*)?$ ]]
+          git fetch origin "refs/tags/$TAG"
+          git checkout --detach "FETCH_HEAD"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.7'
+          checksum: 788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21
+      - name: Install locked tooling
+        run: |
+          uv python install 3.14
+          uv lock --check
+          uv sync --locked --python 3.14
+      - name: Check remote release identity
+        id: identity
+        env:
+          TAG: ${{ inputs.tag }}
+          TARGET: ${{ inputs.target }}
+        run: uv run --locked python scripts/release_gate.py identity --tag "$TAG" --target "$TARGET" --output "$GITHUB_OUTPUT"
+      - name: Record source commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Quality and security gates
+        env:
+          SKIP: no-commit-to-branch
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+          uv run --locked mypy
+          uv run --locked pre-commit run --all-files
+          uv run --locked pre-commit run gitleaks-history --hook-stage manual --all-files
+          uv export --quiet --locked --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/audit.txt"
+          uv run --locked pip-audit --strict --disable-pip --require-hashes --requirement "$RUNNER_TEMP/audit.txt"
+          uv run --locked pytest -q
+      - name: Build the release archives once
+        run: |
+          uv build --no-sources --no-build-isolation --out-dir "$RUNNER_TEMP/build-output"
+          uv run --locked python scripts/verify_artifacts.py "$RUNNER_TEMP/build-output"
+          uv run --locked twine check --strict "$RUNNER_TEMP"/build-output/*
+          mkdir "$RUNNER_TEMP/release-dist"
+          cp "$RUNNER_TEMP"/build-output/*.whl "$RUNNER_TEMP"/build-output/*.tar.gz "$RUNNER_TEMP/release-dist/"
+      - name: Seal archive bytes
+        id: manifest
+        env:
+          TAG: ${{ inputs.tag }}
+        run: uv run --locked python scripts/release_gate.py seal --tag "$TAG" --directory "$RUNNER_TEMP/release-dist" --output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: archives
+        with:
+          name: sealed-release
+          path: ${{ runner.temp }}/release-dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  qualify:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+        python: ['3.13', '3.14']
+        dependencies: [locked, latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.7'
+          checksum: ${{ runner.os == 'Linux' && '788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21' || (runner.arch == 'ARM64' && '127ebdda7ad953cdf198e964b570ea5771b85467ea93eb7cb6d6f8e6f55408f3' || '06b8ae1da8c2661c5434507a66f8c2b0b835933bf955b5958a9ac357a37d1959') }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/archives
+          merge-multiple: true
+      - name: Check sealed bytes and test installed archives
+        env:
+          MANIFEST: ${{ needs.build.outputs.manifest }}
+          PYTHON: ${{ matrix.python }}
+          DEPENDENCIES: ${{ matrix.dependencies }}
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          uv python install "$PYTHON"
+          uv run --locked python scripts/release_gate.py verify --directory "$RUNNER_TEMP/archives" --digest "$MANIFEST"
+          uv run --locked python scripts/qualify_release.py "$RUNNER_TEMP/archives" --python "$PYTHON" --dependencies "$DEPENDENCIES"
+
+  publish:
+    needs: [build, qualify]
+    if: inputs.target != 'verify'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/p/librus-python-api
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/archives
+          merge-multiple: true
+      - name: Recheck and select only sealed distributions
+        env:
+          MANIFEST: ${{ needs.build.outputs.manifest }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          python3 scripts/release_gate.py identity --tag "$TAG" --target pypi
+          python3 scripts/release_gate.py verify --directory "$RUNNER_TEMP/archives" --digest "$MANIFEST"
+          mkdir "$RUNNER_TEMP/upload"
+          cp "$RUNNER_TEMP"/archives/*.whl "$RUNNER_TEMP"/archives/*.tar.gz "$RUNNER_TEMP/upload/"
+      - name: Upload with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          packages-dir: ${{ runner.temp }}/upload/
+          attestations: true
+
+  confirm:
+    needs: [build, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.7'
+          checksum: 788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/archives
+          merge-multiple: true
+      - name: Verify PyPI hashes and fresh installation
+        env:
+          MANIFEST: ${{ needs.build.outputs.manifest }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          uv python install 3.14
+          uv sync --locked --python 3.14
+          uv run --locked python scripts/release_gate.py verify --directory "$RUNNER_TEMP/archives" --digest "$MANIFEST"
+          uv run --locked python scripts/verify_published.py "$RUNNER_TEMP/archives"
+          uv export --quiet --locked --no-emit-project --format requirements-txt --output-file "$RUNNER_TEMP/check-requirements.txt"
+          export ARTIFACT_ENV="$RUNNER_TEMP/pypi-check"
+          uv venv "$ARTIFACT_ENV" --python 3.14
+          uv pip install --python "$ARTIFACT_ENV/bin/python" --require-hashes --requirements "$RUNNER_TEMP/check-requirements.txt"
+          uv pip install --python "$ARTIFACT_ENV/bin/python" --no-cache --index-url https://pypi.org/simple "librus-python-api==$VERSION"
+          uv pip check --python "$ARTIFACT_ENV/bin/python"
+          export PYTHONPATH="$GITHUB_WORKSPACE"
+          cd "$RUNNER_TEMP"
+          "$ARTIFACT_ENV/bin/python" "$GITHUB_WORKSPACE/scripts/installed_smoke.py"

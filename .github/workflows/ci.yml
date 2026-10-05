@@ -102,6 +102,7 @@ jobs:
         run: |
           uv build --no-sources
           uv run --locked python scripts/verify_artifacts.py dist
+          uv run --locked twine check --strict dist/*
           sha256sum dist/* > reports/distributions.sha256
           uv export --quiet --locked --no-emit-project --format requirements-txt \
             --output-file "$RUNNER_TEMP/test-requirements.txt"
