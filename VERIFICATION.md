@@ -68,6 +68,16 @@ fixture send count remains exactly one. All 47 persistence cases passed locally
 after the change. No production locking, busy budgets, retry behavior or UNKNOWN
 history changed. Full final-head CI must pass; failed jobs are not waived.
 
+Run 37314309378 passed Linux source/installed and Windows 3.13, but Windows 3.14
+exposed a second-boundary assumption in the unused-preview expiry test: expiring
+the first token does not expire a later-created second token. The owner test now
+uses an explicit clock with same-second and one-second-staggered creation,
+advances to the later of the two actual expiries, and verifies both old tokens
+are gone and the new token remains pending without HTTP. The staggered case
+reproduced the original assertion failure locally before the test correction.
+Expiry implementation, production clock and TTL remain unchanged. Final-head
+qualification is required after this fixture-only edit.
+
 Pair-programmer review applied TigerStyle #4 (paired validation), #6 (positive
 and negative space), #11 (warning clean) and #13 (explicit defaults): package,
 OpenAPI, classifier, artifact assertions and versioned documentation agree;

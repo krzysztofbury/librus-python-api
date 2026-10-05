@@ -394,10 +394,13 @@ def test_full_payloads_at_maximum_storage_worker_admission(tmp_path: Path) -> No
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("preview_interval_seconds", [0, 1])
 def test_expired_unused_previews_reclaim_only_unused_capacity(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, preview_interval_seconds: int
 ) -> None:
     async def scenario() -> None:
+        now = 1_800_000_000
+        monkeypatch.setattr("librus_python_api.persistence._now", lambda: now)
         fixture = SendFixture()
         fixture.origin = "http://localhost:8080"
         directory = tmp_path / "state"
@@ -408,15 +411,16 @@ def test_expired_unused_previews_reclaim_only_unused_capacity(
                 limits=PersistenceLimits(send_records=2, pending_confirmations=2),
             ) as store:
                 first = await store.preview_send(prepare(client))
-                await store.preview_send(prepare(client))
-                monkeypatch.setattr(
-                    "librus_python_api.persistence._now",
-                    lambda: int(first.expires_at.timestamp()),
-                )
+                now += preview_interval_seconds
+                second = await store.preview_send(prepare(client))
+                # Expire both records, even when creation crossed a second.
+                now = int(max(first.expires_at, second.expires_at).timestamp())
                 third = await store.preview_send(prepare(client))
                 assert len(persisted(directory)) == 1
                 with pytest.raises(LibrusError):
                     await store.send_outcome(first.token, context=client.context)
+                with pytest.raises(LibrusError):
+                    await store.send_outcome(second.token, context=client.context)
                 assert (
                     await store.send_outcome(third.token, context=client.context)
                 ).phase == "pending"
