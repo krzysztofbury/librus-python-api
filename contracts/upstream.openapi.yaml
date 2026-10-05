@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.6.0
+  version: 0.6.1
   license:
     name: MIT
   description: |
@@ -646,7 +646,7 @@ paths:
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Reuses the student landing route for independently authored bounded counter parsing. Installed 0.4.4 wheel observed five shown categories, independently checked against Chromium and same-byte apix. Broader role/layout/token freshness remains unqualified.
+      x-evidence-note: Reuses the student landing route for independently authored bounded counter parsing. Installed 0.4.4 wheel observed five shown categories, independently checked against Chromium and same-byte reference-client. Broader role/layout/token freshness remains unqualified.
       responses:
         '200':
           $ref: '#/components/responses/Html'
@@ -735,7 +735,7 @@ paths:
       x-retry-safe: true
       x-evidence: independently_observed
       x-evidence-note: |
-        Route research from librus-apix URL definitions and consumer summary
+        Route research from reference-client URL definitions and consumer summary
         requirements. Implementation and offline fixtures are original, not
         copied source or captures. Bounded authorized observations established
         stray closing tags and empty spacer rows; broader accounts unqualified.
@@ -826,7 +826,7 @@ paths:
       x-evidence: independently_observed
       x-evidence-note: |
         Route, view fields, tooltip labels, grid/section concepts and detail-link
-        requirements reviewed against installed librus-apix 1.5.3 and the existing
+        requirements reviewed against the installed reference client and the existing
         consumer contracts. No implementation, fixture or capture was copied.
         Original semantic section-label fixtures are synthetic. Bounded installed
         validation observed all/week/last-login forms and the numeric Okres 1 label
@@ -1358,7 +1358,7 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Authorized populated received page zero; fixed pagination form, original fixtures and identical-byte Chromium/apix replay. Live multi-page behavior remains unqualified. See contracts/messages.md.
+      x-evidence-note: Authorized populated received page zero, then a populated two-page received mailbox in 0.4.5; fixed pagination form, original fixtures and identical-byte Chromium/reference-client replay. Other roles and newer layouts remain unqualified. See contracts/messages.md.
       description: |
         One zero-based list page, no separate page-count GET or content fan-out.
         Changes only the selected mailbox page. Does not mark messages read,
@@ -1463,7 +1463,7 @@ paths:
       x-side-effect: select_view
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Eight named group selectors observed on four independent 0.4.5 login contexts and checked against Chromium/apix. The group root is not a direct recipient lookup; separate choice discovery is supported. See contracts/recipients.md.
+      x-evidence-note: Eight named group selectors observed on four independent 0.4.5 login contexts and checked against Chromium/reference-client. The group root is not a direct recipient lookup; separate choice discovery is supported. See contracts/recipients.md.
       description: |
         Opens a compose/selection view, not a message. No sends, body retrieval,
         mark-read or event consumption. Session selection is serialized and never

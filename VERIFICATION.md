@@ -3,6 +3,30 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Reference client and provenance
+
+Outside these validation records, the documentation calls `librus-apix` "the
+reference client". It was reviewed as a source of behavioural requirements and
+compared offline against identical captured bytes; it was never a runtime
+dependency, fallback or correctness oracle, and no code, tests, fixtures or
+documentation were copied from it.
+
+- Versions: the 0.1-0.2 route research inspected the `librus-apix` 1.5.2 URL
+  definitions; later families and communication reviews used an installed,
+  unmodified `librus-apix` 1.5.3.
+- Sources: [client flow](https://github.com/RustySnek/librus-apix/blob/2fedfe8ffa4933abb884929716519ddbeb8eb32d/librus_apix/client.py)
+  and the 1.5.3 distribution metadata homepage
+  (https://github.com/poroknights/librus-apix).
+- License evidence conflicts: the 1.5.3 metadata advertises MIT while its bundled
+  license file is GPLv3. It is therefore treated as a requirements reference only.
+- The pinned communication review is in
+  [contracts/apix-communication-review.md](contracts/apix-communication-review.md).
+- Offline comparison scripts (`compare_messages.py`, `compare_message_content.py`,
+  `compare_notification_counts.py`, `compare_recipients.py` and
+  `compare_send_acknowledgements.py`) replayed `librus-apix` pure parsers on
+  private captures. Their results are recorded in this file and in
+  `release-evidence/`; the scripts were removed in 0.6.1 and remain in Git history.
+
 ## 0.6.0 release preparation (2026-10-04)
 
 The pre-merge compatibility review found that required `normalized_fields`

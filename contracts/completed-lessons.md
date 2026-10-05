@@ -90,7 +90,7 @@ On 2026-10-02, all four available logins (two students, each with two logins)
 returned the disabled-view notice for every requested window, including a past
 window and one ending in the future. The earlier `AttributeError` and
 `ParseError` stops were this notice. The page had no lesson table because the
-view is switched off; nothing was wrong with the request. apix returns `[]` for
+view is switched off; nothing was wrong with the request. The reference client returns `[]` for
 the same page.
 
 A populated page, pagination and resume have therefore never been observed

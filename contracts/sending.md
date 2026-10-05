@@ -54,7 +54,7 @@ variant; catalogue parity must validate both without accepting implicit aliases.
 Generic transport requests cannot access the send variant. The dedicated method
 owns the scheduler boundary and marks potential dispatch only after admission.
 
-External apix 1.5.3 is a source-informed business reference only. Its metadata
+External reference client is a source-informed business reference only. Its metadata
 advertises MIT while its bundled license is GPLv3. No code, tests, parser
 fixtures or runtime fallback are incorporated. Independently authored fixtures
 use invented messages and IDs. Live form/acknowledgement compatibility is pending.

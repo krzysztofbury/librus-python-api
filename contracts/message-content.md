@@ -10,7 +10,7 @@ actual attempt is owned by the scheduler and operation budget.
 
 The pure parser requires one three-row labelled metadata table, one body
 container and at most one labelled read-receipt table. Required labels and civil
-timestamps are validated, never position-only apix fallback. Supported block
+timestamps are validated, never a position-only reference-client fallback. Supported block
 boundaries become line breaks; text is never truncated. Empty content is valid
 only inside the recognized structure. Active content is never evaluated.
 
@@ -22,7 +22,7 @@ paths, anchor layouts, duplicate IDs and foreign message IDs fail explicitly.
 
 ## Provenance and evidence
 
-The separately acquired apix 1.5.3 content reader informed the
+The separately acquired reference client content reader informed the
 three main fields/body requirements; existing native list observations establish
 folder reference families. The separately scoped consumer's independently
 implemented attachment flow informed numeric file/message linkage and filename
@@ -40,15 +40,15 @@ download or read-once operation is authorized. Captures are owner-only outside
 Git; comparisons emit counts/classifications and the captures are deleted.
 
 `scripts/capture_message_content.py` owns those bounds and the already-read
-selection gate. `scripts/compare_message_content.py` gives apix the identical
-bytes through an inert client, not its live network stack. Chromium independently
+selection gate. A since-removed offline comparison script gave the reference
+client the identical bytes through an inert client, not its live network stack. Chromium independently
 checks visible metadata, rendered body line boundaries, optional receipt and
 file markers with scripting/networking disabled. `scripts/replay_message_content.py`
 exercises installed public runtime against captures on loopback only.
 Its field expectations are recorded independently from Chromium rendering in
 owner-only `rendered-content.json`, deleted with the captures.
 
-Apix omits attachment metadata and read receipts. Its agreement on common
+The reference client omits attachment metadata and read receipts. Its agreement on common
 fields is not a correctness oracle. Exact qualification, request accounting and
 remaining gaps are in [VERIFICATION.md](../VERIFICATION.md). Streams are 0.4.3;
 sending remains separately planned and authorized.
@@ -81,9 +81,9 @@ sent responses, including full bodies and attachment metadata, exercise the
 same exact shared 24-request budget as the existing received-content proof.
 
 Chromium independently checks metadata/body/receipt fields on identical private
-bytes with scripts/networking disabled. Apix 1.5.3 rejects the observed two-row
+bytes with scripts/networking disabled. The reference client rejects the observed two-row
 metadata layout with ParseError; that is a classified capability difference,
-not a native fallback or proof that apix is the semantic oracle. The receipt
+not a native fallback or proof that the reference client is the semantic oracle. The receipt
 and body semantics agree with the independent rendered evidence.
 
 No received content was opened in 0.4.5. Sent downloads, richer metadata,

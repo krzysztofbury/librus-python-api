@@ -18,8 +18,9 @@ Page counts come from the same response. No pagination on an empty or shorter
 page zero means one page, as observed on both folders. From 0.4.11 a full 50-row
 page without a pager is unsupported: completeness cannot be established.
 A requested nonzero page without metadata is
-not accepted as an empty range. Populated pagination is source-informed and
-checked with original fixtures, not live-qualified yet.
+not accepted as an empty range. Populated received pagination was observed live
+in 0.4.5 (one two-page mailbox); populated sent pagination remains source-informed
+and checked with original fixtures only.
 
 From 0.4.11 changed page count/mid-page fingerprint, repeated pages or no-progress
 continuations raise `StaleCursorError` instead of `ParseError`. Invalid caller
@@ -33,23 +34,23 @@ are not replayed. A later-page failure never exposes or caches partial output.
 
 ## Independent evidence and provenance
 
-Requirements were informed by the external `librus-apix` 1.5.3
-distribution (metadata homepage: https://github.com/poroknights/librus-apix), and
+Requirements were informed by the external reference client (see
+[VERIFICATION.md](../VERIFICATION.md#reference-client-and-provenance)) and
 by the consumer's bounded mailbox collection requirements. No implementation,
 fixture or test from that distribution or the consumer was copied here. Original
-fixtures use independently observed layout with invented values. No apix runtime
+fixtures use independently observed layout with invented values. No reference-client runtime
 dependency or fallback is added.
 
 Its package metadata advertises MIT while its bundled license is GPLv3. Treat
 that inconsistency as a provenance warning, not an assertion of MIT licensing.
 Implementation and fixtures here remain independent.
 
-Private authorized captures are replayed using only apix's pure parsers by
-`scripts/compare_messages.py`, never another login or network client. Chromium
+Private authorized captures were replayed using only the reference client's pure
+parsers (by a since-removed offline script), never another login or network client. Chromium
 uses the same bytes with scripts and networking disabled to independently check
 visible fields, computed unread flags, attachments, references and empty markers.
 Only sanitized counts/classifications are retained; raw pages and field diffs
-are deleted. Agreement with apix is not a correctness oracle.
+are deleted. Agreement with the reference client is not a correctness oracle.
 
 | External capability | Native 0.4.0 | Evidence / difference |
 | --- | --- | --- |
@@ -58,27 +59,27 @@ are deleted. Agreement with apix is not a correctness oracle.
 | `get_max_page_number` | `MessagesPage.page_count` | Derived per folder from its list response; no extra GET or received-count reuse for sent mail |
 | Caller pagination / collection | Account/folder-bound bounded cursor | Unique IDs, overlap deduplication, page-count drift, mid-page fingerprints and non-progress rejection |
 | Received bold style | Typed `unread` | Same meaning, checked against Chromium computed style; numeric CSS bold supported |
-| Sent recipient status | Raw `recipient_read_status`; `unread=None` | Apix compares a tag with `"NIE"`, which is not a valid recipient-status interpretation; never inherit this behavior |
+| Sent recipient status | Raw `recipient_read_status`; `unread=None` | The reference client compares a tag with `"NIE"`, which is not a valid recipient-status interpretation; never inherit this behavior |
 | `recipient_groups`, `get_recipients` | Implemented in 0.4.1 | Simple-group lookup and named discovery; [separate contract](recipients.md) |
 | `message_content` | Implemented in 0.4.2 | Explicit potential mark-read consent, full text and send/read civil timestamps; qualified only for an already-read received message |
-| Attachment indicator | `has_attachment` | Indicator only; separate native streams implemented in 0.4.3, not an apix capability |
+| Attachment indicator | `has_attachment` | Indicator only; separate native streams implemented in 0.4.3, not a reference-client capability |
 | Notification helpers / read-once events | Primitives implemented in 0.4.4 | Durable response handoff and local replay; consumer owns orchestration/persistence, live consume unqualified |
 | `send_message` | Implemented in 0.4.6 as `prepare_send` / `SendAttempt.execute` | Separate single-use write path; source-informed/offline-qualified only, no live send |
 
-Live qualification is limited to one login: a populated two-row received page
-and an explicitly empty sent page. Populated sent rows, multi-page metadata,
-attachment indicators, other account roles and the newer
-mailbox layout remain pending. See [VERIFICATION.md](../VERIFICATION.md).
+The 0.4.0 live qualification covered one login: a populated two-row received page
+and an explicitly empty sent page. 0.4.5 later observed received multi-page
+metadata (below); populated sent pagination, attachment indicators, other account
+roles and the newer mailbox layout remain pending. See [VERIFICATION.md](../VERIFICATION.md).
 
 Later 0.4.3 evidence extends page-zero lists to 35 received and eight populated
 sent rows, plus populated attachment flags and one content attachment reference.
-Independent Chromium and same-byte apix common fields agree. Pagination and
-newer layouts remain pending; native streams have no apix parity counterpart.
+Independent Chromium and same-byte reference-client common fields agree. Pagination and
+newer layouts remain pending; native streams have no reference-client parity counterpart.
 
 Later 0.4.5 evidence observes a populated two-page received mailbox, plus sent
 content with individual read receipts. Common mailbox fields agree with same-byte
-apix and independent Chromium; the native sent-content parser supports the
-observed two-row metadata layout that apix rejects. Broader/new mailbox layouts
+reference-client replay and independent Chromium; the native sent-content parser supports the
+observed two-row metadata layout that the reference client rejects. Broader/new mailbox layouts
 and populated sent pagination remain pending.
 
 ## Feature/version sequence

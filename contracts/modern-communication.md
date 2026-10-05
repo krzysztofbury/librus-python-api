@@ -175,11 +175,11 @@ account data, not synthetic success claims or speculative requests.
 
 ## External compatibility review and deferred work
 
-The pinned published `librus-apix` 1.5.3 review found no modern/archive, virtual,
+The pinned reference-client review found no modern/archive, virtual,
 populated-subgroup or expanded-recipient implementation that closes these gaps.
 Its legacy sent boolean is not independent delivery evidence. The current
 independent implementation is retained without an external fallback or copied
-fixtures. See [apix-communication-review.md](apix-communication-review.md).
+fixtures. See [VERIFICATION.md](../VERIFICATION.md#reference-client-and-provenance).
 
 Archive attachment resolution and archived flags in an ordinary detail response
 must not be confused with archive mailbox navigation: explicit archive list/detail

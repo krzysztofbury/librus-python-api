@@ -1,15 +1,15 @@
 # librus-python-api
 
-An independent, typed, async Python client for Librus Synergia, built to replace
-`librus-apix` as the backend of [librus-mcp](https://github.com/krzysztofbury/librus-mcp).
+An independent, typed, async Python client for Librus Synergia. It is the backend
+of [librus-mcp](https://github.com/krzysztofbury/librus-mcp).
 
 One `LibrusService` manages several independent Librus logins under a shared,
 bounded traffic policy and returns immutable, typed results. A parent login and
 a student login stay separate security contexts even when they belong to the
 same student.
 
-Status: `0.6.0`, local-first. Nothing is published to PyPI yet; publication
-starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
+Status: `0.6.1`, local-first. Nothing is published to PyPI yet; publication
+starts at `1.0.0rc1`. See [TODO.md](https://github.com/krzysztofbury/librus-python-api/blob/main/TODO.md) for the roadmap.
 
 ## What it reads
 
@@ -30,14 +30,14 @@ starts at `1.0.0rc1`. See [TODO.md](TODO.md) for the roadmap.
 | Modern attachments | `stream_modern_attachment` | One complete ordinary modern file stream qualified; archive resolution is explicit and offline-qualified only |
 | Message content | `message_content` | 0.4.5: populated sent subject/date metadata and individual receipts; 0.4.3 received attachment evidence retained |
 | Attachment bytes | `stream_attachment` | 0.4.3: installed wheel streams one 930,056-byte file to clean EOF without retaining it; strict credential-free destination |
-| Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte apix and independent Chromium agree |
+| Notification counts | `notification_counts` | 0.4.4: installed smoke on five shown categories; same-byte reference-client and independent Chromium agree |
 | Read-once events | `consume_schedule_events`, `decode_schedule_events` | 0.4.4: offline checkpoint/cancellation/replay proof only; no live consume |
 
 "Verified" refers to the release-specific observations in the verification log,
-not a claim that every family was called live again in 0.5.0. School reads,
+not a claim that every family is called live again in each release. School reads,
 timetable, profile, messages and recipients were compared with Chromium's independent
 rendering of the same bytes. It is not a claim about every school's layout. Details and
-remaining gaps are in [VERIFICATION.md](VERIFICATION.md).
+remaining gaps are in [VERIFICATION.md](https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md).
 
 Notification primitives do not own seen state or persistence. Legacy sending through
 `prepare_send` and a single-use `SendAttempt` remains offline-qualified only.
@@ -48,7 +48,7 @@ by its owner in the official sent UI. Only the exact observed HTTP 201 JSON
 created/sent acknowledgement can establish ACCEPTED; HTTP success alone remains
 UNKNOWN. No automatic fallback or settings changes; broader compatibility remains
 unqualified. The receipt-parser correction was tested offline, not by another send.
-See [contracts/modern-messages.md](contracts/modern-messages.md).
+See [contracts/modern-messages.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/modern-messages.md).
 
 The same-PR continuation adds modern mailbox reads and broader recipient lookup
 without changing the consumer backend. Ordinary modern attachment streams and
@@ -56,11 +56,11 @@ recipient read observations are implemented and narrowly live-qualified;
 independent delivery status and unavailable layouts are not inferred. The optional
 `librus_python_api.files` layer safely publishes complete legacy or modern attachment
 streams into an explicit caller-selected directory. See
-[contracts/modern-communication.md](contracts/modern-communication.md).
-The pinned [librus-apix communication review](contracts/apix-communication-review.md)
+[contracts/modern-communication.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/modern-communication.md).
+The pinned reference-client communication review (see [VERIFICATION.md](https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md#reference-client-and-provenance))
 found no external logic for the remaining gaps; these stay explicit in TODO C01-C05.
-See [contracts/sending.md](contracts/sending.md). Message-list live
-gaps and the apix coverage comparison are in [contracts/messages.md](contracts/messages.md).
+See [contracts/sending.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/sending.md). Message-list live
+gaps and the reference-client coverage comparison are in [contracts/messages.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/messages.md).
 
 Explicit optional `librus_python_api.persistence.PersistenceStore` supplies
 durable send confirmation binding, atomic single-use claims and conservative
@@ -69,16 +69,16 @@ select a private directory and obtain human approval. Optional `NotificationStor
 and `NotificationWorkflow` add durable raw checkpoints and explicitly acknowledged
 at-least-once notification delivery. Core clients still require no storage; no
 MCP code or production state is migrated here.
-See [contracts/persistence.md](contracts/persistence.md) and [API.md](API.md).
-Recipient gaps and apix coverage are in [contracts/recipients.md](contracts/recipients.md).
+See [contracts/persistence.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/persistence.md) and [API.md](https://github.com/krzysztofbury/librus-python-api/blob/main/API.md).
+Recipient gaps and reference-client coverage are in [contracts/recipients.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/recipients.md).
 Content requires explicit potential mark-read consent; see
-[contracts/message-content.md](contracts/message-content.md) for its qualification gaps.
+[contracts/message-content.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/message-content.md) for its qualification gaps.
 Stream lifecycle, byte budgets and destination restrictions are specified in
-[contracts/attachments.md](contracts/attachments.md).
+[contracts/attachments.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/attachments.md).
 Read-once checkpoint ownership and its remaining loss windows are specified in
-[contracts/notifications.md](contracts/notifications.md); routine live checks never consume events.
+[contracts/notifications.md](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/notifications.md); routine live checks never consume events.
 Behaviour notes stay unsupported until a populated page has been observed
-([decision](contracts/behaviour-notes.md)).
+([decision](https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/behaviour-notes.md)).
 
 ## Example
 
@@ -104,7 +104,7 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-See [API.md](API.md) for every call, its result types and its limits.
+See [API.md](https://github.com/krzysztofbury/librus-python-api/blob/main/API.md) for every call, its result types and its limits.
 
 ## Guarantees
 
@@ -132,10 +132,10 @@ uv pip install dist/*.whl
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, the test layout and
+See [CONTRIBUTING.md](https://github.com/krzysztofbury/librus-python-api/blob/main/CONTRIBUTING.md) for setup, checks, the test layout and
 the live verification workflow. Repository content is English and contains no
 private or school data.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/krzysztofbury/librus-python-api/blob/main/LICENSE).

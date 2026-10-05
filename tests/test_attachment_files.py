@@ -199,3 +199,26 @@ def test_directory_symlink_is_rejected_before_network(tmp_path: Path) -> None:
             assert fixture.calls == [] and fixture.downloads == []
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("flag", ["O_DIRECTORY", "O_NOFOLLOW"])
+def test_platform_without_safe_open_flags_is_unsupported_before_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flag: str
+) -> None:
+    # Without these flags the directory/symlink guarantees cannot hold, so the
+    # call must fail with a typed error instead of a raw AttributeError.
+    monkeypatch.delattr(os, flag)
+
+    async def scenario() -> None:
+        async with rig() as (fixture, service):
+            with pytest.raises(LibrusError) as error:
+                await publish_attachment(
+                    service.account("student").stream_attachment(reference()),
+                    tmp_path,
+                    filename="fixture.txt",
+                )
+            assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+            assert fixture.calls == [] and fixture.downloads == []
+        assert os.listdir(tmp_path) == []
+
+    asyncio.run(scenario())

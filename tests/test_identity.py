@@ -188,7 +188,7 @@ def test_denied_account_does_not_relogin_or_break_other_account() -> None:
 
 
 @pytest.mark.parametrize("expires", [1, 2])
-def test_tenacity_safe_recovery_is_one_reauthentication_with_original_budget(
+def test_safe_recovery_is_one_reauthentication_with_original_budget(
     expires: int,
 ) -> None:
     async def scenario() -> None:

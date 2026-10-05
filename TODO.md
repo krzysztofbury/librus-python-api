@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace `librus-apix` in [librus-mcp](https://github.com/krzysztofbury/librus-mcp)
+Replace the legacy backend in [librus-mcp](https://github.com/krzysztofbury/librus-mcp)
 with this independently implemented, MIT-licensed library, published on PyPI,
 with a direct MCP 2.0 cutover to native contracts. No MCP 1.x wire compatibility
 layer or intermediate compatible release is required. The library gives MCP a small,
@@ -42,6 +42,7 @@ Rules that hold for every release:
 | `0.4.11` | Session, storage retention and communication review follow-ups | Implemented and locally qualified on Python 3.13/3.14 |
 | `0.5.0` | Modern authentication, broader communication coverage and live qualification | Implemented and narrowly live-qualified; offline pre-merge review and artifact evidence in VERIFICATION.md; C01-C05 and consumer migration remain open |
 | `0.6.0` | Bounded homework ranges, native detail keys, JSON hardening and direct MCP 2.0 plan | Implemented offline; constructor compatibility retained; consumer migration pending |
+| `0.6.1` | Pre-1.0 readiness review: dependency, platform and documentation fixes | Implemented offline and locally qualified; no API change |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API for the native MCP 2.0 cutover | Planned |
 | MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Separate consumer release |
@@ -97,16 +98,16 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
 
 - [x] 0.4.0: received/sent message lists, bounded pagination and source-bound
   references. Keep message bodies out of list retrieval. Installed live smoke
-  and same-byte Chromium/apix replay completed on one login. Populated sent
+  and same-byte Chromium/reference-client replay completed on one login. Populated sent
   rows, multi-page metadata, attachment flags, other roles and the newer mailbox
   layout remain live-unqualified; original offline proofs are not live evidence.
 - [x] 0.4.1: named recipient-group discovery and ID-bearing simple-group lookup.
-  Installed live smoke covered tutor, teachers and school office; Chromium/apix
+  Installed live smoke covered tutor, teachers and school office; Chromium/reference-client
   replay agreed. Empty lists, subgroup/virtual-class discovery, other groups and
   roles remain pending. Details: [contracts/recipients.md](contracts/recipients.md).
 - [x] 0.4.2: full-message content and inert attachment metadata implemented.
   Explicit mark-read consent, summary-cache invalidation and no hidden replay;
-  installed live smoke and Chromium/apix agree on one already-read received
+  installed live smoke and Chromium/reference-client agree on one already-read received
   message. Source and installed wheel/sdist suites pass on 3.13/3.14. Populated sent content and
   attachment metadata, receipt variants and richer/new layouts remain unqualified.
 - [x] 0.4.3: single-owner credential-free bounded download streams, shared
@@ -237,10 +238,10 @@ contract for exact evidence and limits. Consumer integration remains separate.
 
 ### Deferred communication evidence and contract work (C01-C05)
 
-The pinned review of `librus-apix` 1.5.3 found no additional implementation for
+The pinned reference-client review found no additional implementation for
 these gaps. The published wheel matches its source revision; generic legacy HTTP
 access and a sent `unread` flag are not modern coverage or delivery evidence.
-See [contracts/apix-communication-review.md](contracts/apix-communication-review.md).
+See [VERIFICATION.md](VERIFICATION.md#reference-client-and-provenance).
 Do not add speculative routes, copy external implementations, relax guards or
 repeat unavailable-account probes to close these items. They do not block
 delivery of the explicitly qualified subset of 0.5.0.
@@ -339,7 +340,7 @@ Preserve existing notification data and recovery files; do not reset production
 state or automatically migrate it during development or offline tests.
 
 Build the reusable prerequisites here first. MCP adapter implementation belongs
-in the separate `librus-mcp` repository when migrating from `librus-apix` to this
+in the separate `librus-mcp` repository when migrating from its legacy backend to this
 API, not in the current library implementation slice. Default/release cutover still
 requires installed acceptance and the release gate. Credentialed CI, PR merge
 and publication require separate authorization. PyPI remains deferred until
@@ -357,7 +358,7 @@ branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live g
 
 ### 1.0.0rc1 - Complete replacement qualification
 
-- [ ] Finish P8 for every required consumer operation and remove `librus-apix`
+- [ ] Finish P8 for every required consumer operation and remove the legacy backend's
   imports, private patches, duplicated recovery and obsolete dependencies in the
   migration branch. Keep the notification storage and file-publication owners.
 - [ ] Complete the R01-R17 proof map, the declared Python/platform matrix,
@@ -429,7 +430,7 @@ Dependencies: none. Regression coverage: R01-R17 inventory.
   fixtures independently. Do not claim this source-informed effort is clean-room.
 - [ ] Decide distribution `librus-python-api` and import `librus_python_api`;
   confirm PyPI availability/ownership before release. Do not shadow `librus`,
-  `librus_apix`, or `src`, and do not depend on upstream as a hidden fallback.
+  the legacy backend, or `src`, and do not depend on upstream as a hidden fallback.
   Status: names decided and used; PyPI ownership is confirmed in P7.
 - [x] Establish `src/librus_python_api/`, `pyproject.toml`, MIT SPDX metadata,
   bundled license, `py.typed`, and a single package-version source. Select and
@@ -822,14 +823,14 @@ Dependencies: P3-P7 for the required feature set.
   guarantees and UNKNOWN-send protection. Unsupported notes remain default-off.
 - [ ] Serialize dates/enums/references deliberately under new schemas; verify
   response limits after serialization and preserve honest completeness metadata.
-- [ ] Replace imports from `librus_apix` in `src/librus_client.py`,
+- [ ] Replace legacy backend imports in `src/librus_client.py`,
   `src/librus_optimizations.py`, `src/scraping.py`, and
   `src/notification_state.py`, including state DTO construction on restart.
 - [ ] Remove private-session patching, upstream parser calls, redundant HTTP
   stacks, thread pools, response wrappers, and duplicate caches only after their
   replacement invariants pass. Keep notification persistence and download
   publication modules that still own application behavior.
-- [ ] Remove `librus-apix` from the manifest/lock and prove its absence from the
+- [ ] Remove the legacy backend from the manifest/lock and prove its absence from the
   installed consumer dependency graph. Remove direct scraper/network dependencies
   only when no consumer-owned implementation still needs them.
 - [ ] Run new MCP 2.0 contract/stdio tests and retained safety/runtime suites
@@ -846,7 +847,7 @@ Dependencies: P3-P7 for the required feature set.
   is not a license migration.
 
 Exit: public `uvx librus-mcp` installation uses only supported library APIs,
-without `librus-apix`, exposes native MCP 2.0 contracts and preserves safety and
+without the legacy backend, exposes native MCP 2.0 contracts and preserves safety and
 durable-state guarantees.
 
 ## P9 - MCP 2.0 contract, packaging and configuration

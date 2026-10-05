@@ -12,7 +12,7 @@ school text and references. There are no implicit detail requests or link/script
 execution. Date text must be a valid ISO civil date; the original text is retained
 alongside `datetime.date`. No timezone or publication time is invented.
 
-| Concern | apix/consumer baseline | Native policy |
+| Concern | reference-client/consumer baseline | Native policy |
 | --- | --- | --- |
 | Title/author/date | HTML strings; title source whitespace preserved | Complete bounded plain strings, whitespace normalized; missing title/author/date fails rather than inventing values |
 | Body | Full first-TD text from the third data row | Full bounded plain text with paragraph/list/BR line boundaries; source whitespace normalized and inline word joins preserved. Empty body remains empty; never truncate |
@@ -33,7 +33,7 @@ Edits and account-alias changes produce a new reference. Identical copies share
 one reference but remain distinct items. Consumers must keep login identity with
 references and never use equality to merge security contexts or permissions.
 
-Native plaintext is intentionally not exact apix whitespace. Reference-parser
+Native plaintext is intentionally not the reference client's exact whitespace. Reference-parser
 bugs are not a reason to corrupt native data. Compare normalized rendered content
 on identical responses, as required by CONTRIBUTING.md.
 
@@ -63,22 +63,22 @@ on identical responses, as required by CONTRIBUTING.md.
 
 ## Provenance and qualification
 
-Installed unmodified apix 1.5.3 and the read-only consumer are requirements/
+The installed, unmodified reference client and the read-only consumer are requirements/
 comparison references, not dependencies or copied implementation/fixtures.
-The installed apix distribution's advertised MIT metadata and bundled GPLv3
+The installed reference client's advertised MIT metadata and bundled GPLv3
 remain a provenance warning. No source, docs, fixtures or capture was copied.
 
 One authorized discovery and one installed-native qualification each used one
 login and ten HTTP requests on the same context, 20 of a fresh 32-request cap.
 The page contained seven complete announcements, including bodies above 1024
-characters. Unmodified apix parsed the same response offline; Chromium rendered
-the same markup with scripts and external requests disabled. Native/apix/browser
+characters. Unmodified the reference client parsed the same response offline; Chromium rendered
+the same markup with scripts and external requests disabled. Native/reference-client/browser
 agree on all items and normalized title/author/date/content. Three baseline
 titles and seven body strings differed only in whitespace; native body line
 formatting also differs from browser presentation without changing words.
 Private pages/results were discarded after in-memory classification. Native
 cached reuse made no extra HTTP request. This is populated installed retrieval,
-not a full styled/interactive UI, independent apix network workload, sustained
+not a full styled/interactive UI, independent reference-client network workload, sustained
 capacity benchmark, or universal role/layout qualification.
 
 Empty marker phrases/layout, reordered/aliased labels, nested/rich/active content

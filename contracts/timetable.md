@@ -4,7 +4,7 @@ Explicit civil-week timetable reads. Live evidence is in VERIFICATION.md.
 
 ## Requirements and provenance
 
-The business reference is the installed, unmodified librus-apix 1.5.3 timetable
+The business reference is the installed, unmodified reference client timetable
 function and the read-only consumer's Monday-week selection and nested-day output.
 No reference code, docs, fixture markup, or school capture was incorporated. That
 distribution advertises MIT metadata but bundles GPLv3; it remains a requirements
@@ -64,7 +64,7 @@ source-informed.
 including class-absence notices and wrapped substitution notices. Lessons,
 notice labels and full notice tooltips match Chromium's rendering of the same
 bytes. Earlier: a two-week installed comparison on one context, where native
-teacher and classroom text matched Chromium in all 91 slots, while apix differed
+teacher and classroom text matched Chromium in all 91 slots, while the reference client differed
 in whitespace and one string per week.
 
 Not yet observed: multi-group entries, wholly empty weeks, other roles and

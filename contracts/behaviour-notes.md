@@ -6,7 +6,7 @@ an unrecognized page into an empty list.
 
 ## Evidence
 
-- apix has no behaviour-note operation. The consumer's parser was written from
+- The reference client has no behaviour-note operation. The consumer's parser was written from
   assumptions about populated pages, not from an observed one.
 - On 2026-10-02 the internal `behaviour_notes_probe` GET (`/uwagi`) was read live
   for both students. Each returned the explicit empty marker "Brak uwag" with no
