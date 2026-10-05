@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 0.7.0
+  version: 1.0.0rc1
   license:
     name: MIT
   description: |

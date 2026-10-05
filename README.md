@@ -8,17 +8,26 @@ Use it in personal scripts, notification services or application backends. One
 service can manage multiple logins while keeping their sessions and data separate.
 It is not an official Librus product.
 
-**Requirements:** Python 3.13 or newer. Linux is tested. Persistence and saving
-attachments require POSIX filesystem features, such as those on Linux or macOS;
-Windows disk workflows are unsupported. macOS has not yet been qualified in CI.
+**Requirements:** Python 3.13 or newer. Linux and macOS are tested in CI.
+Persistence and saving attachments require POSIX filesystem features, such as
+those on Linux or macOS; Windows disk workflows are unsupported.
 
-**Status:** `0.7.0`, beta and local-first. The package is not yet published to PyPI;
-publication is planned from `1.0.0rc1`. School features depend on what each account
-can access. See [limitations](#supported-features-and-limitations) below.
+**Status:** `1.0.0rc1`, a library-only beta prerelease, not stable 1.0 or an MCP
+cutover. MCP integration, legacy-state migration and broader live qualification
+remain unfinished. School features depend on what each account can access.
+See [limitations](#supported-features-and-limitations) below.
 
 ## Install
 
-From a checkout of this repository, install into a virtual environment:
+Install the exact candidate from PyPI once its gated publication completes:
+
+```sh
+python -m pip install librus-python-api==1.0.0rc1
+```
+
+An explicit version selects the prerelease without opting into every prerelease
+dependency. Before publication, use a checkout or locally built wheel instead.
+From a checkout, install into a virtual environment:
 
 ```sh
 python3 -m venv .venv
@@ -29,13 +38,10 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-0.7.0-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.0.0rc1-py3-none-any.whl
 ```
 
-Once a version has been published, installation from PyPI will use
-`python -m pip install librus-python-api==<published-version>`. That command is
-not available for this local-first release. No CLI or background process is
-installed: import the library in your own program.
+No CLI or background process is installed: import the library in your own program.
 
 ## First request
 
