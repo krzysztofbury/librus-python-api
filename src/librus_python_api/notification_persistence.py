@@ -230,6 +230,11 @@ class NotificationStore(_SQLiteStore):
 
     def _lock_context(self, context: str, held: list[int]) -> None:
         context = self._context_key(context)
+        if self._windows_directory is not None:
+            from librus_python_api._windows_filesystem import acquire_lock
+
+            acquire_lock(self._windows_directory, f"notification-{context}.lock", held)
+            return
         if fcntl is None:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         path = self._directory / f"notification-{context}.lock"
@@ -273,7 +278,12 @@ class NotificationStore(_SQLiteStore):
             # A resource-release syscall, not a new queued storage operation.
             # The acquisition worker is joined before this point, even on cancel.
             if held:
-                os.close(held.pop())
+                if self._windows_directory is not None:
+                    from librus_python_api._windows_filesystem import release_lock
+
+                    release_lock(held.pop())
+                else:
+                    os.close(held.pop())
 
     async def _transaction[T](
         self,

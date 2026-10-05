@@ -8,16 +8,20 @@ import os
 import secrets
 import sqlite3
 import stat
+import sys
 from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import Field
 
 from librus_python_api.config import _ValidatedConfig
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.lifecycle import join_owned
+
+if TYPE_CHECKING:
+    from librus_python_api._windows_filesystem import WindowsDirectory
 
 
 class _StorageLimits(_ValidatedConfig):
@@ -60,6 +64,7 @@ class _SQLiteStore:
         self._close_task: asyncio.Task[None] | None = None
         self._file_identity: tuple[int, int] | None = None
         self._context_salt: bytes | None = None
+        self._windows_directory: WindowsDirectory | None = None
 
     def context_identifier(self, context: str) -> str:
         """Store-local context pseudonym; requires an explicitly opened store."""
@@ -87,7 +92,7 @@ class _SQLiteStore:
         await self.aclose()
 
     async def open(self) -> None:
-        if os.name != "posix":
+        if os.name != "posix" and sys.platform != "win32":
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         if self._opened or self._opening or self._closing or self._closed:
             raise LibrusError(ErrorKind.INVALID_INPUT)
@@ -97,6 +102,9 @@ class _SQLiteStore:
             self._opened = True
         finally:
             self._opening = False
+            if not self._opened and self._windows_directory is not None:
+                self._windows_directory.close()
+                self._windows_directory = None
 
     async def aclose(self) -> None:
         if (
@@ -123,6 +131,13 @@ class _SQLiteStore:
             task.cancel()
         for task in tasks:
             await join_owned(task)
+        if self._windows_directory is not None:
+            try:
+                self._windows_directory.close()
+            except OSError:
+                raise LibrusError(ErrorKind.STORAGE) from None
+            finally:
+                self._windows_directory = None
         self._closed = True
         self._opened = False
 
@@ -207,6 +222,14 @@ class _SQLiteStore:
     def _check_directory(self) -> None:
         # A private immediate parent is the trust boundary. Malicious same-user
         # filesystem writers and unsuitable network filesystems are not isolated.
+        if sys.platform == "win32":
+            from librus_python_api._windows_filesystem import WindowsDirectory
+
+            if self._windows_directory is None:
+                self._windows_directory = WindowsDirectory(self._directory, create=True)
+            else:
+                self._windows_directory.validate()
+            return
         if self._directory.is_symlink():
             raise LibrusError(ErrorKind.STORAGE)
         self._directory.mkdir(mode=0o700, exist_ok=True)
@@ -219,6 +242,14 @@ class _SQLiteStore:
             raise LibrusError(ErrorKind.STORAGE)
 
     def _check_file(self, *, create: bool = False) -> None:
+        if self._windows_directory is not None:
+            identity = self._windows_directory.check_file(
+                self._filename, self._database_bytes, create=create
+            )
+            if self._file_identity is not None and identity != self._file_identity:
+                raise LibrusError(ErrorKind.STORAGE)
+            self._file_identity = identity
+            return
         if self._path.is_symlink():
             raise LibrusError(ErrorKind.STORAGE)
         flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
@@ -246,6 +277,11 @@ class _SQLiteStore:
 
     def _check_sidecars(self) -> None:
         for suffix in ("-journal", "-wal", "-shm"):
+            if self._windows_directory is not None:
+                self._windows_directory.check_sidecar(
+                    self._filename + suffix, self._database_bytes + 1024 * 1024
+                )
+                continue
             path = self._path.with_name(self._path.name + suffix)
             try:
                 status = path.lstat()

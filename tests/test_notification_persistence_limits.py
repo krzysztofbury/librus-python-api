@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -277,6 +278,9 @@ def test_duplicate_rows_do_not_duplicate_delivery_or_change_send_state(
 def test_notification_specific_corruption_fails_closed_before_http(
     tmp_path: Path, damage: str
 ) -> None:
+    if os.name == "nt" and damage == "lock_symlink":
+        pytest.skip("POSIX symlink; Windows lock reparse case is separate")
+
     async def scenario() -> None:
         fixture = NotificationWorkflowFixture()
         directory = tmp_path / "state"
