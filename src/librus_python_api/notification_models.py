@@ -1,6 +1,7 @@
 """Neutral optional notification delivery and recovery values, never MCP DTOs."""
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 from librus_python_api.models import (
     AccountContext,
@@ -30,13 +31,19 @@ type NotificationValue = (
 )
 
 
+class NotificationProvenance(StrEnum):
+    OBSERVED = "observed"
+    IMPORTED_HISTORY = "imported_history"
+
+
 @dataclass(frozen=True, slots=True)
 class NotificationItem:
     category: NotificationCategory
     identifier: str = field(repr=False)
     value: NotificationValue = field(repr=False)
-    identity: Identity = field(repr=False)
-    observation: Observation = field(repr=False)
+    identity: Identity | None = field(repr=False)
+    observation: Observation | None = field(repr=False)
+    provenance: NotificationProvenance = NotificationProvenance.OBSERVED
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,3 +76,30 @@ class NotificationArchive:
     version: int
     context: AccountContext = field(repr=False)
     payload: bytes = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationBaselineMapping:
+    """Caller-established mapping; None means explicitly unmappable."""
+
+    category: NotificationCategory
+    source_identifier: str = field(repr=False)
+    native_identifier: str | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationBootstrap:
+    """Neutral offline inputs, never a consumer's files or fabricated raw pages."""
+
+    context: AccountContext = field(repr=False)
+    mappings: tuple[NotificationBaselineMapping, ...] = field(repr=False)
+    pending_events: tuple[RecentScheduleEvent, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationBootstrapResult:
+    """Unmapped inputs prevent every write; successful history has a durable receipt."""
+
+    imported: bool
+    unmapped: tuple[NotificationBaselineMapping, ...] = field(repr=False)
+    pending: NotificationBatch | None = field(repr=False)

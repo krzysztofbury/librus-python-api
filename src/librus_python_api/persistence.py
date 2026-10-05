@@ -21,8 +21,12 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import AccountContext, SendResult, SendStatus
 from librus_python_api.notification_models import (
     NotificationArchive,
+    NotificationBaselineMapping,
     NotificationBatch,
+    NotificationBootstrap,
+    NotificationBootstrapResult,
     NotificationItem,
+    NotificationProvenance,
     NotificationSeen,
     NotificationState,
 )
@@ -35,8 +39,12 @@ from librus_python_api.sending import SendAttempt
 
 __all__ = [
     "NotificationArchive",
+    "NotificationBaselineMapping",
     "NotificationBatch",
+    "NotificationBootstrap",
+    "NotificationBootstrapResult",
     "NotificationItem",
+    "NotificationProvenance",
     "NotificationSeen",
     "NotificationState",
     "NotificationLimits",

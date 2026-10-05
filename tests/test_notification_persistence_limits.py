@@ -74,7 +74,9 @@ def test_four_maximum_batches_share_exact_traffic_budget_and_isolated_state(
                     assert len({batch.receipt for batch in batches}) == 4
                     for alias, batch in zip(aliases, batches, strict=True):
                         assert all(
-                            item.identity.owner.id == alias for item in batch.items
+                            item.identity is not None
+                            and item.identity.owner.id == alias
+                            for item in batch.items
                         )
                     await asyncio.gather(
                         *(

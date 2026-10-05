@@ -29,6 +29,38 @@ new pending records. Preserve original stores/exports for rollback, never reset
 or rewrite them implicitly. Switching backend while a delivery is pending fails
 before HTTP; acknowledge or recover the original delivery first.
 
+### Neutral external bootstrap (#23)
+
+`NotificationStore.bootstrap(NotificationBootstrap(...), context=...)` imports
+caller-established `NotificationBaselineMapping` records and typed historical
+`RecentScheduleEvent` values offline. Context must match the plan exactly. Source
+identifiers are opaque; native identifiers must already be independently mapped
+canonical IDs. Unknown categories, malformed IDs, collisions and duplicate or
+already-seen pending events reject. A mapping with `native_identifier=None`
+returns an explicit unmapped report with `imported=False` and performs no writes.
+Consumers must stop or resolve that report, not silently seed a fresh account.
+
+Empty-target-context import atomically registers context, writes initialized seen
+state and stages one bounded historical AGENDA batch. Repeat attempts reject
+even after acknowledgement. Item provenance is `IMPORTED_HISTORY`; identity and
+observation are explicitly None. No timestamp, owner/student identity, raw HTTP
+body or session metadata is fabricated. Historical delivery cannot coexist with
+raw checkpoints or uncertain-consume markers. Capacity failures roll back the
+whole import, not just pending events. Cancellation/shutdown joins owned workers.
+
+Public workflow replay with the AGENDA tuple and acknowledgement remain offline,
+including across process restart. `state` exposes mapped baseline IDs and native
+archives round-trip the missing-provenance representation. Native observed
+records missing the new provenance field are read as OBSERVED and still require
+identity/observation. No SQLite schema change or automatic old-file import occurs.
+
+Rollback stays consumer-owned. Keep original source files and the mapping plan,
+and export a native archive before cutover. Seen hashes cannot recover old opaque
+identifiers; source identifiers are not persisted and absent authentication
+provenance cannot be reconstructed. Inputs must fit one staged batch; there is no
+silent truncation or multi-step partial import. See [the public API](../API.md#offline-external-baseline-bootstrap)
+for bounds, error/report semantics and replay steps.
+
 ## 0.4.11 retention and storage format decision
 
 S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native

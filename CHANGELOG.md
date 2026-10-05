@@ -2,6 +2,11 @@
 
 ## 1.0.0
 
+- Add a neutral offline notification bootstrap API for explicitly mapped baseline
+  IDs and consumed historical events. Report unmapped IDs without writes; atomically
+  stage bounded pending history with explicit missing provenance. Preserve restart,
+  archive round-trip and acknowledgement without fabricating native metadata.
+
 - Add explicit legacy/modern mailbox selection to durable notification workflows.
   Modern summaries use their own canonical ID domain; pending batches retain their
   original source across restart and archive import. Existing legacy IDs and

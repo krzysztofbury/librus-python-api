@@ -259,7 +259,10 @@ def test_modern_seen_ids_remain_independent_per_configured_login(
                     )
                     batch = await workflow.poll(categories=MESSAGES)
                     assert batch.first_run and len(batch.items) == 1
-                    assert batch.items[0].identity.observation.account == alias
+                    identity = batch.items[0].identity
+                    assert (
+                        identity is not None and identity.observation.account == alias
+                    )
                     await workflow.acknowledge(batch.receipt)
                     assert (await workflow.poll(categories=MESSAGES)).items == ()
                     batches.append(batch)
@@ -318,6 +321,8 @@ def test_existing_format_three_legacy_delivery_remains_importable(
                 archive = await source.export_archive(context=client.context)
             record = json.loads(archive.payload)
             record["delivery"]["batch"].pop("messages_backend")
+            for item in record["delivery"]["batch"]["items"]:
+                item["item"].pop("provenance")
             old = replace(archive, payload=json.dumps(record).encode())
             async with NotificationStore(tmp_path / "destination") as target:
                 await target.import_archive(old)

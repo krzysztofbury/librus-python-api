@@ -10,6 +10,7 @@ from typing import Any, cast
 
 from pydantic import TypeAdapter, ValidationError
 
+from librus_python_api.config import SCHOOL_MAX_CONTENT_LENGTH, SCHOOL_MAX_FIELD_LENGTH
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     Announcement,
@@ -30,6 +31,7 @@ from librus_python_api.models import (
 from librus_python_api.notification_models import (
     NotificationBatch,
     NotificationItem,
+    NotificationProvenance,
     NotificationSeen,
     NotificationState,
     NotificationValue,
@@ -280,6 +282,8 @@ def restore_batch(payload: bytes, maximum: int) -> NotificationBatch:
         ):
             raise LibrusError(ErrorKind.PARSE)
         item = entry["item"]
+        if type(item) is dict and "provenance" not in item:
+            item["provenance"] = NotificationProvenance.OBSERVED.value
         if type(item) is not dict or set(item) != {
             f.name for f in fields(NotificationItem)
         }:
@@ -298,6 +302,7 @@ def restore_batch(payload: bytes, maximum: int) -> NotificationBatch:
                 value,
                 parsed.identity,
                 parsed.observation,
+                parsed.provenance,
             )
         )
     record["items"] = []
@@ -324,14 +329,24 @@ def _validate_batch_items(
         or len(set(batch.categories)) != len(batch.categories)
     ):
         raise LibrusError(ErrorKind.PARSE)
-    if any(
-        item.category not in batch.categories
-        or item.observation.account != batch.context.alias
-        or item.identity.observation.account != batch.context.alias
-        for item in items
-    ):
-        raise LibrusError(ErrorKind.PARSE)
     for item in items:
+        if item.category not in batch.categories:
+            raise LibrusError(ErrorKind.PARSE)
+        if item.provenance is NotificationProvenance.IMPORTED_HISTORY:
+            validate_historical_item(item)
+            if (
+                batch.categories != (NotificationCategory.AGENDA,)
+                or batch.first_run
+                or batch.has_more_schedule
+            ):
+                raise LibrusError(ErrorKind.PARSE)
+        elif (
+            item.identity is None
+            or item.observation is None
+            or item.observation.account != batch.context.alias
+            or item.identity.observation.account != batch.context.alias
+        ):
+            raise LibrusError(ErrorKind.PARSE)
         if isinstance(item.value, (MessageSummary, ModernMessageSummary)):
             expected = (
                 MessagingBackend.MODERN
@@ -343,3 +358,39 @@ def _validate_batch_items(
                 or item.value.reference.account != batch.context.alias
             ):
                 raise LibrusError(ErrorKind.PARSE)
+    if any(
+        item.provenance is NotificationProvenance.IMPORTED_HISTORY for item in items
+    ) and not is_historical_batch(batch, items):
+        raise LibrusError(ErrorKind.PARSE)
+
+
+def is_historical_batch(
+    batch: NotificationBatch, items: list[NotificationItem] | None = None
+) -> bool:
+    values = batch.items if items is None else items
+    return bool(values) and all(
+        item.provenance is NotificationProvenance.IMPORTED_HISTORY for item in values
+    )
+
+
+def validate_historical_item(item: NotificationItem) -> None:
+    if (
+        item.category is not NotificationCategory.AGENDA
+        or type(item.value) is not RecentScheduleEvent
+        or item.identity is not None
+        or item.observation is not None
+        or item.provenance is not NotificationProvenance.IMPORTED_HISTORY
+    ):
+        raise LibrusError(ErrorKind.PARSE)
+    value = item.value
+    for text, minimum, maximum in (
+        (value.date_added, 1, SCHOOL_MAX_FIELD_LENGTH),
+        (value.type, 1, SCHOOL_MAX_FIELD_LENGTH),
+        (value.data, 0, SCHOOL_MAX_CONTENT_LENGTH),
+    ):
+        if type(text) is not str or not minimum <= len(text) <= maximum:
+            raise LibrusError(ErrorKind.PARSE)
+        try:
+            text.encode("utf-8")
+        except UnicodeError:
+            raise LibrusError(ErrorKind.PARSE) from None

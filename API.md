@@ -565,7 +565,9 @@ notified again; no automatic school-year/age expiry is performed.
 
 Explicitly import `NotificationStore`, `NotificationLimits`, `NotificationWorkflow`,
 `NotificationBatch`, `NotificationItem`, `NotificationState`, `NotificationSeen`,
-`NotificationArchive` and `canonical_notification_id` from
+`NotificationArchive`, `NotificationProvenance`, `NotificationBaselineMapping`,
+`NotificationBootstrap`, `NotificationBootstrapResult` and
+`canonical_notification_id` from
 `librus_python_api.persistence`. Construction is inert; core clients remain
 independent of this optional layer.
 
@@ -607,7 +609,9 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   has_more_schedule, messages_backend=MessagingBackend.LEGACY)` is a durably staged
   batch. Modern message items contain `ModernMessageSummary`, not message bodies.
   Each `NotificationItem` carries
-  category, canonical identifier, native typed value, identity and observation.
+  category, canonical identifier, native typed value and provenance. OBSERVED
+  items have identity and observation; imported historical agenda items have
+  neither. Check `item.provenance` before using authentication metadata.
   First run diffs against empty IDs and ends only at acknowledgement. Requested
   categories alone update seen state. Until acknowledgement, polling the exact
   same category tuple returns that batch without authentication/HTTP. A different
@@ -658,6 +662,59 @@ qualified explicit mapping to `agenda`/native IDs. See
 [contracts/persistence.md](contracts/persistence.md) for compatibility and loss
 windows. No live qualification or MCP migration is implied by offline recovery.
 
+### Offline external baseline bootstrap
+
+`await store.bootstrap(plan, *, context=client.context)` accepts a typed
+`NotificationBootstrap(context, mappings, pending_events)`. It performs no HTTP.
+The caller reads its own old files, establishes native canonical IDs and maps
+each old baseline ID with `NotificationBaselineMapping(category,
+source_identifier, native_identifier)`. Source IDs are opaque nonempty strings
+up to 256 characters; native IDs are lowercase 64-character SHA256 values.
+Use `canonical_notification_id` with independently established native records,
+not a hash of an incompatible old identifier. Numeric message IDs require their
+original backend and folder. Content-derived native IDs cannot be reconstructed
+from a legacy opaque ID alone.
+
+An unmappable ID must be submitted with `native_identifier=None`. The result has
+`imported=False`, `unmapped` containing those exact mappings and `pending=None`;
+no context, state or pending work is written. A malformed category, ID, mapping
+collision or context mismatch instead raises INVALID_INPUT. Never discard the
+unmapped report and silently poll a fresh baseline. Resolve mappings offline or
+stop migration with the originals intact.
+
+Successful import is empty-target-context only and non-overwriting. It initializes
+the mapped baseline immediately, even when the explicitly supplied mapping tuple
+is empty. Pending historical events are typed `RecentScheduleEvent` values with
+the original three strings unchanged; no raw page, identity, observation timestamp
+or session generation is invented. They form a single staged AGENDA batch with
+`first_run=False`, `has_more_schedule=False` and items marked
+`NotificationProvenance.IMPORTED_HISTORY` with `identity=None`, `observation=None`.
+Observed native items remain marked OBSERVED and require both metadata values.
+
+Mappings, seen IDs, pending count/text and encoded batch/state bytes are bounded
+by `NotificationLimits` and the native field limits. All pending events must fit
+one batch; oversized inputs fail with LIMIT, never partial import. Duplicate
+pending events or an event already included in the mapped seen baseline reject
+explicitly. Context registration, baseline and delivery commit in one SQLite
+transaction under cross-process exclusion. Repeat attempts reject and cannot
+overwrite the prior import, whether its pending batch is acknowledged or not.
+
+`NotificationBootstrapResult(imported, unmapped, pending)` returns the successful
+staged batch and receipt. After a lost response or restart, replay it through
+`NotificationWorkflow(client, store).poll(categories=(NotificationCategory.AGENDA,))`
+without consume consent or network, then acknowledge its receipt normally.
+`store.state(context=...)` exposes the mapped baseline; `export_archive` and
+`import_archive` round-trip both historical and native pending work. Native
+archives are still format 3; old records without `provenance` mean OBSERVED.
+Older library versions cannot read the new historical representation.
+
+For consumer-owned rollback, retain original source files and the mapping plan,
+plus a native archive before cutover. Public replay returns the historical event
+strings and receipt; public state returns mapped seen IDs. Native IDs are one-way
+hashes, source identifiers are not persisted, and missing authentication metadata
+cannot be recovered. Therefore a generic reverse migration to a legacy store is
+not promised. Do not replace original files with this store or fabricate metadata
+to make an old importer accept new state.
 ## Message content
 
 `message_content(reference, *, allow_mark_read=False)` returns
