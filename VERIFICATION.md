@@ -3,6 +3,32 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Typed notification recovery (#24, 2026-10-05)
+
+Focused source qualification passed 101 notification tests, including twelve new
+recovery cases. Public SQLite/loopback cases cover compact historical and modern
+delivery discovery, original source/receipt across restart, raw-only recovery
+after parse failure, retained uncertain consumption, delivery coexisting with raw
+or uncertainty, acknowledged cursor progress, invalid/missing/foreign context,
+corrupt seen-state rejection, bounded output and repeated cancellation. Existing
+fresh-process bootstrap recovery now uses both new public lookup methods.
+
+Pair-programmer review applied TigerStyle #2 (bounded loops), #6 (positive and
+negative space), #12 (full error handling) and #13 (explicit defaults). Independent
+flags retain coexisting work instead of forcing a misleading single status. Reads
+use an owned SQLite snapshot without registration or creating per-context lock
+files. An active-poll case proves status can observe a conservative marker while
+explicit resolution remains excluded; it cannot authorize another consume.
+Ruff and strict mypy passed. No remaining review blocker was identified. No live
+Librus access, implicit recovery mutation or production migration occurred.
+
+Full local qualification passed 1,605 tests on Python 3.13.15/3.14.7 and in each
+of four locked installed wheel/sdist configurations. One optional performance
+test was deselected per run. All installed runtime smokes, Ruff, formatting,
+strict mypy, artifact/metadata checks and strict Twine passed. Disposable builds
+and environments were cleaned up. Hosted CI/merge and stable publication remain
+separate gates; the Windows platform issue is still open.
+
 ## Neutral notification bootstrap (#23, 2026-10-05)
 
 Focused source qualification passed 89 notification persistence/workflow tests,

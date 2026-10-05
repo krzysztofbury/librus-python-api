@@ -103,3 +103,43 @@ class NotificationBootstrapResult:
     imported: bool
     unmapped: tuple[NotificationBaselineMapping, ...] = field(repr=False)
     pending: NotificationBatch | None = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationPendingDelivery:
+    """Compact delivery metadata; message/event content requires pending_batch."""
+
+    receipt: str = field(repr=False)
+    categories: tuple[NotificationCategory, ...]
+    messages_backend: MessagingBackend
+    first_run: bool
+    item_count: int
+    has_more_schedule: bool
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationRawCheckpointStatus:
+    """Retained native wire receipt, not a parsed event count or retry permission."""
+
+    identifier: str = field(repr=False)
+    cursor: int
+    total: int | None
+    wire_bytes: int
+
+
+@dataclass(frozen=True, slots=True)
+class NotificationRecoveryStatus:
+    """Independent facts: an ordinary delivery may coexist with raw/uncertain work."""
+
+    context: AccountContext = field(repr=False)
+    initialized: bool
+    last_acknowledged_receipt: str | None = field(repr=False)
+    pending: NotificationPendingDelivery | None
+    raw: NotificationRawCheckpointStatus | None
+    uncertain_consume: bool
+
+    @property
+    def has_pending_work(self) -> bool:
+        return (
+            self.pending is not None or self.raw is not None or self.uncertain_consume
+        )

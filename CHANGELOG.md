@@ -2,6 +2,10 @@
 
 ## 1.0.0
 
+- Add compact, account-bound offline notification recovery status and pending-batch
+  lookup. Discover original categories/backend/receipt, retained raw progress and
+  uncertain consumption without remembered selections or implicit acknowledgement.
+
 - Add a neutral offline notification bootstrap API for explicitly mapped baseline
   IDs and consumed historical events. Report unmapped IDs without writes; atomically
   stage bounded pending history with explicit missing provenance. Preserve restart,

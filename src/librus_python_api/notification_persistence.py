@@ -46,6 +46,9 @@ from librus_python_api.notification_models import (
     NotificationBootstrap,
     NotificationBootstrapResult,
     NotificationItem,
+    NotificationPendingDelivery,
+    NotificationRawCheckpointStatus,
+    NotificationRecoveryStatus,
     NotificationSeen,
     NotificationState,
 )
@@ -308,6 +311,75 @@ class NotificationStore(_SQLiteStore):
             return await self._io(lambda: self._read_state(context.identifier))
 
         return await self._transaction(context, read)
+
+    async def recovery_status(
+        self, *, context: AccountContext
+    ) -> NotificationRecoveryStatus:
+        """Compact, offline snapshot; never resolves or advances pending work."""
+        _context_id(context)
+
+        async def read() -> NotificationRecoveryStatus:
+            return await self._io(lambda: self._recovery(context)[0])
+
+        # The SQLite transaction supplies a consistent snapshot. A read does not
+        # need workflow exclusion or a new per-context lock file/registration.
+        return await self._owned(read)
+
+    async def pending_batch(
+        self, *, context: AccountContext
+    ) -> NotificationBatch | None:
+        """Return the original staged batch offline, without a remembered selection.
+
+        Raw-only and uncertain work are reported by recovery_status, not parsed,
+        staged or cleared here. Explicit acknowledgement remains required.
+        """
+        _context_id(context)
+
+        async def read() -> NotificationBatch | None:
+            return await self._io(lambda: self._recovery(context)[1])
+
+        return await self._owned(read)
+
+    def _recovery(
+        self, context: AccountContext
+    ) -> tuple[NotificationRecoveryStatus, NotificationBatch | None]:
+        with self._connection() as connection:
+            self._validate_contents(connection)
+            state, last = self._state(connection, context.identifier)
+            delivery = self._delivery(connection, context)
+            raw = self._raw(connection, context)
+            uncertain = (
+                connection.execute(
+                    "SELECT 1 FROM notification_reservations WHERE context=?",
+                    (self._context_key(context.identifier),),
+                ).fetchone()
+                is not None
+            )
+            if uncertain and raw is not None:
+                raise LibrusError(ErrorKind.PARSE)
+            batch = delivery[0] if delivery is not None else None
+            pending = (
+                NotificationPendingDelivery(
+                    batch.receipt,
+                    batch.categories,
+                    batch.messages_backend,
+                    batch.first_run,
+                    len(batch.items),
+                    batch.has_more_schedule,
+                )
+                if batch is not None
+                else None
+            )
+            raw_status = (
+                NotificationRawCheckpointStatus(
+                    raw[0], raw[2], raw[3], len(raw[1].wire.body)
+                )
+                if raw is not None
+                else None
+            )
+            return NotificationRecoveryStatus(
+                context, state.initialized, last, pending, raw_status, uncertain
+            ), batch
 
     def _read_state(self, context: str) -> NotificationState:
         with self._connection() as connection:

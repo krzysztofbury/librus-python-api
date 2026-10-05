@@ -61,6 +61,29 @@ provenance cannot be reconstructed. Inputs must fit one staged batch; there is n
 silent truncation or multi-step partial import. See [the public API](../API.md#offline-external-baseline-bootstrap)
 for bounds, error/report semantics and replay steps.
 
+### Typed offline recovery (#24)
+
+`recovery_status(context=...)` exposes compact immutable account-bound facts:
+initialized state, last acknowledged receipt, pending receipt/categories/backend
+and item count, retained raw identifier/cursor/optional total/encoded wire size,
+and conservative uncertain-consume marker. The flags are independent, since
+ordinary delivery can coexist with raw or uncertain work. Status does not decode
+raw pages, authenticate, acknowledge, stage, advance cursors, prune or clear
+uncertainty. Missing contexts return no work without being registered.
+
+`pending_batch(context=...)` returns the original durably staged native or
+historical batch without remembered category/source selection, or None. It is
+offline, bounded by existing persistence limits and unchanged until explicit
+acknowledgement. None does not assert that raw/uncertain recovery is absent.
+Use status to distinguish those facts. Raw replay and loss-consenting uncertainty
+resolution remain separate explicit operations. Each lookup is atomic, but two
+successive calls can observe a competing acknowledgement; use the actual retrieved
+batch receipt rather than an earlier status. Use service-owned account contexts.
+Invalid contexts, corrupt records and aliases inconsistent with retained metadata
+reject without silent partial output. Reads create neither context registrations
+nor per-context lock files. A marker may belong to an active poll; resolution
+still requires context exclusion and explicit loss acceptance.
+
 ## 0.4.11 retention and storage format decision
 
 S10(c,d) use explicit caller-selected pruning, not automatic age expiry. Native

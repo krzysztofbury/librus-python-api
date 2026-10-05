@@ -19,7 +19,11 @@ async def main() -> None:
     async with offline_service("http://127.0.0.1:9") as service:
         async with NotificationStore(Path(sys.argv[1])) as store:
             workflow = NotificationWorkflow(service.account("student"), store)
-            batch = await workflow.poll(categories=(NotificationCategory.AGENDA,))
+            status = await store.recovery_status(context=workflow.client.context)
+            assert status.pending is not None
+            assert status.pending.categories == (NotificationCategory.AGENDA,)
+            batch = await store.pending_batch(context=workflow.client.context)
+            assert batch is not None and batch.receipt == status.pending.receipt
             assert not batch.first_run and len(batch.items) == 1
             item = batch.items[0]
             assert item.provenance is NotificationProvenance.IMPORTED_HISTORY
