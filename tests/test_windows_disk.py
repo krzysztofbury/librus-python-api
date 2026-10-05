@@ -11,7 +11,7 @@ from typing import Any, cast
 import pytest
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.files import publish_attachment
+from librus_python_api.files import prepare_attachment_directory, publish_attachment
 from librus_python_api.persistence import NotificationStore, PersistenceStore
 from tests.attachments_support import reference, rig
 from tests.test_notification_persistence import offline_service
@@ -82,6 +82,7 @@ def assert_private(path: Path) -> None:
     "damage",
     [
         "directory_acl",
+        "directory_no_inheritance",
         "database_acl",
         "database_hardlink",
         "sidecar_acl",
@@ -101,6 +102,30 @@ def test_unsafe_storage_is_rejected_without_modifying_originals(
         assert_private(database)
         if damage == "directory_acl":
             allow_everyone(directory)
+        elif damage == "directory_no_inheritance":
+            import win32security
+
+            descriptor = win32security.GetNamedSecurityInfo(
+                str(directory),
+                win32security.SE_FILE_OBJECT,
+                win32security.DACL_SECURITY_INFORMATION,
+            )
+            old = descriptor.GetSecurityDescriptorDacl()
+            assert old is not None
+            acl = win32security.ACL()
+            for index in range(old.GetAceCount()):
+                ace = old.GetAce(index)
+                acl.AddAccessAllowedAce(win32security.ACL_REVISION, ace[1], ace[2])
+            win32security.SetNamedSecurityInfo(
+                str(directory),
+                win32security.SE_FILE_OBJECT,
+                win32security.DACL_SECURITY_INFORMATION
+                | win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+                None,
+                None,
+                acl,
+                None,
+            )
         elif damage == "database_acl":
             allow_everyone(database)
         elif damage == "database_hardlink":
@@ -134,11 +159,9 @@ def test_unsafe_storage_is_rejected_without_modifying_originals(
 def test_publication_rejects_unsafe_destination_before_http(
     tmp_path: Path, target: str
 ) -> None:
-    from librus_python_api._windows_filesystem import WindowsDirectory
-
     async def scenario() -> None:
         private = tmp_path / "private"
-        WindowsDirectory(private, create=True).close()
+        await prepare_attachment_directory(private)
         if target == "directory":
             destination = tmp_path / "junction"
             junction(destination, private)
@@ -166,11 +189,9 @@ def test_publication_rejects_unsafe_destination_before_http(
 def test_reparse_collision_is_not_overwritten_and_final_acl_is_private(
     tmp_path: Path,
 ) -> None:
-    from librus_python_api._windows_filesystem import WindowsDirectory
-
     async def scenario() -> None:
         directory = tmp_path / "private"
-        WindowsDirectory(directory, create=True).close()
+        await prepare_attachment_directory(directory)
         target = tmp_path / "untouched"
         target.mkdir()
         (target / "original").write_bytes(b"Keep original fixture")
@@ -204,12 +225,45 @@ def test_private_parent_stays_pinned_until_store_close(tmp_path: Path) -> None:
     asyncio.run(scenario())
 
 
+def test_failure_validating_new_temp_deletes_only_the_owned_handle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import win32file
+    import win32security
+
+    original = win32security.GetSecurityInfo
+
+    def fail_temp(handle: Any, *args: Any) -> Any:
+        name = win32file.GetFinalPathNameByHandle(int(handle), 0)
+        if ".librus-attachment-" in name:
+            raise OSError("Original fixture ACL-query failure")
+        return original(handle, *args)
+
+    async def scenario() -> None:
+        directory = tmp_path / "private"
+        await prepare_attachment_directory(directory)
+        (directory / "original.txt").write_bytes(b"Keep original fixture")
+        monkeypatch.setattr(win32security, "GetSecurityInfo", fail_temp)
+        async with rig() as (fixture, service):
+            with pytest.raises(LibrusError) as error:
+                await publish_attachment(
+                    service.account("student").stream_attachment(reference()),
+                    directory,
+                    filename="original.txt",
+                )
+            assert error.value.kind is ErrorKind.STORAGE
+            assert fixture.calls == [] and fixture.downloads == []
+        assert list(directory.glob(".librus-attachment-*")) == []
+        assert (directory / "original.txt").read_bytes() == b"Keep original fixture"
+        directory.rename(tmp_path / "after-failure")
+
+    asyncio.run(scenario())
+
+
 def test_commit_point_cancellation_preserves_complete_file_and_releases_handles(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import win32file
-
-    from librus_python_api._windows_filesystem import WindowsDirectory
 
     entered, release = threading.Event(), threading.Event()
     original = win32file.SetFileInformationByHandle
@@ -225,7 +279,7 @@ def test_commit_point_cancellation_preserves_complete_file_and_releases_handles(
 
     async def scenario() -> None:
         directory = tmp_path / "private"
-        WindowsDirectory(directory, create=True).close()
+        await prepare_attachment_directory(directory)
         async with rig() as (fixture, service):
             task = asyncio.create_task(
                 publish_attachment(
@@ -297,8 +351,20 @@ def test_network_namespace_is_unsupported_before_creating_files(kind: Any) -> No
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("name", ["CON", "COM¹", "alias:stream", "trailing."])
+def test_ambiguous_windows_path_is_invalid_before_creating_files(
+    tmp_path: Path, name: str
+) -> None:
+    async def scenario() -> None:
+        with pytest.raises(LibrusError) as error:
+            await prepare_attachment_directory(tmp_path / name)
+        assert error.value.kind is ErrorKind.INVALID_INPUT
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("damage", ["acl", "junction"])
-def test_notification_lock_validation_stops_before_registration_work(
+def test_notification_lock_validation_stops_before_reading_or_network(
     tmp_path: Path, damage: str
 ) -> None:
     async def scenario() -> None:

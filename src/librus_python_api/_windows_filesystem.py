@@ -1,5 +1,6 @@
 """Private local-NTFS guards using documented Win32 APIs, loaded on Windows only."""
 
+import ntpath
 import os
 import sys
 from collections.abc import Callable
@@ -56,6 +57,16 @@ def _handle(descriptor: int) -> int:
 
         return msvcrt.get_osfhandle(descriptor)
     raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+
+def _discard_exclusive(native: int) -> None:
+    # Only called after CREATE_NEW succeeded. Delete by owned handle, never by
+    # a guessed random path which could refer to a preexisting collision.
+    _call(
+        lambda: win32file.SetFileInformationByHandle(
+            native, win32file.FileDispositionInfo, True
+        )
+    )
 
 
 def _attributes(user: str) -> Any:
@@ -127,6 +138,8 @@ def _path_boundary(path: Path) -> None:
         for part in path.parts[1:]
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
+    if ntpath.isreserved(str(path)):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
     root = path.anchor
     if win32file.GetDriveType(root) != win32con.DRIVE_FIXED:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
@@ -156,6 +169,18 @@ def _pin(path: Path, *, private: bool) -> Any:
     except BaseException:
         handle.Close()
         raise
+
+
+def _regular_file(handle: Any, user: str, default_owner: str) -> None:
+    information = _call(lambda: win32file.GetFileInformationByHandle(int(handle)))
+    if (
+        information[0]
+        & (win32con.FILE_ATTRIBUTE_DIRECTORY | win32con.FILE_ATTRIBUTE_REPARSE_POINT)
+        or information[7] != 1
+        or _call(lambda: win32file.GetFileType(int(handle))) != win32con.FILE_TYPE_DISK
+    ):
+        raise LibrusError(ErrorKind.STORAGE)
+    _call(lambda: _private(handle, user, default_owner))
 
 
 class WindowsDirectory:
@@ -248,28 +273,22 @@ class WindowsDirectory:
         )
         detached = False
         try:
-            information = _call(
-                lambda: win32file.GetFileInformationByHandle(int(handle))
-            )
-            if (
-                information[0]
-                & (
-                    win32con.FILE_ATTRIBUTE_DIRECTORY
-                    | win32con.FILE_ATTRIBUTE_REPARSE_POINT
-                )
-                or information[7] != 1
-                or _call(lambda: win32file.GetFileType(int(handle)))
-                != win32con.FILE_TYPE_DISK
-            ):
-                raise LibrusError(ErrorKind.STORAGE)
-            _call(lambda: _private(handle, self._user, self._owner))
+            _regular_file(handle, self._user, self._owner)
             native = int(handle.Detach())
             detached = True
             try:
                 return _descriptor(native)
             except BaseException:
-                win32api.CloseHandle(native)
+                try:
+                    if exclusive:
+                        _discard_exclusive(native)
+                finally:
+                    win32api.CloseHandle(native)
                 raise
+        except BaseException:
+            if exclusive and not detached:
+                _discard_exclusive(int(handle))
+            raise
         finally:
             if not detached:
                 handle.Close()

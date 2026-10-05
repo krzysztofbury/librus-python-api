@@ -18,14 +18,20 @@ def test_publisher_is_manual_main_only_and_waits_for_exact_artifact_matrix() -> 
     jobs = workflow["jobs"]
     assert jobs["build"]["if"] == "github.ref == 'refs/heads/main'"
     assert jobs["qualify"]["needs"] == "build"
-    assert set(jobs["publish"]["needs"]) == {"build", "qualify"}
+    assert set(jobs["publish"]["needs"]) == {"build", "qualify", "qualify-windows-disk"}
+    windows = jobs["qualify-windows-disk"]
+    assert windows["needs"] == "build" and windows["runs-on"] == "windows-2025"
+    assert windows["strategy"]["matrix"] == {
+        "python": ["3.13", "3.14"],
+        "dependencies": ["locked", "latest"],
+    }
     assert jobs["publish"]["if"] == "inputs.target != 'verify'"
     assert jobs["publish"]["environment"]["name"] == "pypi"
     assert jobs["publish"]["permissions"]["id-token"] == "write"
     for name, job in jobs.items():
         if name != "publish":
             assert job.get("permissions", {}).get("id-token") != "write"
-    for name in ("qualify", "publish", "confirm"):
+    for name in ("qualify", "qualify-windows-disk", "publish", "confirm"):
         downloads = [
             step
             for step in jobs[name]["steps"]

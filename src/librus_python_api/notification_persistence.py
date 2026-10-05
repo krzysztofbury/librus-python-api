@@ -281,7 +281,10 @@ class NotificationStore(_SQLiteStore):
                 if self._windows_directory is not None:
                     from librus_python_api._windows_filesystem import release_lock
 
-                    release_lock(held.pop())
+                    try:
+                        release_lock(held.pop())
+                    except OSError:
+                        raise LibrusError(ErrorKind.STORAGE) from None
                 else:
                     os.close(held.pop())
 

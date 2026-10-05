@@ -10,7 +10,11 @@ from pathlib import Path
 import pytest
 
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.files import publish_attachment, safe_attachment_filename
+from librus_python_api.files import (
+    prepare_attachment_directory,
+    publish_attachment,
+    safe_attachment_filename,
+)
 from tests.attachments_support import reference, rig
 
 
@@ -18,10 +22,8 @@ from tests.attachments_support import reference, rig
 def tmp_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("publication")
     if sys.platform == "win32":
-        from librus_python_api._windows_filesystem import WindowsDirectory
-
         root = root / "private"
-        WindowsDirectory(root, create=True).close()
+        asyncio.run(prepare_attachment_directory(root))
     return root
 
 
@@ -33,6 +35,7 @@ def tmp_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
         (" .hidden\x00.txt ", "hidden_.txt"),
         ("...", "attachment"),
         ("CON.txt", "_CON.txt"),
+        ("COM¹.txt", "_COM¹.txt"),
         ("file\u202ename.txt", "file_name.txt"),
         ("fixture α.txt", "fixture α.txt"),
     ],
@@ -40,6 +43,29 @@ def tmp_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def test_filename_is_a_bounded_portable_basename(original: str, expected: str) -> None:
     assert safe_attachment_filename(original) == expected
     assert len(safe_attachment_filename("α" * 1024).encode()) <= 180
+
+
+def test_explicit_private_directory_preparation_is_inert_until_called(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        destination = tmp_path / "private-new"
+        assert not destination.exists()
+        await prepare_attachment_directory(destination)
+        await prepare_attachment_directory(destination)
+        assert destination.is_dir() and list(destination.iterdir()) == []
+        with pytest.raises(LibrusError) as error:
+            await prepare_attachment_directory(Path("relative-fixture"))
+        assert error.value.kind is ErrorKind.INVALID_INPUT
+        if sys.platform != "win32":
+            assert destination.stat().st_mode & 0o777 == 0o700
+            destination.chmod(0o755)
+            with pytest.raises(LibrusError) as error:
+                await prepare_attachment_directory(destination)
+            assert error.value.kind is ErrorKind.STORAGE
+            assert destination.stat().st_mode & 0o777 == 0o755
+
+    asyncio.run(scenario())
 
 
 def test_publication_never_overwrites_files_or_symlink_targets(tmp_path: Path) -> None:

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import os
 import secrets
+import stat
 import sys
 import unicodedata
 from collections.abc import Callable
@@ -23,9 +24,11 @@ if TYPE_CHECKING:
 
 MAX_FILENAME_BYTES = 180
 MAX_FILENAME_ATTEMPTS = 100
-_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
-    f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(1, 10)
-}
+_RESERVED = (
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(1, 10)}
+    | {f"{prefix}{i}" for prefix in ("COM", "LPT") for i in "¹²³"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +72,48 @@ def _write_all(descriptor: int, chunk: bytes) -> None:
         view = view[count:]
 
 
+async def prepare_attachment_directory(directory: Path) -> None:
+    """Explicitly create/validate a caller-selected private local directory.
+
+    Parent must exist. Never change an existing directory's permissions or ACL.
+    Cancellation may leave the complete empty directory, never an unjoined worker.
+    """
+    if not isinstance(directory, Path) or not directory.is_absolute():
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+
+    def prepare() -> None:
+        if sys.platform == "win32":
+            from librus_python_api._windows_filesystem import WindowsDirectory
+
+            WindowsDirectory(directory, create=True).close()
+        elif (
+            os.name == "posix"
+            and hasattr(os, "O_NOFOLLOW")
+            and hasattr(os, "O_DIRECTORY")
+        ):
+            directory.mkdir(mode=0o700, exist_ok=True)
+            descriptor = os.open(
+                directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            )
+            try:
+                status = os.fstat(descriptor)
+                if (
+                    status.st_uid != os.geteuid()
+                    or stat.S_IMODE(status.st_mode) & 0o077
+                ):
+                    raise LibrusError(ErrorKind.STORAGE)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        else:
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+
+    try:
+        await _disk(prepare)
+    except OSError:
+        raise LibrusError(ErrorKind.STORAGE) from None
+
+
 def _publish(directory: int, descriptor: int, temporary: str, name: str) -> str:
     os.fsync(descriptor)
     path = Path(name)
@@ -108,7 +153,8 @@ async def publish_attachment(
     if not isinstance(stream, AttachmentStream) or not isinstance(directory, Path):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     validate_max_bytes(max_bytes)
-    # Directory-relative, no-follow opens are the safety boundary (POSIX only).
+    # POSIX requires no-follow directory-relative opens; Windows uses pinned
+    # private NTFS handles instead, without emulating these flags by path checks.
     if sys.platform != "win32" and (
         not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW")
     ):
