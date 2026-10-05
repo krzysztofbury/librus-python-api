@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0
+
+- Add explicit legacy/modern mailbox selection to durable notification workflows.
+  Modern summaries use their own canonical ID domain; pending batches retain their
+  original source across restart and archive import. Existing legacy IDs and
+  format-3 state remain readable without reset or rewriting seen history.
+
 ## 1.0.0rc1 (2026-10-05) - Library-only release candidate
 
 First candidate prepared for PyPI Trusted Publishing. The supported library API

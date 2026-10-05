@@ -10,6 +10,8 @@ from librus_python_api.models import (
     HomeworkItem,
     Identity,
     MessageSummary,
+    MessagingBackend,
+    ModernMessageSummary,
     NotificationCategory,
     NumericGrade,
     Observation,
@@ -21,6 +23,7 @@ type NotificationValue = (
     | DescriptiveGrade
     | AttendanceRecord
     | MessageSummary
+    | ModernMessageSummary
     | Announcement
     | HomeworkItem
     | RecentScheduleEvent
@@ -44,6 +47,7 @@ class NotificationBatch:
     categories: tuple[NotificationCategory, ...]
     items: tuple[NotificationItem, ...] = field(repr=False)
     has_more_schedule: bool
+    messages_backend: MessagingBackend = MessagingBackend.LEGACY
 
 
 @dataclass(frozen=True, slots=True)

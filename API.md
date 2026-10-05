@@ -588,11 +588,15 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   with SQLite/fsync/POSIX flock support; other platforms fail explicitly on
   context operations. One store belongs to one event loop. Shutdown/cancellation
   joins owned work. Same-context competition fails with LIMIT, without HTTP.
-- `NotificationWorkflow(client, store).poll(*, categories, allow_consume_events=False,
+- `NotificationWorkflow(client, store, *, messages_backend=MessagingBackend.LEGACY)`
+  explicitly selects the message source. Use `MessagingBackend.MODERN` for modern
+  notifications; it does not fall back to the other mailbox on failure.
+  `.poll(*, categories, allow_consume_events=False,
   homework_window=None, checkpoint_timeout_seconds=5.0, budget=None)` accepts a
   nonempty tuple of distinct native categories. Ordinary reads precede schedule
   consumption. Homework defaults to today minus seven days through today in
-  Europe/Warsaw. Grades/attendance use LAST_LOGIN, messages use received page zero,
+  Europe/Warsaw. Grades/attendance use LAST_LOGIN. Messages use one received summary
+  page (legacy page zero or modern page one, at most ten modern summaries),
   announcements use the ordinary collection. No menu counts, message content,
   detail calls, modern fallback or arbitrary historical catch-up is performed.
 - New `AGENDA` consumption requires explicit `allow_consume_events=True` each
@@ -600,12 +604,16 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   Existing raw checkpoints replay locally before another consume. Malformed raw
   data remains stored and blocks another consume, even with fresh consent.
 - `NotificationBatch(receipt, context, first_run, categories, items,
-  has_more_schedule)` is a durably staged batch. Each `NotificationItem` carries
+  has_more_schedule, messages_backend=MessagingBackend.LEGACY)` is a durably staged
+  batch. Modern message items contain `ModernMessageSummary`, not message bodies.
+  Each `NotificationItem` carries
   category, canonical identifier, native typed value, identity and observation.
   First run diffs against empty IDs and ends only at acknowledgement. Requested
   categories alone update seen state. Until acknowledgement, polling the exact
   same category tuple returns that batch without authentication/HTTP. A different
-  tuple fails explicitly, not silently discarding the prior delivery.
+  tuple or message backend fails explicitly, not silently discarding the prior
+  delivery. Backend changes after acknowledgement preserve both seen namespaces;
+  the same numeric ID in two backends is not the same notification.
 - `await workflow.acknowledge(receipt)` (or
   `await store.acknowledge(receipt, context=client.context)`) atomically saves seen
   IDs, advances the schedule cursor and cleans completed raw/delivery rows.
@@ -624,7 +632,7 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   at 64 MiB and global staged delivery/candidate state at 16 MiB. Bounds fail closed
   without silently evicting history. A retained raw envelope can be recovered with
   explicit supported larger limits; oversized single events are never skipped.
-- `await store.export_archive(context=...)` returns a version-1 neutral archive
+- `await store.export_archive(context=...)` returns a version-3 neutral archive
   containing exact context, seen IDs, receipt, raw bytes/progress, pending delivery
   and uncertainty. `await store.import_archive(archive)` is empty-target-only and
   validates the complete import transaction before commit. Unknown versions,
@@ -637,7 +645,12 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   including possible pre-dispatch failure; it never expires or authorizes retry.
   Clearing it accepts possible lost upstream events, not proof of no consumption.
 
-`canonical_notification_id(category, value)` exposes version-1 native identities.
+`canonical_notification_id(category, value)` preserves version-1 legacy identities
+and uses a separate version-2 modern-message domain including backend, folder and
+message ID. Existing format-3 pending batches without `messages_backend` are read
+as legacy. New pending batches are not guaranteed readable by older libraries;
+keep original databases/archives for consumer-owned rollback and do not replace
+them with new exports. No SQLite schema or existing seen-ID rewrite is performed.
 Schedule hashes cover date_added/type/data; stable native IDs identify ordinary
 records where available, otherwise complete visible typed content. Stable-ID
 updates do not automatically re-notify. MCP `schedule`/legacy IDs need a separately

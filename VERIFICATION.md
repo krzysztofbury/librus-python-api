@@ -3,6 +3,30 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Modern notification source (#22, 2026-10-05)
+
+Local source qualification passed 1,569 tests on Python 3.13.15 and 3.14.7.
+The same count passed in each of four locked installed configurations:
+wheel/sdist on both versions. Each run deselected one optional performance test;
+all installed loopback runtime smokes passed. Ruff, formatting, strict mypy,
+archive metadata/content checks and strict Twine checks passed. Disposable
+artifacts and environments were cleaned up; no live Librus access occurred.
+
+Ten new public-boundary cases exercise explicit legacy/modern selection,
+summary-only shared budgets, account separation, identical numeric message IDs,
+pending replay after restart/export/import, offline acknowledgement, old format-3
+legacy import, incompatible archive rejection, ordinary failure before read-once
+consumption and all-category polling. Existing persistence fault/process tests
+remain intact. The initial regression failed on the missing source-selection API.
+
+Pair-programmer review applied TigerStyle #2 (bounded loops), #4 (paired
+assertions), #6 (positive and negative space) and #13 (explicit defaults).
+Batch decoding now caps item count, validates reference account/source on read,
+and keeps legacy as the explicit default for old pending records. Backend changes
+reject pending delivery mismatch rather than discard or rewrite it. No remaining
+review blocker was identified. Hosted PR qualification and merge are separate
+gates; this entry does not claim stable publication or completed MCP migration.
+
 ## Hosted release workflow verification (2026-10-05)
 
 [PR #20](https://github.com/krzysztofbury/librus-python-api/pull/20) merged after
