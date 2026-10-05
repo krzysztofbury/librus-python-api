@@ -35,6 +35,11 @@ workflow or create/move `v*` tags.
 
 ## Before the first 1.0 release
 
+The first `1.0.0rc1` candidate is explicitly approved as a library-only beta
+prerelease with the 0.7.0 API. It does not claim completed MCP integration,
+old-state migration/rollback, broader live qualification or stable 1.0 readiness.
+These remain separate tracked gates; publication does not close them.
+
 The pipeline supports `v1.0.0rc1`, `v1.0.0` and later version tags. It refuses
 publishing 0.x; `verify` mode can exercise a 0.x development tag without upload.
 It does not decide product readiness or imply completed consumer migration.

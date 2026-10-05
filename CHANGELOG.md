@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.0rc1 (2026-10-05) - Library-only release candidate
+
+First candidate prepared for PyPI Trusted Publishing. The supported library API
+is unchanged from 0.7.0; this is a beta prerelease, not stable 1.0 acceptance or
+an MCP backend cutover.
+
+- Add manual, approval-gated publishing with sealed wheel/sdist qualification on
+  Linux/macOS and Python 3.13/3.14, using locked and newest permitted dependencies.
+- Add public distribution checksum confirmation, installed runtime smokes, weekly
+  dependency-drift checks and documented release recovery.
+- Retain required application context keys and persistence/archive format 3.
+  Older stores are refused without modification; automatic migration is absent.
+
+MCP integration, durable-state migration/rollback and broader live qualification
+remain unfinished. Behaviour notes and observation cards are not implemented;
+some communication layouts and read-once operations remain unqualified. No live
+Librus calls or message sends are part of release preparation or publishing.
+
 ## 0.7.0 (2026-10-05) - Application-keyed contexts and package usability
 
 Pre-1.0 breaking changes: service construction now requires `context_key`, and

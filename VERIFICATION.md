@@ -3,6 +3,33 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Hosted release workflow verification (2026-10-05)
+
+[PR #20](https://github.com/krzysztofbury/librus-python-api/pull/20) merged after
+its exact pushed head passed CI. Remote main and the annotated `v0.7.0` tag were
+confirmed at `2a59a73acea5d1061a2d2e906241a7d89e40d6af`.
+
+[Run 37280801918](https://github.com/krzysztofbury/librus-python-api/actions/runs/37280801918)
+passed the manual workflow in `verify` mode. The build/source gate and all eight
+qualification jobs succeeded: Linux/macOS, Python 3.13/3.14, locked/latest
+runtime dependencies. Each of the sixteen installed wheel/sdist configurations
+passed 1,559 tests with one optional performance test deselected and passed its
+loopback runtime smoke. Every matrix job verified the same sealed archive pair.
+Publishing and post-upload confirmation were skipped as intended.
+
+The next candidate is explicitly approved as a library-only `1.0.0rc1` prerelease,
+with unchanged supported API from 0.7.0. Its exact-version hosted qualification,
+OIDC upload and public-index confirmation are separate gates, not proved by this
+0.7.0 run. MCP migration, old-state migration/rollback and broader live checks
+remain unfinished. No live Librus call or PyPI upload occurred in this run.
+
+Local 1.0.0rc1 preparation passed 1,559 source tests and 1,559 tests in each of
+four locked installed configurations (wheel/sdist, Python 3.13.15/3.14.7), with
+one optional performance test deselected in every run. All four runtime smokes,
+archive/strict Twine checks, manifest sealing/verification, Ruff and strict mypy
+passed. Disposable archives and environments were cleaned up. These local bytes
+are not the eventual hosted upload; the publishing run must qualify its own pair.
+
 ## Release pipeline preparation (2026-10-05, local only)
 
 Package version remains 0.7.0. The manual `workflow.yaml` targets are `verify`

@@ -364,6 +364,10 @@ branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live g
 
 ### 1.0.0rc1 - Complete replacement qualification
 
+The first PyPI candidate is explicitly scoped to the library alone. Its upload
+does not satisfy the complete replacement gates below: MCP integration, old-state
+migration/rollback and broader live qualification remain pending.
+
 - [ ] Finish P8 for every required consumer operation and remove the legacy backend's
   imports, private patches, duplicated recovery and obsolete dependencies in the
   migration branch. Keep the notification storage and file-publication owners.
@@ -786,8 +790,9 @@ redacted evidence, and signals failure without unsafe retries or secret exposure
 Publishing preparation is in `.github/workflows/workflow.yaml`, with manual
 verify/pypi targets, sealed artifact qualification and environment approval.
 See [RELEASE.md](RELEASE.md). The owner chose real PyPI only, not TestPyPI.
-GitHub environment setup is complete; PyPI OIDC, macOS hosted checks and actual
-publication remain pending until the new workflow is deployed and run.
+GitHub environment setup is complete. The deployed workflow passed its full
+Linux/macOS matrix in verify mode for v0.7.0. PyPI OIDC and actual publication
+remain pending; the first candidate is library-only 1.0.0rc1.
 
 Dependencies: P0 packaging; PyPI publication starts at `1.0.0rc1`.
 Before that candidate, verify exact local wheel/sdist artifacts and the local
@@ -804,12 +809,13 @@ consumer adapter without requiring publishing automation or a PyPI installation.
 - [ ] Build once, record distribution checksums, and publish those verified bytes
   after tests. Pin third-party Actions by SHA and document release recovery.
   Build/seal/installed qualification is implemented and locally exercised;
-  hosted qualification and publication remain pending.
+  hosted qualification passed for v0.7.0; candidate publication remains pending.
 - [ ] Test a clean install outside the checkout, including import, public async
   client lifecycle, and a fixture-server read. Test both locked and newest
   permitted dependencies; schedule dependency-drift checks.
   Local Linux Python 3.13/3.14 wheel/sdist checks pass for both dependency modes.
-  The weekly workflow is prepared, not yet deployed; macOS is unverified.
+  The weekly workflow is deployed but not yet exercised. Hosted Linux/macOS
+  qualification passed for v0.7.0; the exact PyPI candidate is checked separately.
 - [ ] Publish `1.0.0rc1` and document its coverage/limitations. Prove the consumer
   adapter against that PyPI artifact before the complete cutover; earlier 0.x
   adapter qualification uses exact local built artifacts.
