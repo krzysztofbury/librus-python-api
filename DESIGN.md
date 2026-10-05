@@ -139,10 +139,12 @@ Third-party observations are research evidence, not our live verification.
 
 References reviewed outside this source tree:
 
-- [librus-apix client][apix-client], a source of behavioral flow requirements;
-  its distribution has conflicting license evidence, so no material is copied.
+- An existing Librus client, called "the reference client" throughout these
+  docs, was a source of behavioral flow requirements. Its distribution has
+  conflicting license evidence, so no material is copied. Its identity, pinned
+  versions and comparison evidence are recorded in
+  [VERIFICATION.md](VERIFICATION.md#reference-client-and-provenance).
 - [librus-synergia authentication notes][auth-notes], a source of gateway/session
   research leads. Its claimed observations are not independently reproduced here.
 
-[apix-client]: https://github.com/RustySnek/librus-apix/blob/2fedfe8ffa4933abb884929716519ddbeb8eb32d/librus_apix/client.py
 [auth-notes]: https://github.com/MichalZaniewicz/librus-synergia/blob/7dc115fb99ac1d736da44fc55eaa76fda21f35cb/docs/authentication.md

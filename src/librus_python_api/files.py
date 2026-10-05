@@ -103,6 +103,9 @@ async def publish_attachment(
     if not isinstance(stream, AttachmentStream) or not isinstance(directory, Path):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     validate_max_bytes(max_bytes)
+    # Directory-relative, no-follow opens are the safety boundary (POSIX only).
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     name = safe_attachment_filename(filename)
     directory_fd = descriptor = None
     temporary = ".librus-attachment-" + secrets.token_hex(16)

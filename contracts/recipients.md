@@ -37,25 +37,25 @@ guessing that group zero means all recipients or asserting an observed hierarchy
 Further group/virtual-class selection is deferred. No empty
 recipient page was observed, so no empty-success shape is invented.
 
-## Apix coverage and provenance
+## Reference-client coverage and provenance
 
-The external `librus-apix` 1.5.3 distribution was a behavior reference,
+The external reference client was a behavior reference,
 not code to copy or an oracle. Fixtures and implementation here are original;
 the group/checkbox shapes were independently observed with approved access.
-There is no apix runtime dependency, hidden fallback or vendored code.
+There is no reference-client runtime dependency, hidden fallback or vendored code.
 The external package's MIT metadata conflicts with its bundled GPLv3 license;
 the reference is not described as unambiguously MIT-licensed.
 
-`scripts/compare_recipients.py` supplies captured bytes to apix through an inert,
-strictly scoped replay client. It cannot make network calls. Native and external
-parsers receive identical bytes; only mismatch counts and classifications escape.
+A since-removed offline script supplied captured bytes to the reference client through an inert,
+strictly scoped replay client. It could not make network calls. Native and external
+parsers received identical bytes; only mismatch counts and classifications escaped.
 Chromium independently checks rendered labels, tokens, numeric IDs, control
 linkage and group availability with page scripts/networking disabled.
 
-| Apix behavior | Native behavior | Coverage |
+| Reference-client behavior | Native behavior | Coverage |
 | --- | --- | --- |
 | `recipient_groups` returns tokens only | Typed labels, references, availability and library lookup capability | All eight observed tokens agree on identical bytes |
-| `get_recipients(group)` returns name-to-ID dictionary | ID-bearing ordered records with account/group provenance | Three approved populated groups agree with apix and Chromium |
+| `get_recipients(group)` returns name-to-ID dictionary | ID-bearing ordered records with account/group provenance | Three approved populated groups agree with the reference client and Chromium |
 | Repeated name overwrites prior ID | Equal names with distinct IDs remain records | Original offline regression, not a live duplicate-name observation |
 | No labels can become `{}` | Missing/unknown layout fails explicitly | Empty live evidence pending |
 | Arbitrary group string / caller-owned requests | Typed account-bound reference, fixed form, shared traffic budget | Foreign/injected reference and unsafe-form guards exercised offline |
@@ -110,7 +110,7 @@ selection wire forms, distinct caches and bounds, but nonzero dispatch and
 populated hierarchy are not observed live. No recursive or virtual-class
 selection is claimed. Availability metadata is not an authorization token.
 
-Independent Chromium checked every response. Apix agrees on common named
+Independent Chromium checked every response. The reference client agrees on common named
 recipient pairs and the eight type tokens; it loses the anonymous target and
 has no equivalent typed group-choice or unavailable-capability result. These
 are intentional semantic differences, not silently inherited omissions.

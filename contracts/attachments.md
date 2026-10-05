@@ -47,7 +47,7 @@ Ordinary HTML/parser limits remain unchanged.
 
 The separately scoped consumer's independent attachment flow informs the legacy
 two-hop routes, not their complete correctness. No external implementation or
-fixtures are copied. Apix 1.5.3 has no native attachment-download contract.
+fixtures are copied. The reference client has no native attachment-download contract.
 Original loopback fixtures own wire, isolation, streaming, bounds, cancellation
 and saturation behavior. The installed wheel observed one exact two-hop route
 and streamed 930,056 bytes to clean EOF, with no declared length. The key grammar

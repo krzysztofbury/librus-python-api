@@ -235,7 +235,7 @@ Live read-once qualification still needs a dedicated disposable-event account.
 
 This inventory is a requirement map, not a claim that every extraction is complete.
 Build the prerequisites in this repository now; implement adapters in the separate
-`librus-mcp` repository when its migration from `librus-apix` begins. No MCP
+`librus-mcp` repository when its migration from the legacy backend begins. No MCP
 implementation changes are part of the current API persistence slice.
 Retire duplicate consumer logic only in the slice whose API replacement and
 adapter have passed the actual runtime/fault proof. No literal copying, hidden

@@ -3,7 +3,7 @@
 ## Ground rules
 
 - Write original code, tests and fixtures. Do not copy source, tests, docs or
-  HTML from `librus-apix` or other projects. They are references for behaviour
+  HTML from other Librus clients or projects. They are references for behaviour
   only.
 - Never commit credentials, cookies, tokens, raw captured pages, or identifiable
   student, teacher or school data. This is a public repository: content is in
@@ -78,8 +78,8 @@ that family. Fixtures copy the observed structure with invented values.
 
 Synthetic tests prove behaviour against fixtures, not that Librus serves that
 structure. Every past live failure here came from a fixture written from
-assumptions or from apix's behaviour instead of from a real page. Apix agreeing
-with this library on a synthetic page proves nothing, because apix mislabels
+assumptions or from the reference client's behaviour instead of from a real page. The reference client agreeing
+with this library on a synthetic page proves nothing, because the reference client mislabels
 fields and returns `[]` for pages it does not recognize.
 
 With the owner's authorization for a stated scope and request budget:
@@ -115,10 +115,7 @@ not enable recipients, content, sending, attachments or read-once routes. Use
 `--account` only for the separately approved account. A second invocation needs
 its own authorization, even when the first left requests unused.
 
-`scripts/compare_messages.py CAPTURE_DIR --reference EXTERNAL_INSTALL_DIR`
-replays apix 1.5.3 pure parsers on identical bytes without live access. Beautiful
-Soup and requests are ad hoc tooling dependencies, not library dependencies.
-It emits mismatch categories/counts only. `scripts/crosscheck.py CAPTURE_DIR`
+`scripts/crosscheck.py CAPTURE_DIR`
 checks Chromium's visible message fields, references, flags and empty markers;
 a message parser error fails qualification, never counts as agreement. Retain
 no raw values or screenshots. Coverage and future feature approval gates are in
@@ -130,8 +127,7 @@ explicitly approved tutor/teacher/office tokens. `--mode smoke` exercises the
 public APIs and zero-request warm caches. Authentication/service errors stop
 the attempt. A parser failure preserves only the other approved groups' captures
 for offline diagnosis and is reported as failed qualification, not success.
-`scripts/compare_recipients.py` replays an external apix installation without
-network access. Always delete private captures after final offline comparisons.
+Always delete private captures after final offline comparisons.
 See [contracts/recipients.md](contracts/recipients.md) for the hierarchy and empty
 layout gates; recipient discovery does not authorize sending.
 

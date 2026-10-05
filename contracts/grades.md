@@ -13,8 +13,7 @@ to `-`, retains unassigned subjects and descriptive values, and expects behaviou
 summaries with merged body cells. Its existing parser/schema were inspected as
 requirements references, not incorporated into this MIT library.
 
-The fixed GET route was established by inspecting the installed MIT-licensed
-`librus-apix` 1.5.2 URL definition. No third-party implementation, fixture, or
+The fixed GET route was established by inspecting the reference client's URL definitions. No third-party implementation, fixture, or
 documentation was copied. This is source-informed work, not a clean-room or
 independently observed live-behaviour claim. `grade_parsers.py`, test markup, and
 wire tests are original. The synthetic layout deliberately uses different column
@@ -69,7 +68,7 @@ BENCHMARKS.md for measured gains, non-wins, and methodological limits.
 
 ## Inline grade collection increment
 
-The installed `librus-apix` 1.5.3 metadata advertises MIT, but its bundled license
+The installed reference client metadata advertises MIT, but its bundled license
 file is GPLv3. Treat its implementation as a requirements reference only, not a
 source for MIT code, tests, fixtures, or documentation. The numeric/descriptive
 concepts, filter field, and tooltip labels were reviewed as source-informed
@@ -134,10 +133,10 @@ rejection before dispatch. Common transport/identity/scheduler tests retain thei
 existing guarantees. Numeric populated discovery is observed; populated
 descriptive and numeric-average live coverage is not claimed by synthetic tests.
 
-## Business comparison with librus-apix 1.5.3
+## Business comparison with the reference client
 
 This is the current business baseline, not a specification copied into the new
-library. Live checks used unmodified apix with the same selected account and
+library. Live checks used the unmodified reference client with the same selected account and
 completed all-view reads. Subject, raw grade, civil date, semester, category, and
 teacher matched for the populated numeric variant. Both returned no descriptive
 entries; that is not descriptive qualification. Full record parity is not claimed.
@@ -155,14 +154,14 @@ entries; that is not descriptive qualification. Full record parity is not claime
 | Separate semester descriptions | Publication header plus following description | Multiple blocks and paragraph boundaries preserved; missing semester remains unknown rather than first-period default; offline verified |
 | Dated midterm/end-period marks | Baseline scans cells beyond current grades | Explicit dated period/annual and predicted kinds retain metadata; undated summaries stay separate; annual semester zero is a documented superset |
 | Week / last-login filters | Upstream view-selection POSTs | Strict view enum, fixed forms, isolated cache/coalescing, no local timestamp inference; installed qualification recorded separately |
-| Date windows | Consumer extension, not standalone apix operation | Inclusive civil-date filtering, shared collection cache, original offline boundaries and installed live cache check |
+| Date windows | Consumer extension, not a standalone reference-client operation | Inclusive civil-date filtering, shared collection cache, original offline boundaries and installed live cache check |
 | Hrefs and rich descriptions | Raw link/description fields | Library preserves inert numeric hrefs and structured metadata, never dispatches a scraped URL; legacy formatting belongs to a future consumer mapping |
 | No entries / unavailable columns | Empty maps and fallback values vary by layout | Valid subject rows with blank/Brak ocen current cells are empty; absent averages remain unavailable; unknown markup fails |
 
 Grade-family completion is gated on implementing these declared contracts and
 explicitly recording supported limits and qualification gaps,
 not on a green numeric comparison or parser speedup. Later feature families need
-the same business review, even where apix covers only part of the desired scope.
+the same business review, even where the reference client covers only part of the desired scope.
 
 ## Revised 0.2.0 acceptance and qualification
 
@@ -174,13 +173,13 @@ remain explicit, not treated as populated checks passing on empty samples.
 A separately approved four-context comparison dispatched 94 requests under a
 128-request combined cap, at most 16 per implementation/context. Each implementation
 was limited to one login and all/week/last-login view POSTs, with no automatic retry.
-Three contexts completed the installed native/apix paths and matched the legacy
+Three contexts completed the installed native/reference-client paths and matched the legacy
 numeric projection (missing native metadata projected to baseline defaults only
 in the private comparison). Dated descriptive collections were empty; populated
 numeric averages, publications, dated period marks, and corrections were absent.
 
 The second context failed native parsing after ten requests. Its remaining authorized
-apix run completed the three views; all response bytes stayed in memory/private pipes.
+reference-client run completed the three views; all response bytes stayed in memory/private pipes.
 Original regressions exposed undated descriptive text and the same subject in both
 families before the fixes. Installed native parser replay then passed all views with
 common numeric parity; the final-summary parser also passed those response bodies.
@@ -202,6 +201,6 @@ separate table headed "KARTA SPOSTRZEŻEŃ". Each row has a coloured marker, a
 free-text observation, an area (for example "OBSZAR I POZYTYWNE"), points, a
 date and a type such as "Bieżąca". Detail links use
 `/przegladaj_oceny/szczegoly/ksztaltujace/<id>`. `grades()` does not read this
-table, and apix does not either. Every real grade box on those pages became a
+table, and the reference client does not either. Every real grade box on those pages became a
 record. The page also contains one hidden template box (detail ID `000000`),
 which is correctly ignored.

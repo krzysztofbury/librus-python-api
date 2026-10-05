@@ -1,0 +1,64 @@
+{
+  "version": "0.6.1",
+  "date": "2026-10-05",
+  "scope": "pre-1.0 readiness review: dependency, platform and documentation fixes; offline only",
+  "implementation_commit": "747c7f3d6299ed72bbc5c38109c8cdc843df0a74",
+  "review": {
+    "areas": [
+      "TLS, origin, proxy, redirect and cookie isolation",
+      "XML/HTML/JSON decoding bounds",
+      "credential and context-identifier redaction",
+      "attachment file publication",
+      "modern mailbox parsing",
+      "OpenAPI catalogue parity and evidence notes",
+      "public API documentation against signatures and defaults",
+      "packaging metadata"
+    ],
+    "code_findings_fixed": [
+      "unused tenacity runtime dependency",
+      "publish_attachment raised AttributeError on platforms without O_DIRECTORY/O_NOFOLLOW"
+    ],
+    "documentation_findings_fixed": [
+      "received pagination observed live in 0.4.5 was described as unqualified",
+      "API.md TransportLimits omitted the attachment idle timeout",
+      "AccountContext.identifier sensitivity was not stated",
+      "README relative links would break on the PyPI project page",
+      "README referred to the 0.5.0 release as current"
+    ],
+    "reference_client_naming": "librus-apix named only in validation records; five comparison scripts removed"
+  },
+  "python_versions": ["3.13.15", "3.14.7"],
+  "source": {"passed_per_python": 1522, "deselected_per_python": 1},
+  "installed_wheel": {"passed_per_python": 1522, "deselected_per_python": 1},
+  "installed_sdist": {"passed_per_python": 1522, "deselected_per_python": 1},
+  "regressions_failed_before_fix": [
+    "publish_attachment without O_DIRECTORY or O_NOFOLLOW raised AttributeError instead of UNSUPPORTED_CAPABILITY"
+  ],
+  "quality": {
+    "ruff_lint_and_format": true,
+    "strict_mypy": true,
+    "repository_hooks": true,
+    "history_and_worktree_secret_scan": true,
+    "locked_dependency_audit": true,
+    "installed_location_version_and_py_typed": true,
+    "installed_metadata_without_tenacity": true,
+    "reproducible_archive_hashes": true
+  },
+  "artifacts": [
+    {
+      "name": "librus_python_api-0.6.1-py3-none-any.whl",
+      "bytes": 133959,
+      "sha256": "542885e4e10ae837f1f14d19f9d9286cc93fb32fa3b1159906d545ed4fb9db96"
+    },
+    {
+      "name": "librus_python_api-0.6.1.tar.gz",
+      "bytes": 575085,
+      "sha256": "1af3df2ce5c08642bd61c6530be61937f4088225108fb376cee1ca3e4143e13a"
+    }
+  ],
+  "live_http_requests": 0,
+  "live_credential_submissions": 0,
+  "live_send_dispatches": 0,
+  "mcp_code_or_production_state_changed": false,
+  "published": false
+}

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.1 (2026-10-05) - Pre-1.0 readiness review
+
+No public API, wire contract or storage format change. Offline only.
+
+- Remove the unused `tenacity` runtime dependency.
+- `publish_attachment` reports UNSUPPORTED_CAPABILITY on platforms without
+  `os.O_DIRECTORY`/`os.O_NOFOLLOW` instead of failing with a raw AttributeError;
+  directory-relative no-follow opens are its safety boundary (POSIX only).
+- Remove the offline reference-client comparison scripts. Their recorded results
+  stay in VERIFICATION.md and `release-evidence/`; the scripts remain in Git
+  history. Documentation outside the validation records now calls that client
+  "the reference client"; provenance is in VERIFICATION.md.
+- Documentation: received-mailbox pagination evidence (observed live in 0.4.5)
+  is no longer described as unqualified in the contract and OpenAPI note; API.md
+  lists the attachment idle timeout and warns that `AccountContext.identifier` is
+  an unsalted login-derived hash; README links are absolute so they work on PyPI.
+
 ## 0.6.0 (2026-10-04) - Native MCP 2.0 foundations
 
 - Add `DetailField`/`DetailFieldKey` and stable-key `normalized_fields` to agenda,
@@ -189,7 +206,7 @@ Local-first, offline qualification only. No live message sent or package publish
 - Source-informed send request variant documented separately from sent-list
   pagination on the shared upstream URL, with validated OpenAPI parity.
 - Original loopback fault proofs, four-account full-payload workload and optional
-  inert same-byte Chromium/apix comparison. Live form/acknowledgement compatibility
+  inert same-byte Chromium/reference-client comparison. Live form/acknowledgement compatibility
   and the one-recipient manual test remain separately approved future work.
 
 ## 0.4.5 - Recipient and mailbox coverage
@@ -205,7 +222,7 @@ Local-first extension in the 0.4 PR; no sending or publication.
   receipts. No invented addressee, ID or aggregate timestamp; bounded whole results.
 - Four-account ordinary discovery adds independently checked received pagination,
   five named recipient types, anonymous targets, empty group options and sent
-  content. Apix capability differences are classified rather than inherited.
+  content. The reference client capability differences are classified rather than inherited.
 - Original failure regressions, maximum receipt/body workloads and private
   Chromium expectations replayed against installed artifacts. Wider layouts,
   explicit empty recipients and populated subgroup semantics remain pending.
@@ -226,7 +243,7 @@ is qualified offline only and excluded from routine live checks.
   consumer-owned serialization/recovery. No spool/state format is invented.
 - Conservative original event layouts and real filesystem checkpoint/restart
   proofs; cross-process transactions and persisted hash compatibility remain P8.
-- Correct later provenance labels: external apix metadata advertises MIT while
+- Correct later provenance labels: the external reference client's metadata advertises MIT while
   its bundled license is GPLv3. No external implementation or fixtures copied.
 
 ## 0.4.3 - Bounded attachment streams
@@ -269,7 +286,7 @@ Local-first feature release; not published to PyPI. No send operation is enabled
 - Explicit pre-I/O rejection of foreign/injected references and the unsupported
   subgroup selector. Unknown/empty layouts fail rather than silently returning
   an empty collection.
-- Bounded one-login capture, public installed smoke and identical-byte apix and
+- Bounded one-login capture, public installed smoke and identical-byte reference-client and
   independent Chromium replay. Eight group types and three populated simple
   lookup types were observed; hierarchy, empty layouts and other roles remain
   pending.
@@ -290,7 +307,7 @@ separate versions; sending remains plan-only.
   Send, recipient, subject/body and upload fields are rejected before dispatch.
   No content opens, mark-read, deletes, downloads, sends or read-once calls.
 - Private bounded list discovery/installed smoke tooling, offline identical-byte
-  apix comparison and independent Chromium visible-field/reference/flag checks.
+  the reference client comparison and independent Chromium visible-field/reference/flag checks.
 - Live-derived regressions for the blank footer and benign legacy-mailbox banner.
   Full bounded concurrent mailboxes, budgets, continuation and malformed layouts
   are exercised offline with original fixtures.
@@ -346,7 +363,7 @@ Each fix was found on live pages:
   string-dispatched chains.
 - Shared HTML helpers moved to `markup.py`.
 - The shared read guarantees are tested once for every operation
-  (`tests/test_account_reads.py`). 32 duplicated per-family tests, the apix
+  (`tests/test_account_reads.py`). 32 duplicated per-family tests, the reference-client
   parity suites and the tests that needed closed PR #38 were removed.
 - The `mcp` development dependency was removed.
 
@@ -372,7 +389,7 @@ Each fix was found on live pages:
 - Original regressions protect weekday date suffixes, invisible HTML comments,
   empty-grade markers, metadata/entry bounds, unsupported-layout rejection,
   four-login default-policy isolation/coalescing, budgets, and cancellation.
-- Installed numeric-grade comparison with unmodified apix completed under approved
+- Installed numeric-grade comparison with the unmodified reference client completed under approved
   caps with common-field parity. Document business gaps independently of speed,
   including intentional unknown-metadata and school-average differences.
 - Complete descriptive-only rows, multiple publication blocks, dated period/annual

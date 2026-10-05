@@ -73,7 +73,8 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   account, 32 queued (8 per account), 16 accounts, 32 concurrent operations
   (8 per account). These are engineering defaults, not a published Librus quota.
 - `TransportLimits`: 30 s request and 10 s connect timeouts, 4 MiB bodies, 10
-  redirects, 128 cookies, 256 KiB parser input, 60 s cooldown (see Errors).
+  redirects, 128 cookies, 256 KiB parser input, 60 s cooldown (see Errors) and a
+  15 s attachment consumer idle timeout.
   Attachment downloads use the operation's remaining deadline rather than the
   ordinary 30 s request/HTML body cap; the connect timeout still applies.
 - `OperationLimits`: the budget used when a call passes none.
@@ -289,7 +290,7 @@ Page and batch caches are separate and fresh by default.
 In 0.4.11 a full 50-row page without pagination metadata is unsupported, not
 apparently complete. Empty and shorter pager-less page-zero layouts remain supported.
 
-Live scope, apix coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
+Live scope, reference-client coverage and remaining gates: [contracts/messages.md](contracts/messages.md).
 
 ## Modern messaging (explicit backend, partial live qualification)
 
@@ -486,6 +487,9 @@ creates state, reads old MCP files or starts background recovery.
   binding the configured alias, login and native/API/modern origins, not a shared
   student identity. Password rotation preserves this context; login/origin/alias
   changes do not. Identifiers are hashes, not anonymization or authority tokens.
+  `identifier` is an unsalted SHA-256 over the alias, login and origins, so a
+  low-entropy login can be guessed from it: treat it as sensitive and do not log,
+  display or send it to third parties. Persistence stores use salted pseudonyms.
 - `await store.preview_send(attempt)` performs no HTTP and returns an expiring
   `SendConfirmation(token, expires_at)`. Only a token hash and exact context/backend/
   complete immutable-submission digest are persisted. Message bodies, recipient
@@ -774,7 +778,7 @@ never replayed, even though group discovery uses GET. No send route, message
 The empty group-option selector is observed. Populated choices, nonzero dispatch,
 virtual-class selection and explicit empty-recipient success remain live-unqualified;
 an unknown/empty response is never silently accepted as a recipient list.
-Evidence and apix differences: [contracts/recipients.md](contracts/recipients.md).
+Evidence and reference-client differences: [contracts/recipients.md](contracts/recipients.md).
 
 ## Notification and checkpoint primitives
 

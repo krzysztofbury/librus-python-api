@@ -5,8 +5,8 @@ client. Follow any workspace-level agent rules as well as these project rules.
 
 - Write repository content in English. Do not include private or personal
   context, credentials, or identifiable school data.
-- Do not copy code, tests, documentation, or parser fixtures from upstream
-  `librus-apix` or another project. Review provenance before adding external
+- Do not copy code, tests, documentation, or parser fixtures from another Librus client
+  or any other project. Review provenance before adding external
   material. Implement behavior from independently established requirements
   and independently authored fixtures.
 - Do not call live Librus without explicit authorization. Never use read-once

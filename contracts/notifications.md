@@ -89,7 +89,7 @@ counts accepted expanded bytes. Parser/body/record/text limits fail whole batche
 ## Provenance and qualification
 
 The separately inspected consumer supplies ownership and durable-handoff
-requirements, not copied code or spool fixtures. External apix 1.5.3 supplies
+requirements, not copied code or spool fixtures. External reference client supplies
 business concepts and candidate routes only. Its metadata says MIT while the
 bundled license is GPLv3; no external implementation, test, fixture or text is
 incorporated. Its recent-event reader explicitly describes itself as untested
@@ -110,9 +110,9 @@ Exact evidence and unresolved gaps belong in [VERIFICATION.md](../VERIFICATION.m
 
 The installed wheel used one login and ten requests to observe five shown
 categories. Warm reuse dispatched nothing. Independent Chromium and same-byte
-apix fields agree; no missing sixth category is fabricated. An original fixture
+reference-client fields agree; no missing sixth category is fabricated. An original fixture
 also exercises counters without the `button` styling class: Chromium/native agree
-on those values while apix ignores them. Reference agreement is scope-specific,
+on those values while the reference client ignores them. Reference agreement is scope-specific,
 not evidence that the external reader is a semantic oracle.
 
 ## Review lessons

@@ -56,7 +56,7 @@ Observed table (`table.decorated.myHomeworkTable`), mapped by header label:
 - Empty result: exactly one `msgEmptyTable` marker ("Brak wpisów"), no homework
   table and no page notice. Any notice next to an empty marker fails.
 
-apix maps the same cells as `lesson` (actually the subject), `subject` (actually
+The reference client maps the same cells as `lesson` (actually the subject), `subject` (actually
 the topic) and joined date and weekday strings. The previous native model copied
 that labelling, and its synthetic fixtures invented clock cells, so populated
 pages failed live. A consumer mapping to the legacy MCP output must translate

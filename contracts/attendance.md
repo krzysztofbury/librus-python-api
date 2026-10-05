@@ -3,7 +3,7 @@
 This 0.3 development increment enables attendance collections/views/windows,
 numeric detail reads with fields/notes, gateway records, overall/semester ratios,
 and per-subject ratios with bounded metadata resolution. A populated installed
-native/apix pair completed on one context. Wider role/layout coverage, custom-type
+native/reference-client pair completed on one context. Wider role/layout coverage, custom-type
 semantics, populated last-login, and the remaining school families remain pending.
 This is not a completed 0.3.0 release or general compatibility claim.
 
@@ -13,7 +13,7 @@ Unreleased detail-key semantics are documented in [detail fields](detail-fields.
 Only the established date/topic detail labels are normalized; unknown fields
 remain explicit. This adds no upstream route or expanded live-evidence claim.
 
-The business reference is installed, unmodified librus-apix 1.5.3 and the existing
+The business reference is installed, unmodified reference client and the existing
 consumer's attendance, window, detail, and frequency requirements. Those references
 were reviewed read-only. No implementation, documentation, fixtures, or captures
 were incorporated. All parser and HTTP fixtures here are independently authored.
