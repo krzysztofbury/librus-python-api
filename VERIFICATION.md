@@ -27,6 +27,32 @@ documentation were copied from it.
   private captures. Their results are recorded in this file and in
   `release-evidence/`; the scripts were removed in 0.6.1 and remain in Git history.
 
+## 0.6.1 (2026-10-05) - Pre-1.0 readiness review
+
+Offline review of security boundaries, OpenAPI parity, documentation accuracy and
+packaging before 1.0 PyPI work. No public API, wire contract or storage change.
+
+- Security boundaries hold: origins are pinned to official HTTPS hosts or
+  loopback, TLS verification is mandatory, redirects are never followed
+  automatically, environment proxies are ignored and the explicit proxy reaches
+  every HTTP call site. XML decoding forbids DTDs, entities and network access;
+  JSON decoding bounds nesting and rejects duplicate keys and non-finite numbers.
+  Credentials are redacted in repr, str and validation errors.
+- OpenAPI parity: all 50 catalogue operations (49 paths plus the explicit send
+  variant) match method, path, side effect, retry safety, evidence and origin.
+  One stale evidence note (received pagination) was corrected.
+- Fixed: the unused `tenacity` dependency was removed, and `publish_attachment`
+  now reports UNSUPPORTED_CAPABILITY instead of AttributeError where
+  `O_DIRECTORY`/`O_NOFOLLOW` are missing; its regression failed before the fix.
+- Source, installed wheel and installed sdist on Python 3.13.15 and 3.14.7 each
+  pass 1,522 portable tests (one performance test deselected). Ruff, strict
+  typing, hooks, history/worktree secret scans and the locked dependency audit
+  pass; installed metadata no longer lists `tenacity`; archives rebuild with
+  identical hashes. Archives are in `dist/0.6.1/`; hashes are in
+  `release-evidence/0.6.1-readiness-qualification.json`.
+
+Zero live Librus requests, credentials or sends. Nothing was published.
+
 ## 0.6.0 release preparation (2026-10-04)
 
 The pre-merge compatibility review found that required `normalized_fields`
