@@ -3,6 +3,35 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Neutral notification bootstrap (#23, 2026-10-05)
+
+Focused source qualification passed 89 notification persistence/workflow tests,
+including 24 new public-boundary cases. Tests exercise all mapped categories,
+explicit unmapped reports, conflicts/malformed inputs/context mismatch, capacity
+rollback, historical archive validation, restart and fresh-process recovery,
+idempotent acknowledgement, repeat-import refusal, staging failure, repeated
+cancellation and shutdown. The first regression failed on missing public imports.
+All inputs are original fictional fixtures; no old consumer implementation or
+production files were copied and no live Librus request was authorized or made.
+
+Pair-programmer review applied TigerStyle #2 (bounded loops), #4 (paired
+assertions), #6 (positive and negative space), #7 (predictable memory) and
+#12 (full error handling). It caught context registration outside the atomic
+import: registration now shares the state/delivery commit, and tests prove no
+partial context/state/delivery survives failure. Historical items reject invented
+provenance, raw progress and uncertain consume markers; serialized event bytes
+are bounded before complete batch construction. Ruff and strict mypy passed.
+No remaining review blocker was identified. This implements a neutral library
+boundary, not a production migration or lossless reverse mapping of old opaque IDs.
+
+Full local qualification passed 1,593 tests on Python 3.13.15/3.14.7 and in each
+of four locked installed wheel/sdist configurations. Every run deselected one
+optional performance test; all four installed loopback runtime smokes passed.
+Ruff, formatting, strict mypy, archive/metadata validation and strict Twine passed.
+Disposable builds/environments were cleaned up. The development version remains
+1.0.0rc1 until all four integration issues qualify; these artifacts were not
+published. Hosted PR qualification, merge and stable publication are separate gates.
+
 ## Modern notification source (#22, 2026-10-05)
 
 Local source qualification passed 1,569 tests on Python 3.13.15 and 3.14.7.

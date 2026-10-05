@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import os
+import secrets
 import sqlite3
 import stat
 from collections.abc import AsyncIterator, Callable, Coroutine
@@ -14,6 +15,7 @@ from typing import Any
 
 from pydantic import Field
 
+from librus_python_api._notification_bootstrap import prepare_bootstrap
 from librus_python_api._notification_codec import (
     ARCHIVE_BYTES,
     HEX,
@@ -24,6 +26,7 @@ from librus_python_api._notification_codec import (
     empty_state,
     encode_batch,
     encode_envelope,
+    is_historical_batch,
     load,
     restore_batch,
     restore_envelope,
@@ -40,6 +43,8 @@ from librus_python_api.models import (
 from librus_python_api.notification_models import (
     NotificationArchive,
     NotificationBatch,
+    NotificationBootstrap,
+    NotificationBootstrapResult,
     NotificationItem,
     NotificationSeen,
     NotificationState,
@@ -203,20 +208,22 @@ class NotificationStore(_SQLiteStore):
         context = self._context_key(context)
         with self._connection() as connection:
             self._validate_contents(connection)
-            if (
-                connection.execute(
-                    "SELECT 1 FROM notification_contexts WHERE context=?", (context,)
-                ).fetchone()
-                is None
-            ):
-                count = connection.execute(
-                    "SELECT count(*) FROM notification_contexts"
-                ).fetchone()[0]
-                if count >= self.limits.contexts:
-                    raise LibrusError(ErrorKind.LIMIT)
-                connection.execute(
-                    "INSERT INTO notification_contexts VALUES (?)", (context,)
-                )
+            self._register_context(connection, context)
+
+    def _register_context(self, connection: sqlite3.Connection, key: str) -> None:
+        if (
+            connection.execute(
+                "SELECT 1 FROM notification_contexts WHERE context=?", (key,)
+            ).fetchone()
+            is not None
+        ):
+            return
+        count = connection.execute(
+            "SELECT count(*) FROM notification_contexts"
+        ).fetchone()[0]
+        if count >= self.limits.contexts:
+            raise LibrusError(ErrorKind.LIMIT)
+        connection.execute("INSERT INTO notification_contexts VALUES (?)", (key,))
 
     def _lock_context(self, context: str, held: list[int]) -> None:
         context = self._context_key(context)
@@ -249,11 +256,14 @@ class NotificationStore(_SQLiteStore):
                 os.close(descriptor)
 
     @asynccontextmanager
-    async def _context(self, context: AccountContext) -> AsyncIterator[None]:
+    async def _context(
+        self, context: AccountContext, *, register: bool = True
+    ) -> AsyncIterator[None]:
         identifier = _context_id(context)
         held: list[int] = []
         try:
-            await self._io(lambda: self._register(identifier))
+            if register:
+                await self._io(lambda: self._register(identifier))
             await self._io(lambda: self._lock_context(identifier, held))
             yield
         finally:
@@ -263,10 +273,14 @@ class NotificationStore(_SQLiteStore):
                 os.close(held.pop())
 
     async def _transaction[T](
-        self, context: AccountContext, operation: Callable[[], Coroutine[Any, Any, T]]
+        self,
+        context: AccountContext,
+        operation: Callable[[], Coroutine[Any, Any, T]],
+        *,
+        register: bool = True,
     ) -> T:
         async def run() -> T:
-            async with self._context(context):
+            async with self._context(context, register=register):
                 return await operation()
 
         return await self._owned(run)
@@ -582,11 +596,22 @@ class NotificationStore(_SQLiteStore):
         ):
             raise LibrusError(ErrorKind.PARSE)
         raw = self._raw(connection, context)
+        historical = is_historical_batch(batch)
+        if historical and (
+            raw is not None
+            or row[3] is not None
+            or connection.execute(
+                "SELECT 1 FROM notification_reservations WHERE context=?",
+                (self._context_key(context.identifier),),
+            ).fetchone()
+            is not None
+        ):
+            raise LibrusError(ErrorKind.PARSE)
         if row[3] is None:
             if (
                 row[4] is not None
                 or batch.has_more_schedule
-                or NotificationCategory.AGENDA in batch.categories
+                or (NotificationCategory.AGENDA in batch.categories and not historical)
             ):
                 raise LibrusError(ErrorKind.PARSE)
         elif (
@@ -681,6 +706,101 @@ class NotificationStore(_SQLiteStore):
             return NotificationArchive(3, context, payload)
 
         return await self._transaction(context, export)
+
+    async def bootstrap(
+        self, plan: NotificationBootstrap, *, context: AccountContext
+    ) -> NotificationBootstrapResult:
+        """Atomically import an externally mapped baseline and consumed history.
+
+        Unmapped IDs return imported=False without writes. A populated target
+        context rejects; callers retain their original files for rollback.
+        """
+        _context_id(context)
+        if type(plan) is not NotificationBootstrap or plan.context != context:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        state, items, unmapped = await self._io(
+            lambda: prepare_bootstrap(
+                plan,
+                self.limits.seen_ids_per_category,
+                self.limits.batch_items,
+                self.limits.batch_bytes,
+            )
+        )
+        if unmapped:
+            return NotificationBootstrapResult(False, unmapped, None)
+
+        async def restore() -> NotificationBootstrapResult:
+            pending = await self._io(lambda: self._bootstrap(context, state, items))
+            return NotificationBootstrapResult(True, (), pending)
+
+        # Registration belongs to the import commit, not the lock acquisition.
+        # A failed import must not consume a context slot or create seen state.
+        return await self._transaction(context, restore, register=False)
+
+    def _bootstrap(
+        self,
+        context: AccountContext,
+        state: NotificationState,
+        items: tuple[NotificationItem, ...],
+    ) -> NotificationBatch | None:
+        key = self._context_key(context.identifier)
+        batch = (
+            NotificationBatch(
+                secrets.token_hex(32),
+                context,
+                False,
+                (NotificationCategory.AGENDA,),
+                items,
+                False,
+            )
+            if items
+            else None
+        )
+        with self._connection() as connection:
+            self._validate_contents(connection)
+            self._require_empty(connection, key)
+            self._register_context(connection, key)
+            connection.execute(
+                "INSERT INTO notification_state VALUES (?,?,NULL)",
+                (
+                    key,
+                    state_bytes(
+                        state,
+                        self.limits.seen_ids_per_category,
+                        self.limits.state_bytes,
+                    ),
+                ),
+            )
+            if batch is not None:
+                payload = encode_batch(
+                    replace(batch, context=replace(context, identifier=key)),
+                    self.limits.batch_bytes,
+                )
+                after = state_bytes(
+                    _seen_after(state, items, self.limits.seen_ids_per_category),
+                    self.limits.seen_ids_per_category,
+                    self.limits.state_bytes,
+                )
+                connection.execute(
+                    "INSERT INTO notification_deliveries VALUES (?,?,?,?,NULL,NULL)",
+                    (key, batch.receipt, payload, after),
+                )
+                self._delivery(connection, context)
+            self._validate_contents(connection)
+        return batch
+
+    @staticmethod
+    def _require_empty(connection: sqlite3.Connection, key: str) -> None:
+        for table in (
+            "notification_state",
+            "notification_raw",
+            "notification_deliveries",
+            "notification_reservations",
+        ):
+            if connection.execute(
+                f"SELECT 1 FROM {table} WHERE context=?", (key,)
+            ).fetchone():
+                raise LibrusError(ErrorKind.INVALID_INPUT)
 
     def _export(self, context: AccountContext) -> bytes:
         with self._connection() as connection:
@@ -842,17 +962,7 @@ class NotificationStore(_SQLiteStore):
         with self._connection() as connection:
             self._validate_contents(connection)
             # Import is empty-target only, never a silent history reset.
-            for table in (
-                "notification_state",
-                "notification_raw",
-                "notification_deliveries",
-                "notification_reservations",
-            ):
-                if connection.execute(
-                    f"SELECT 1 FROM {table} WHERE context=?",
-                    (self._context_key(context.identifier),),
-                ).fetchone():
-                    raise LibrusError(ErrorKind.INVALID_INPUT)
+            self._require_empty(connection, self._context_key(context.identifier))
             state = restore_state(
                 dump(record["state"], self.limits.state_bytes),
                 self.limits.seen_ids_per_category,
@@ -943,6 +1053,10 @@ class NotificationStore(_SQLiteStore):
     ) -> None:
         """Prove imported cursor progress does not discard an undelivered event."""
         raw = self._raw(connection, context)
+        if is_historical_batch(batch):
+            if raw is not None:
+                raise LibrusError(ErrorKind.PARSE)
+            return
         if NotificationCategory.AGENDA not in batch.categories:
             return
         if raw is None:
