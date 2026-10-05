@@ -33,7 +33,7 @@ def verify(directory: Path) -> None:
         "Framework :: AsyncIO",
         "Operating System :: POSIX",
         "Operating System :: Microsoft :: Windows",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
     } <= set(metadata.get_all("Classifier", []))
     with tarfile.open(sdist) as archive:
         paths = {PurePosixPath(member.name) for member in archive.getmembers()}

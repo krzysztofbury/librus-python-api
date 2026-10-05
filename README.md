@@ -14,21 +14,22 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.0.0rc1`, a library-only beta prerelease, not stable 1.0 or an MCP
-cutover. MCP integration, legacy-state migration and broader live qualification
-remain unfinished. School features depend on what each account can access.
+**Status:** `1.0.0` freezes the documented native library API. It does not claim
+completed MCP cutover, production-state migration or universal live-school
+compatibility. Those consumer/live gates remain separate. School features depend
+on what each account can access. See the [compatibility policy](API.md#compatibility-policy).
 See [limitations](#supported-features-and-limitations) below.
 
 ## Install
 
-Install the exact candidate from PyPI once its gated publication completes:
+Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.0.0rc1
+python -m pip install librus-python-api==1.0.0
 ```
 
-An explicit version selects the prerelease without opting into every prerelease
-dependency. Before publication, use a checkout or locally built wheel instead.
+Pin the exact version qualified by your application. Before publication, use a
+checkout or locally built wheel instead.
 From a checkout, install into a virtual environment:
 
 ```sh
@@ -40,7 +41,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.0.0rc1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.0.0-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.

@@ -3,6 +3,35 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Current release evidence (2026-10-05)
+
+The library-only 1.0.0rc1 was published through real PyPI Trusted Publishing in
+[run 37281758063](https://github.com/krzysztofbury/librus-python-api/actions/runs/37281758063)
+at `01b32e0dd2407809cf89aec32b1e49b32b2a3363`. The public JSON reports non-yanked
+wheel/sdist uploaded on 2026-10-05. Hashes matched the sealed run, and its fresh
+Python 3.14 public-index installation and loopback runtime smoke passed:
+
+- Wheel SHA256: `c879dcb4fda13314254e0c0d012c9a2981e87f8b7a431247df9c3990a4fbe893`.
+- Sdist SHA256: `7ecbefdba84714dc95080665d4019adbc40c497475856e897d24a51b6433be13`.
+
+Prerequisites #22-#25 subsequently merged as PRs #28-#31 and closed separately.
+Remote main was confirmed at `68ae2197d636773bbf066df8ac818f3ce3f1532e` after #25.
+Stable 1.0.0 preparation freezes the documented native library contracts; its
+own source/artifact qualification, remote tag, hosted release matrix and public
+upload/confirmation remain pending. The rc1 upload does not qualify new bytes.
+MCP installed/stdio acceptance, production-state migration/rollback, comparative
+performance and broader live-school evidence remain separate unfinished gates.
+No new live Librus access or production-state change is authorized by this work.
+
+The deployed dependency-drift workflow passed its first manual run
+[37311653065](https://github.com/krzysztofbury/librus-python-api/actions/runs/37311653065)
+on both Python versions at pre-Windows main `b268124c88f20556bc95c9445a708fe4942568b2`.
+This exercises the newest-permitted-runtime Linux artifact path, not Windows
+qualification or evidence of a scheduled trigger.
+
+Earlier sections below record their evidence at each historical checkpoint;
+their then-pending upload/merge statements are superseded by this current entry.
+
 ## Windows disk qualification (#25, 2026-10-05)
 
 Initial Windows installed-artifact qualification failed on missing IANA timezone
@@ -28,8 +57,22 @@ remain pinned, journals require protected inheritable private directory ACLs,
 and failed CREATE_NEW validation deletes only the owned handle. Commit-point
 cancellation joins the rename worker and leaves only a complete final file.
 The public private-directory helper avoids consumer-owned Win32 provisioning.
-No remaining review blocker was identified; final-head hosted qualification,
-merge and stable-release gates remain separate from the earlier successful run.
+Final head `08ad8db59f615aeb9a9ffddcde27d310481793f5` passed all five CI jobs in
+[run 37311543233](https://github.com/krzysztofbury/librus-python-api/actions/runs/37311543233).
+Each of four Windows installed wheel/sdist configurations passed 193 tests and
+its loopback smoke, with eight POSIX-only cases skipped. Local source on Python
+3.13.15/3.14.7 and four Linux installed configurations passed 1,607 tests each,
+skipping 25 Windows-only cases and deselecting one optional performance test.
+Ruff, formatting, strict mypy including the Win32 module target, artifact/strict
+Twine checks, history secret scan and hash-locked dependency audit passed.
+No remaining review blocker was identified. PR #31 merged and #25 closed after
+comparing its exact head with the pushed SHA. Stable release is a separate gate.
+
+The existing maximum-body parser resource gate also passed separately on Python
+3.14: eight 262,144-byte jobs, 0.1085 seconds elapsed, 0.0156 seconds maximum
+heartbeat delay and 1,500,467 traced peak bytes. This is a coarse local resource
+check, not comparative MCP performance qualification. Disposable builds, reports
+and environments allocated by those commands were cleaned up.
 
 ## Typed notification recovery (#24, 2026-10-05)
 

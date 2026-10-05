@@ -1,6 +1,17 @@
 # Changelog
 
-## 1.0.0
+## 1.0.0 (2026-10-05) - Stable native library API
+
+Freeze the documented library API and compatibility policy for consumers moving
+to native contracts. This is a library release, not proof of completed MCP 2.0
+cutover or universal live-school compatibility. Existing school/layout limitations
+and separately authorized live checks remain explicit. No live requests or
+production-state migration occur during release qualification.
+
+- Require sealed Windows disk qualification in addition to Linux/macOS release
+  checks, on Python 3.13/3.14 with locked and newest permitted dependencies.
+- Preserve explicit account keys, format-3 state and conservative UNKNOWN sending
+  history. No automatic old-store import, silent notification reset or rollback.
 
 - Support optional Windows disk workflows on fixed local NTFS: private protected
   inheritable ACLs, pinned directory/ancestor handles, cross-process notification

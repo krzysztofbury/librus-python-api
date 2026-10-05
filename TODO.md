@@ -49,8 +49,8 @@ Persistent state migration is not automatic or implemented by this release.
 | `0.6.0` | Bounded homework ranges, native detail keys, JSON hardening and direct MCP 2.0 plan | Implemented offline; constructor compatibility retained; consumer migration pending |
 | `0.6.1` | Pre-1.0 readiness review: dependency, platform and documentation fixes | Implemented offline and locally qualified; no API change |
 | `0.7.0` | Application-keyed contexts, stdlib logging, POSIX metadata, lean archives and user-facing README | Implemented; offline qualification recorded in VERIFICATION.md |
-| `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
-| `1.0.0` | Stable API for the native MCP 2.0 cutover | Planned |
+| `1.0.0rc1` | Library-only candidate on real PyPI | Published and public hashes/fresh installation verified; consumer acceptance pending |
+| `1.0.0` | Stable native library API for the later MCP 2.0 cutover | #22-#25 merged and qualified; release preparation in progress, stable publication pending |
 | MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Separate consumer release |
 
 P0-P9 below are the detailed acceptance checklist for 1.0. Each release
@@ -362,11 +362,15 @@ recorded above; legacy sending and MCP migration remain separately qualified.
 The separately approved offline S10 follow-ups are implemented in 0.4.11 on a new
 branch; this supersedes only their previous 0.5 deferral, not S1/S4-S9 or live gates.
 
-### 1.0.0rc1 - Complete replacement qualification
+### 1.0.0rc1 - Published library candidate and remaining replacement gates
 
 The first PyPI candidate is explicitly scoped to the library alone. Its upload
 does not satisfy the complete replacement gates below: MCP integration, old-state
 migration/rollback and broader live qualification remain pending.
+
+Published on real PyPI through Trusted Publishing in
+[run 37281758063](https://github.com/krzysztofbury/librus-python-api/actions/runs/37281758063).
+The uploaded wheel/sdist hashes and fresh Python 3.14 installation were verified.
 
 - [ ] Finish P8 for every required consumer operation and remove the legacy backend's
   imports, private patches, duplicated recovery and obsolete dependencies in the
@@ -381,17 +385,28 @@ migration/rollback and broader live qualification remain pending.
 - [ ] Authorized account-type live checks, API and migration docs, release notes,
   dependency review and a rollback procedure.
 
-### 1.0.0 - Stable API and consumer cutover
+### 1.0.0 - Stable native library API
+
+The approved stable library scope is independent of the later consumer release.
+It freezes documented native contracts without claiming universal live-school
+compatibility or completed production migration. Four prerequisite issues were
+separately reviewed, qualified, merged and closed:
+
+- [x] #22: explicit modern/legacy notification mailbox selection (PR #28).
+- [x] #23: neutral mapped offline notification bootstrap (PR #29).
+- [x] #24: typed notification recovery status and original pending-batch lookup (PR #30).
+- [x] #25: guarded Windows NTFS disk workflows and installed artifact CI (PR #31).
 
 - [ ] Freeze and document the supported API, limits, account ownership, error
   and capability semantics, and compatibility policy.
+  Release preparation documents the policy in API.md; final qualification pending.
 - [ ] Publish the final artifact and rerun installed acceptance against it before
   releasing the consumer.
-- [ ] Release MCP 2.0 pinned to the tested native library, and
-  verify its public `uvx` installation, dependency graph, CLI and contract.
 
 ### MCP 2.0.0 - Direct consumer modernization and backend replacement
 
+- [ ] Release MCP 2.0 pinned to the tested native library, and verify its public
+  `uvx` installation, dependency graph, CLI and contract.
 - [ ] Complete ownership-map items A01-A18 in consumer PRs (typed wire contracts,
   deprecated-tool removal, packaging, configuration and state migration,
   attachment resources), released as one documented major version.
@@ -791,40 +806,44 @@ Publishing preparation is in `.github/workflows/workflow.yaml`, with manual
 verify/pypi targets, sealed artifact qualification and environment approval.
 See [RELEASE.md](RELEASE.md). The owner chose real PyPI only, not TestPyPI.
 GitHub environment setup is complete. The deployed workflow passed its full
-Linux/macOS matrix in verify mode for v0.7.0. PyPI OIDC and actual publication
-remain pending; the first candidate is library-only 1.0.0rc1.
+Linux/macOS matrix in verify mode for v0.7.0 and published library-only 1.0.0rc1
+through real PyPI OIDC in run 37281758063. Stable publication remains pending;
+its pipeline now additionally requires sealed Windows disk qualification.
 
 Dependencies: P0 packaging; PyPI publication starts at `1.0.0rc1`.
 Before that candidate, verify exact local wheel/sdist artifacts and the local
 consumer adapter without requiring publishing automation or a PyPI installation.
 
-- [ ] Configure PyPI project ownership and a GitHub Trusted Publisher
+- [x] Configure PyPI project ownership and a GitHub Trusted Publisher
   tied to the exact repository, workflow, and protected release environment.
   Keep publish credentials out of build/test jobs; preserve manual approval.
-  Pending publisher reported configured; GitHub environment protections verified
-  via API. No TestPyPI is planned. Actual OIDC upload and ownership remain pending.
-- [ ] Build wheel and sdist from a verified tag matching package metadata and
+  GitHub environment protections verified via API; actual rc1 OIDC upload passed.
+  No TestPyPI is planned.
+- [x] Build wheel and sdist from a verified tag matching package metadata and
   event commit. Verify MIT license content, declared runtime dependencies,
   Python requirements, public exports, and `py.typed` in installed artifacts.
-- [ ] Build once, record distribution checksums, and publish those verified bytes
+- [x] Build once, record distribution checksums, and publish those verified bytes
   after tests. Pin third-party Actions by SHA and document release recovery.
   Build/seal/installed qualification is implemented and locally exercised;
-  hosted qualification passed for v0.7.0; candidate publication remains pending.
-- [ ] Test a clean install outside the checkout, including import, public async
+  hosted qualification and rc1 publication passed, including public hash comparison.
+- [x] Test a clean install outside the checkout, including import, public async
   client lifecycle, and a fixture-server read. Test both locked and newest
   permitted dependencies; schedule dependency-drift checks.
   Local Linux Python 3.13/3.14 wheel/sdist checks pass for both dependency modes.
-  The weekly workflow is deployed but not yet exercised. Hosted Linux/macOS
-  qualification passed for v0.7.0; the exact PyPI candidate is checked separately.
-- [ ] Publish `1.0.0rc1` and document its coverage/limitations. Prove the consumer
-  adapter against that PyPI artifact before the complete cutover; earlier 0.x
-  adapter qualification uses exact local built artifacts.
+  Hosted Linux/macOS qualification and the exact rc1 public installation passed.
+  The weekly dependency-drift workflow passed its first manual run 37311653065
+  on Python 3.13/3.14 at pre-Windows main; the scheduled trigger is not yet evidenced.
+- [x] Publish library-only `1.0.0rc1` and document its coverage/limitations.
+- [ ] Prove the consumer against an exact PyPI artifact before the complete cutover;
+  earlier 0.x consumer qualification used exact local built artifacts.
   Use separate library/consumer versions and changelogs.
 - [ ] Publish the migration-ready library before releasing the consumer that
   requires it. Prefer an exact tested dependency pin initially; no Git/path
   dependencies in the production consumer release.
 - [ ] Verify public PyPI version, wheel/sdist checksums, fresh resolver install,
   and downstream `uvx` startup. Do not infer publication from a local build.
+  Library-only rc1 public hashes and fresh install passed; downstream startup and
+  stable-version public verification remain pending.
 
 Exit: independently installable public library with a reproducible release path.
 
