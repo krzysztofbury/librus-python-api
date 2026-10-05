@@ -742,7 +742,8 @@ def test_mismatch_consumes_confirmation_without_authentication(
                 confirmation = await store.preview_send(original)
                 if change in ("login", "origin"):
                     async with LibrusService(
-                        {
+                        context_key=bytes(range(32)),
+                        accounts={
                             "student": AccountCredentials(
                                 login="changed" if change == "login" else "student",
                                 password=FIXTURE_SECRET,
@@ -802,7 +803,8 @@ def test_configured_context_stable_across_password_rotation_not_alias_or_login()
         ("other", "student", FIXTURE_SECRET, False),
     ):
         service = LibrusService(
-            {alias: AccountCredentials(login=login, password=password)},
+            context_key=bytes(range(32)),
+            accounts={alias: AccountCredentials(login=login, password=password)},
             connection=ConnectionSettings(
                 synergia_origin=fixture.origin, api_origin=fixture.origin
             ),

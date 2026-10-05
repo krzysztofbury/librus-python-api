@@ -31,13 +31,18 @@ bounded naming and cancellation/commit semantics.
 from librus_python_api import AccountCredentials, LibrusService
 
 async with LibrusService(
-    {"parent": AccountCredentials(login=..., password=...)}
+    {"parent": AccountCredentials(login=..., password=...)},
+    context_key=application_secret_key,  # Exactly 32 random bytes, retained across runs.
 ) as service:
     identity = await service.account("parent").identity()
 ```
 
 - Construction does no I/O and reads no environment variables. Transports are
   created lazily. A service belongs to one event loop.
+- `context_key: bytes` is required in 0.7.0. Supply exactly 32 cryptographically
+  random bytes from application-owned secret storage. Reuse the same key for
+  cooperating processes and restarts; never derive it from a login or password.
+  See [account contexts and upgrading](contracts/account-context.md).
 - Use one service per process for all accounts, so every call shares one traffic
   budget. Separate processes need their own coordination.
 - `AccountCredentials(login, password, expected_owner_id=None,
@@ -106,7 +111,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
-  `librus_python_api.diagnostics.loguru_sink` forwards it to Loguru. Sink errors
+  `librus_python_api.diagnostics.logging_sink` emits allowlisted fields through
+  the standard `logging` logger named `librus_python_api`. The application owns
+  handlers and formatting; no logging dependency or global configuration is added. Sink errors
   never affect results.
 
 All upstream routes and forms are fixed in `config.py` and documented in
@@ -455,13 +462,15 @@ fallback is allowed. See [the send contract](contracts/sending.md).
 
 ## Optional durable sending
 
-### 0.4.11 format and explicit retention
+### Storage format and explicit retention
 
-Storage schema version 2 uses a random salt created once per database. Persisted
+Storage schema version 3 uses a random salt created once per database. Persisted
 context identifiers are store-local HMAC-SHA256 pseudonyms, not the public
-`client.context.identifier` hash. `store.context_identifier(client.context.identifier)`
+`client.context.identifier` application-keyed pseudonym. `store.context_identifier(client.context.identifier)`
 returns that pseudonym only on an open store. Core clients remain storage-independent.
-Version-1 stores reject without modification; no automatic migration/reset.
+Version-1/2 stores reject without modification; no automatic migration/reset.
+Opening either store requires POSIX; other platforms fail with
+`UnsupportedCapabilityError` before creating files.
 
 `await store.prune_send_history(context=client.context, identifiers=(...),
 allow_accepted=False)` returns the number of deleted rows. Use identifiers from
@@ -486,10 +495,12 @@ creates state, reads old MCP files or starts background recovery.
 - `client.context` and `attempt.account_context` expose a frozen `AccountContext`
   binding the configured alias, login and native/API/modern origins, not a shared
   student identity. Password rotation preserves this context; login/origin/alias
-  changes do not. Identifiers are hashes, not anonymization or authority tokens.
-  `identifier` is an unsalted SHA-256 over the alias, login and origins, so a
-  low-entropy login can be guessed from it: treat it as sensitive and do not log,
-  display or send it to third parties. Persistence stores use salted pseudonyms.
+  changes do not. Identifiers use domain-separated HMAC-SHA256 with the required
+  application `context_key`; different keys produce different identifiers.
+  Login guessing from an identifier requires that secret. It is a linkable
+  pseudonym, not anonymization or authority; `alias` remains plain text. Password
+  rotation preserves it only when the context key is retained. Do not lose or
+  regenerate the key when using persistent state. Stores add a store-local HMAC.
 - `await store.preview_send(attempt)` performs no HTTP and returns an expiring
   `SendConfirmation(token, expires_at)`. Only a token hash and exact context/backend/
   complete immutable-submission digest are persisted. Message bodies, recipient
@@ -535,11 +546,11 @@ See [contracts/persistence.md](contracts/persistence.md).
 
 ## Optional durable notifications
 
-In 0.4.11, notification schema and neutral archive versions are 2. Export payloads
-carry the source salt and store-local identifiers, not the public context hash.
+In 0.7.0, notification schema and neutral archive versions are 3. Export payloads
+carry the source salt and store-local identifiers, not the application context pseudonym.
 Empty-target import validates the source namespace and rebinds to the target salt;
 receipts/events/progress remain unchanged, but export bytes differ across stores.
-Old version-1 archives explicitly reject. See the storage format decision in
+Old version-1/2 archives explicitly reject. See the storage format decision in
 [contracts/persistence.md](contracts/persistence.md).
 
 `await store.prune_seen(context=client.context, category=NotificationCategory.GRADES,

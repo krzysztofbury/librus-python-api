@@ -87,6 +87,8 @@ class _SQLiteStore:
         await self.aclose()
 
     async def open(self) -> None:
+        if os.name != "posix":
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         if self._opened or self._opening or self._closing or self._closed:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         self._opening = True
@@ -316,7 +318,7 @@ class _SQLiteStore:
                     "INSERT INTO store_metadata VALUES (?,?)",
                     ("context_salt", secrets.token_bytes(32)),
                 )
-                connection.execute("PRAGMA user_version=2")
+                connection.execute("PRAGMA user_version=3")
             self._validate_schema(connection)
             self._validate_contents(connection)
         if os.name == "posix":
@@ -342,7 +344,7 @@ class _SQLiteStore:
             "SELECT type, name, sql FROM sqlite_master ORDER BY name LIMIT 32"
         ).fetchall()
         if (
-            connection.execute("PRAGMA user_version").fetchone()[0] != 2
+            connection.execute("PRAGMA user_version").fetchone()[0] != 3
             or connection.execute("PRAGMA page_size").fetchone()[0] != 4096
             or connection.execute("PRAGMA journal_mode").fetchone()[0] != "delete"
             or actual != sorted(expected, key=lambda row: row[1])

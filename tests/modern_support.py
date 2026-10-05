@@ -203,7 +203,8 @@ class ModernFixture(ReadsFixture):
                 "scheduler_limits", SchedulerLimits(requests_per_second=1000, burst=32)
             )
             async with LibrusService(
-                {
+                context_key=bytes(range(32)),
+                accounts={
                     alias: AccountCredentials(login=alias, password=FIXTURE_SECRET)
                     for alias in aliases
                 },

@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import secrets
 from collections import Counter
 from pathlib import Path
 from typing import NoReturn
@@ -92,7 +93,10 @@ async def capture(
     report: dict[str, object] = {"status": "started"}
     try:
         async with LibrusService(
-            {"capture": credentials}, connection=connection, transport_factory=factory
+            {"capture": credentials},
+            context_key=secrets.token_bytes(32),
+            connection=connection,
+            transport_factory=factory,
         ) as service:
             budget = RequestBudget(max_requests=24, timeout_seconds=120)
             client = service.account("capture")

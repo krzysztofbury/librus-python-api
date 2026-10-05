@@ -26,6 +26,8 @@ contracts to native owners. The [API security review](api-security-review.md)
 records Snyk-guided controls, findings and architecture boundaries.
 The [detail-field contract](detail-fields.md) defines native stable keys used by
 the direct MCP 2.0 integration plan in the [roadmap review](mcp2-roadmap.md).
+The [account-context contract](account-context.md) describes application-owned
+HMAC keys and the explicit 0.7 persistence upgrade boundary.
 
 ## Adding an endpoint
 

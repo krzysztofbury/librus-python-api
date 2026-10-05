@@ -23,6 +23,11 @@ Rules that hold for every release:
 
 ## Releases
 
+0.7.0 addresses the pre-1.0 account-context, logging, packaging and README review.
+Service construction now requires an application-owned context key; existing
+durable applications need the [upgrade guidance](contracts/account-context.md).
+Persistent state migration is not automatic or implemented by this release.
+
 | Version | Scope | State |
 | --- | --- | --- |
 | `0.1.0` | Account service, login, identity, profile, scheduler, budgets | Done |
@@ -43,6 +48,7 @@ Rules that hold for every release:
 | `0.5.0` | Modern authentication, broader communication coverage and live qualification | Implemented and narrowly live-qualified; offline pre-merge review and artifact evidence in VERIFICATION.md; C01-C05 and consumer migration remain open |
 | `0.6.0` | Bounded homework ranges, native detail keys, JSON hardening and direct MCP 2.0 plan | Implemented offline; constructor compatibility retained; consumer migration pending |
 | `0.6.1` | Pre-1.0 readiness review: dependency, platform and documentation fixes | Implemented offline and locally qualified; no API change |
+| `0.7.0` | Application-keyed contexts, stdlib logging, POSIX metadata, lean archives and user-facing README | Implemented; offline qualification recorded in VERIFICATION.md |
 | `1.0.0rc1` | Complete MCP replacement candidate on PyPI, consumer branch qualified | Planned |
 | `1.0.0` | Stable API for the native MCP 2.0 cutover | Planned |
 | MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Separate consumer release |

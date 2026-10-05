@@ -43,7 +43,10 @@ async def main() -> None:
     global PHASE
     directory, origin, PHASE = sys.argv[1:]
     async with LibrusService(
-        {"student": AccountCredentials(login="student", password=FIXTURE_SECRET)},
+        context_key=bytes(range(32)),
+        accounts={
+            "student": AccountCredentials(login="student", password=FIXTURE_SECRET)
+        },
         connection=ConnectionSettings(synergia_origin=origin, api_origin=origin),
         scheduler_limits=SchedulerLimits(requests_per_second=1000, burst=16),
     ) as service:

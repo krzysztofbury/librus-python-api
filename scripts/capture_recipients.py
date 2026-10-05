@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import secrets
 from pathlib import Path
 
 from lxml import html
@@ -136,7 +137,9 @@ async def capture(
 
     try:
         async with LibrusService(
-            {"capture": credentials}, transport_factory=factory
+            {"capture": credentials},
+            context_key=secrets.token_bytes(32),
+            transport_factory=factory,
         ) as service:
             budget = RequestBudget(max_requests=24, timeout_seconds=240)
             client = service.account("capture")
