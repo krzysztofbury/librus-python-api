@@ -3,6 +3,19 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.0.1 subject-frequency evidence (2026-10-06)
+
+The owner authorized read-only live checks during the MCP 2.0 release review.
+No sends, read-once schedule requests, message opens or downloads were made.
+On four independent logins, a cold 1.0.0 `subject_frequency()` with a warm
+session used 17 and 32 requests (8 and 15 subjects). With the login inside the
+same default 32-request budget, 1.0.0 failed with `LIMIT` on the 15-subject
+logins. The gateway `Lessons` and `Subjects` collections covered every
+attendance-referenced lesson (16/16 and 8/8) and subject on two logins. With
+1.0.1, the same cold calls including login used 12 requests in 1.1-2.4 s; warm
+calls used one request. A cold notification poll of all categories except
+agenda used 17 requests, and a warm poll used 5. No school data is recorded here.
+
 ## Current release evidence (2026-10-05)
 
 The library-only 1.0.0rc1 was published through real PyPI Trusted Publishing in

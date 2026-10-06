@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.1 (2026-10-06) - Bounded subject frequency and reliability fixes
+
+Compatible patch release. The public library API is unchanged.
+
+- Resolve subject-frequency lesson and subject names from the gateway `Lessons`
+  and `Subjects` collections, read once per login session and cached for the
+  existing one-hour TTL. A cold call now costs three requests regardless of how
+  many lessons and subjects a student has. Before, it cost one request per unique
+  lesson plus one per subject, which exceeded the default 32-request operation
+  budget near 15 subjects and failed with `LIMIT`. References missing from a
+  collection keep the strict per-reference routes. An unavailable, denied,
+  oversized or malformed collection falls back to them; deadlines, budgets and
+  cancellation still propagate.
+- Report a published attachment as published when removing the private temporary
+  name fails after the atomic link commit, instead of raising `STORAGE` for a
+  complete file. The inert temporary file may remain.
+- Wait up to one second, not 100 ms, for another process's SQLite write lock in
+  ordinary store operations. Several local processes commonly share one store;
+  final saves after upstream side effects keep their five-second wait.
+
 ## 1.0.0 (2026-10-05) - Stable native library API
 
 Freeze the documented library API and compatibility policy for consumers moving

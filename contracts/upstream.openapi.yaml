@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.0.0
+  version: 1.0.1
   license:
     name: MIT
   description: |
@@ -1032,6 +1032,84 @@ paths:
                         Lesson: {$ref: '#/components/schemas/NumericReference'}
                         LessonNo: {type: integer, minimum: 0, maximum: 99, nullable: true}
         default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Lessons:
+    get:
+      operationId: attendance_lessons
+      tags: [Attendance]
+      summary: Resolve attendance lessons to subject references in one collection read
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original collection fixtures. Read-only installed observation on two independent logins on 2026-10-06 covered every lesson referenced by their attendance; complete role/layout coverage is not claimed.
+      description: |
+        Required Lessons array, at most 4096 rows; Id and an optional Subject.Id are
+        numeric references. Rows without a subject are omitted and resolve through
+        attendance_lesson. A repeated ID with a different subject fails as a parse
+        error rather than choosing one. Subject frequency reads this collection once
+        per login/session and one-hour TTL instead of one request per unique lesson,
+        so its request count does not grow with the number of lessons. An access
+        denial, HTTP failure, parse failure or oversized collection degrades to the
+        per-reference routes; deadlines, budgets and cancellation propagate.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway lesson collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Lessons]
+                properties:
+                  Lessons:
+                    type: array
+                    maxItems: 4096
+                    items:
+                      type: object
+                      required: [Id]
+                      properties:
+                        Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                        Subject: {$ref: '#/components/schemas/NumericReference'}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Subjects:
+    get:
+      operationId: attendance_subjects
+      tags: [Attendance]
+      summary: Resolve subject references to school-provided names in one collection read
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Original collection fixtures. Read-only installed observation on two independent logins on 2026-10-06 covered every subject referenced by their attendance; custom types and wider roles remain unqualified.
+      description: |
+        Required Subjects array, at most 1024 rows; Id is numeric and Name is an
+        optional string of at most 1024 characters. Blank or absent names are
+        omitted and resolve through attendance_subject, where the strict nonblank
+        contract applies. Distinct IDs are never merged by name; a repeated ID with
+        a different name fails as a parse error. Cache and fallback policy match
+        attendance_lessons.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway subject collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Subjects]
+                properties:
+                  Subjects:
+                    type: array
+                    maxItems: 1024
+                    items:
+                      type: object
+                      required: [Id]
+                      properties:
+                        Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                        Name: {type: string, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Lessons/{id}:
     get:
       operationId: attendance_lesson
@@ -1044,8 +1122,10 @@ paths:
       x-evidence: independently_observed
       x-evidence-note: Original numeric reference fixtures; installed populated one-day subject resolution independently observed under shared budgets. Complete role/layout coverage is not claimed.
       description: |
-        Response Lesson.Id must match the requested numeric ID; Subject.Id is a
-        required numeric reference. No arbitrary URL method or cross-login metadata.
+        Fallback for lessons absent from the attendance_lessons collection or when
+        that collection is unusable. Response Lesson.Id must match the requested
+        numeric ID; Subject.Id is a required numeric reference. No arbitrary URL
+        method or cross-login metadata.
         At most 256 unique lessons per selected frequency workload; lesson and
         subject metadata share a 256-entry account/session cache, one-hour TTL.
         Deduplication, finite request budgets and the common scheduler bound traffic.

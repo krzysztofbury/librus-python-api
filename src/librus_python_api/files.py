@@ -166,6 +166,7 @@ async def publish_attachment(
     size = 0
     digest = hashlib.sha256()
     failed = False
+    published: PublishedAttachment | None = None
     try:
         if sys.platform == "win32":
             from librus_python_api._windows_filesystem import (
@@ -206,9 +207,10 @@ async def publish_attachment(
             final = await _disk(
                 lambda: _publish(directory_fd, descriptor, temporary, name)
             )
-        return PublishedAttachment(
+        published = PublishedAttachment(
             directory / final, size, digest.hexdigest(), content_type
         )
+        return published
     except OSError:
         failed = True
     finally:
@@ -237,6 +239,9 @@ async def publish_attachment(
                     windows_directory.close()
                 except OSError:
                     failed = True
-        if failed:
+        # The atomic link is the commit point. Failing to remove our random
+        # temporary name afterwards leaves an inert private file, but must not
+        # report a complete, published attachment as a failed transfer.
+        if failed and published is None:
             raise LibrusError(ErrorKind.STORAGE) from None
     raise LibrusError(ErrorKind.STORAGE)

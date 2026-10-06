@@ -46,7 +46,7 @@ supported labels/layouts remain synthetic contracts, not populated qualification
 | Detail read | Separate detail page and consumer detail maps | `attendance_detail()` returns ordered fields and separately preserved full-width notes. Labels omit trailing colons; rendered word boundaries remain. Populated field projection matches on one context. Native notes are an intentional addition; baseline omits them |
 | Gateway records | Typed numeric type/lesson references, civil date, semester, optional period/record ID | `gateway_attendance()` returns frozen records and strict `AttendanceKind`; duplicate supplied IDs, mismatched metadata IDs, malformed dates/references, and boolean semesters fail. Unknown type IDs remain raw/unknown |
 | Overall frequency | Baseline counts excursion/presence/lateness over all attendance records | `attendance_frequency()` exposes first/second/overall counts and unrounded 0..1 ratios under explicit `overall` policy. Known-type calculation matches; any unknown type or zero denominator produces no ratio |
-| Subject frequency | Baseline/consumer count presence/lateness over known presence/absence/excused/exemption; known other types excluded | `subject_frequency()` uses inclusive date selection before deduplicated numeric lesson/subject lookups. Ratios are unrounded 0..1; consumer converts to percentage/rounding. One populated civil day matches the baseline projection; full-year resolution remains budget-dependent/unqualified |
+| Subject frequency | Baseline/consumer count presence/lateness over known presence/absence/excused/exemption; known other types excluded | `subject_frequency()` uses inclusive date selection, then resolves lessons/subjects from the gateway `Lessons`/`Subjects` collections (three requests in total, independent of subject count), with per-reference lookups only for absent references or an unusable collection. Ratios are unrounded 0..1; consumer converts to percentage/rounding. One populated civil day matches the baseline projection; a full-year selection resolved on two independent logins in 1.0.1 |
 | Zero denominator | Baseline returns ratio 1 or percentage 100 even with no eligible records | Intentional difference: native returns `ratio=None` and counts, not invented attendance. Legacy projection is a consumer mapping choice only when unknown_count is zero. One empty-semester mapping was exercised |
 | Type metadata | Baseline hardcodes familiar type IDs and can fail on custom IDs | Native preserves explicit raw IDs and uses a documented source-informed standard-kind policy. No separate custom-label metadata endpoint or guessed custom classification. Custom type frequency remains unavailable and live-unqualified |
 
@@ -56,8 +56,9 @@ supported labels/layouts remain synthetic contracts, not populated qualification
   and 1024 characters per rendered metadata key/value or symbol.
 - Shared document byte/node/depth and parser-worker limits remain in force.
 - A 64-entry account result cache bounds fixed collections, numeric details, and
-  subject-frequency selections. A separate 256-entry lesson/subject metadata
-  cache has a one-hour TTL; session invalidation clears both. Unique resolution
+  subject-frequency selections. The lesson/subject collection maps (at most 4096
+  lessons and 1024 subjects) and a separate 256-entry per-reference metadata cache
+  have a one-hour TTL; session invalidation clears all of them. Unique resolution
   is limited to 256 lessons/subjects per selection and the original request budget.
   HTML date windows add no cache entries; fresh gateway records remain fresh even
   when metadata is reused. Neither cache merges login contexts.

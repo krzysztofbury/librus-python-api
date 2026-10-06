@@ -26,7 +26,10 @@ if TYPE_CHECKING:
 
 class _StorageLimits(_ValidatedConfig):
     operations: int = Field(default=8, ge=1, le=64)
-    busy_timeout_seconds: float = Field(default=0.1, gt=0, le=5, allow_inf_nan=False)
+    # Several local processes (one per agent host session) commonly share one
+    # store. Each transaction is short, but FULL synchronous commits can exceed
+    # 100 ms on slow disks, so ordinary operations wait up to one second.
+    busy_timeout_seconds: float = Field(default=1.0, gt=0, le=5, allow_inf_nan=False)
     # Final saves follow upstream side effects (a dispatched send or a consumed
     # read-once page), so they wait longer for other contexts' write locks.
     final_busy_timeout_seconds: float = Field(

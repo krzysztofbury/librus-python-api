@@ -227,6 +227,35 @@ def test_disk_failure_is_redacted_and_does_not_publish(
 
 
 @pytest.mark.skipif(
+    sys.platform == "win32", reason="POSIX temporary name is unlinked after linking"
+)
+def test_cleanup_failure_after_commit_still_reports_the_published_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unlink = os.unlink
+
+    def fail_temporary_unlink(path: str, *args: object, **kwargs: object) -> None:
+        if str(path).startswith(".librus-attachment-"):
+            raise OSError("private cleanup failure")
+        unlink(path, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(os, "unlink", fail_temporary_unlink)
+
+    async def scenario() -> None:
+        async with rig() as (fixture, service):
+            result = await publish_attachment(
+                service.account("student").stream_attachment(reference()),
+                tmp_path,
+                filename="fixture.txt",
+            )
+            assert result.path == tmp_path / "fixture.txt"
+            assert result.path.read_bytes() == fixture.body
+            assert result.sha256 == hashlib.sha256(fixture.body).hexdigest()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(
     sys.platform == "win32", reason="POSIX symlink; NTFS junction tested separately"
 )
 def test_directory_symlink_is_rejected_before_network(tmp_path: Path) -> None:

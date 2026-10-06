@@ -1104,6 +1104,26 @@ class _SubjectEnvelopeWire(BaseModel):
     Subject: _SubjectWire
 
 
+class _CollectionLessonWire(_NumericReferenceWire):
+    # Collection rows may omit a subject; such lessons resolve individually.
+    Subject: _NumericReferenceWire | None = None
+
+
+class _LessonsEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Lessons: list[_CollectionLessonWire]
+
+
+class _CollectionSubjectWire(_NumericReferenceWire):
+    # Blank names resolve individually, where the strict subject contract applies.
+    Name: Annotated[str | None, Field(max_length=1024)] = None
+
+
+class _SubjectsEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Subjects: list[_CollectionSubjectWire]
+
+
 @dataclass(frozen=True, slots=True)
 class ProfileFields:
     name: str = field(repr=False)
