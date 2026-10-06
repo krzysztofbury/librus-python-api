@@ -144,9 +144,12 @@ use `skip-existing`. Retain the sealed run artifact (14 days) and reconcile an
 incomplete upload with the owner; a new version is the safe normal recovery.
 
 If post-upload confirmation fails, the package may already be public. Inspect
-the public JSON/version and original hashes first. Retry verification, not the
-entire publisher, for temporary index visibility failures. A compromised/broken
-release requires an explicit yank and corrected version. Never auto-delete a
-release or reset user state; document a known-good dependency pin for rollback.
+the public JSON/version and original hashes first. The confirmation waits up to
+ten minutes for PyPI's simple index to list both files, because the JSON API
+updates first, and retries the fresh installation twice. Retry verification, not
+the entire publisher, for temporary index visibility failures. A
+compromised/broken release requires an explicit yank and corrected version.
+Never auto-delete a release or reset user state; document a known-good
+dependency pin for rollback.
 
 [pending]: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
