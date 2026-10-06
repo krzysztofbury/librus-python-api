@@ -208,6 +208,33 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "messages",
             ),
             Endpoint(
+                "modern_archive_messages_received",
+                "GET",
+                "/api/archive/inbox/messages",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_archive_messages_sent",
+                "GET",
+                "/api/archive/outbox/messages",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_unread_counts",
+                "GET",
+                "/api/inbox/unreadMessagesCount",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
                 "modern_content_received",
                 "GET",
                 "/api/inbox/messages/{id}",
@@ -891,13 +918,33 @@ def modern_mailbox_query(
     return {"page": str(page), "limit": str(page_size)}
 
 
+MODERN_MAILBOX_OPERATIONS = frozenset(
+    {
+        "modern_messages_received",
+        "modern_messages_sent",
+        "modern_archive_messages_received",
+        "modern_archive_messages_sent",
+    }
+)
+MODERN_UNREAD_COUNT_FIELDS = (
+    "inbox",
+    "notes",
+    "alerts",
+    "substitutions",
+    "absences",
+    "justifications",
+    "trash",
+)
+MODERN_MAX_UNREAD_COUNT = 1000000
+
+
 def validate_modern_query(operation: str, query: Mapping[str, str]) -> None:
     """Allow only fixed bounded directory or ordinary mailbox selections."""
     if not isinstance(query, Mapping) or any(
         type(v) is not str for v in query.values()
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
-    if operation in {"modern_messages_received", "modern_messages_sent"}:
+    if operation in MODERN_MAILBOX_OPERATIONS:
         if set(query) != {"page", "limit"} or any(
             re.fullmatch(r"[1-9][0-9]{0,3}", query[name]) is None
             for name in ("page", "limit")

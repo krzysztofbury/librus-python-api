@@ -119,6 +119,7 @@ from librus_python_api.models import (
     ModernRecipientTypeReference,
     ModernRecipientTypes,
     ModernSendSubmission,
+    ModernUnreadCounts,
     NotificationCounts,
     Observation,
     OperationName,
@@ -147,6 +148,9 @@ from librus_python_api.modern_mailbox import (
     parse_content as parse_modern_message_content,
 )
 from librus_python_api.modern_mailbox import parse_page as parse_modern_message_page
+from librus_python_api.modern_mailbox import (
+    parse_unread_counts as parse_modern_unread_counts,
+)
 from librus_python_api.modern_mailbox import (
     validate_reference as validate_modern_message_reference,
 )
@@ -590,18 +594,19 @@ class AccountClient:
         )
 
     async def _modern_message_page(
-        self, folder: MessageFolder, page: int, page_size: int, budget: RequestBudget
+        self,
+        folder: MessageFolder,
+        page: int,
+        page_size: int,
+        budget: RequestBudget,
+        archived: bool,
     ) -> ModernMessagesPage:
-        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
-            "modern_messages_received"
-            if folder is MessageFolder.RECEIVED
-            else "modern_messages_sent"
-        )
+        operation = _modern_mailbox_operation(folder, archived)
         items, total, fingerprint = await self._page(
             operation,
             budget,
             lambda body: parse_modern_message_page(
-                body, folder, page, page_size, self._alias
+                body, folder, page, page_size, self._alias, archived
             ),
             content_type=JSON,
             query=modern_mailbox_query(folder, page, page_size),
@@ -615,6 +620,7 @@ class AccountClient:
             items,
             fingerprint,
             self._observation(operation),
+            archived,
         )
 
     async def modern_messages_page(
@@ -623,20 +629,24 @@ class AccountClient:
         *,
         page: int = 1,
         page_size: int = 10,
+        archived: bool = False,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> ModernMessagesPage:
-        """One one-based ordinary modern page, without any content open."""
+        """One one-based ordinary modern page, without any content open.
+
+        ``archived`` lists the archive mailbox (earlier school years) instead.
+        """
         modern_mailbox_query(folder, page, page_size)
-        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
-            "modern_messages_received"
-            if folder is MessageFolder.RECEIVED
-            else "modern_messages_sent"
-        )
+        if type(archived) is not bool:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        operation = _modern_mailbox_operation(folder, archived)
 
         async def fetch(budget: RequestBudget, _: bool) -> ModernMessagesPage:
             await self._modern_ready(budget)
-            return await self._modern_message_page(folder, page, page_size, budget)
+            return await self._modern_message_page(
+                folder, page, page_size, budget, archived
+            )
 
         return await self._read(
             (operation, "page", page, page_size), fetch, budget, max_age_seconds
@@ -650,29 +660,29 @@ class AccountClient:
         page_size: int = 50,
         max_pages: int = 4,
         limit: int = 128,
+        archived: bool = False,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> ModernMessages:
         """Bounded modern collection with selection-bound continuation."""
         validate_modern_message_selection(
-            folder, cursor, page_size, max_pages, limit, self._alias
+            folder, cursor, page_size, max_pages, limit, self._alias, archived
         )
-        operation: Literal["modern_messages_received", "modern_messages_sent"] = (
-            "modern_messages_received"
-            if folder is MessageFolder.RECEIVED
-            else "modern_messages_sent"
-        )
+        operation = _modern_mailbox_operation(folder, archived)
 
         async def fetch(budget: RequestBudget, _: bool) -> ModernMessages:
             await self._modern_ready(budget)
             result = await collect_modern_messages(
-                lambda page: self._modern_message_page(folder, page, page_size, budget),
+                lambda page: self._modern_message_page(
+                    folder, page, page_size, budget, archived
+                ),
                 folder,
                 self._alias,
                 cursor,
                 page_size,
                 max_pages,
                 limit,
+                archived,
             )
             items, pages, duplicates, continuation, reason = result
             return ModernMessages(
@@ -684,6 +694,7 @@ class AccountClient:
                 continuation,
                 reason,
                 self._observation(operation),
+                archived,
             )
 
         return await self._read(
@@ -691,6 +702,30 @@ class AccountClient:
             fetch,
             budget,
             max_age_seconds,
+        )
+
+    async def modern_unread_counts(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernUnreadCounts:
+        """Unread counters of the modern mailbox, without opening any message."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernUnreadCounts:
+            await self._modern_ready(budget)
+            current, archive = await self._page(
+                "modern_unread_counts",
+                budget,
+                parse_modern_unread_counts,
+                content_type=JSON,
+            )
+            return ModernUnreadCounts(
+                self._session_identity(),
+                current,
+                archive,
+                self._observation("modern_unread_counts"),
+            )
+
+        return await self._read(
+            ("modern_unread_counts",), fetch, budget, max_age_seconds
         )
 
     async def modern_message_content(
@@ -706,6 +741,9 @@ class AccountClient:
             reference.folder is MessageFolder.RECEIVED and not allow_mark_read
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        if reference.archived:
+            # No archived content route or mark-read effect is established yet.
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         operation: Literal["modern_content_received", "modern_content_sent"] = (
             "modern_content_received"
             if reference.folder is MessageFolder.RECEIVED
@@ -2334,6 +2372,21 @@ class AccountClient:
         if 300 <= response.status < 400:
             raise LibrusError(ErrorKind.LIMIT)
         return response
+
+
+def _modern_mailbox_operation(
+    folder: MessageFolder, archived: bool
+) -> Literal[
+    "modern_messages_received",
+    "modern_messages_sent",
+    "modern_archive_messages_received",
+    "modern_archive_messages_sent",
+]:
+    if folder is MessageFolder.RECEIVED:
+        if archived:
+            return "modern_archive_messages_received"
+        return "modern_messages_received"
+    return "modern_archive_messages_sent" if archived else "modern_messages_sent"
 
 
 def _media_type(response: TransportResponse) -> str:

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.0.3
+  version: 1.1.0
   license:
     name: MIT
   description: |
@@ -195,6 +195,55 @@ paths:
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
       responses:
         '200': {description: Bounded sent summaries and total count, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/archive/inbox/messages:
+    get:
+      operationId: modern_archive_messages_received
+      summary: Archived modern inbox summaries without opening content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary inbox shape; the envelope adds archivingInProgress, which must be false. Archived content opens are not enabled.
+      parameters:
+        - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        '200': {description: Bounded archived summaries and total count, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/archive/outbox/messages:
+    get:
+      operationId: modern_archive_messages_sent
+      summary: Archived modern sent summaries without opening content
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary outbox shape (no readDate); the envelope adds archivingInProgress, which must be false.
+      parameters:
+        - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
+        - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        '200': {description: Bounded archived sent summaries and total count, content: {application/json: {schema: {type: object}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/inbox/unreadMessagesCount:
+    get:
+      operationId: modern_unread_counts
+      summary: Modern mailbox unread counters without opening content
+      description: The data object holds nonnegative integers for inbox, notes, alerts, substitutions, absences, justifications and trash, plus archive-prefixed counterparts (archiveInbox and so on). All fourteen are required; unknown extra counters are ignored.
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session; the web app requests it on every mailbox view. All observed counters were zero; populated counter semantics are not independently established.
+      responses:
+        '200': {description: Unread counters, content: {application/json: {schema: {type: object, required: [data], properties: {data: {type: object}}}}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/inbox/messages/{id}:
     get:

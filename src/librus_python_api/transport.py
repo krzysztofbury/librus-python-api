@@ -34,6 +34,7 @@ from librus_python_api.config import (
     MESSAGE_PAGE_FIELDS,
     MODERN_DIRECTORY_QUERIES,
     MODERN_HANDOFF_PATTERN,
+    MODERN_MAILBOX_OPERATIONS,
     MODERN_TERMINAL_PATHS,
     OAUTH_QUERY,
     USER_AGENT,
@@ -297,12 +298,8 @@ class AiohttpTransport:
             url = str(URL(url).with_query(MODERN_DIRECTORY_QUERIES[endpoint_id]))
         if (
             endpoint_id
-            in {
-                "modern_school_recipients",
-                "modern_class_parents",
-                "modern_messages_received",
-                "modern_messages_sent",
-            }
+            in {"modern_school_recipients", "modern_class_parents"}
+            | MODERN_MAILBOX_OPERATIONS
             and query is None
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)

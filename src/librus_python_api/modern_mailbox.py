@@ -14,6 +14,8 @@ from librus_python_api.config import (
     MESSAGE_MAX_CURSOR_IDS,
     MESSAGE_MAX_FIELD_LENGTH,
     MESSAGE_MAX_TOTAL_TEXT_LENGTH,
+    MODERN_MAX_UNREAD_COUNT,
+    MODERN_UNREAD_COUNT_FIELDS,
     modern_mailbox_query,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -26,6 +28,7 @@ from librus_python_api.models import (
     ModernMessagesCursor,
     ModernMessagesPage,
     ModernMessageSummary,
+    ModernUnreadFolders,
 )
 from librus_python_api.modern_body import render_body
 from librus_python_api.parsers import decode_json
@@ -48,6 +51,7 @@ def validate_reference(reference: ModernMessageReference, account: str) -> None:
         not isinstance(reference, ModernMessageReference)
         or not isinstance(reference.folder, MessageFolder)
         or reference.account != account
+        or type(reference.archived) is not bool
         or type(reference.identifier) is not str
         or re.fullmatch(r"[0-9]{1,64}", reference.identifier) is None
     ):
@@ -75,7 +79,9 @@ def _date(value: Any) -> datetime:
     raise LibrusError(ErrorKind.PARSE)
 
 
-def _summary(data: Any, folder: MessageFolder, account: str) -> ModernMessageSummary:
+def _summary(
+    data: Any, folder: MessageFolder, account: str, archived: bool
+) -> ModernMessageSummary:
     if not isinstance(data, dict):
         raise LibrusError(ErrorKind.PARSE)
     correspondent = (
@@ -98,7 +104,9 @@ def _summary(data: Any, folder: MessageFolder, account: str) -> ModernMessageSum
     read = data.get("readDate")
     read_at = None if read in (None, "") else _date(read)
     return ModernMessageSummary(
-        ModernMessageReference(folder, identifier(data.get("messageId")), account),
+        ModernMessageReference(
+            folder, identifier(data.get("messageId")), account, archived
+        ),
         name,
         subject,
         _date(stamp),
@@ -110,7 +118,12 @@ def _summary(data: Any, folder: MessageFolder, account: str) -> ModernMessageSum
 
 
 def parse_page(
-    body: bytes, folder: MessageFolder, page: int, page_size: int, account: str
+    body: bytes,
+    folder: MessageFolder,
+    page: int,
+    page_size: int,
+    account: str,
+    archived: bool = False,
 ) -> tuple[tuple[ModernMessageSummary, ...], int, str]:
     modern_mailbox_query(folder, page, page_size)
     data = decode_json(body)
@@ -130,7 +143,7 @@ def parse_page(
     expected = min(page_size, max(0, total - (page - 1) * page_size))
     if len(entries) != expected:
         raise LibrusError(ErrorKind.PARSE)
-    items = tuple(_summary(item, folder, account) for item in entries)
+    items = tuple(_summary(item, folder, account, archived) for item in entries)
     if len({item.reference.identifier for item in items}) != len(items):
         raise LibrusError(ErrorKind.PARSE)
     if (
@@ -280,6 +293,7 @@ def parse_content(body: bytes, reference: ModernMessageReference) -> ParsedConte
         content | {"isAnyFileAttached": has_attachment},
         reference.folder,
         reference.account,
+        reference.archived,
     )
     if summary.reference != reference:
         raise LibrusError(ErrorKind.PARSE)
@@ -326,8 +340,11 @@ def validate_selection(
     max_pages: int,
     limit: int,
     account: str,
+    archived: bool = False,
 ) -> None:
     modern_mailbox_query(folder, 1, page_size)
+    if type(archived) is not bool:
+        raise LibrusError(ErrorKind.INVALID_INPUT)
     if type(max_pages) is not int or not 1 <= max_pages <= MESSAGE_MAX_BATCH_PAGES:
         raise LibrusError(ErrorKind.INVALID_INPUT)
     if type(limit) is not int or not 1 <= limit <= MESSAGE_MAX_BATCH_ITEMS:
@@ -340,6 +357,7 @@ def validate_selection(
     if (
         cursor.account != account
         or cursor.folder is not folder
+        or cursor.archived is not archived
         or cursor.page_size != page_size
         or type(cursor.offset) is not int
         or not 0 <= cursor.offset < page_size
@@ -367,6 +385,7 @@ async def collect(
     page_size: int,
     max_pages: int,
     limit: int,
+    archived: bool = False,
 ) -> tuple[
     tuple[ModernMessageSummary, ...],
     int,
@@ -374,7 +393,7 @@ async def collect(
     ModernMessagesCursor | None,
     Literal["item_limit", "page_limit"] | None,
 ]:
-    validate_selection(folder, cursor, page_size, max_pages, limit, account)
+    validate_selection(folder, cursor, page_size, max_pages, limit, account, archived)
     page = cursor.page if cursor else 1
     offset = cursor.offset if cursor else 0
     seen = list(cursor.seen_ids) if cursor else []
@@ -427,6 +446,7 @@ async def collect(
                         total,
                         result.fingerprint,
                         tuple(seen),
+                        archived,
                     ),
                     "item_limit",
                 )
@@ -452,8 +472,33 @@ async def collect(
                     total,
                     result.fingerprint,
                     tuple(seen),
+                    archived,
                 ),
                 "item_limit" if len(items) >= limit else "page_limit",
             )
         page, offset = page + 1, 0
     raise AssertionError("Bounded collector must terminate")
+
+
+def _unread_folders(data: dict[str, Any], prefix: str) -> ModernUnreadFolders:
+    values = []
+    for name in MODERN_UNREAD_COUNT_FIELDS:
+        key = prefix + name[0].upper() + name[1:] if prefix else name
+        value = data.get(key)
+        if type(value) is not int or value < 0:
+            raise LibrusError(ErrorKind.PARSE)
+        if value > MODERN_MAX_UNREAD_COUNT:
+            raise LibrusError(ErrorKind.LIMIT)
+        values.append(value)
+    return ModernUnreadFolders(*values)
+
+
+def parse_unread_counts(
+    body: bytes,
+) -> tuple[ModernUnreadFolders, ModernUnreadFolders]:
+    """Current and archive counters; unknown extra counters stay inert."""
+    data = decode_json(body)
+    counts = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(counts, dict):
+        raise LibrusError(ErrorKind.PARSE)
+    return _unread_folders(counts, ""), _unread_folders(counts, "archive")

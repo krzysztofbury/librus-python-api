@@ -18,7 +18,27 @@ from librus_python_api import (
 )
 from librus_python_api.config import SchedulerLimits
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.modern_mailbox import parse_unread_counts
 from tests.modern_support import ModernFixture, directory
+
+# Invented counters with distinct values, so a misplaced key cannot pass.
+UNREAD = {
+    "inbox": 1,
+    "notes": 2,
+    "alerts": 3,
+    "substitutions": 4,
+    "absences": 5,
+    "justifications": 6,
+    "trash": 7,
+    "archiveInbox": 11,
+    "archiveNotes": 12,
+    "archiveAlerts": 13,
+    "archiveSubstitutions": 14,
+    "archiveAbsences": 15,
+    "archiveJustifications": 16,
+    "archiveTrash": 17,
+    "futureCounter": 99,
+}
 
 
 class CommunicationFixture(ModernFixture):
@@ -39,6 +59,9 @@ class CommunicationFixture(ModernFixture):
             "/api/receivers/groups/class-parents",
             "/api/inbox/messages",
             "/api/outbox/messages",
+            "/api/archive/inbox/messages",
+            "/api/archive/outbox/messages",
+            "/api/inbox/unreadMessagesCount",
             "/api/inbox/messages/{id}",
             "/api/outbox/messages/{id}",
         ):
@@ -61,6 +84,8 @@ class CommunicationFixture(ModernFixture):
                     }
                 ]
             }
+        elif request.path == "/api/inbox/unreadMessagesCount":
+            default = {"data": dict(UNREAD)}
         elif request.match_info.get("id"):
             default = {
                 "data": self.message(int(request.match_info["id"]))
@@ -83,9 +108,11 @@ class CommunicationFixture(ModernFixture):
             }
             if page == self.malformed_page:
                 default["data"] = []
-            if request.path == "/api/outbox/messages":
+            if request.path.endswith("/outbox/messages"):
                 for item in default["data"]:
                     del item["readDate"]
+            if request.path.startswith("/api/archive/"):
+                default["archivingInProgress"] = False
         return self.response(request.path, default)
 
     def message(self, identifier: int) -> dict[str, Any]:
@@ -101,18 +128,26 @@ class CommunicationFixture(ModernFixture):
         }
 
 
+@pytest.mark.parametrize("archived", [False, True])
 @pytest.mark.parametrize("folder", list(MessageFolder))
 def test_modern_collection_resumes_inside_and_across_pages_without_content_open(
-    folder: MessageFolder,
+    folder: MessageFolder, archived: bool
 ) -> None:
     async def scenario() -> None:
         fixture = CommunicationFixture()
         async with fixture.running() as service:
             client = service.account("student")
-            first = await client.modern_messages(folder, page_size=10, limit=7)
+            first = await client.modern_messages(
+                folder, page_size=10, limit=7, archived=archived
+            )
             assert first.next_cursor is not None and first.next_cursor.offset == 7
+            assert first.archived is first.next_cursor.archived is archived
             second = await client.modern_messages(
-                folder, cursor=first.next_cursor, page_size=10, max_pages=1
+                folder,
+                cursor=first.next_cursor,
+                page_size=10,
+                max_pages=1,
+                archived=archived,
             )
             assert (
                 second.next_cursor is not None
@@ -120,7 +155,7 @@ def test_modern_collection_resumes_inside_and_across_pages_without_content_open(
                 and second.next_cursor.offset == 0
             )
             third = await client.modern_messages(
-                folder, cursor=second.next_cursor, page_size=10
+                folder, cursor=second.next_cursor, page_size=10, archived=archived
             )
             assert third.next_cursor is None
             all_items = first.items + second.items + third.items
@@ -128,9 +163,14 @@ def test_modern_collection_resumes_inside_and_across_pages_without_content_open(
                 str(19001 + i) for i in range(23)
             ]
             assert all(
-                i.reference.account == "student" and i.reference.folder is folder
+                i.reference.account == "student"
+                and i.reference.folder is folder
+                and i.reference.archived is archived
                 for i in all_items
             )
+            mailbox = "inbox" if folder is MessageFolder.RECEIVED else "outbox"
+            path = f"/api/{'archive/' if archived else ''}{mailbox}/messages"
+            assert {p for p, _, _ in fixture.modern_calls if "messages" in p} == {path}
             if folder is MessageFolder.SENT:
                 assert all(i.unread is None and i.read_at is None for i in all_items)
             assert fixture.modern_calls[-1][2] == {"page": "3", "limit": "10"}
@@ -224,6 +264,82 @@ def test_modern_mailbox_cancel_deadline_and_budget_release_slots(mode: str) -> N
                 fixture.release.set()
 
     asyncio.run(scenario())
+
+
+def test_cursor_and_content_stay_inside_their_mailbox_before_io() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            archive = await client.modern_messages(limit=7, archived=True)
+            assert archive.next_cursor is not None
+            calls = len(fixture.modern_calls)
+            # A cursor never continues the other mailbox.
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(cursor=archive.next_cursor)
+            assert error.value.kind is ErrorKind.INVALID_INPUT
+            current = await client.modern_messages(limit=7)
+            assert current.next_cursor is not None
+            calls = len(fixture.modern_calls)
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(cursor=current.next_cursor, archived=True)
+            assert error.value.kind is ErrorKind.INVALID_INPUT
+            # No archived content route or mark-read effect is established.
+            for item in archive.items[:1]:
+                with pytest.raises(LibrusError) as error:
+                    await client.modern_message_content(
+                        item.reference, allow_mark_read=True
+                    )
+                assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+            assert len(fixture.modern_calls) == calls
+            assert all("/190" not in path for path, _, _ in fixture.modern_calls)
+
+    asyncio.run(scenario())
+
+
+def test_unread_counts_keep_current_and_archive_counters_apart() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            counts = await service.account("student").modern_unread_counts()
+            assert counts.identity.owner.id == fixture.account_id("student")
+            assert (
+                counts.current.inbox,
+                counts.current.notes,
+                counts.current.alerts,
+                counts.current.substitutions,
+                counts.current.absences,
+                counts.current.justifications,
+                counts.current.trash,
+            ) == (1, 2, 3, 4, 5, 6, 7)
+            assert counts.archive.inbox == 11 and counts.archive.trash == 17
+            assert counts.archive.justifications == 16
+            assert [p for p, _, _ in fixture.modern_calls if "unread" in p] == [
+                "/api/inbox/unreadMessagesCount"
+            ]
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "change,kind",
+    [
+        (lambda d: d.pop("notes"), ErrorKind.PARSE),
+        (lambda d: d.pop("archiveTrash"), ErrorKind.PARSE),
+        (lambda d: d.update(inbox=-1), ErrorKind.PARSE),
+        (lambda d: d.update(inbox=True), ErrorKind.PARSE),
+        (lambda d: d.update(inbox="1"), ErrorKind.PARSE),
+        (lambda d: d.update(trash=1000001), ErrorKind.LIMIT),
+    ],
+)
+def test_unread_counts_never_guess_a_missing_or_invalid_counter(
+    change: Any, kind: ErrorKind
+) -> None:
+    data = dict(UNREAD)
+    change(data)
+    with pytest.raises(LibrusError) as error:
+        parse_unread_counts(json.dumps({"data": data}).encode())
+    assert error.value.kind is kind
 
 
 @pytest.mark.parametrize("drift", ["total", "subject", "repeated", "late_failure"])
