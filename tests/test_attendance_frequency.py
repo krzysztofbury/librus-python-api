@@ -25,14 +25,50 @@ class FrequencyFixture(AttendanceFixture):
         self.detail_body = DETAIL
         self.metadata_requests: list[tuple[str, str]] = []
         self.gateway_expiry = 0
+        # Collection rows: lesson ID -> subject ID, and subject IDs listed by name.
+        # None makes the collection route unavailable.
+        self.collection_lessons: dict[int, int | None] | None = {41: 51}
+        self.collection_subjects: tuple[int, ...] | None = (51,)
 
     def app(self) -> web.Application:
         app = super().app()
         app.router.add_get("/przegladaj_nb/szczegoly/{id}", self.detail)
         app.router.add_get("/gateway/api/2.0/Attendances", self.gateway)
+        app.router.add_get("/gateway/api/2.0/Lessons", self.lessons)
+        app.router.add_get("/gateway/api/2.0/Subjects", self.subjects)
         app.router.add_get("/gateway/api/2.0/Lessons/{id}", self.lesson)
         app.router.add_get("/gateway/api/2.0/Subjects/{id}", self.subject)
         return app
+
+    async def lessons(self, request: web.Request) -> web.Response:
+        self.record(request)
+        self.metadata_requests.append(("lessons", "*"))
+        if self.collection_lessons is None:
+            return web.Response(status=404)
+        return web.json_response(
+            {
+                "Lessons": [
+                    {"Id": lesson, "Teacher": {"Id": 7}}
+                    | ({} if subject is None else {"Subject": {"Id": subject}})
+                    for lesson, subject in self.collection_lessons.items()
+                ],
+                "Url": "fixture",
+            }
+        )
+
+    async def subjects(self, request: web.Request) -> web.Response:
+        login = self.record(request)
+        self.metadata_requests.append(("subjects", "*"))
+        if self.collection_subjects is None:
+            return web.Response(status=404)
+        return web.json_response(
+            {
+                "Subjects": [
+                    {"Id": subject, "Name": "Fixture " + login, "No": 1, "Short": "F"}
+                    for subject in self.collection_subjects
+                ]
+            }
+        )
 
     async def gateway(self, request: web.Request) -> web.Response:
         self.record(request)
@@ -221,22 +257,19 @@ def test_metadata_ttl_and_result_cache_capacity_are_bounded(
                     await client.attendance_detail(identifier)
                 await client.attendance_detail("1", max_age_seconds=60)
                 assert fixture.metadata_requests[-1] == ("detail", "1")
+                # Collection maps are independent of the per-reference cache size.
                 await client.subject_frequency()
                 await client.subject_frequency()
-                assert fixture.metadata_requests[-4:] == [
-                    ("lesson", "41"),
-                    ("subject", "51"),
-                    ("lesson", "41"),
-                    ("subject", "51"),
+                assert fixture.metadata_requests[-2:] == [
+                    ("lessons", "*"),
+                    ("subjects", "*"),
                 ]
-                monkeypatch.setattr(
-                    "librus_python_api.service.ATTENDANCE_METADATA_CACHE_SIZE", 256
-                )
+                before = len(fixture.metadata_requests)
                 await client.subject_frequency()
+                assert len(fixture.metadata_requests) == before
                 monkeypatch.setattr(
                     "librus_python_api.service.ATTENDANCE_METADATA_TTL_SECONDS", -1
                 )
-                before = len(fixture.metadata_requests)
                 await client.subject_frequency()
                 assert len(fixture.metadata_requests) == before + 2
 
@@ -285,8 +318,8 @@ def test_public_detail_frequency_and_metadata_reuse_are_real_http() -> None:
                 assert subjects.items[0].frequency.ratio == pytest.approx(0.5)
                 assert fixture.metadata_requests == [
                     ("detail", "2468"),
-                    ("lesson", "41"),
-                    ("subject", "51"),
+                    ("lessons", "*"),
+                    ("subjects", "*"),
                 ]
                 again = await client.subject_frequency()
                 assert again.items == subjects.items
@@ -327,7 +360,14 @@ def test_subject_resolution_budget_exhaustion_is_not_partial_success() -> None:
                 with pytest.raises(LimitError):
                     await client.subject_frequency(budget=budget)
                 assert budget.requests_dispatched == 2
-                assert fixture.metadata_requests == [("lesson", "41")]
+                assert fixture.metadata_requests == [("lessons", "*")]
+                # An exhausted caller budget must not be cached as an unusable
+                # collection that silently forces per-reference lookups later.
+                await client.subject_frequency()
+                assert fixture.metadata_requests[-2:] == [
+                    ("lessons", "*"),
+                    ("subjects", "*"),
+                ]
 
     asyncio.run(scenario())
 
@@ -347,3 +387,122 @@ def test_subject_frequency_recovers_gateway_expiry_once() -> None:
                 assert fixture.logins == {"student": 2}
 
     asyncio.run(scenario())
+
+
+def many_subject_rows(count: int) -> bytes:
+    return json.dumps(
+        {
+            "Attendances": [
+                {
+                    "Id": index + 1,
+                    "Date": "2026-10-01",
+                    "Semester": 1,
+                    "Type": {"Id": 100},
+                    "Lesson": {"Id": 1000 + index},
+                }
+                for index in range(count)
+            ]
+        }
+    ).encode()
+
+
+def test_subject_frequency_request_count_is_independent_of_subject_count() -> None:
+    # Per-reference resolution needed 1 + lessons + subjects requests, which
+    # exceeded the default 32-request operation budget near 16 subjects.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = many_subject_rows(60)
+        fixture.collection_lessons = {1000 + i: 2000 + i for i in range(60)}
+        fixture.collection_subjects = tuple(2000 + i for i in range(60))
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.identity()
+                budget = RequestBudget()
+                result = await client.subject_frequency(budget=budget)
+                assert len(result.items) == 60
+                assert {item.subject for item in result.items} == {"Fixture student"}
+                assert budget.requests_dispatched == 3
+
+    asyncio.run(scenario())
+
+
+def test_references_missing_from_collections_resolve_individually() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.collection_lessons = {41: None, 99: 51}
+        fixture.collection_subjects = ()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").subject_frequency()
+                assert result.items[0].subject == "Fixture student"
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("lesson", "41"),
+                    ("subjects", "*"),
+                    ("subject", "51"),
+                ]
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("unavailable", ["status", "conflict"])
+def test_unusable_collections_fall_back_to_per_reference_lookups(
+    unavailable: str,
+) -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        if unavailable == "status":
+            fixture.collection_lessons = None
+            fixture.collection_subjects = None
+        else:
+            # Conflicting duplicate rows are a parse failure, never a choice.
+            fixture.gateway_body = gateway_rows()
+            fixture.collection_subjects = (51, 51)
+            fixture.collection_lessons = {41: 51}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                first = await client.subject_frequency()
+                assert first.items[0].subject == "Fixture student"
+                await client.subject_frequency()
+                requests = fixture.metadata_requests
+                if unavailable == "status":
+                    # A status failure may be transient: retried, then degraded again.
+                    assert requests.count(("lessons", "*")) == 2
+                    assert requests.count(("lesson", "41")) == 1
+                else:
+                    assert requests.count(("subjects", "*")) == 1
+
+    asyncio.run(scenario())
+
+
+def test_collection_parsers_bound_rows_and_omit_unresolvable_entries() -> None:
+    from librus_python_api.attendance_frequency import (
+        parse_lesson_subjects,
+        parse_subject_names,
+    )
+    from librus_python_api.config import ATTENDANCE_MAX_LESSONS
+
+    assert parse_lesson_subjects(
+        b'{"Lessons":[{"Id":1,"Subject":{"Id":2}},{"Id":3},{"Id":1,"Subject":{"Id":2}}]}'
+    ) == {"1": "2"}
+    assert parse_subject_names(
+        b'{"Subjects":[{"Id":2,"Name":" Fixture "},{"Id":3,"Name":"  "},{"Id":4}]}'
+    ) == {"2": "Fixture"}
+    for body in (
+        b'{"Lessons":[{"Id":1,"Subject":{"Id":2}},{"Id":1,"Subject":{"Id":3}}]}',
+        b'{"Lessons":[{"Id":"x"}]}',
+        b'{"Lessons":{}}',
+        b"[]",
+    ):
+        with pytest.raises(ParseError):
+            parse_lesson_subjects(body)
+    oversized = json.dumps(
+        {"Lessons": [{"Id": i} for i in range(ATTENDANCE_MAX_LESSONS + 1)]}
+    ).encode()
+    with pytest.raises(LimitError):
+        parse_lesson_subjects(oversized)

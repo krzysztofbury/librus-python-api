@@ -121,8 +121,8 @@ def test_other_context_write_lock_does_not_fail_post_consume_checkpoint(
                     try:
                         assert await asyncio.to_thread(locked.wait, 5)
                         fixture.body_hold.set()
-                        # Longer than the ordinary busy timeout (0.1 s).
-                        await asyncio.sleep(0.4)
+                        # Longer than the ordinary busy timeout (1 s).
+                        await asyncio.sleep(1.4)
                     finally:
                         release.set()
                         await asyncio.to_thread(holder.join, 5)

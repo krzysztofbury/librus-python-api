@@ -1,9 +1,14 @@
 """Original validated gateway parsing and explicit attendance ratio policies."""
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from librus_python_api import markup
-from librus_python_api.config import ATTENDANCE_MAX_RECORDS, ATTENDANCE_TYPE_KINDS
+from librus_python_api.config import (
+    ATTENDANCE_MAX_LESSONS,
+    ATTENDANCE_MAX_RECORDS,
+    ATTENDANCE_MAX_SUBJECTS,
+    ATTENDANCE_TYPE_KINDS,
+)
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     AttendanceKind,
@@ -11,7 +16,9 @@ from librus_python_api.models import (
     GatewayAttendanceRecord,
     _AttendanceEnvelopeWire,
     _LessonEnvelopeWire,
+    _LessonsEnvelopeWire,
     _SubjectEnvelopeWire,
+    _SubjectsEnvelopeWire,
 )
 from librus_python_api.parsers import decode_json
 
@@ -82,6 +89,62 @@ def parse_subject_name(body: bytes, identifier: str) -> str:
     ):
         raise LibrusError(ErrorKind.PARSE)
     return subject.Name.strip()
+
+
+def _collection[M: BaseModel](data: object, key: str, maximum: int, wire: type[M]) -> M:
+    if (
+        isinstance(data, dict)
+        and isinstance(data.get(key), list)
+        and len(data[key]) > maximum
+    ):
+        raise LibrusError(ErrorKind.LIMIT)
+    failed = False
+    envelope = None
+    try:
+        envelope = wire.model_validate(data)
+    except ValidationError:
+        failed = True
+    if failed or envelope is None:
+        raise LibrusError(ErrorKind.PARSE)
+    return envelope
+
+
+def _unique(pairs: list[tuple[str, str]]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for identifier, value in pairs:
+        # Conflicting rows are never resolved by choosing one of them.
+        if identifier in result and result[identifier] != value:
+            raise LibrusError(ErrorKind.PARSE)
+        result[identifier] = value
+    return result
+
+
+def parse_lesson_subjects(body: bytes) -> dict[str, str]:
+    """Map lesson IDs to subject IDs; rows without a subject are omitted."""
+    envelope = _collection(
+        decode_json(body), "Lessons", ATTENDANCE_MAX_LESSONS, _LessonsEnvelopeWire
+    )
+    return _unique(
+        [
+            (lesson.Id, lesson.Subject.Id)
+            for lesson in envelope.Lessons
+            if lesson.Subject is not None
+        ]
+    )
+
+
+def parse_subject_names(body: bytes) -> dict[str, str]:
+    """Map subject IDs to nonblank names; blank names are omitted."""
+    envelope = _collection(
+        decode_json(body), "Subjects", ATTENDANCE_MAX_SUBJECTS, _SubjectsEnvelopeWire
+    )
+    return _unique(
+        [
+            (subject.Id, subject.Name.strip())
+            for subject in envelope.Subjects
+            if subject.Name is not None and subject.Name.strip()
+        ]
+    )
 
 
 def summarize_frequency(

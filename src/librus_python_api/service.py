@@ -10,7 +10,7 @@ import time
 from collections.abc import Awaitable, Callable, Hashable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import Any, Literal, Self, cast
 from urllib.parse import urljoin, urlsplit
 
@@ -20,7 +20,9 @@ from librus_python_api.attendance import parse_attendance, parse_attendance_deta
 from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
     parse_lesson_subject,
+    parse_lesson_subjects,
     parse_subject_name,
+    parse_subject_names,
     summarize_frequency,
 )
 from librus_python_api.budget import RequestBudget
@@ -345,6 +347,11 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+_METADATA_MAP_FALLBACK = frozenset(
+    {ErrorKind.ACCESS_DENIED, ErrorKind.CONNECTION, ErrorKind.LIMIT, ErrorKind.PARSE}
+)
+
+
 class AccountClient:
     """Service-owned account context. Fresh reads are the default.
 
@@ -388,6 +395,7 @@ class AccountClient:
         self._identity: Identity | None = None
         self._cache: dict[Hashable, tuple[float, Any]] = {}
         self._metadata: dict[tuple[str, str], tuple[float, str]] = {}
+        self._metadata_maps: dict[str, tuple[float, Mapping[str, str]]] = {}
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
         self._consuming_schedule = False
         self._modern_account: ModernAccountData | None = None
@@ -1910,6 +1918,7 @@ class AccountClient:
         self._modern_account = None
         self._cache.clear()
         self._metadata.clear()
+        self._metadata_maps.clear()
         self._transport.clear_auth()
 
     def _invalidate_modern(self) -> None:
@@ -2132,6 +2141,36 @@ class AccountClient:
             del self._metadata[next(iter(self._metadata))]
         return value
 
+    async def _metadata_map(
+        self, endpoint: str, budget: RequestBudget
+    ) -> Mapping[str, str]:
+        """One login-scoped collection read replaces per-reference lookups."""
+        cached = self._metadata_maps.get(endpoint)
+        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
+            return cached[1]
+        parser = (
+            parse_lesson_subjects
+            if endpoint == "attendance_lessons"
+            else parse_subject_names
+        )
+        try:
+            value: Mapping[str, str] = MappingProxyType(
+                await self._page(endpoint, budget, parser, content_type=JSON)
+            )
+        except LibrusError as error:
+            # An unavailable or unexpected collection degrades to the original
+            # per-reference lookups. Deadlines, budgets, cancellation and session
+            # failures still propagate. Only deterministic outcomes are cached.
+            if error.kind not in _METADATA_MAP_FALLBACK:
+                raise
+            if error.kind is ErrorKind.LIMIT:
+                budget.check()  # An exhausted caller budget is not a large collection.
+            if error.kind is ErrorKind.CONNECTION:
+                return MappingProxyType({})
+            value = MappingProxyType({})
+        self._metadata_maps[endpoint] = time.monotonic(), value
+        return value
+
     async def _subject_frequencies(
         self, budget: RequestBudget, start: date | None, end: date | None
     ) -> SubjectFrequencies:
@@ -2147,8 +2186,15 @@ class AccountClient:
         lessons = dict.fromkeys(row.lesson_id for row in rows)
         if len(lessons) > ATTENDANCE_METADATA_CACHE_SIZE:
             raise LibrusError(ErrorKind.LIMIT)
+        # Two collection reads keep the request count independent of how many
+        # lessons and subjects a student has. References absent from a
+        # collection keep the strict per-reference contract.
+        lesson_map = (
+            await self._metadata_map("attendance_lessons", budget) if lessons else {}
+        )
         lesson_subjects = {
-            lesson: await self._metadata_value("attendance_lesson", lesson, budget)
+            lesson: lesson_map.get(lesson)
+            or await self._metadata_value("attendance_lesson", lesson, budget)
             for lesson in lessons
         }
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
@@ -2156,10 +2202,14 @@ class AccountClient:
             subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
         if len(subjects) > ATTENDANCE_METADATA_CACHE_SIZE:
             raise LibrusError(ErrorKind.LIMIT)
+        subject_map = (
+            await self._metadata_map("attendance_subjects", budget) if subjects else {}
+        )
         items = [
             SubjectFrequency(
                 subject,
-                await self._metadata_value("attendance_subject", subject, budget),
+                subject_map.get(subject)
+                or await self._metadata_value("attendance_subject", subject, budget),
                 summarize_frequency(tuple(records), subject_policy=True),
             )
             for subject, records in subjects.items()

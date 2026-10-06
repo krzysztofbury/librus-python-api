@@ -402,6 +402,22 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "attendance_lessons",
+                "GET",
+                "/gateway/api/2.0/Lessons",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
+                "attendance_subjects",
+                "GET",
+                "/gateway/api/2.0/Subjects",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
                 "attendance_lesson",
                 "GET",
                 "/gateway/api/2.0/Lessons/{id}",
@@ -636,6 +652,9 @@ ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
 ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
 ATTENDANCE_MAX_RECORDS = 2048
 ATTENDANCE_MAX_WINDOW_DAYS = 371
+# Whole-school gateway collections resolve attendance metadata in two requests.
+ATTENDANCE_MAX_LESSONS = 4096
+ATTENDANCE_MAX_SUBJECTS = 1024
 # Collection recognition and detail retrieval share this central path family.
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 ATTENDANCE_DETAIL_MAX_FIELDS = 32
