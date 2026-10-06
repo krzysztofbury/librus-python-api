@@ -3,6 +3,18 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.0.2 request-policy evidence (2026-10-06)
+
+The owner authorized read-only live benchmarks through the MCP consumer on four
+independent logins: profile, grades, attendance, timetable, homework, agenda,
+messages and announcements (cold and warm), statistics, two notification checks
+without agenda, and sent-message opens. No sends, read-once schedule requests,
+received-message opens or downloads were made. The unthrottled apix-based MCP
+1.7.0 made 264 requests in 27.3 s, peaking at 53 requests/second. With 1.0.1
+defaults the native consumer made 182 requests but took 35.2 s; with the 1.0.2
+defaults it made 182 requests in 25.4 s, peaking at 14 requests/second. No
+throttling or maintenance responses were observed. No school data is recorded.
+
 ## 1.0.1 subject-frequency evidence (2026-10-06)
 
 The owner authorized read-only live checks during the MCP 2.0 release review.
