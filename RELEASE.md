@@ -69,7 +69,8 @@ Required release decisions:
    verifier consistent with any intentional Beta-to-Stable change.
 
 No scheduled/live credentialed checks are enabled by release setup. All release
-tests and runtime smokes use synthetic loopback servers, never real Librus.
+tests and runtime smokes use synthetic loopback servers, never real Librus. The
+manual, owner-authorized live check in step 4 runs locally, never in CI.
 
 ## Procedure
 
@@ -79,7 +80,15 @@ tests and runtime smokes use synthetic loopback servers, never real Librus.
    confirm the remote tag points to that commit. Never replace an uploaded tag.
 3. Run **Qualify and publish library** from **main**, with the intended version
    and `target=verify`. All checks must pass, including macOS and Windows disk gates.
-4. Run again from **main** with the same tag and `target=pypi`. This run builds its
+4. Run the read-only live check with the owner's authorization. Build the
+   tagged source's wheel, install it into a fresh environment outside the
+   checkout, and run `scripts/live_release_check.py --secrets FILE` with that
+   environment's interpreter. It logs in once per configured account, uses only
+   allowlisted reads (no message opens, sends or read-once routes) and reports
+   statuses and counts only. Publish only if it passes, and record the summary
+   in the release notes. A failed step blocks publication; fix it in a new
+   version rather than publishing a version that failed.
+   Then run again from **main** with the same tag and `target=pypi`. This run builds its
    own sealed pair once, qualifies it, then waits for `pypi` environment approval.
    Inspect that run's tag, commit and results before approving. Bytes from an
    earlier verification run are not silently substituted into a later run.
