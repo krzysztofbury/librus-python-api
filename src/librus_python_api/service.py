@@ -42,6 +42,7 @@ from librus_python_api.config import (
     GRADE_MAX_WINDOW_DAYS,
     MESSAGE_MAX_CURSOR_IDS,
     MODERN_RECIPIENT_OPERATIONS,
+    NOTIFICATION_COUNTS_ENDPOINT,
     SCHEDULE_RESPONSE_VERSION,
     SESSION_COOKIE,
     AccountCredentials,
@@ -816,7 +817,7 @@ class AccountClient:
 
         async def fetch(budget: RequestBudget, _: bool) -> NotificationCounts:
             items = await self._page(
-                "notification_counts", budget, parse_notification_counts
+                NOTIFICATION_COUNTS_ENDPOINT, budget, parse_notification_counts
             )
             return NotificationCounts(
                 self._session_identity(),
@@ -825,7 +826,11 @@ class AccountClient:
             )
 
         return await self._read(
-            ("notification_counts",), fetch, budget, max_age_seconds
+            ("notification_counts",),
+            fetch,
+            budget,
+            max_age_seconds,
+            endpoint=NOTIFICATION_COUNTS_ENDPOINT,
         )
 
     async def consume_schedule_events(

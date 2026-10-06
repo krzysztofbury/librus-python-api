@@ -188,10 +188,23 @@ class SchoolFixture:
         )
 
 
+# Invented counter menu; every Synergia page carries one, including /informacja.
+GRAPHIC_MENU = """<div id="graphic-menu"><ul>
+    <li><a href="/przegladaj_oceny/uczen">Grades fixture</a>
+    <a class="button counter">2</a></li>
+    <li><a href="/przegladaj_nb/uczen">Attendance fixture</a></li>
+    <li><a href="/wiadomosci3">Messages fixture</a><a class="counter button">1</a></li>
+    <li><a href="/ogloszenia">Announcements fixture</a><a class="counter">0</a></li>
+    <li><a href="/terminarz">Agenda fixture</a><a class="counter">3</a></li>
+    <li><a href="/moje_zadania">Homework fixture</a><a class="counter">4</a></li>
+    <li><a href="javascript:void(0)">Inert unrelated menu</a></li>
+    </ul></div>"""
+
+
 def profile_html(
     school: str = "Synthetic School", lucky: str = '<span id="luckyNumber">7</span>'
 ) -> str:
-    return f"""<!doctype html><html><body>
+    return f"""<!doctype html><html><body>{GRAPHIC_MENU}
     <table><tr><th>Uczeń:</th><td>Fixture Student</td></tr>
     <tr><th>Klasa</th><td>1 TEST</td></tr>
     <tr><th>Numer w dzienniku</th><td>12</td></tr>

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.0.2
+  version: 1.0.3
   license:
     name: MIT
   description: |
@@ -637,16 +637,16 @@ paths:
           $ref: '#/components/responses/Failure'
   /uczen/index:
     get:
-      operationId: notification_counts
-      tags: [Authentication, Notifications]
-      summary: Student landing and explicit token-scoped menu counter read
-      description: Optional authentication landing if returned in the redirect chain, also explicitly readable for notification counters. Never required for parent access. Counts are token-scoped, not a fresh poll; conservatively no replay.
+      operationId: login_student_landing
+      tags: [Authentication]
+      summary: Student landing accepted only as a login redirect target
+      description: Optional authentication landing if returned in the redirect chain. Never requested directly; notification counters are read from /informacja because this route answers parent logins with 403. Conservatively no replay.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: authentication
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: Reuses the student landing route for independently authored bounded counter parsing. Installed 0.4.4 wheel observed five shown categories, independently checked against Chromium and same-byte reference-client. Broader role/layout/token freshness remains unqualified.
+      x-evidence-note: Source-informed student landing. On 2026-10-06 a direct read returned 403 for a parent login and the session was unusable afterwards; the cause (role or request burst) was not isolated.
       responses:
         '200':
           $ref: '#/components/responses/Html'
@@ -1417,12 +1417,15 @@ paths:
         unavailability. The observed page labels the student's name "Imię i
         nazwisko ucznia" and also lists the login owner's own rows (name, login,
         masked password), which are never read as student fields.
+        notification_counts reads the same response's graphic menu
+        (div#graphic-menu) for token-scoped counters; the student landing
+        route /uczen/index answers parent logins with 403 and is not used.
       x-origin: synergia
       x-upstream-origin: https://synergia.librus.pl
       x-side-effect: none
       x-retry-safe: true
       x-evidence: independently_observed
-      x-evidence-note: Observed on two student contexts and compared with Chromium; independently authored fixtures with the observed labels.
+      x-evidence-note: Observed on two student contexts and compared with Chromium; independently authored fixtures with the observed labels. On 2026-10-06 a parent context showed the same graphic menu with a counter on this page, while /uczen/index returned 403 for that login.
       security: [{SessionCookie: []}]
       responses:
         '200':

@@ -18,15 +18,14 @@ def load_inputs(file: Path, expected: Path) -> tuple[bytes, object]:
 
 async def replay(file: Path, expected: Path) -> dict[str, object]:
     body, rendered = await asyncio.to_thread(load_inputs, file, expected)
-    fixture = SchoolFixture()
 
-    async def counts(request: web.Request) -> web.Response:
-        fixture.record(request)
-        return web.Response(body=body, content_type="text/html")
+    class CountsFixture(SchoolFixture):
+        async def profile(self, request: web.Request) -> web.Response:
+            self.record(request)
+            return web.Response(body=body, content_type="text/html")
 
-    app = fixture.app()
-    app.router.add_get("/uczen/index", counts)
-    async with serve(app) as origin:
+    fixture = CountsFixture()
+    async with serve(fixture.app()) as origin:
         fixture.origin = origin
         async with fixture.service() as service:
             result = await service.account("student").notification_counts()

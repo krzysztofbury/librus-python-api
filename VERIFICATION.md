@@ -3,6 +3,20 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.0.3 notification-count evidence (2026-10-06)
+
+The owner authorized a read-only coverage check in their own browser session on
+one parent login. No sends, read-once schedule requests, received-message opens
+or downloads were made. A direct read of `/uczen/index` returned 403 for the
+parent login and the session was unusable afterwards; the request was not
+repeated, so role versus request burst was not isolated. After signing in again,
+`/informacja` carried the same `div#graphic-menu` counter menu with one shown
+counter; its messages entry links `/wiadomosci3`. `/api/receivers/groups/class-parents`
+returned 403 and `classParents` was not among the advertised recipient types.
+The 1.0.3 counter read was exercised offline only: loopback tests cover student
+and parent logins, one-time expiry recovery and both messages links. No school
+data is recorded.
+
 ## 1.0.2 request-policy evidence (2026-10-06)
 
 The owner authorized read-only live benchmarks through the MCP consumer on four

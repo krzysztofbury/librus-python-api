@@ -337,8 +337,10 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.SYNTHETIC_ONLY,
             ),
+            # Accepted only as a redirect target during login. Never requested
+            # directly: it answers parent logins with 403.
             Endpoint(
-                "notification_counts",
+                "login_student_landing",
                 "GET",
                 "/uczen/index",
                 SideEffect.AUTHENTICATION,
@@ -695,6 +697,10 @@ CHECKPOINT_TIMEOUT_SECONDS = 5.0
 CHECKPOINT_MAX_TIMEOUT_SECONDS = 30.0
 SCHEDULE_RESPONSE_VERSION = 1
 SCHEDULE_MAX_EVENTS = 1024
+# Every Synergia page carries the counter menu. The information page is
+# readable by student and parent logins alike; the student landing route
+# (/uczen/index) answers parent logins with 403 and is not used.
+NOTIFICATION_COUNTS_ENDPOINT = "student_information"
 NOTIFICATION_MAX_MENU_ITEMS = 64
 NOTIFICATION_MAX_COUNT = 1000000
 NOTIFICATION_DESTINATIONS = MappingProxyType(
@@ -702,6 +708,7 @@ NOTIFICATION_DESTINATIONS = MappingProxyType(
         "/przegladaj_oceny/uczen": "grades",
         "/przegladaj_nb/uczen": "attendance",
         "/wiadomosci": "messages",
+        "/wiadomosci3": "messages",
         "/ogloszenia": "announcements",
         "/terminarz": "agenda",
         "/moje_zadania": "homework",

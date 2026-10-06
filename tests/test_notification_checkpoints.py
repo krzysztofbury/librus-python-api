@@ -14,6 +14,7 @@ import pytest
 
 from librus_python_api import (
     Identity,
+    NotificationCategory,
     Observation,
     Person,
     RequestBudget,
@@ -799,6 +800,51 @@ def test_checkpoint_cannot_reenter_its_service_and_deadlock(action: str) -> None
             assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
+
+
+def test_counts_read_the_shared_information_page_for_student_and_parent() -> None:
+    expected = [
+        (NotificationCategory.GRADES, 2),
+        (NotificationCategory.ATTENDANCE, 0),
+        (NotificationCategory.MESSAGES, 1),
+        (NotificationCategory.ANNOUNCEMENTS, 0),
+        (NotificationCategory.AGENDA, 3),
+        (NotificationCategory.HOMEWORK, 4),
+    ]
+
+    async def scenario() -> None:
+        async with rig(("student", "parent")) as (fixture, service):
+            for alias in ("student", "parent"):
+                counts = await service.account(alias).notification_counts()
+                assert counts.identity.owner.id == alias
+                assert [(i.category, i.count) for i in counts.items] == expected
+            # The student landing route denies parent logins; it is never used.
+            assert [c for c in fixture.calls if c[0] == "/informacja"] == [
+                ("/informacja", "student"),
+                ("/informacja", "parent"),
+            ]
+            assert all(path != "/uczen/index" for path, _ in fixture.calls)
+
+    asyncio.run(scenario())
+
+
+def test_counts_recover_a_proven_expiry_once() -> None:
+    async def scenario() -> None:
+        async with rig() as (fixture, service):
+            client = service.account("student")
+            await client.identity()
+            fixture.expire_profile["student"] = 1
+            assert len((await client.notification_counts()).items) == 6
+            assert fixture.logins == {"student": 2}
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("href", ["/wiadomosci", "/wiadomosci3"])
+def test_both_message_menu_links_count_as_messages(href: str) -> None:
+    menu = counts_html().replace('"/wiadomosci3"', f'"{href}"')
+    items = parse_notification_counts(menu.encode())
+    assert (items[2].category, items[2].count) == (NotificationCategory.MESSAGES, 1)
 
 
 @pytest.mark.parametrize(
