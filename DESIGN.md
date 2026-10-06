@@ -89,19 +89,24 @@ I/O before submission, or deliberately suppresses cancellation indefinitely.
 The transport dispatches every enabled login step, redirect, and retry through
 this boundary. Future metadata lookups and page fetches must do the same.
 
-Default policy: five requests/second, shared burst ten, two global active requests,
-one active request/account, 32 global queued requests, eight queued requests/account,
-and at most 16 accounts. These are engineering defaults, not a known
-Librus-approved traffic allowance. No rate increase is qualified by quiet live
-accounts. Independent services/processes require separate coordination.
+Default policy (1.0.2): ten requests/second, shared burst twenty, four global
+active requests, one active request/account, 32 global queued requests, eight
+queued requests/account, and at most 16 accounts. These are engineering defaults,
+not a known Librus-approved traffic allowance. The owner raised them from five
+requests/second, burst ten and two active requests after measuring the MCP
+consumer: the earlier policy made a four-login workload about 35% slower than the
+unthrottled apix-based client, which peaked above 50 requests/second without
+observed throttling. Quiet accounts do not qualify a rate; server back-pressure
+still pauses all traffic. Independent services/processes require separate
+coordination.
 
 No published Librus request-rate quota was found in public documentation searches.
 There is no universal industry-standard numeric allowance for an undocumented
-upstream. The burst accommodates a typical sequential cold-login chain without
-one-second waits between hops; the five-token/second refill limits sustained
-traffic across all accounts together. This allows at most `10 + 5 * elapsed_seconds`
-admissions over an interval, not a hard five-request ceiling in every second.
-Only two requests can be active globally, and only one per account. All login
+upstream. The burst accommodates two concurrent cold-login chains without waits
+between hops; the ten-token/second refill limits sustained traffic across all
+accounts together. This allows at most `20 + 10 * elapsed_seconds` admissions over
+an interval, not a hard ten-request ceiling in every second. Only four requests
+can be active globally, and only one per account. All login
 hops still consume tokens; nothing bypasses the shared budget.
 
 This follows the general [client-side rate limiting pattern][rate-pattern]:
@@ -118,9 +123,10 @@ burst. Lower limits remain configurable for deployments with stricter requiremen
 
 The tests observe the public scheduler through real loopback HTTP for four
 account keys with three requests each. They check the combined token-bucket
-envelope under both default and explicit policies, global peak two, per-account
-peak one, and exact request counts. A frozen token-clock test verifies shared
-burst exhaustion, five-token/second refill, and bounded credit after idle time. Fast
+envelope under both default and explicit policies, the global active peak (four
+by default), per-account peak one, and exact request counts. A frozen token-clock
+test verifies shared burst exhaustion, ten-token/second refill, and bounded credit
+after idle time. Fast
 fixture-only rate settings are not recommended live tuning values.
 
 Fault tests cover queue overflow, shared-budget exhaustion, waiting/active

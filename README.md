@@ -25,7 +25,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.0.1
+python -m pip install librus-python-api==1.0.2
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -41,7 +41,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.0.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.0.2-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.
@@ -157,7 +157,8 @@ except LibrusError as error:
 ```
 
 A budget covers login, queueing and all pages of an operation. Defaults allow
-5 requests/second, a burst of 10 and two simultaneous requests across the service.
+10 requests/second, a burst of 20 and four simultaneous requests across the
+service, with one at a time per login.
 Fresh reads are the default. Unsupported layouts raise typed errors rather than
 silently returning incomplete data. Cursors detect changes; they are not snapshots.
 

@@ -77,7 +77,7 @@ def test_error_does_not_accept_arbitrary_upstream_messages() -> None:
         {"burst": 0},
         {"active_requests": "2"},
         {"queued_requests": -1},
-        {"active_requests_per_account": 3},
+        {"active_requests_per_account": 5},  # exceeds the global default of 4
         {"queued_requests_per_account": 33},
         {"unexpected": "synthetic private value"},
     ],

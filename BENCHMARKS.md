@@ -5,6 +5,10 @@ consumer's final-summary parser. Apix alone does not expose that summary operati
 This is not a comparison with the consumer's optimized persistent Requests
 session or with its broader individual-grade operation.
 
+Since 1.0.2 the defaults are 10 requests/second, burst 20 and four active
+requests (one per login); see DESIGN.md. The sections below record measurements
+taken under the earlier policies.
+
 ## Rerun with the revised default: 5 requests/second, burst 10
 
 The same bounded workload was repeated using the installed development wheel,
