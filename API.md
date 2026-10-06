@@ -112,7 +112,7 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
 
 ## Configuration
 
-- `SchedulerLimits`: 5 requests/second, burst 10, 2 active requests, 1 per
+- `SchedulerLimits`: 10 requests/second, burst 20, 4 active requests, 1 per
   account, 32 queued (8 per account), 16 accounts, 32 concurrent operations
   (8 per account). These are engineering defaults, not a published Librus quota.
 - `TransportLimits`: 30 s request and 10 s connect timeouts, 4 MiB bodies, 10

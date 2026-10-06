@@ -1284,13 +1284,14 @@ class SchedulerLimits(_ValidatedConfig):
     Queue limits count waiting requests, separately from active requests. Rate
     tokens count every admitted attempt, including future auth/redirect/retry
     requests. Parent and student logins each occupy their own account slot.
-    A shared ten-token burst accommodates sequential cold-login hops; refill at
-    five tokens/second bounds sustained traffic without one-second hop delays.
+    A shared twenty-token burst accommodates two concurrent cold-login chains;
+    refill at ten tokens/second bounds sustained traffic across all accounts.
+    One active request per account keeps each login's session state sequential.
     """
 
-    requests_per_second: PositiveFinite = 5.0
-    burst: PositiveCount = 10
-    active_requests: PositiveCount = 2
+    requests_per_second: PositiveFinite = 10.0
+    burst: PositiveCount = 20
+    active_requests: PositiveCount = 4
     active_requests_per_account: PositiveCount = 1
     queued_requests: QueueCount = 32
     queued_requests_per_account: QueueCount = 8

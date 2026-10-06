@@ -195,9 +195,9 @@ def test_close_joins_canceled_workers_and_rejects_new_work() -> None:
 
 
 @pytest.mark.parametrize(
-    ("limits", "rate", "burst"),
+    ("limits", "rate", "burst", "active_limit"),
     [
-        (None, 5, 10),
+        (None, 10, 20, 4),
         (
             SchedulerLimits(
                 requests_per_second=40,
@@ -209,12 +209,13 @@ def test_close_joins_canceled_workers_and_rejects_new_work() -> None:
             ),
             40,
             2,
+            2,
         ),
     ],
     ids=["default-policy", "explicit-policy"],
 )
 def test_four_account_http_workload_obeys_combined_rate_and_concurrency(
-    limits: SchedulerLimits | None, rate: int, burst: int
+    limits: SchedulerLimits | None, rate: int, burst: int, active_limit: int
 ) -> None:
     async def scenario() -> None:
         timestamps: list[float] = []
@@ -262,7 +263,7 @@ def test_four_account_http_workload_obeys_combined_rate_and_concurrency(
                 )
             )
             assert Counter(results) == Counter({key: 3 for key in accounts})
-            assert peak_global == 2
+            assert peak_global == active_limit
             assert peak_account == 1
             assert budget.requests_dispatched == len(timestamps) == 12
             # Check the token-bucket envelope over every observed subinterval.
@@ -298,26 +299,26 @@ def test_default_rate_bucket_is_shared_bounded_and_refills(
         # assertions; rate and burst remain the shipped defaults.
         limits = SchedulerLimits(queued_requests=0, queued_requests_per_account=0)
         async with RequestScheduler(("a", "b"), limits=limits) as scheduler:
-            budget = RequestBudget()
-            for index in range(10):
+            budget = RequestBudget(max_requests=64)
+            for index in range(20):
                 account = "a" if index % 2 == 0 else "b"
                 await scheduler.run(account, budget, partial(action, account))
-            assert Counter(calls) == {"a": 5, "b": 5}
-            for instant in (0.0, 0.199):
+            assert Counter(calls) == {"a": 10, "b": 10}
+            for instant in (0.0, 0.099):
                 now = instant
                 with pytest.raises(LibrusError, match="^limit$"):
                     await scheduler.run("b", budget, partial(action, "b"))
-            assert budget.requests_dispatched == 10
-            now = 0.201
+            assert budget.requests_dispatched == 20
+            now = 0.101
             await scheduler.run("b", budget, partial(action, "b"))
-            assert budget.requests_dispatched == 11
+            assert budget.requests_dispatched == 21
             # Long idle periods cannot accumulate unlimited burst credit.
             now = 100.0
-            for _ in range(10):
+            for _ in range(20):
                 await scheduler.run("a", budget, partial(action, "a"))
             with pytest.raises(LibrusError, match="^limit$"):
                 await scheduler.run("b", budget, partial(action, "b"))
-            assert len(calls) == budget.requests_dispatched == 21
+            assert len(calls) == budget.requests_dispatched == 41
             assert scheduler.snapshot().active == scheduler.snapshot().queued == 0
 
     run(scenario())

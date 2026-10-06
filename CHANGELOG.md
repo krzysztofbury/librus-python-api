@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.2 (2026-10-06) - Faster shared request policy
+
+Compatible patch release. The public library API is unchanged.
+
+- Raise the default `SchedulerLimits` to 10 requests/second, a shared burst of
+  20 and four simultaneous requests across the service (from 5, 10 and 2).
+  Each login still runs one request at a time, queue limits are unchanged, and
+  429/503 responses still pause all traffic and resume without a burst. Measured
+  with the MCP consumer on four logins, the earlier policy made real workloads
+  about 35% slower than the unthrottled apix-based client. Pass explicit lower
+  `SchedulerLimits` where stricter traffic is required.
+
 ## 1.0.1 (2026-10-06) - Bounded subject frequency and reliability fixes
 
 Compatible patch release. The public library API is unchanged.
