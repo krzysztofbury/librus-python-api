@@ -411,8 +411,11 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
   Pages, collections, cursors and references carry `archived`; a cursor never
   continues the other mailbox. Archived content opens raise
   `UNSUPPORTED_CAPABILITY` because no archived content route or mark-read effect
-  is established. An archive that is still being built (`archivingInProgress`)
-  is also `UNSUPPORTED_CAPABILITY`.
+  is established. Archive pages and collections report the upstream
+  `archivingInProgress` status as `archiving_in_progress` (`None` for the
+  current mailbox). Live archives report `true` while listing normally, so it
+  is informational; before 1.2.1 it wrongly made every archive read
+  `UNSUPPORTED_CAPABILITY`.
 - `modern_correspondents(folder=RECEIVED, *, budget=None, max_age_seconds=0)`
   (1.2.0) returns `ModernCorrespondents`: the senders (received) or receivers
   (sent) the web app offers in its filter panel. Each `ModernCorrespondent` has
@@ -426,7 +429,8 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
   archive mailbox raise `UNSUPPORTED_CAPABILITY`; they were not observed there.
 - `modern_teacher_subjects(*, budget=None, max_age_seconds=0)` (1.2.0) returns
   `ModernTeacherSubjects`: `ModernTeacherSubject(teacher_identifier, subject)`
-  pairs, one per subject a teacher teaches the student. The identifier is the
+  pairs, one per subject a teacher teaches the student. Identical repeated rows
+  collapse to one (1.2.1). The identifier is the
   teacher's modern account ID; it is informational and not a recipient reference.
 - `modern_unread_counts(*, budget=None, max_age_seconds=0)` (1.1.0) returns
   `ModernUnreadCounts` with `current` and `archive` `ModernUnreadFolders`:

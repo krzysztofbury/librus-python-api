@@ -187,8 +187,11 @@ Observed on 2026-10-06 on one parent login in the owner's browser session, list
 views only; no message was opened. The web app lists the archive with
 `GET /api/archive/inbox/messages` and `GET /api/archive/outbox/messages`, using
 the same `page`/`limit` query as the current mailbox. Their items had the
-ordinary inbox and outbox shapes; the envelope adds `archivingInProgress`, which
-was false. The same app requests `GET /api/inbox/unreadMessagesCount` on every
+ordinary inbox and outbox shapes; the envelope adds a boolean
+`archivingInProgress`. The 1.1.0 notes recorded it as false, but only its type
+had been read. The 1.2.1 live release check found it `true` on every archive
+page of all four configured logins, including the one whose archive the web app
+listed normally, so it is a status flag, not a blocker. The same app requests `GET /api/inbox/unreadMessagesCount` on every
 view. Its `data` object held fourteen integers: `inbox`, `notes`, `alerts`,
 `substitutions`, `absences`, `justifications` and `trash`, plus
 `archive`-prefixed counterparts. All were zero.

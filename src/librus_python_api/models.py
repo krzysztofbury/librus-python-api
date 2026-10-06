@@ -466,6 +466,8 @@ class ModernMessagesPage:
     archived: bool = False
     correspondent: ModernCorrespondentReference | None = field(default=None, repr=False)
     unread_only: bool = False
+    # Archive listings only: the upstream archivingInProgress status flag.
+    archiving_in_progress: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -496,6 +498,8 @@ class ModernMessages:
     archived: bool = False
     correspondent: ModernCorrespondentReference | None = field(default=None, repr=False)
     unread_only: bool = False
+    # Archive listings only: the upstream archivingInProgress status flag.
+    archiving_in_progress: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

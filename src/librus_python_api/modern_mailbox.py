@@ -128,12 +128,17 @@ def parse_page(
     page_size: int,
     account: str,
     archived: bool = False,
-) -> tuple[tuple[ModernMessageSummary, ...], int, str]:
+) -> tuple[tuple[ModernMessageSummary, ...], int, str, bool | None]:
     modern_mailbox_query(folder, page, page_size)
     data = decode_json(body)
     if not isinstance(data, dict) or not {"data", "total"} <= set(data):
         raise LibrusError(ErrorKind.PARSE)
-    if data.get("archivingInProgress", False) is not False:
+    in_progress = data.get("archivingInProgress", False)
+    if type(in_progress) is not bool:
+        raise LibrusError(ErrorKind.PARSE)
+    # Live archive pages report true while listing normally; it is a status
+    # flag there. The current mailbox has never shown it.
+    if in_progress and not archived:
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     entries, total = data["data"], data["total"]
     if (
@@ -172,7 +177,7 @@ def parse_page(
             )
         ).encode()
     ).hexdigest()
-    return items, total, fingerprint
+    return items, total, fingerprint, in_progress if archived else None
 
 
 @dataclass(frozen=True, slots=True, repr=False)

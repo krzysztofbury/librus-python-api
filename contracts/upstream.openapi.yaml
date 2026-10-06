@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.2.0
+  version: 1.2.1
   license:
     name: MIT
   description: |
@@ -211,7 +211,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary inbox shape; the envelope adds archivingInProgress, which must be false. Archived content opens are not enabled.
+      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary inbox shape; the envelope adds a boolean archivingInProgress status, reported true on every live archive page of four logins on 2026-10-06 while listing normally. Archived content opens are not enabled.
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
@@ -228,7 +228,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary outbox shape (no readDate); the envelope adds archivingInProgress, which must be false.
+      x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session, list view only. Items have the ordinary outbox shape (no readDate); the envelope adds a boolean archivingInProgress status, reported true on every live archive page of four logins on 2026-10-06 while listing normally.
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
