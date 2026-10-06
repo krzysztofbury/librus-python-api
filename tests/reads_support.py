@@ -23,7 +23,6 @@ from tests.grade_support import summary_html
 from tests.http_support import SchoolFixture, profile_html
 from tests.message_content_support import content_html
 from tests.messages_support import message_row, messages_html
-from tests.notifications_support import counts_html
 from tests.recipients_support import groups_html, recipient_html
 from tests.school_reads_support import agenda_html, detail_html, homework_html
 from tests.timetable_support import MONDAY, timetable_html
@@ -49,7 +48,6 @@ VALID: dict[str, tuple[bytes, str]] = {
     "message_content_sent": (content_html(MessageFolder.SENT).encode(), HTML),
     "recipient_groups": (groups_html().encode(), HTML),
     "recipients": (recipient_html().encode(), HTML),
-    "notification_counts": (counts_html().encode(), HTML),
 }
 OPERATIONS = tuple(VALID)
 

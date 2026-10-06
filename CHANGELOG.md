@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.3 (2026-10-06) - Notification counts for parent logins
+
+Compatible patch release. The public library API is unchanged.
+
+- Read `notification_counts()` from the information page (`/informacja`), which
+  every login can open, instead of the student landing route `/uczen/index`.
+  That route returned 403 for a parent login in a live check, and the session
+  was unusable afterwards. The counters come from the menu shared by every
+  page, so the result is unchanged for student logins. The read is now
+  retry-safe: a proven session expiry is recovered once.
+- Count the modern messages launcher link (`/wiadomosci3`) as the messages
+  category. Before, schools linking it showed no messages counter.
+- Keep `/uczen/index` only as an accepted login redirect target. It is never
+  requested directly.
+
 ## 1.0.2 (2026-10-06) - Faster shared request policy
 
 Compatible patch release. The public library API is unchanged.

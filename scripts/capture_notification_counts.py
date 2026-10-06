@@ -10,6 +10,7 @@ from typing import NoReturn
 
 from librus_python_api import AccountCredentials, LibrusService, RequestBudget
 from librus_python_api.config import (
+    NOTIFICATION_COUNTS_ENDPOINT,
     ConnectionSettings,
     Endpoint,
     SideEffect,
@@ -32,7 +33,7 @@ class CountScope:
         name = endpoint.operation_id
         if self.failed or self.attempts >= 24:
             raise LibrusError(ErrorKind.LIMIT)
-        if name in {"notification_counts", "identity"}:
+        if name in {NOTIFICATION_COUNTS_ENDPOINT, "identity"}:
             if self.counts[name] or form is not None:
                 raise LibrusError(ErrorKind.INVALID_INPUT)
         elif endpoint.side_effect is not SideEffect.AUTHENTICATION:
@@ -67,7 +68,7 @@ class CountCaptureTransport(ReadOnlyCaptureTransport):
         self.scope.admit(endpoint, form)
         try:
             response = await super()._exchange(endpoint, url, budget, form)
-            if endpoint.operation_id == "notification_counts":
+            if endpoint.operation_id == NOTIFICATION_COUNTS_ENDPOINT:
                 write_private(self.out / "notification-counts.html", response.body)
             return response
         except BaseException:

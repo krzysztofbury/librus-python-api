@@ -222,7 +222,7 @@ def test_six_categories_through_native_api_and_unrequested_state_survives(
                     await workflow.acknowledge(grades.receipt)
                     assert await store.state(context=workflow.client.context) == seen
                     assert fixture.calls_by_account == ["student"]
-                    assert all(path != "/uczen/index" for path, _ in fixture.calls)
+                    assert all(path != "/informacja" for path, _ in fixture.calls)
                     assert all(
                         "szczegoly" not in path and "/f0" not in path
                         for path, _ in fixture.calls

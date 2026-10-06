@@ -13,20 +13,11 @@ from librus_python_api import (
     LibrusService,
     SchedulerLimits,
 )
-from tests.http_support import FIXTURE_SECRET, SchoolFixture, serve
+from tests.http_support import FIXTURE_SECRET, GRAPHIC_MENU, SchoolFixture, serve
 
 
 def counts_html() -> str:
-    return """<html><body><div id="graphic-menu"><ul>
-    <li><a href="/przegladaj_oceny/uczen">Grades fixture</a>
-    <a class="button counter">2</a></li>
-    <li><a href="/przegladaj_nb/uczen">Attendance fixture</a></li>
-    <li><a href="/wiadomosci">Messages fixture</a><a class="counter button">1</a></li>
-    <li><a href="/ogloszenia">Announcements fixture</a><a class="counter">0</a></li>
-    <li><a href="/terminarz">Agenda fixture</a><a class="counter">3</a></li>
-    <li><a href="/moje_zadania">Homework fixture</a><a class="counter">4</a></li>
-    <li><a href="javascript:void(0)">Inert unrelated menu</a></li>
-    </ul></div></body></html>"""
+    return f"<html><body>{GRAPHIC_MENU}</body></html>"
 
 
 def event_row(data: str = "Fixture event<br>Second line") -> str:
@@ -62,14 +53,8 @@ class NotificationsFixture(SchoolFixture):
 
     def app(self) -> web.Application:
         app = super().app()
-        app.router.add_get("/uczen/index", self.counts)
         app.router.add_get("/terminarz/dodane_od_ostatniego_logowania", self.consume)
         return app
-
-    async def counts(self, request: web.Request) -> web.Response:
-        self.record(request)
-        assert await request.read() == b"" and not request.query
-        return web.Response(text=counts_html(), content_type="text/html")
 
     async def consume(self, request: web.Request) -> web.StreamResponse:
         account = self.record(request)

@@ -21,12 +21,20 @@ cannot inspect an external spool or enforce cross-process transactions.
 
 ## Count semantics
 
-`notification_counts` reads the existing student landing/menu route explicitly.
-The route also participates in optional authentication redirects, so the single
-catalogue operation preserves its authentication classification and conservative
-no-replay policy. It is never a mandatory parent-account bootstrap.
+`notification_counts` reads the counter menu (`div#graphic-menu`) from the
+information page (`/informacja`), the same response `student_information` uses.
+Every Synergia page carries this menu. The information page has no side effect
+and is readable by student and parent logins, so a proven session expiry is
+recovered once like other safe reads.
 
-Six known menu destinations map to typed categories. Labels and nonnegative
+Before 1.0.3 the counters were read from the student landing route
+`/uczen/index`. On 2026-10-06 that route returned 403 for a parent login, and the
+session was unusable afterwards; whether the role or the request burst caused
+the logout was not isolated. The route remains in the catalogue only as an
+accepted login redirect target and is never requested directly.
+
+Six known menu destinations map to typed categories. Messages link to the legacy
+`/wiadomosci` or the modern launcher `/wiadomosci3`; both count as messages. Labels and nonnegative
 integer counters are returned in displayed order. An absent counter for a shown
 category means zero; an absent category is not invented. Invalid, duplicate or
 oversized counters fail rather than silently becoming zero. Unknown navigation

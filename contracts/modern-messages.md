@@ -84,6 +84,10 @@ Observed flow and boundaries:
 - `GET /api/receivers/types?includeClass=true` supplies directory type metadata.
   The observed council type is `parentsCouncil`. The shipped app maps that type
   to the students-and-attendants group route, not the class-parents route.
+- On 2026-10-06 a parent login was not offered `classParents`, and a direct read
+  of `/api/receivers/groups/class-parents` returned 403. The library requests a
+  directory only for a type reference the account advertised, so parents never
+  reach that route.
 - Expanding that branch performs
   `GET /api/receivers/groups/students-and-attendants?receiverType=parentsCouncil`.
   The observed response contains `classes`, each with a class `label` and a
