@@ -95,23 +95,37 @@ def _accepts(method: Callable[..., Any], name: str) -> bool:
 
 async def check_account(client: Any, budget: RequestBudget) -> list[dict[str, Any]]:
     steps: list[dict[str, Any]] = []
+    await _check_reads(client, budget, steps)
+    # A fresh identity read proves the session survived every step, including
+    # the counter read that once logged parent accounts out.
+    await _step(steps, "session_alive", lambda: client.identity(budget=budget))
+    return steps
 
-    async def step(
-        name: str,
-        read: Callable[[], Awaitable[Any]],
-        facts: Callable[[Any], dict[str, Any]] = lambda _: {},
-    ) -> Any:
-        try:
-            result = await read()
-            record = {"step": name, "status": "ok"} | facts(result)
-        except LibrusError as error:
-            steps.append({"step": name, "status": "error", "kind": error.kind.value})
-            return None
-        except AssertionError as error:
-            steps.append({"step": name, "status": "failed", "check": str(error)})
-            return None
-        steps.append(record)
-        return result
+
+async def _step(
+    steps: list[dict[str, Any]],
+    name: str,
+    read: Callable[[], Awaitable[Any]],
+    facts: Callable[[Any], dict[str, Any]] = lambda _: {},
+) -> Any:
+    try:
+        result = await read()
+        record = {"step": name, "status": "ok"} | facts(result)
+    except LibrusError as error:
+        steps.append({"step": name, "status": "error", "kind": error.kind.value})
+        return None
+    except AssertionError as error:
+        steps.append({"step": name, "status": "failed", "check": str(error)})
+        return None
+    steps.append(record)
+    return result
+
+
+async def _check_reads(
+    client: Any, budget: RequestBudget, steps: list[dict[str, Any]]
+) -> None:
+
+    step = partial(_step, steps)
 
     def skip(name: str) -> None:
         steps.append({"step": name, "status": "skipped"})
@@ -134,7 +148,7 @@ async def check_account(client: Any, budget: RequestBudget) -> list[dict[str, An
         lambda r: {"group": r.account.group_id},
     )
     if modern is None:
-        return steps
+        return
 
     if hasattr(client, "modern_unread_counts"):
         await step(
@@ -171,7 +185,7 @@ async def check_account(client: Any, budget: RequestBudget) -> list[dict[str, An
     if not hasattr(client, "modern_correspondents"):
         for name in ("modern_correspondents", "filters", "modern_teacher_subjects"):
             skip(name)
-        return steps
+        return
     for folder in MessageFolder:
         people = await step(
             f"modern_correspondents {folder.value}",
@@ -202,9 +216,6 @@ async def check_account(client: Any, budget: RequestBudget) -> list[dict[str, An
         lambda: client.modern_teacher_subjects(budget=budget),
         lambda r: {"count": len(r.items)},
     )
-    # A fresh identity read proves the session survived every step.
-    await step("session_alive", lambda: client.identity(budget=budget))
-    return steps
 
 
 def _narrowed(whole: int, reference: Any, result: Any) -> dict[str, Any]:
