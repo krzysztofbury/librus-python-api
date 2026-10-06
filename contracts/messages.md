@@ -151,3 +151,22 @@ This ordering does not authorize live discovery or sending.
   those gaps and exercise full bounded multi-account collections offline.
 - Scope is per attempt. Unused requests never authorize a third login or an
   operation with a different side effect.
+
+## Unmapped legacy folders (triage, 2026-10-06)
+
+A read-only check on one parent login (list views only, no message opened)
+identified the legacy folder links by their menu labels:
+
+| Link | Label | Decision |
+| --- | --- | --- |
+| `/wiadomosci/5` | odebrane (received) | Same list as the mapped `/wiadomosci/1/5`; not added. |
+| `/wiadomosci/6` | wysłane (sent) | Same list as the mapped `/wiadomosci/1/6`; not added. |
+| `/wiadomosci/7` | kosz (trash) | Explicit empty only. Use the modern trash route once populated evidence exists (#45). |
+| `/wiadomosci/10` | uwagi (notes) | Explicit empty only. Use the modern notes category once populated evidence exists (#45). |
+| `/wiadomosci_archiwum` | Archiwum | Use the modern archive mailbox (`archived=True`, 1.1.0). |
+| `/wiadomosci/2/5` | Napisz (compose) | A send form; legacy sending already uses its own fixed route. |
+
+The legacy module shows a notice that it is the old, no longer developed
+version and asks users to enable the new messaging system. New folder
+capabilities therefore target the modern API only; no legacy folder routes are
+added.
