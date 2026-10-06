@@ -3,6 +3,19 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.2.1 live release check (2026-10-06)
+
+The owner authorized `scripts/live_release_check.py` on the four configured
+logins (two students, two parents) for each installed candidate. 1.0.3 passed
+every step, and parent logins kept their session through the counter read.
+1.1.0 and 1.2.0 failed and were not published. Archive listing raised
+`UNSUPPORTED_CAPABILITY` on every login, because live archive pages report
+`archivingInProgress: true`. Teacher subjects failed with `PARSE` on two logins
+of one student, whose list repeated one identical pair. A diagnostic read of
+the same routes reported only shapes and counts. 1.2.1 accepts the archive
+flag as status and collapses identical pairs; its own live check result is in
+the GitHub release notes. No school data is recorded.
+
 ## 1.2.0 correspondent-filter evidence (2026-10-06)
 
 Within the same owner-authorized browser check (one parent login, no message
@@ -19,7 +32,8 @@ recorded.
 
 Within the same owner-authorized browser check (one parent login, list views
 only, no message opened), the archive inbox and outbox lists had the ordinary
-mailbox item shapes with `archivingInProgress` false, and the unread-counter
+mailbox item shapes with a boolean `archivingInProgress` (its value was not
+read; see the 1.2.1 entry, which found it true), and the unread-counter
 route returned fourteen integer counters, all zero. The 1.1.0 code was
 exercised offline only: loopback tests cover both archive mailboxes across
 pages, cursor isolation between mailboxes, rejected archived content opens, and

@@ -290,11 +290,10 @@ def parse_teacher_subjects(body: bytes) -> tuple[ModernTeacherSubject, ...]:
         raw = value.get("teacherIdentifier")
         if type(raw) is int and 0 < raw < 10**64:
             raw = str(raw)
-        items.append(
-            ModernTeacherSubject(_identifier(raw), _label(value.get("subject")))
-        )
-    if len(set(items)) != len(items):
-        raise LibrusError(ErrorKind.PARSE)
+        item = ModernTeacherSubject(_identifier(raw), _label(value.get("subject")))
+        # Live lists can repeat an identical pair; the copy adds nothing.
+        if item not in items:
+            items.append(item)
     if sum(len(item.subject) for item in items) > MODERN_MAX_TOTAL_TEXT:
         raise LibrusError(ErrorKind.LIMIT)
     return tuple(items)

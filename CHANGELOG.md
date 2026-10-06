@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.1 (2026-10-06) - Live fixes for archive listing and teacher subjects
+
+Compatible patch release found by the new pre-publication live check. 1.1.0 and
+1.2.0 were tagged but not published to PyPI because that check failed.
+
+- List the modern archive mailbox. Live archive pages report
+  `archivingInProgress: true` while listing normally, and 1.1.0/1.2.0 treated
+  that as unsupported, so every archive read failed. Archive pages and
+  collections now report it as `archiving_in_progress`; the current mailbox
+  still refuses the flag.
+- Collapse identical repeated rows in `modern_teacher_subjects()` instead of
+  failing with `PARSE`.
+
 ## 1.2.0 (2026-10-06) - Modern correspondent filters and teacher subjects
 
 Compatible minor release. Existing calls and results are unchanged; new fields

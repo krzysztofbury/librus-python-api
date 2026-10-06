@@ -19,7 +19,11 @@ from librus_python_api import (
 )
 from librus_python_api.config import SchedulerLimits
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.modern_mailbox import parse_correspondents, parse_unread_counts
+from librus_python_api.modern_mailbox import (
+    parse_correspondents,
+    parse_page,
+    parse_unread_counts,
+)
 from librus_python_api.modern_messages import parse_teacher_subjects
 from tests.modern_support import ModernFixture, directory
 
@@ -51,6 +55,8 @@ class CommunicationFixture(ModernFixture):
         self.message_count = 23
         self.subject = "Fixture subject"
         self.malformed_page: int | None = None
+        # Every live archive page observed on 2026-10-06 reported true.
+        self.archiving: Any = True
 
     async def recipients(self, request: web.Request) -> web.Response:
         self.record_modern(request, "directory")
@@ -145,7 +151,7 @@ class CommunicationFixture(ModernFixture):
                 for item in default["data"]:
                     del item["readDate"]
             if request.path.startswith("/api/archive/"):
-                default["archivingInProgress"] = False
+                default["archivingInProgress"] = self.archiving
         return self.response(request.path, default)
 
     def message(self, identifier: int) -> dict[str, Any]:
@@ -175,6 +181,7 @@ def test_modern_collection_resumes_inside_and_across_pages_without_content_open(
             )
             assert first.next_cursor is not None and first.next_cursor.offset == 7
             assert first.archived is first.next_cursor.archived is archived
+            assert first.archiving_in_progress is (True if archived else None)
             second = await client.modern_messages(
                 folder,
                 cursor=first.next_cursor,
@@ -422,6 +429,51 @@ def test_invalid_or_unobserved_filters_fail_before_io(
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("flag,kind", [(False, None), ("yes", ErrorKind.PARSE)])
+def test_archive_status_flag_is_reported_and_must_be_boolean(
+    flag: Any, kind: ErrorKind | None
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        fixture.archiving = flag
+        async with fixture.running() as service:
+            client = service.account("student")
+            if kind is None:
+                page = await client.modern_messages_page(archived=True)
+                assert page.archiving_in_progress is False
+                assert (
+                    await client.modern_messages_page()
+                ).archiving_in_progress is None
+                return
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages_page(archived=True)
+            assert error.value.kind is kind
+
+    asyncio.run(scenario())
+
+
+def test_current_mailbox_still_refuses_an_archiving_flag() -> None:
+    body = {"data": [], "total": 0, "archivingInProgress": True}
+    with pytest.raises(LibrusError) as error:
+        parse_page(json.dumps(body).encode(), MessageFolder.RECEIVED, 1, 10, "student")
+    assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+
+
+def test_identical_teacher_subject_rows_collapse_to_one() -> None:
+    body = {
+        "data": [
+            {"teacherIdentifier": 1, "subject": "Fixture maths"},
+            {"teacherIdentifier": 2, "subject": "Fixture maths"},
+            {"teacherIdentifier": 1, "subject": "Fixture maths"},
+        ]
+    }
+    items = parse_teacher_subjects(json.dumps(body).encode())
+    assert [(i.teacher_identifier, i.subject) for i in items] == [
+        ("1", "Fixture maths"),
+        ("2", "Fixture maths"),
+    ]
+
+
 def test_teacher_subjects_keep_each_teacher_subject_pair() -> None:
     async def scenario() -> None:
         fixture = CommunicationFixture()
@@ -440,7 +492,6 @@ def test_teacher_subjects_keep_each_teacher_subject_pair() -> None:
     [
         {"data": [{"teacherIdentifier": 1, "subject": " "}]},
         {"data": [{"teacherIdentifier": True, "subject": "Fixture"}]},
-        {"data": [{"teacherIdentifier": 1, "subject": "A"}] * 2},
         {"subjects": []},
     ],
 )

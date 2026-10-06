@@ -616,7 +616,7 @@ class AccountClient:
         unread_only: bool = False,
     ) -> ModernMessagesPage:
         operation = _modern_mailbox_operation(folder, archived)
-        items, total, fingerprint = await self._page(
+        items, total, fingerprint, in_progress = await self._page(
             operation,
             budget,
             lambda body: parse_modern_message_page(
@@ -645,6 +645,7 @@ class AccountClient:
             archived,
             correspondent,
             unread_only,
+            in_progress,
         )
 
     def _modern_filter(
@@ -730,8 +731,10 @@ class AccountClient:
 
         async def fetch(budget: RequestBudget, _: bool) -> ModernMessages:
             await self._modern_ready(budget)
-            result = await collect_modern_messages(
-                lambda page: self._modern_message_page(
+            flags: list[bool | None] = []
+
+            async def page_of(page: int) -> ModernMessagesPage:
+                result = await self._modern_message_page(
                     folder,
                     page,
                     page_size,
@@ -739,7 +742,12 @@ class AccountClient:
                     archived,
                     correspondent,
                     unread_only,
-                ),
+                )
+                flags.append(result.archiving_in_progress)
+                return result
+
+            result = await collect_modern_messages(
+                page_of,
                 folder,
                 self._alias,
                 cursor,
@@ -763,6 +771,7 @@ class AccountClient:
                 archived,
                 correspondent,
                 unread_only,
+                any(flags) if archived else None,
             )
 
         return await self._read(
