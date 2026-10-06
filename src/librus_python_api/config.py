@@ -235,6 +235,33 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 "messages",
             ),
             Endpoint(
+                "modern_senders",
+                "GET",
+                "/api/inbox/messages/senders",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_receivers",
+                "GET",
+                "/api/outbox/messages/receivers",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
+                "modern_teacher_subjects",
+                "GET",
+                "/api/receivers/student-subjects",
+                SideEffect.NONE,
+                False,
+                Evidence.INDEPENDENTLY_OBSERVED,
+                "messages",
+            ),
+            Endpoint(
                 "modern_content_received",
                 "GET",
                 "/api/inbox/messages/{id}",
@@ -905,17 +932,37 @@ def modern_directory_query(
 
 
 def modern_mailbox_query(
-    folder: MessageFolder, page: int, page_size: int
+    folder: MessageFolder,
+    page: int,
+    page_size: int,
+    *,
+    correspondent: str | None = None,
+    unread_only: bool = False,
 ) -> dict[str, str]:
+    """Page selection plus the web app's own sender/receiver/unread filters."""
     if (
         not isinstance(folder, MessageFolder)
         or type(page) is not int
         or not 1 <= page <= 1000
         or type(page_size) is not int
         or not 1 <= page_size <= 50
+        or type(unread_only) is not bool
+        or (unread_only and folder is not MessageFolder.RECEIVED)
+        or (
+            correspondent is not None
+            and (
+                type(correspondent) is not str
+                or re.fullmatch(r"[0-9]{1,64}", correspondent) is None
+            )
+        )
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
-    return {"page": str(page), "limit": str(page_size)}
+    query = {}
+    if correspondent is not None:
+        query[MODERN_CORRESPONDENT_FILTERS[folder]] = correspondent
+    if unread_only:
+        query["unreadOnly"] = "1"
+    return query | {"page": str(page), "limit": str(page_size)}
 
 
 MODERN_MAILBOX_OPERATIONS = frozenset(
@@ -924,6 +971,16 @@ MODERN_MAILBOX_OPERATIONS = frozenset(
         "modern_messages_sent",
         "modern_archive_messages_received",
         "modern_archive_messages_sent",
+    }
+)
+MODERN_CORRESPONDENT_FILTERS = MappingProxyType(
+    {MessageFolder.RECEIVED: "senderId", MessageFolder.SENT: "receiverId"}
+)
+# Filters observed in the web app for the current mailbox only.
+MODERN_MAILBOX_FILTERS = MappingProxyType(
+    {
+        "modern_messages_received": frozenset({"senderId", "unreadOnly"}),
+        "modern_messages_sent": frozenset({"receiverId"}),
     }
 )
 MODERN_UNREAD_COUNT_FIELDS = (
@@ -945,13 +1002,26 @@ def validate_modern_query(operation: str, query: Mapping[str, str]) -> None:
     ):
         raise LibrusError(ErrorKind.INVALID_INPUT)
     if operation in MODERN_MAILBOX_OPERATIONS:
-        if set(query) != {"page", "limit"} or any(
+        filters = MODERN_MAILBOX_FILTERS.get(operation, frozenset())
+        if not {"page", "limit"} <= set(query) <= {"page", "limit"} | filters or any(
             re.fullmatch(r"[1-9][0-9]{0,3}", query[name]) is None
             for name in ("page", "limit")
         ):
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        folder = (
+            MessageFolder.SENT
+            if operation == "modern_messages_sent"
+            else MessageFolder.RECEIVED
+        )
+        unread = query.get("unreadOnly")
+        if unread not in (None, "1"):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
         modern_mailbox_query(
-            MessageFolder.RECEIVED, int(query["page"]), int(query["limit"])
+            folder,
+            int(query["page"]),
+            int(query["limit"]),
+            correspondent=query.get(MODERN_CORRESPONDENT_FILTERS[folder]),
+            unread_only=unread == "1",
         )
         return
     allowed = [

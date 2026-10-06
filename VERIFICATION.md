@@ -3,6 +3,18 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.2.0 correspondent-filter evidence (2026-10-06)
+
+Within the same owner-authorized browser check (one parent login, no message
+opened), the web app's filter panels were used once each to capture the
+`senderId`/`unreadOnly` and `receiverId` queries. Direct list reads confirmed
+that each sender and receiver filter returned only that correspondent's
+messages. The teacher-subject list was populated, and its identifiers matched
+school-employee account IDs. The 1.2.0 code was exercised offline only:
+loopback tests cover both folders' filter wire queries, cursor binding,
+separate caching, rejection before I/O and strict parsing. No school data is
+recorded.
+
 ## 1.1.0 modern archive and unread-count evidence (2026-10-06)
 
 Within the same owner-authorized browser check (one parent login, list views

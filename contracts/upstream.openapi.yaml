@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.1.0
+  version: 1.2.0
   license:
     name: MIT
   description: |
@@ -166,6 +166,7 @@ paths:
     get:
       operationId: modern_messages_received
       summary: Ordinary modern inbox summaries without opening content
+      description: Optional senderId (an ID from modern_senders) and unreadOnly=1 filter the list exactly as the web app's filter panel does; observed 2026-10-06 on one parent login, where each sender filter returned only that sender's messages.
       security: [{ModernSessionCookies: []}]
       x-origin: messages
       x-upstream-origin: https://wiadomosci.librus.pl
@@ -176,6 +177,8 @@ paths:
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+        - {in: query, name: senderId, required: false, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
+        - {in: query, name: unreadOnly, required: false, schema: {type: string, enum: ['1']}}
       responses:
         '200': {description: Bounded summaries and total count, content: {application/json: {schema: {type: object}}}}
         default: {$ref: '#/components/responses/Failure'}
@@ -183,6 +186,7 @@ paths:
     get:
       operationId: modern_messages_sent
       summary: Ordinary modern sent summaries without opening content
+      description: Optional receiverId (an ID from modern_receivers) filters the list exactly as the web app's filter panel does; observed 2026-10-06 on one parent login.
       security: [{ModernSessionCookies: []}]
       x-origin: messages
       x-upstream-origin: https://wiadomosci.librus.pl
@@ -193,6 +197,7 @@ paths:
       parameters:
         - {in: query, name: page, required: true, schema: {type: integer, minimum: 1, maximum: 1000}}
         - {in: query, name: limit, required: true, schema: {type: integer, minimum: 1, maximum: 50}}
+        - {in: query, name: receiverId, required: false, schema: {type: string, pattern: '^[0-9]{1,64}$'}}
       responses:
         '200': {description: Bounded sent summaries and total count, content: {application/json: {schema: {type: object}}}}
         default: {$ref: '#/components/responses/Failure'}
@@ -244,6 +249,51 @@ paths:
       x-evidence-note: Observed 2026-10-06 on one parent login in the owner's browser session; the web app requests it on every mailbox view. All observed counters were zero; populated counter semantics are not independently established.
       responses:
         '200': {description: Unread counters, content: {application/json: {schema: {type: object, required: [data], properties: {data: {type: object}}}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/inbox/messages/senders:
+    get:
+      operationId: modern_senders
+      summary: Senders the current inbox can be filtered by
+      description: data is a list of objects with an integer senderId and string senderFirstName/senderLastName; one name part may be empty. Sender IDs share the account-ID space of the school-employee directory.
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed populated on 2026-10-06 on one parent login in the owner's browser session; the web app loads it for the inbox filter panel.
+      responses:
+        '200': {description: Sender list, content: {application/json: {schema: {type: object, required: [data]}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/outbox/messages/receivers:
+    get:
+      operationId: modern_receivers
+      summary: Receivers the current outbox can be filtered by
+      description: data is a list of objects with an integer receiverId and string receiverFirstName/receiverLastName.
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed populated on 2026-10-06 on one parent login in the owner's browser session; the web app loads it for the outbox filter panel.
+      responses:
+        '200': {description: Receiver list, content: {application/json: {schema: {type: object, required: [data]}}}}
+        default: {$ref: '#/components/responses/Failure'}
+  /api/receivers/student-subjects:
+    get:
+      operationId: modern_teacher_subjects
+      summary: Teachers paired with the subjects they teach the student
+      description: data is a list of objects with an integer teacherIdentifier and a string subject; a teacher can appear once per subject. Teacher identifiers matched school-employee accountId values (45 of 48 observed).
+      security: [{ModernSessionCookies: []}]
+      x-origin: messages
+      x-upstream-origin: https://wiadomosci.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: independently_observed
+      x-evidence-note: Observed populated on 2026-10-06 on one parent login in the owner's browser session; the web app loads it on every mailbox view.
+      responses:
+        '200': {description: Teacher-subject pairs, content: {application/json: {schema: {type: object, required: [data]}}}}
         default: {$ref: '#/components/responses/Failure'}
   /api/inbox/messages/{id}:
     get:

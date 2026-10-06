@@ -51,6 +51,9 @@ type OperationName = Literal[
     "modern_archive_messages_received",
     "modern_archive_messages_sent",
     "modern_unread_counts",
+    "modern_senders",
+    "modern_receivers",
+    "modern_teacher_subjects",
     "modern_messages_received",
     "modern_messages_sent",
     "modern_content_received",
@@ -401,6 +404,44 @@ class ModernMessageReference:
 
 
 @dataclass(frozen=True, slots=True)
+class ModernCorrespondentReference:
+    """A sender (received folder) or receiver (sent folder) to filter a list by."""
+
+    folder: MessageFolder
+    identifier: str = field(repr=False)
+    account: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernCorrespondent:
+    reference: ModernCorrespondentReference = field(repr=False)
+    first_name: str = field(repr=False)
+    last_name: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernCorrespondents:
+    identity: "Identity" = field(repr=False)
+    folder: MessageFolder
+    items: tuple[ModernCorrespondent, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ModernTeacherSubject:
+    # The teacher's modern account ID, as a decimal string.
+    teacher_identifier: str = field(repr=False)
+    subject: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ModernTeacherSubjects:
+    identity: "Identity" = field(repr=False)
+    items: tuple[ModernTeacherSubject, ...] = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
 class ModernMessageSummary:
     reference: ModernMessageReference = field(repr=False)
     correspondent: str = field(repr=False)
@@ -423,6 +464,8 @@ class ModernMessagesPage:
     fingerprint: str = field(repr=False)
     observation: "Observation"
     archived: bool = False
+    correspondent: ModernCorrespondentReference | None = field(default=None, repr=False)
+    unread_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -436,6 +479,8 @@ class ModernMessagesCursor:
     fingerprint: str = field(repr=False)
     seen_ids: tuple[str, ...] = field(repr=False)
     archived: bool = False
+    correspondent: str | None = field(default=None, repr=False)
+    unread_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -449,6 +494,8 @@ class ModernMessages:
     truncation_reason: Literal["item_limit", "page_limit"] | None
     observation: "Observation"
     archived: bool = False
+    correspondent: ModernCorrespondentReference | None = field(default=None, repr=False)
+    unread_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)

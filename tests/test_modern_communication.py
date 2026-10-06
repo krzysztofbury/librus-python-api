@@ -12,14 +12,18 @@ from aiohttp import web
 from librus_python_api import (
     MessageFolder,
     MessageReference,
+    ModernCorrespondentReference,
     ModernMessageReference,
     ModernRecipientTypeReference,
     RequestBudget,
 )
 from librus_python_api.config import SchedulerLimits
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.modern_mailbox import parse_unread_counts
+from librus_python_api.modern_mailbox import parse_correspondents, parse_unread_counts
+from librus_python_api.modern_messages import parse_teacher_subjects
 from tests.modern_support import ModernFixture, directory
+
+RECEIVED, SENT = MessageFolder.RECEIVED, MessageFolder.SENT
 
 # Invented counters with distinct values, so a misplaced key cannot pass.
 UNREAD = {
@@ -62,6 +66,9 @@ class CommunicationFixture(ModernFixture):
             "/api/archive/inbox/messages",
             "/api/archive/outbox/messages",
             "/api/inbox/unreadMessagesCount",
+            "/api/inbox/messages/senders",
+            "/api/outbox/messages/receivers",
+            "/api/receivers/student-subjects",
             "/api/inbox/messages/{id}",
             "/api/outbox/messages/{id}",
         ):
@@ -73,7 +80,7 @@ class CommunicationFixture(ModernFixture):
         assert await request.read() == b""
         await self.held_stage("communication")
         default: dict[str, Any] = {"data": [], "total": 0}
-        if "/receivers/" in request.path:
+        if "/receivers/groups/" in request.path:
             default = {
                 "receivers": [
                     {
@@ -86,6 +93,29 @@ class CommunicationFixture(ModernFixture):
             }
         elif request.path == "/api/inbox/unreadMessagesCount":
             default = {"data": dict(UNREAD)}
+        elif request.path.endswith(("/senders", "/receivers")):
+            role = "sender" if request.path.endswith("/senders") else "receiver"
+            default = {
+                "data": [
+                    {
+                        f"{role}Id": 501,
+                        f"{role}FirstName": "",
+                        f"{role}LastName": "Office",
+                    },
+                    {
+                        f"{role}Id": 502,
+                        f"{role}FirstName": "Fixture",
+                        f"{role}LastName": "Teacher",
+                    },
+                ]
+            }
+        elif request.path == "/api/receivers/student-subjects":
+            default = {
+                "data": [
+                    {"teacherIdentifier": 502, "subject": "Fixture maths"},
+                    {"teacherIdentifier": 502, "subject": "Fixture physics"},
+                ]
+            }
         elif request.match_info.get("id"):
             default = {
                 "data": self.message(int(request.match_info["id"]))
@@ -98,13 +128,16 @@ class CommunicationFixture(ModernFixture):
             }
         else:
             page, size = int(request.query["page"]), int(request.query["limit"])
+            count = self.message_count
+            if {"senderId", "receiverId", "unreadOnly"} & set(request.query):
+                count = 3  # A filtered selection is a different, smaller list.
             first = (page - 1) * size
             default = {
                 "data": [
                     self.message(19001 + i)
-                    for i in range(first, min(first + size, self.message_count))
+                    for i in range(first, min(first + size, count))
                 ],
-                "total": self.message_count,
+                "total": count,
             }
             if page == self.malformed_page:
                 default["data"] = []
@@ -295,6 +328,147 @@ def test_cursor_and_content_stay_inside_their_mailbox_before_io() -> None:
             assert all("/190" not in path for path, _, _ in fixture.modern_calls)
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("folder", list(MessageFolder))
+def test_correspondent_filter_uses_the_web_app_query_and_binds_the_cursor(
+    folder: MessageFolder,
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            people = await client.modern_correspondents(folder)
+            assert [(p.first_name, p.last_name) for p in people.items] == [
+                ("", "Office"),
+                ("Fixture", "Teacher"),
+            ]
+            teacher = people.items[1].reference
+            assert (teacher.folder, teacher.identifier) == (folder, "502")
+            unread = folder is MessageFolder.RECEIVED
+            filtered = await client.modern_messages(
+                folder, page_size=2, limit=1, correspondent=teacher, unread_only=unread
+            )
+            key = "senderId" if unread else "receiverId"
+            expected = {key: "502"} | ({"unreadOnly": "1"} if unread else {})
+            assert fixture.modern_calls[-1][2] == expected | {"page": "1", "limit": "2"}
+            assert filtered.correspondent == teacher and filtered.unread_only is unread
+            cursor = filtered.next_cursor
+            assert cursor is not None and cursor.correspondent == "502"
+            calls = len(fixture.modern_calls)
+            # The cursor belongs to the filtered list, never the whole mailbox.
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(folder, cursor=cursor, page_size=2)
+            assert error.value.kind is ErrorKind.INVALID_INPUT
+            assert len(fixture.modern_calls) == calls
+            rest = await client.modern_messages(
+                folder,
+                cursor=cursor,
+                page_size=2,
+                correspondent=teacher,
+                unread_only=unread,
+            )
+            assert len(filtered.items) + len(rest.items) == 3
+            # Filtered and whole-mailbox pages are cached separately.
+            whole = await client.modern_messages_page(folder, max_age_seconds=60)
+            assert whole.total_count == 23 and whole.correspondent is None
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "options,kind",
+    [
+        (
+            {"correspondent": ModernCorrespondentReference(SENT, "502", "student")},
+            ErrorKind.INVALID_INPUT,
+        ),
+        (
+            {"correspondent": ModernCorrespondentReference(RECEIVED, "502", "parent")},
+            ErrorKind.INVALID_INPUT,
+        ),
+        (
+            {"correspondent": ModernCorrespondentReference(RECEIVED, "x", "student")},
+            ErrorKind.INVALID_INPUT,
+        ),
+        ({"folder": SENT, "unread_only": True}, ErrorKind.INVALID_INPUT),
+        ({"unread_only": 1}, ErrorKind.INVALID_INPUT),
+        ({"archived": True, "unread_only": True}, ErrorKind.UNSUPPORTED_CAPABILITY),
+        (
+            {
+                "archived": True,
+                "correspondent": ModernCorrespondentReference(
+                    RECEIVED, "502", "student"
+                ),
+            },
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+    ],
+)
+def test_invalid_or_unobserved_filters_fail_before_io(
+    options: dict[str, Any], kind: ErrorKind
+) -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            folder = options.pop("folder", RECEIVED)
+            for call in (client.modern_messages, client.modern_messages_page):
+                with pytest.raises(LibrusError) as error:
+                    await call(folder, **options)
+                assert error.value.kind is kind
+            assert fixture.calls == []
+
+    asyncio.run(scenario())
+
+
+def test_teacher_subjects_keep_each_teacher_subject_pair() -> None:
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            result = await service.account("student").modern_teacher_subjects()
+            assert [(i.teacher_identifier, i.subject) for i in result.items] == [
+                ("502", "Fixture maths"),
+                ("502", "Fixture physics"),
+            ]
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"data": [{"teacherIdentifier": 1, "subject": " "}]},
+        {"data": [{"teacherIdentifier": True, "subject": "Fixture"}]},
+        {"data": [{"teacherIdentifier": 1, "subject": "A"}] * 2},
+        {"subjects": []},
+    ],
+)
+def test_teacher_subjects_reject_blank_ambiguous_or_unknown_shapes(
+    body: dict[str, Any],
+) -> None:
+    with pytest.raises(LibrusError) as error:
+        parse_teacher_subjects(json.dumps(body).encode())
+    assert error.value.kind is ErrorKind.PARSE
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [{"senderId": 1, "senderFirstName": " ", "senderLastName": ""}],
+        [{"senderId": 1, "senderFirstName": "A", "senderLastName": "B"}] * 2,
+        [{"senderId": 1, "senderFirstName": "A"}],
+        [{"receiverId": 1, "receiverFirstName": "A", "receiverLastName": "B"}],
+    ],
+)
+def test_correspondents_reject_nameless_duplicate_or_wrong_role_entries(
+    entries: list[dict[str, Any]],
+) -> None:
+    with pytest.raises(LibrusError) as error:
+        parse_correspondents(
+            json.dumps({"data": entries}).encode(), MessageFolder.RECEIVED, "student"
+        )
+    assert error.value.kind is ErrorKind.PARSE
 
 
 def test_unread_counts_keep_current_and_archive_counters_apart() -> None:

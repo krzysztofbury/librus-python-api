@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 (2026-10-06) - Modern correspondent filters and teacher subjects
+
+Compatible minor release. Existing calls and results are unchanged; new fields
+have defaults.
+
+- Add `modern_correspondents(folder)`, listing the senders (received) or
+  receivers (sent) the modern mailbox can be filtered by.
+- Filter `modern_messages_page()` and `modern_messages()` by `correspondent=`
+  and, for received messages, `unread_only=True`, using the web app's own
+  query filters. Pages, collections and cursors record the filter; a cursor
+  never continues a differently filtered list. The archive mailbox does not
+  accept filters.
+- Add `modern_teacher_subjects()`, pairing teachers' modern account IDs with
+  the subjects they teach the student.
+
 ## 1.1.0 (2026-10-06) - Modern archive mailbox and unread counts
 
 Compatible minor release. Existing calls and results are unchanged; new fields

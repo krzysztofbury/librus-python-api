@@ -23,6 +23,7 @@ from librus_python_api.models import (
     ModernRecipientReference,
     ModernRecipientType,
     ModernRecipientTypeReference,
+    ModernTeacherSubject,
     SendStatus,
 )
 from librus_python_api.parsers import decode_json
@@ -274,3 +275,26 @@ def parse_modern_send_response(body: bytes, status: int) -> SendStatus:
         ):
             return SendStatus.REJECTED
     raise LibrusError(ErrorKind.UNKNOWN_DELIVERY)
+
+
+def parse_teacher_subjects(body: bytes) -> tuple[ModernTeacherSubject, ...]:
+    """Teacher account IDs paired with the subjects they teach the student."""
+    entries = _object(decode_json(body)).get("data")
+    if not isinstance(entries, list):
+        raise LibrusError(ErrorKind.PARSE)
+    if len(entries) > MODERN_MAX_RECIPIENTS:
+        raise LibrusError(ErrorKind.LIMIT)
+    items = []
+    for entry in entries:
+        value = _object(entry)
+        raw = value.get("teacherIdentifier")
+        if type(raw) is int and 0 < raw < 10**64:
+            raw = str(raw)
+        items.append(
+            ModernTeacherSubject(_identifier(raw), _label(value.get("subject")))
+        )
+    if len(set(items)) != len(items):
+        raise LibrusError(ErrorKind.PARSE)
+    if sum(len(item.subject) for item in items) > MODERN_MAX_TOTAL_TEXT:
+        raise LibrusError(ErrorKind.LIMIT)
+    return tuple(items)
