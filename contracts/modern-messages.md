@@ -197,3 +197,26 @@ Not enabled, pending populated evidence: the notes folder (the inbox filtered by
 `category=1,6`, empty on this login), trash (`/api/trash-bin/messages`, empty),
 archived trash (its items mix sender and receiver fields), drafts (`/api/drafts`,
 a different item shape) and any archived content route. Tracked in #45.
+
+## Correspondent filters and teacher subjects (1.2.0)
+
+Observed on 2026-10-06 on one parent login in the owner's browser session; no
+message was opened. The inbox filter panel loads `GET
+/api/inbox/messages/senders` (`data`: integer `senderId`, `senderFirstName`,
+`senderLastName`; one name part can be empty for institutional senders) and
+applies `senderId=<id>` and `unreadOnly=1` to the ordinary inbox query. The
+outbox panel loads `GET /api/outbox/messages/receivers` (`receiverId`,
+`receiverFirstName`, `receiverLastName`) and applies `receiverId=<id>`. On
+three senders and two receivers, each filter returned only that correspondent's
+messages, in the ordinary page shape. `unreadOnly` was observed as an explicit
+empty list only.
+
+Every mailbox view also loads `GET /api/receivers/student-subjects` (`data`:
+integer `teacherIdentifier` and `subject`). It held one row per teacher and
+subject; 45 of 48 teacher identifiers matched `accountId` values of the
+school-employee directory, and sender IDs share that account-ID space. The
+library exposes these identifiers as information only. It does not turn them
+into recipient references or merge them with directory results.
+
+Not enabled: date-range filters (not captured), tags (`/api/tags`, empty) and
+custom recipient groups (`/api/receivers/custom-groups`, empty). Tracked in #45.

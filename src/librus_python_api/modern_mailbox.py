@@ -14,6 +14,8 @@ from librus_python_api.config import (
     MESSAGE_MAX_CURSOR_IDS,
     MESSAGE_MAX_FIELD_LENGTH,
     MESSAGE_MAX_TOTAL_TEXT_LENGTH,
+    MODERN_MAX_LABEL,
+    MODERN_MAX_RECIPIENTS,
     MODERN_MAX_UNREAD_COUNT,
     MODERN_UNREAD_COUNT_FIELDS,
     modern_mailbox_query,
@@ -21,6 +23,8 @@ from librus_python_api.config import (
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     MessageFolder,
+    ModernCorrespondent,
+    ModernCorrespondentReference,
     ModernMessageAttachment,
     ModernMessageAttachmentReference,
     ModernMessageRecipientReceipt,
@@ -341,8 +345,12 @@ def validate_selection(
     limit: int,
     account: str,
     archived: bool = False,
+    correspondent: str | None = None,
+    unread_only: bool = False,
 ) -> None:
-    modern_mailbox_query(folder, 1, page_size)
+    modern_mailbox_query(
+        folder, 1, page_size, correspondent=correspondent, unread_only=unread_only
+    )
     if type(archived) is not bool:
         raise LibrusError(ErrorKind.INVALID_INPUT)
     if type(max_pages) is not int or not 1 <= max_pages <= MESSAGE_MAX_BATCH_PAGES:
@@ -358,6 +366,8 @@ def validate_selection(
         cursor.account != account
         or cursor.folder is not folder
         or cursor.archived is not archived
+        or cursor.correspondent != correspondent
+        or cursor.unread_only is not unread_only
         or cursor.page_size != page_size
         or type(cursor.offset) is not int
         or not 0 <= cursor.offset < page_size
@@ -386,6 +396,8 @@ async def collect(
     max_pages: int,
     limit: int,
     archived: bool = False,
+    correspondent: str | None = None,
+    unread_only: bool = False,
 ) -> tuple[
     tuple[ModernMessageSummary, ...],
     int,
@@ -393,7 +405,17 @@ async def collect(
     ModernMessagesCursor | None,
     Literal["item_limit", "page_limit"] | None,
 ]:
-    validate_selection(folder, cursor, page_size, max_pages, limit, account, archived)
+    validate_selection(
+        folder,
+        cursor,
+        page_size,
+        max_pages,
+        limit,
+        account,
+        archived,
+        correspondent,
+        unread_only,
+    )
     page = cursor.page if cursor else 1
     offset = cursor.offset if cursor else 0
     seen = list(cursor.seen_ids) if cursor else []
@@ -447,6 +469,8 @@ async def collect(
                         result.fingerprint,
                         tuple(seen),
                         archived,
+                        correspondent,
+                        unread_only,
                     ),
                     "item_limit",
                 )
@@ -473,6 +497,8 @@ async def collect(
                     result.fingerprint,
                     tuple(seen),
                     archived,
+                    correspondent,
+                    unread_only,
                 ),
                 "item_limit" if len(items) >= limit else "page_limit",
             )
@@ -502,3 +528,55 @@ def parse_unread_counts(
     if not isinstance(counts, dict):
         raise LibrusError(ErrorKind.PARSE)
     return _unread_folders(counts, ""), _unread_folders(counts, "archive")
+
+
+def validate_correspondent(
+    reference: ModernCorrespondentReference | None, folder: MessageFolder, account: str
+) -> str | None:
+    """The filter value for a correspondent listed for this folder and login."""
+    if reference is None:
+        return None
+    if (
+        not isinstance(reference, ModernCorrespondentReference)
+        or reference.folder is not folder
+        or reference.account != account
+        or type(reference.identifier) is not str
+        or re.fullmatch(r"[0-9]{1,64}", reference.identifier) is None
+    ):
+        raise LibrusError(ErrorKind.INVALID_INPUT)
+    return reference.identifier
+
+
+def _name(value: Any) -> str:
+    if type(value) is not str or len(value) > MODERN_MAX_LABEL or "\x00" in value:
+        raise LibrusError(ErrorKind.PARSE)
+    return value
+
+
+def parse_correspondents(
+    body: bytes, folder: MessageFolder, account: str
+) -> tuple[ModernCorrespondent, ...]:
+    """People the folder's messages came from (received) or went to (sent)."""
+    role = "sender" if folder is MessageFolder.RECEIVED else "receiver"
+    data = decode_json(body)
+    entries = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        raise LibrusError(ErrorKind.PARSE)
+    if len(entries) > MODERN_MAX_RECIPIENTS:
+        raise LibrusError(ErrorKind.LIMIT)
+    items = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise LibrusError(ErrorKind.PARSE)
+        first = _name(entry.get(f"{role}FirstName"))
+        last = _name(entry.get(f"{role}LastName"))
+        # Institutional senders can carry a single name part; never both empty.
+        if not (first.strip() or last.strip()):
+            raise LibrusError(ErrorKind.PARSE)
+        reference = ModernCorrespondentReference(
+            folder, identifier(entry.get(f"{role}Id")), account
+        )
+        items.append(ModernCorrespondent(reference, first, last))
+    if len({item.reference.identifier for item in items}) != len(items):
+        raise LibrusError(ErrorKind.PARSE)
+    return tuple(items)

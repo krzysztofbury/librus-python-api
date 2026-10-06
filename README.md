@@ -25,7 +25,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.1.0
+python -m pip install librus-python-api==1.2.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -41,7 +41,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.1.0-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.2.0-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.

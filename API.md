@@ -413,6 +413,21 @@ Modern list/content reads do not reconcile durable UNKNOWN send history.
   `UNSUPPORTED_CAPABILITY` because no archived content route or mark-read effect
   is established. An archive that is still being built (`archivingInProgress`)
   is also `UNSUPPORTED_CAPABILITY`.
+- `modern_correspondents(folder=RECEIVED, *, budget=None, max_age_seconds=0)`
+  (1.2.0) returns `ModernCorrespondents`: the senders (received) or receivers
+  (sent) the web app offers in its filter panel. Each `ModernCorrespondent` has
+  `first_name`, `last_name` (one may be empty, never both) and a login-bound
+  `ModernCorrespondentReference`.
+- `modern_messages_page()` and `modern_messages()` accept `correspondent=` (a
+  reference for the same folder and login) and, for the received folder,
+  `unread_only=True` (1.2.0). They send the web app's own `senderId`,
+  `receiverId` and `unreadOnly` filters. Results and cursors record the filter,
+  and a cursor never continues a differently filtered list. Filters on the
+  archive mailbox raise `UNSUPPORTED_CAPABILITY`; they were not observed there.
+- `modern_teacher_subjects(*, budget=None, max_age_seconds=0)` (1.2.0) returns
+  `ModernTeacherSubjects`: `ModernTeacherSubject(teacher_identifier, subject)`
+  pairs, one per subject a teacher teaches the student. The identifier is the
+  teacher's modern account ID; it is informational and not a recipient reference.
 - `modern_unread_counts(*, budget=None, max_age_seconds=0)` (1.1.0) returns
   `ModernUnreadCounts` with `current` and `archive` `ModernUnreadFolders`:
   `inbox`, `notes`, `alerts`, `substitutions`, `absences`, `justifications` and

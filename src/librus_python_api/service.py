@@ -107,6 +107,8 @@ from librus_python_api.models import (
     MessagesPage,
     MessageSummary,
     ModernAccountData,
+    ModernCorrespondentReference,
+    ModernCorrespondents,
     ModernIdentity,
     ModernMessageAttachmentReference,
     ModernMessageContent,
@@ -119,6 +121,7 @@ from librus_python_api.models import (
     ModernRecipientTypeReference,
     ModernRecipientTypes,
     ModernSendSubmission,
+    ModernTeacherSubjects,
     ModernUnreadCounts,
     NotificationCounts,
     Observation,
@@ -147,9 +150,15 @@ from librus_python_api.modern_mailbox import collect as collect_modern_messages
 from librus_python_api.modern_mailbox import (
     parse_content as parse_modern_message_content,
 )
+from librus_python_api.modern_mailbox import (
+    parse_correspondents as parse_modern_correspondents,
+)
 from librus_python_api.modern_mailbox import parse_page as parse_modern_message_page
 from librus_python_api.modern_mailbox import (
     parse_unread_counts as parse_modern_unread_counts,
+)
+from librus_python_api.modern_mailbox import (
+    validate_correspondent as validate_modern_correspondent,
 )
 from librus_python_api.modern_mailbox import (
     validate_reference as validate_modern_message_reference,
@@ -163,6 +172,9 @@ from librus_python_api.modern_messages import (
     parse_modern_send_response,
     parse_modern_types,
     validate_modern_type,
+)
+from librus_python_api.modern_messages import (
+    parse_teacher_subjects as parse_modern_teacher_subjects,
 )
 from librus_python_api.notifications import (
     decode_payload,
@@ -600,6 +612,8 @@ class AccountClient:
         page_size: int,
         budget: RequestBudget,
         archived: bool,
+        correspondent: ModernCorrespondentReference | None = None,
+        unread_only: bool = False,
     ) -> ModernMessagesPage:
         operation = _modern_mailbox_operation(folder, archived)
         items, total, fingerprint = await self._page(
@@ -609,7 +623,15 @@ class AccountClient:
                 body, folder, page, page_size, self._alias, archived
             ),
             content_type=JSON,
-            query=modern_mailbox_query(folder, page, page_size),
+            query=modern_mailbox_query(
+                folder,
+                page,
+                page_size,
+                correspondent=None
+                if correspondent is None
+                else correspondent.identifier,
+                unread_only=unread_only,
+            ),
         )
         return ModernMessagesPage(
             self._session_identity(),
@@ -621,7 +643,26 @@ class AccountClient:
             fingerprint,
             self._observation(operation),
             archived,
+            correspondent,
+            unread_only,
         )
+
+    def _modern_filter(
+        self,
+        folder: MessageFolder,
+        archived: bool,
+        correspondent: ModernCorrespondentReference | None,
+        unread_only: bool,
+    ) -> str | None:
+        """Validate list filters; they are observed for the current mailbox only."""
+        value = validate_modern_correspondent(correspondent, folder, self._alias)
+        if type(archived) is not bool or type(unread_only) is not bool:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if unread_only and folder is not MessageFolder.RECEIVED:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if archived and (value is not None or unread_only):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        return value
 
     async def modern_messages_page(
         self,
@@ -630,26 +671,32 @@ class AccountClient:
         page: int = 1,
         page_size: int = 10,
         archived: bool = False,
+        correspondent: ModernCorrespondentReference | None = None,
+        unread_only: bool = False,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> ModernMessagesPage:
         """One one-based ordinary modern page, without any content open.
 
         ``archived`` lists the archive mailbox (earlier school years) instead.
+        ``correspondent`` (from ``modern_correspondents``) and ``unread_only``
+        (received folder) filter the current mailbox as the web app does.
         """
         modern_mailbox_query(folder, page, page_size)
-        if type(archived) is not bool:
-            raise LibrusError(ErrorKind.INVALID_INPUT)
+        filter_id = self._modern_filter(folder, archived, correspondent, unread_only)
         operation = _modern_mailbox_operation(folder, archived)
 
         async def fetch(budget: RequestBudget, _: bool) -> ModernMessagesPage:
             await self._modern_ready(budget)
             return await self._modern_message_page(
-                folder, page, page_size, budget, archived
+                folder, page, page_size, budget, archived, correspondent, unread_only
             )
 
         return await self._read(
-            (operation, "page", page, page_size), fetch, budget, max_age_seconds
+            (operation, "page", page, page_size, filter_id, unread_only),
+            fetch,
+            budget,
+            max_age_seconds,
         )
 
     async def modern_messages(
@@ -661,12 +708,23 @@ class AccountClient:
         max_pages: int = 4,
         limit: int = 128,
         archived: bool = False,
+        correspondent: ModernCorrespondentReference | None = None,
+        unread_only: bool = False,
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> ModernMessages:
         """Bounded modern collection with selection-bound continuation."""
+        filter_id = self._modern_filter(folder, archived, correspondent, unread_only)
         validate_modern_message_selection(
-            folder, cursor, page_size, max_pages, limit, self._alias, archived
+            folder,
+            cursor,
+            page_size,
+            max_pages,
+            limit,
+            self._alias,
+            archived,
+            filter_id,
+            unread_only,
         )
         operation = _modern_mailbox_operation(folder, archived)
 
@@ -674,7 +732,13 @@ class AccountClient:
             await self._modern_ready(budget)
             result = await collect_modern_messages(
                 lambda page: self._modern_message_page(
-                    folder, page, page_size, budget, archived
+                    folder,
+                    page,
+                    page_size,
+                    budget,
+                    archived,
+                    correspondent,
+                    unread_only,
                 ),
                 folder,
                 self._alias,
@@ -683,6 +747,8 @@ class AccountClient:
                 max_pages,
                 limit,
                 archived,
+                filter_id,
+                unread_only,
             )
             items, pages, duplicates, continuation, reason = result
             return ModernMessages(
@@ -695,13 +761,78 @@ class AccountClient:
                 reason,
                 self._observation(operation),
                 archived,
+                correspondent,
+                unread_only,
             )
 
         return await self._read(
-            (operation, "batch", cursor, page_size, max_pages, limit),
+            (
+                operation,
+                "batch",
+                cursor,
+                page_size,
+                max_pages,
+                limit,
+                filter_id,
+                unread_only,
+            ),
             fetch,
             budget,
             max_age_seconds,
+        )
+
+    async def modern_correspondents(
+        self,
+        folder: MessageFolder = MessageFolder.RECEIVED,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ModernCorrespondents:
+        """Senders (received) or receivers (sent) the current mailbox can filter by."""
+        if not isinstance(folder, MessageFolder):
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        operation: Literal["modern_senders", "modern_receivers"] = (
+            "modern_senders" if folder is MessageFolder.RECEIVED else "modern_receivers"
+        )
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernCorrespondents:
+            await self._modern_ready(budget)
+            items = await self._page(
+                operation,
+                budget,
+                lambda body: parse_modern_correspondents(body, folder, self._alias),
+                content_type=JSON,
+            )
+            return ModernCorrespondents(
+                self._session_identity(),
+                folder,
+                items,
+                self._observation(operation),
+            )
+
+        return await self._read((operation,), fetch, budget, max_age_seconds)
+
+    async def modern_teacher_subjects(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> ModernTeacherSubjects:
+        """Teachers' modern account IDs with the subjects they teach the student."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> ModernTeacherSubjects:
+            await self._modern_ready(budget)
+            items = await self._page(
+                "modern_teacher_subjects",
+                budget,
+                parse_modern_teacher_subjects,
+                content_type=JSON,
+            )
+            return ModernTeacherSubjects(
+                self._session_identity(),
+                items,
+                self._observation("modern_teacher_subjects"),
+            )
+
+        return await self._read(
+            ("modern_teacher_subjects",), fetch, budget, max_age_seconds
         )
 
     async def modern_unread_counts(
