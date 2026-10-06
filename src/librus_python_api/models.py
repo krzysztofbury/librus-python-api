@@ -48,6 +48,9 @@ type OperationName = Literal[
     "modern_send_message",
     "modern_school_recipients",
     "modern_class_parents",
+    "modern_archive_messages_received",
+    "modern_archive_messages_sent",
+    "modern_unread_counts",
     "modern_messages_received",
     "modern_messages_sent",
     "modern_content_received",
@@ -393,6 +396,8 @@ class ModernMessageReference:
     folder: MessageFolder
     identifier: str = field(repr=False)
     account: str = field(repr=False)
+    # Listed from the archive mailbox. Archived content opens are not supported.
+    archived: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -417,6 +422,7 @@ class ModernMessagesPage:
     items: tuple[ModernMessageSummary, ...] = field(repr=False)
     fingerprint: str = field(repr=False)
     observation: "Observation"
+    archived: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -429,6 +435,7 @@ class ModernMessagesCursor:
     total_count: int
     fingerprint: str = field(repr=False)
     seen_ids: tuple[str, ...] = field(repr=False)
+    archived: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,6 +447,28 @@ class ModernMessages:
     duplicates_skipped: int
     next_cursor: ModernMessagesCursor | None = field(repr=False)
     truncation_reason: Literal["item_limit", "page_limit"] | None
+    observation: "Observation"
+    archived: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModernUnreadFolders:
+    """Unread counters the modern mailbox shows for one mailbox section."""
+
+    inbox: int
+    notes: int
+    alerts: int
+    substitutions: int
+    absences: int
+    justifications: int
+    trash: int
+
+
+@dataclass(frozen=True, slots=True)
+class ModernUnreadCounts:
+    identity: "Identity" = field(repr=False)
+    current: ModernUnreadFolders
+    archive: ModernUnreadFolders
     observation: "Observation"
 
 

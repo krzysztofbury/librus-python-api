@@ -180,3 +180,20 @@ Optional API persistence supplies durable confirmation binding, atomic claims
 and conservative crash recovery for modern attempts too. Human approval and
 manual reconciliation remain application-owned. Consumer migration, merge and publication
 remain separate gates. See [sending.md](sending.md) and [../VERIFICATION.md](../VERIFICATION.md).
+
+## Archive mailbox and unread counters (1.1.0)
+
+Observed on 2026-10-06 on one parent login in the owner's browser session, list
+views only; no message was opened. The web app lists the archive with
+`GET /api/archive/inbox/messages` and `GET /api/archive/outbox/messages`, using
+the same `page`/`limit` query as the current mailbox. Their items had the
+ordinary inbox and outbox shapes; the envelope adds `archivingInProgress`, which
+was false. The same app requests `GET /api/inbox/unreadMessagesCount` on every
+view. Its `data` object held fourteen integers: `inbox`, `notes`, `alerts`,
+`substitutions`, `absences`, `justifications` and `trash`, plus
+`archive`-prefixed counterparts. All were zero.
+
+Not enabled, pending populated evidence: the notes folder (the inbox filtered by
+`category=1,6`, empty on this login), trash (`/api/trash-bin/messages`, empty),
+archived trash (its items mix sender and receiver fields), drafts (`/api/drafts`,
+a different item shape) and any archived content route. Tracked in #45.

@@ -82,6 +82,8 @@ from librus_python_api.models import (
     ModernRecipientTypeReference,
     ModernRecipientTypes,
     ModernSendSubmission,
+    ModernUnreadCounts,
+    ModernUnreadFolders,
     NotificationCategory,
     NotificationCount,
     NotificationCounts,
@@ -120,7 +122,7 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 __all__ = [
     "AccountContext",
@@ -135,6 +137,8 @@ __all__ = [
     "ModernMessageRecipientReceipt",
     "ModernMessages",
     "ModernMessagesCursor",
+    "ModernUnreadCounts",
+    "ModernUnreadFolders",
     "ModernMessagesPage",
     "ModernMessageSummary",
     "ModernRecipient",

@@ -3,6 +3,16 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## 1.1.0 modern archive and unread-count evidence (2026-10-06)
+
+Within the same owner-authorized browser check (one parent login, list views
+only, no message opened), the archive inbox and outbox lists had the ordinary
+mailbox item shapes with `archivingInProgress` false, and the unread-counter
+route returned fourteen integer counters, all zero. The 1.1.0 code was
+exercised offline only: loopback tests cover both archive mailboxes across
+pages, cursor isolation between mailboxes, rejected archived content opens, and
+strict counter parsing. No school data is recorded.
+
 ## 1.0.3 notification-count evidence (2026-10-06)
 
 The owner authorized a read-only coverage check in their own browser session on

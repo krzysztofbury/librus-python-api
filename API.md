@@ -399,13 +399,26 @@ redirects, fallback, post-send lookup or implicit reauthentication. Cancel/shutd
 propagate normally with an inspectable outcome after joined cleanup, as below.
 Modern list/content reads do not reconcile durable UNKNOWN send history.
 
-- `modern_messages_page(folder=RECEIVED, *, page=1, page_size=10, budget=None,
-  max_age_seconds=0)` returns `ModernMessagesPage`. Pages are one-based. This GET
-  returns summaries only; sent read status can be unknown.
+- `modern_messages_page(folder=RECEIVED, *, page=1, page_size=10, archived=False,
+  budget=None, max_age_seconds=0)` returns `ModernMessagesPage`. Pages are
+  one-based. This GET returns summaries only; sent read status can be unknown.
 - `modern_messages(folder=RECEIVED, *, cursor=None, page_size=50, max_pages=4,
-  limit=128, budget=None, max_age_seconds=0)` returns `ModernMessages` with explicit
-  truncation, duplicate counts and account/folder/page-size-bound continuation.
+  limit=128, archived=False, budget=None, max_age_seconds=0)` returns
+  `ModernMessages` with explicit truncation, duplicate counts and
+  account/folder/mailbox/page-size-bound continuation.
   Cursor drift and later-page errors never return partial output.
+- `archived=True` (1.1.0) lists the archive mailbox instead of the current one.
+  Pages, collections, cursors and references carry `archived`; a cursor never
+  continues the other mailbox. Archived content opens raise
+  `UNSUPPORTED_CAPABILITY` because no archived content route or mark-read effect
+  is established. An archive that is still being built (`archivingInProgress`)
+  is also `UNSUPPORTED_CAPABILITY`.
+- `modern_unread_counts(*, budget=None, max_age_seconds=0)` (1.1.0) returns
+  `ModernUnreadCounts` with `current` and `archive` `ModernUnreadFolders`:
+  `inbox`, `notes`, `alerts`, `substitutions`, `absences`, `justifications` and
+  `trash`. It opens no message. A missing or invalid counter fails with `PARSE`;
+  unknown extra counters are ignored. Populated counter semantics beyond the
+  observed field names are not independently established.
   Page size is 1-50, page number 1-1,000, `max_pages` 1-8, `limit` 1-256 and
   cursor history at most 2,000 IDs. These are library bounds, not upstream maxima.
 - `modern_message_content(reference, *, allow_mark_read=False, budget=None,

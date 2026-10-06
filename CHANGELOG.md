@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 (2026-10-06) - Modern archive mailbox and unread counts
+
+Compatible minor release. Existing calls and results are unchanged; new fields
+have defaults.
+
+- List the modern archive mailbox (earlier school years) with
+  `modern_messages_page(..., archived=True)` and `modern_messages(...,
+  archived=True)`. Pages, collections, cursors and message references gain an
+  `archived` field (default `False`), and a cursor never continues the other
+  mailbox. Opening an archived message raises `UNSUPPORTED_CAPABILITY` until an
+  archived content route is established.
+- Add `modern_unread_counts()`, returning `ModernUnreadCounts` with current and
+  archive `ModernUnreadFolders` counters (inbox, notes, alerts, substitutions,
+  absences, justifications, trash) from the modern mailbox's own counter route.
+  It opens no message.
+
 ## 1.0.3 (2026-10-06) - Notification counts for parent logins
 
 Compatible patch release. The public library API is unchanged.
