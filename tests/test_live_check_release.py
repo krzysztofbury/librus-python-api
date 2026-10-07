@@ -1,14 +1,17 @@
 """The release profile keeps the pre-publication check's reads and verdicts."""
 
 import asyncio
+from dataclasses import replace
 from datetime import date
 from typing import Any
+
+import pytest
 
 from librus_python_api import AccountCredentials, ConnectionSettings, RequestBudget
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from scripts.live_check.checks import Check, Context, Observed, check
 from scripts.live_check.expectations import Expected, compare
-from scripts.live_check.profiles import RELEASE
+from scripts.live_check.profiles import RELEASE, WEEKLY
 from scripts.live_check.report import (
     Report,
     SlotReport,
@@ -16,7 +19,12 @@ from scripts.live_check.report import (
     StepResult,
     render_json,
 )
-from scripts.live_check.runner import release_problems, run_profile, run_slot
+from scripts.live_check.runner import (
+    Profile,
+    release_problems,
+    run_profile,
+    run_slot,
+)
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.test_modern_communication import CommunicationFixture
 
@@ -42,7 +50,9 @@ RELEASE_STEPS = [
 
 
 def run_release(
-    fixture: CommunicationFixture, identities: dict[str, str] | None = None
+    fixture: CommunicationFixture,
+    identities: dict[str, str] | None = None,
+    profile: Profile = RELEASE,
 ) -> Report:
     async def scenario() -> Report:
         fixture.aliases = LOGINS
@@ -52,7 +62,7 @@ def run_release(
         ):
             fixture.origin, fixture.modern_origin = native, modern
             report = await run_profile(
-                RELEASE,
+                profile,
                 {
                     f"slot-{index}": AccountCredentials(
                         login=login, password=FIXTURE_SECRET
@@ -181,3 +191,22 @@ def test_dependents_of_a_broken_check_are_not_run() -> None:
         (Status.ERROR, "parse"),
         (Status.NOT_RUN, None),
     ]
+
+
+def test_more_accounts_than_the_profile_allows_are_refused_before_any_request() -> None:
+    accounts = {
+        f"slot-{index}": AccountCredentials(login=f"login-{index}", password="x")
+        for index in range(WEEKLY.max_accounts + 1)
+    }
+    with pytest.raises(ValueError):
+        asyncio.run(run_profile(WEEKLY, accounts, today=date(2026, 10, 7)))
+
+
+def test_an_exhausted_run_deadline_leaves_logins_not_run_without_requests() -> None:
+    fixture = CommunicationFixture()
+    report = run_release(fixture, profile=replace(RELEASE, deadline_seconds=0))
+    assert fixture.logins == {}
+    for slot in report.slots:
+        assert slot.requests == 0
+        assert {s.status for s in slot.steps} == {Status.NOT_RUN}
+    assert not report.passed

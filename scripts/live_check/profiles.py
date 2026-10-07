@@ -15,6 +15,7 @@ from scripts.live_check.checks import (
     has,
     identity_key,
 )
+from scripts.live_check.credentials import MAX_SLOTS
 from scripts.live_check.report import Coverage
 from scripts.live_check.runner import Profile
 
@@ -190,7 +191,14 @@ RELEASE_READS: tuple[Check, ...] = (
     unread_only_page,
     modern_teacher_subjects,
 )
-RELEASE = Profile("release", (*RELEASE_READS, session_alive), 48, 180)
+RELEASE = Profile(
+    "release",
+    (*RELEASE_READS, session_alive),
+    max_requests=48,
+    timeout_seconds=180,
+    max_accounts=4,
+    deadline_seconds=720,
+)
 
 
 def month_bounds(day: date) -> tuple[date, date]:
@@ -472,5 +480,12 @@ WEEKLY_READS: tuple[Check, ...] = (
 )
 # Measured fixture requests per login: 47. The budget leaves live headroom for
 # more attendance rows to resolve, as the design targets about 70.
-WEEKLY = Profile("weekly", (*RELEASE_READS, *WEEKLY_READS, session_alive), 70, 240)
+WEEKLY = Profile(
+    "weekly",
+    (*RELEASE_READS, *WEEKLY_READS, session_alive),
+    max_requests=70,
+    timeout_seconds=240,
+    max_accounts=MAX_SLOTS,
+    deadline_seconds=600,
+)
 PROFILES: dict[str, Profile] = {"release": RELEASE, "weekly": WEEKLY}

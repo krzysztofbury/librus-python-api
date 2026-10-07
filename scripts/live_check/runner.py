@@ -47,10 +47,17 @@ FATAL_CODES = frozenset({"identity_mismatch"})
 
 @dataclass(frozen=True, slots=True)
 class Profile:
+    """Checks plus hard limits: per-login requests and time, logins, run time.
+
+    The total request cap of a run is `max_accounts * max_requests`.
+    """
+
     name: str
     checks: tuple[Check, ...]
     max_requests: int
     timeout_seconds: float
+    max_accounts: int
+    deadline_seconds: float
 
 
 async def execute(
@@ -120,6 +127,8 @@ async def run_profile(
     connection: ConnectionSettings | None = None,
     commit: str = "unknown",
 ) -> Report:
+    if len(accounts) > profile.max_accounts:
+        raise ValueError("more logins than the profile allows")
     transport = guarded(
         BASE_READS.union(*(c.reads for c in profile.checks)),
         frozenset[str]().union(*(c.references for c in profile.checks)),
@@ -139,10 +148,17 @@ async def run_profile(
         connection=connection,
         transport_factory=transport,
     ) as service:
+        run_started = time.monotonic()
         for index, alias in enumerate(accounts):
+            left = profile.deadline_seconds - (time.monotonic() - run_started)
+            if left <= 0:
+                # The run deadline is spent: report the login, contact nothing.
+                skipped = [StepResult(c.name, Status.NOT_RUN) for c in profile.checks]
+                report.slots.append(SlotReport(index, 0, 0.0, skipped))
+                continue
             budget = RequestBudget(
                 max_requests=profile.max_requests,
-                timeout_seconds=profile.timeout_seconds,
+                timeout_seconds=min(profile.timeout_seconds, left),
             )
             context = Context(
                 service.account(alias), budget, today, (identities or {}).get(alias)
