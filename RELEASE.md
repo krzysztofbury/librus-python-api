@@ -82,8 +82,9 @@ manual, owner-authorized live check in step 4 runs locally, never in CI.
    and `target=verify`. All checks must pass, including macOS and Windows disk gates.
 4. Run the read-only live check with the owner's authorization. Build the
    tagged source's wheel, install it into a fresh environment outside the
-   checkout, and run `scripts/live_release_check.py --secrets FILE` with that
-   environment's interpreter. It logs in once per configured account, uses only
+   checkout, and from the checkout root run
+   `ENV/bin/python -m scripts.live_check run --profile release --secrets FILE`
+   with that environment's interpreter. It logs in once per configured account, uses only
    allowlisted reads (no message opens, sends or read-once routes) and reports
    statuses and counts only. Publish only if it passes, and record the summary
    in the release notes. A failed step blocks publication; fix it in a new
