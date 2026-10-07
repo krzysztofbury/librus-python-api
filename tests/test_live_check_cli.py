@@ -4,17 +4,22 @@ import json
 import logging
 import sys
 import warnings
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import scripts.live_check.__main__ as cli
+import scripts.live_check.runner as runner
+from librus_python_api import ConnectionSettings
 from scripts.live_check.credentials import (
     MissingSecrets,
     from_environment,
     from_file,
 )
+from tests.http_support import serve
+from tests.live_check_support import WeeklyFixture
 
 CANARY = "canary-password-value-7f3a"
 
@@ -146,3 +151,111 @@ def test_a_world_readable_secrets_file_is_rejected(tmp_path: Path) -> None:
     secrets_file.chmod(0o644)
     with pytest.raises(SystemExit):
         from_file(secrets_file)
+
+
+def loopback(fixture: WeeklyFixture, logins: tuple[str, ...]) -> object:
+    """The real runner, pointed at the loopback fixture instead of Librus."""
+
+    async def run(*args: Any, **kwargs: Any) -> Any:
+        fixture.aliases = logins
+        async with (
+            serve(fixture.app()) as native,
+            serve(fixture.modern_app()) as modern,
+        ):
+            fixture.origin, fixture.modern_origin = native, modern
+            kwargs["connection"] = ConnectionSettings(
+                synergia_origin=native,
+                api_origin=native,
+                messages_origin=modern,
+                download_origin=fixture.download_origin,
+            )
+            return await runner.run_profile(*args, **kwargs)
+
+    return run
+
+
+def broken_grades(fixture: WeeklyFixture) -> None:
+    fixture.bodies["grades"] = (b"<html>Fixture broken page</html>", "text/html")
+
+
+OUTCOMES: list[tuple[str, str, Callable[[WeeklyFixture], None], str]] = [
+    ("success", "canary-login-a", lambda _: None, ""),
+    ("rejected", "rejected", lambda _: None, "credentials_rejected"),
+    (
+        "throttled",
+        "canary-login-a",
+        lambda f: f.failures.update(student_information=[429]),
+        "throttled",
+    ),
+    (
+        "maintenance",
+        "canary-login-a",
+        lambda f: f.failures.update(student_information=[503]),
+        "maintenance",
+    ),
+    ("parse", "canary-login-a", broken_grades, "parse"),
+]
+
+
+@pytest.mark.parametrize(
+    "login,arrange,kind",
+    [case[1:] for case in OUTCOMES],
+    ids=[case[0] for case in OUTCOMES],
+)
+def test_every_outcome_is_classified_without_leaking(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    login: str,
+    arrange: Callable[[WeeklyFixture], None],
+    kind: str,
+) -> None:
+    fixture = WeeklyFixture()
+    arrange(fixture)
+    monkeypatch.setattr(cli, "run_profile", loopback(fixture, (login,)))
+    summary = tmp_path / "summary.md"
+    code = cli.main(
+        ["run", "--profile", "weekly", "--from-env", "--record"]
+        + ["--summary", str(summary)],
+        env(LOGIN_0=login, PASSWORD_0=CANARY, IDENTITY_0="301:student-shared"),
+    )
+    out, err = capsys.readouterr()
+    written = summary.read_text()
+    assert code == (1 if kind else 0)
+    assert written.startswith("## Live check: weekly")
+    if kind:
+        assert f'"kind": "{kind}"' in out
+    for canary in (CANARY, "canary-login", "Fixture", "Synthetic", "student-shared"):
+        assert canary not in out + err + written
+
+
+def test_recorded_expectations_pass_and_drift_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    secrets = env(
+        LOGIN_0="canary-login-a", PASSWORD_0=CANARY, IDENTITY_0="301:student-shared"
+    )
+    weekly = ["run", "--profile", "weekly", "--from-env"]
+    monkeypatch.setattr(
+        cli, "run_profile", loopback(WeeklyFixture(), ("canary-login-a",))
+    )
+    assert cli.main([*weekly, "--record"], secrets) == 0
+    recorded = json.loads(capsys.readouterr().out.split("\n}\n", 1)[1])
+    recorded["slots"]["0"]["role"] = "student"
+    expectations = tmp_path / "expectations.json"
+    expectations.write_text(json.dumps(recorded))
+    compare = [*weekly, "--expectations", str(expectations)]
+
+    monkeypatch.setattr(
+        cli, "run_profile", loopback(WeeklyFixture(), ("canary-login-a",))
+    )
+    assert cli.main(compare, secrets) == 0
+    assert json.loads(capsys.readouterr().out)["passed"] is True
+
+    drifted = WeeklyFixture()
+    broken_grades(drifted)
+    monkeypatch.setattr(cli, "run_profile", loopback(drifted, ("canary-login-a",)))
+    assert cli.main(compare, secrets) == 1
+    assert "slot 0 grades: parse" in json.loads(capsys.readouterr().out)["problems"]
