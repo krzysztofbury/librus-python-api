@@ -16,7 +16,7 @@ Rules that hold for every release:
   `1.0.0rc1`.
 - Ordinary tests and CI stay offline. Live checks need explicit authorization
   and follow the workflow in [CONTRIBUTING.md](CONTRIBUTING.md#live-verification).
-  The scheduled credentialed CI (P6-live) is planned, not running.
+  The weekly credentialed CI (P6-live) is implemented offline and not yet activated.
 - A family is "verified" only after a live page from the current build has been
   checked. Record missing access as pending, never as passed.
 - Consumer (`librus-mcp`) changes are a separately authorized task.
@@ -162,7 +162,7 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   shared limits and offline cancellation/fault proofs. See
   [contracts/sending.md](contracts/sending.md). MCP confirmation/token adapters
   remain separate; optional API persistence was added in 0.4.8. Never widen the
-  daily check to sends, mark-read content or event consumption.
+  weekly live check to sends, mark-read content or event consumption.
   The historical sole-recipient plan was executed through the modern backend in
   0.5.0, not through legacy sending. Its closed scope grants no further sends.
   Never retry uncertain delivery. Keep target details and payload outside Git.
@@ -769,33 +769,30 @@ Dependencies: each completed slice; full run before P8.
 Exit: documented representative measurements and no unresolved safety regression.
 No performance improvement is claimed until this evidence exists.
 
-### P6-live - Daily credentialed compatibility check
+### P6-live - Weekly credentialed compatibility check
 
 Dependencies: P2 and the P3 identity slice; run alongside later development.
-Supporting local operating contract: `docs/SERVICE_REQUIREMENTS.md`,
-"Daily live CI" section. Required release checks are listed below.
+Runbook: [RELEASE.md, Weekly live check](RELEASE.md#weekly-live-check).
 
-- [ ] Add an isolated daily/manual workflow for trusted default-branch code,
+- [x] Add an isolated weekly/manual workflow for trusted default-branch code,
   using owner-provided environment secrets and an explicitly selected account
-  set. Keep PR CI offline; restrict manual refs and secret access to trusted code.
-- [ ] Use one Linux/Python job with a shared concurrency group, finite timeout,
-  no matrix multiplication, and no automatic reruns. Enable unattended scheduling
-  after one-time configuration, independently of PyPI publish approval.
-- [ ] Install the tested wheel, log in once per account, verify authenticated
-  identity, and perform a small allowlist of bounded ordinary reads. Apply the
-  real scheduler with a strict total request budget and stop on service/auth errors.
-- [ ] Check schemas and report populated versus empty coverage. Exclude sends,
-  read-once events, mark-read operations, attachments, and production state writes.
-  Check the effect of sign-ins on `last_login` before using production accounts.
-- [ ] Report only redacted status, version/commit, request counts, timings, and
-  coverage status. Suppress live-object assertion dumps and raw network logs;
-  never publish response bodies or secrets as artifacts.
-- [ ] Make missing secrets, unexecuted checks, and failed live expectations
-  actionable non-successes in this workflow. Configure failure notifications
-  and a last-run timestamp so a stale success is not mistaken for current health.
-- [ ] Prove workflow/report redaction and allowed-operation enforcement offline
-  before enabling credentials. Treat daily live checks as drift detection;
-  keep populated parser/failure/load coverage in deterministic offline E2E tests.
+  set. PR CI stays offline. Implemented offline; not yet activated.
+- [x] One Linux job with a shared concurrency group, finite timeout, no matrix
+  and no automatic reruns; unattended once configured.
+- [x] Install the tested wheel (or an exact released version), log in once per
+  account, verify the expected identity and make every declared safe read under
+  the real scheduler and a per-login budget; stop a login on its first
+  auth/service error.
+- [x] Compare populated/empty/disabled/unavailable coverage with committed
+  expectations. No sends, received-content opens, read-once events,
+  attachments or notification-state writes.
+- [x] Report only redacted status, version/commit, request counts, timings and
+  coverage; prove redaction and allowed-operation enforcement offline.
+- [x] Missing secrets, missing expectations and unexecuted checks fail.
+- [ ] Owner activation: environment, secrets, recorded expectations and a first
+  passing scheduled run.
+- [ ] Freshness outside GitHub (an external watchdog for runs that never start)
+  is not implemented; see the runbook limit.
 
 Exit: a scheduled run performs real authentication and bounded reads, records
 redacted evidence, and signals failure without unsafe retries or secret exposure.

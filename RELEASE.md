@@ -68,9 +68,10 @@ Required release decisions:
    status/install command together. Keep classifier assertions in the artifact
    verifier consistent with any intentional Beta-to-Stable change.
 
-No scheduled/live credentialed checks are enabled by release setup. All release
-tests and runtime smokes use synthetic loopback servers, never real Librus. The
-manual, owner-authorized live check in step 4 runs locally, never in CI.
+Release setup enables no credentialed checks. All release tests and runtime
+smokes use synthetic loopback servers, never real Librus. The manual,
+owner-authorized live check in step 4 runs locally, never in CI. The separate
+weekly live check below never publishes and is not a release gate.
 
 ## Procedure
 
@@ -152,5 +153,59 @@ the entire publisher, for temporary index visibility failures. A
 compromised/broken release requires an explicit yank and corrected version.
 Never auto-delete a release or reset user state; document a known-good
 dependency pin for rollback.
+
+## Weekly live check
+
+`.github/workflows/live-check.yml` detects upstream drift. Every Monday at
+05:17 UTC, and on manual dispatch, it builds a wheel from `main` (or installs
+an exact released version given as input), logs in once per configured account
+and makes only the side-effect-free reads declared in `scripts/live_check`.
+It never sends, opens received messages, consumes read-once events, downloads
+files or writes notification state. It fails on rejected credentials, required
+account action, throttling, maintenance, parser errors, identity mismatch, or
+coverage that differs from `contracts/live-check-expectations.json`. It never
+retries.
+
+Logs, job summaries and artifacts of this public repository are readable by
+anyone. The check prints versions, statuses, coverage values and counts only.
+
+### Configuration (owner, once)
+
+1. Create the GitHub environment `live-check`. Restrict deployment branches to
+   `main`. Add no required reviewers: the schedule runs unattended.
+2. Keep `main` protected and the set of collaborators with write access minimal:
+   anyone who can change workflows on `main` can reach these secrets.
+3. Prefer dedicated accounts. Each run signs in, which updates the account's
+   last-login information and may affect notification baselines of other
+   clients using the same login.
+4. Locally, with the owner's authorization, print the expected identities from
+   the checkout root:
+   `ENV/bin/python -m scripts.live_check identity --secrets FILE`
+   (refused inside CI).
+5. Add environment secrets `LIBRUS_LIVE_LOGIN_n`, `LIBRUS_LIVE_PASSWORD_n` and
+   `LIBRUS_LIVE_IDENTITY_n` for slots 0 and 1. Slot 1 is optional.
+6. Run the workflow manually with `record` ticked. Review the printed coverage
+   map, set each slot's `role`, mark naturally volatile checks (for example
+   timetable, agenda, homework) as `any`, and commit it to
+   `contracts/live-check-expectations.json` through a PR.
+
+Until expectations exist, every run fails with `no_expectations`. Missing
+secrets fail with the missing secret names.
+
+### Notifications and freshness
+
+GitHub emails failures of scheduled runs to the user who last changed the
+workflow's cron line, and of manual runs to the person who started them.
+Enable email for failed workflows under GitHub Settings, Notifications,
+Actions. A green badge is only as fresh as its run date: GitHub disables
+scheduled workflows in public repositories after 60 days without repository
+activity and may delay or drop scheduled runs. Check the run history if no
+weekly run appears; a missing run sends no email.
+
+### If a credential may have leaked
+
+1. Change the Librus password of the affected account.
+2. Delete the environment secrets and disable the workflow.
+3. Review recent run logs and summaries for unexpected content.
 
 [pending]: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
