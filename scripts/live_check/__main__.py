@@ -20,7 +20,8 @@ import secrets
 import sys
 import warnings
 from collections.abc import Mapping, Sequence
-from datetime import date
+from contextlib import suppress
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from librus_python_api import AccountCredentials, LibrusService, RequestBudget
@@ -68,9 +69,21 @@ async def _identities(accounts: Mapping[str, AccountCredentials]) -> list[str]:
         ]
 
 
-def _run(argv: Sequence[str] | None, environ: Mapping[str, str]) -> int:
-    parser = _parser()
-    args = parser.parse_args(argv)
+def _early_summary(args: argparse.Namespace, line: str) -> None:
+    """A failed run's summary when no report exists; `line` is fixed text."""
+    path: Path | None = getattr(args, "summary", None)
+    if path is None:
+        return
+    stamp = datetime.now(UTC).isoformat(timespec="seconds")
+    with suppress(OSError), path.open("a") as summary:
+        summary.write(f"## Live check: {args.profile} failed\n\n{stamp} UTC: {line}\n")
+
+
+def _run(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    environ: Mapping[str, str],
+) -> int:
     if args.command == "identity":
         if environ.get("CI") or environ.get("GITHUB_ACTIONS"):
             print(json.dumps({"refused": "identity printing is local only"}))
@@ -118,15 +131,19 @@ def main(
     logging.disable(logging.CRITICAL)
     warnings.simplefilter("ignore")
     sys.unraisablehook = lambda _: None
+    parser = _parser()
+    args = parser.parse_args(argv)
     try:
-        return _run(argv, os.environ if environ is None else environ)
+        return _run(parser, args, os.environ if environ is None else environ)
     except SystemExit:
         raise
     except MissingSecrets as missing:
         print(json.dumps({"passed": False, "missing_secrets": list(missing.names)}))
+        _early_summary(args, "missing secrets " + ", ".join(missing.names) + ".")
         return 1
     except BaseException as error:  # noqa: BLE001 - only the class name may leave
         print(json.dumps({"passed": False, "crash": type(error).__name__}))
+        _early_summary(args, "crashed with " + type(error).__name__ + ".")
         return 1
 
 

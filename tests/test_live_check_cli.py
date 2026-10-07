@@ -259,3 +259,27 @@ def test_recorded_expectations_pass_and_drift_fails(
     monkeypatch.setattr(cli, "run_profile", loopback(drifted, ("canary-login-a",)))
     assert cli.main(compare, secrets) == 1
     assert "slot 0 grades: parse" in json.loads(capsys.readouterr().out)["problems"]
+
+
+def test_early_exits_still_write_a_redacted_summary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    summary = tmp_path / "summary.md"
+    weekly = ["run", "--profile", "weekly", "--from-env", "--record"]
+    weekly += ["--summary", str(summary)]
+    assert cli.main(weekly, env(LOGIN_0="canary-login", PASSWORD_0=CANARY)) == 1
+    missing = summary.read_text()
+    assert missing.startswith("## Live check: weekly failed")
+    assert "LIBRUS_LIVE_IDENTITY_0" in missing and "UTC" in missing
+
+    async def explode(*_: object, **__: object) -> None:
+        raise RuntimeError(f"canary-login:{CANARY} Fixture Student")
+
+    monkeypatch.setattr(cli, "run_profile", explode)
+    summary.unlink()
+    secrets = env(LOGIN_0="canary-login", PASSWORD_0=CANARY, IDENTITY_0="1:2")
+    assert cli.main(weekly, secrets) == 1
+    crashed = summary.read_text()
+    assert "RuntimeError" in crashed
+    for canary in (CANARY, "canary-login", "Fixture"):
+        assert canary not in missing + crashed
