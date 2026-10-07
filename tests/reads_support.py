@@ -25,6 +25,7 @@ from tests.message_content_support import content_html
 from tests.messages_support import message_row, messages_html
 from tests.recipients_support import groups_html, recipient_html
 from tests.school_reads_support import agenda_html, detail_html, homework_html
+from tests.school_year_archive_support import archive_page
 from tests.timetable_support import MONDAY, timetable_html
 
 HTML, JSON = "text/html", "application/json"
@@ -48,6 +49,7 @@ VALID: dict[str, tuple[bytes, str]] = {
     "message_content_sent": (content_html(MessageFolder.SENT).encode(), HTML),
     "recipient_groups": (groups_html().encode(), HTML),
     "recipients": (recipient_html().encode(), HTML),
+    "school_year_archive": (archive_page().encode(), HTML),
 }
 OPERATIONS = tuple(VALID)
 

@@ -1502,6 +1502,54 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /archiwum:
+    get:
+      operationId: school_year_archive
+      tags: [Grades]
+      summary: Read the summary of every earlier school year
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: One owner-authorized read-only browser observation on 2026-10-07 of a single early-education parent account with three earlier years; menu counters were unchanged. Populated behaviour cells, older numeric layouts, more years and an account without earlier years were not observed. Original synthetic fixtures; see VERIFICATION.md.
+      description: |
+        Fixed GET with no form, query, year selection or session change. The
+        page renders every earlier school year at once. The library never reads
+        the header table with the student's name, the chart containers or the
+        chart AJAX POST. Account-isolated sessions/cache/coalescing and shared
+        request/deadline/body/parser budgets apply; only proven session expiry
+        permits one safe-read recovery within the original budget.
+        Exactly one archive table is located by its first row: an empty cell and
+        one colspan-3 cell per year reading "Klasa: <class> Rok: <YYYY>/<YYYY+1>"
+        (span/b children only). The next row repeats okres 1, okres 2 and koniec
+        roku per year. The body is read in order: subject rows (TH plus three
+        mark cells per year, rendered text with "-" and empty preserved) and
+        descriptive rows (TH plus one colspan-3 text cell per year) in any order
+        with unique labels; one bolded Zachowanie heading and exactly one
+        behaviour row (empty TH, then per year one cell and one colspan-2 cell,
+        kept as raw positional text without asserted meaning); one bolded
+        Nieobecnosci heading and exactly the rows nieusprawiedlione,
+        usprawiedlione and spoznienia (upstream spelling) with three ASCII
+        integer counts per year; then one empty footer row. Achievements come
+        from exactly one table headed Data, Klasa, Kategoria, Osiagniecie with
+        four-cell rows (ISO civil date) and an empty footer; a header-only table
+        is the explicit empty case.
+        Unknown headings, labels, geometry or markup inside data cells are an
+        unsupported capability; contradictions inside the known layout (missing
+        or several tables, duplicate labels or years, non-consecutive years,
+        missing sections, invalid counts or dates, nested tables, nonempty
+        footers) are parse errors. No empty-archive marker has been observed, so
+        a page without the archive table fails instead of becoming empty.
+        Limits are 16 years, 128 subjects, 32 descriptive rows, 256
+        achievements, 1024 characters per label, mark, class and category,
+        65536 per text cell and 262144 rendered characters per page, plus shared
+        byte/tree/depth/request/admission bounds. Details are in
+        contracts/grades.md.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /informacja:
     get:
       operationId: student_information

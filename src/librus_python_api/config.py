@@ -506,6 +506,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "school_year_archive",
+                "GET",
+                "/archiwum",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
                 "agenda",
                 "POST",
                 "/terminarz/",
