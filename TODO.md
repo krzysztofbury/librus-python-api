@@ -50,8 +50,8 @@ Persistent state migration is not automatic or implemented by this release.
 | `0.6.1` | Pre-1.0 readiness review: dependency, platform and documentation fixes | Implemented offline and locally qualified; no API change |
 | `0.7.0` | Application-keyed contexts, stdlib logging, POSIX metadata, lean archives and user-facing README | Implemented; offline qualification recorded in VERIFICATION.md |
 | `1.0.0rc1` | Library-only candidate on real PyPI | Published and public hashes/fresh installation verified; consumer acceptance pending |
-| `1.0.0` | Stable native library API for the later MCP 2.0 cutover | #22-#25 merged and qualified; release preparation in progress, stable publication pending |
-| MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Separate consumer release |
+| `1.0.0` | Stable native library API for the later MCP 2.0 cutover | Published 2026-10-05; 1.0.1 to 1.2.1 followed on 2026-10-06 |
+| MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Released as `librus-mcp` 2.0.0 and 2.0.1 on 2026-10-06, pinned to `librus-python-api` 1.0.2 |
 
 P0-P9 below are the detailed acceptance checklist for 1.0. Each release
 completes their requirements for the operations it enables. Live evidence for
@@ -405,9 +405,12 @@ separately reviewed, qualified, merged and closed:
 
 ### MCP 2.0.0 - Direct consumer modernization and backend replacement
 
-- [ ] Release MCP 2.0 pinned to the tested native library, and verify its public
+Done in the consumer repository: `librus-mcp` 2.0.0 and 2.0.1 were released on
+2026-10-06; 2.0.1 pins `librus-python-api==1.0.2`. Consumer evidence lives there.
+
+- [x] Release MCP 2.0 pinned to the tested native library, and verify its public
   `uvx` installation, dependency graph, CLI and contract.
-- [ ] Complete ownership-map items A01-A18 in consumer PRs (typed wire contracts,
+- [x] Complete ownership-map items A01-A18 in consumer PRs (typed wire contracts,
   deprecated-tool removal, packaging, configuration and state migration,
   attachment resources), released as one documented major version.
 - [ ] Change the library version only when its own contract changes.
