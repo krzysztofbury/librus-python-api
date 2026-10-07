@@ -121,3 +121,14 @@ def test_malformed_expectations_are_rejected(text: str) -> None:
 def test_the_committed_expectations_file_is_valid() -> None:
     # Starts as {"slots": {}}; later holds the owner's recorded map.
     load((ROOT / "contracts/live-check-expectations.json").read_text())
+
+
+def test_committed_expectations_name_exactly_the_weekly_checks() -> None:
+    # Drift here would only surface live as no_expectation or not_executed.
+    from scripts.live_check.profiles import WEEKLY
+
+    expected = load((ROOT / "contracts/live-check-expectations.json").read_text())
+    names = {check.name for check in WEEKLY.checks}
+    assert expected, "the weekly run needs at least one configured slot"
+    for checks in expected.values():
+        assert set(checks) == names

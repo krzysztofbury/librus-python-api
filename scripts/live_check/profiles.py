@@ -232,6 +232,16 @@ async def final_grades(ctx: Context) -> Observed:
     return coverage_of(len(result.items), subjects=len(result.items))
 
 
+@check(
+    "school_year_archive",
+    reads={"school_year_archive"},
+    requires=has("school_year_archive"),
+)
+async def school_year_archive(ctx: Context) -> Observed:
+    result = await ctx.client.school_year_archive(budget=ctx.budget)
+    return coverage_of(len(result.years), years=len(result.years))
+
+
 @check("attendance", reads={"attendance"})
 async def attendance(ctx: Context) -> Observed:
     result = await ctx.client.attendance(budget=ctx.budget)
@@ -457,6 +467,7 @@ WEEKLY_READS: tuple[Check, ...] = (
     grades,
     grades_window,
     final_grades,
+    school_year_archive,
     attendance,
     attendance_window,
     attendance_detail,
@@ -478,7 +489,7 @@ WEEKLY_READS: tuple[Check, ...] = (
     modern_recipients,
     modern_sent_content,
 )
-# Measured fixture requests per login: 47. The budget leaves live headroom for
+# Measured fixture requests per login: 48. The budget leaves live headroom for
 # more attendance rows to resolve, as the design targets about 70.
 WEEKLY = Profile(
     "weekly",

@@ -9,6 +9,7 @@ from scripts.live_check.report import Status, render_json, render_summary
 from scripts.live_check.runner import Profile
 from tests.http_support import FIXTURE_SECRET
 from tests.live_check_support import WeeklyFixture, run_fixture
+from tests.school_year_archive_support import CANARY_NAME
 
 CANARY_LOGINS = ("canary-login-a", "canary-login-b")
 WEEKLY_ONLY = [
@@ -16,6 +17,7 @@ WEEKLY_ONLY = [
     "grades",
     "grades_window",
     "final_grades",
+    "school_year_archive",
     "attendance",
     "attendance_window",
     "attendance_detail",
@@ -101,6 +103,7 @@ def test_weekly_output_carries_no_credentials_or_school_text() -> None:
         "Fixture",
         "Synthetic",
         "student-shared",
+        CANARY_NAME,
     ):
         assert canary not in output
 

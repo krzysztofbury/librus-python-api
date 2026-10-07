@@ -36,6 +36,7 @@
         "notification_counts": "populated",
         "recipient_groups": "populated",
         "recipients": "populated",
+        "school_year_archive": "populated",
         "session_alive": "populated",
         "student_information": "populated",
         "subject_frequency": "any",
