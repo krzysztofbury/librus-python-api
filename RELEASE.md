@@ -164,7 +164,16 @@ It never sends, opens received messages, consumes read-once events, downloads
 files or writes notification state. It fails on rejected credentials, required
 account action, throttling, maintenance, parser errors, identity mismatch, or
 coverage that differs from `contracts/live-check-expectations.json`. It never
-retries.
+retries and never logs in twice with the same credentials in one run.
+
+Hard limits: at most two logins, 70 requests and 4 minutes per login, and 10
+minutes per run. Logins the run deadline leaves unchecked are reported as not
+run, which fails the run.
+
+The manual `version` input installs that exact release from PyPI with the
+dependency versions locked on `main`, not the ones locked when it was released.
+Checks newer than the release report the missing read as
+`unexpected_attributeerror`, which fails the run. Use it for recent releases.
 
 Logs, job summaries and artifacts of this public repository are readable by
 anyone. The check prints versions, statuses, coverage values and counts only.

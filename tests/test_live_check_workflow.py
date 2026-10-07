@@ -76,3 +76,5 @@ def test_manual_version_input_is_validated_before_use() -> None:
     assert "inputs.version" not in install["run"]  # passed via env only
     assert install["env"]["VERSION"] == "${{ inputs.version }}"
     assert "=~ ^[0-9]+" in install["run"]
+    # A rejected version says why instead of failing silently.
+    assert "::error::" in install["run"]

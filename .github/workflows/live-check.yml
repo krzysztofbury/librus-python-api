@@ -58,7 +58,10 @@ jobs:
             uv build --no-sources --wheel --out-dir "$RUNNER_TEMP/dist"
             uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "$RUNNER_TEMP"/dist/*.whl
           else
-            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[1-9][0-9]*)?$ ]]
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[1-9][0-9]*)?$ ]]; then
+              echo "::error::version must look like 1.2.1 or 1.2.1rc1"
+              exit 1
+            fi
             uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "librus-python-api==$VERSION"
           fi
       - name: Run the live check

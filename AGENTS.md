@@ -11,9 +11,10 @@ client. Follow any workspace-level agent rules as well as these project rules.
   and independently authored fixtures.
 - Do not call live Librus without explicit authorization. Never use read-once
   schedule requests or message-sending calls for routine verification.
-- Daily credentialed CI is an intended feature. Live access is allowed only
-  after the owner configures the dedicated default-branch workflow, credentials,
-  account scope, allowed operations, and budgets. Ordinary tests and PR jobs
+- Weekly credentialed CI (`.github/workflows/live-check.yml`) is an intended
+  feature. Live access is allowed only after the owner configures the dedicated
+  default-branch workflow, credentials, account scope, allowed operations, and
+  budgets. Ordinary tests and PR jobs
   remain offline. Planning this workflow does not authorize ad hoc live calls.
 - Treat every configured Librus login as an independent security context, even
   when parent and student logins refer to the same student. Do not merge their
