@@ -16,7 +16,7 @@ Rules that hold for every release:
   `1.0.0rc1`.
 - Ordinary tests and CI stay offline. Live checks need explicit authorization
   and follow the workflow in [CONTRIBUTING.md](CONTRIBUTING.md#live-verification).
-  The weekly credentialed CI (P6-live) is implemented offline and not yet activated.
+  The weekly credentialed CI (P6-live) is active for one parent login.
 - A family is "verified" only after a live page from the current build has been
   checked. Record missing access as pending, never as passed.
 - Consumer (`librus-mcp`) changes are a separately authorized task.
@@ -776,7 +776,7 @@ Runbook: [RELEASE.md, Weekly live check](RELEASE.md#weekly-live-check).
 
 - [x] Add an isolated weekly/manual workflow for trusted default-branch code,
   using owner-provided environment secrets and an explicitly selected account
-  set. PR CI stays offline. Implemented offline; not yet activated.
+  set. PR CI stays offline. Activated on 2026-10-07.
 - [x] One Linux job with a shared concurrency group, finite timeout, no matrix
   and no automatic reruns; unattended once configured.
 - [x] Install the tested wheel (or an exact released version), log in once per
@@ -789,8 +789,10 @@ Runbook: [RELEASE.md, Weekly live check](RELEASE.md#weekly-live-check).
 - [x] Report only redacted status, version/commit, request counts, timings and
   coverage; prove redaction and allowed-operation enforcement offline.
 - [x] Missing secrets, missing expectations and unexecuted checks fail.
-- [ ] Owner activation: environment, secrets, recorded expectations and a first
-  passing scheduled run.
+- [x] Owner activation: environment `live-check` (main only), one parent login,
+  expectations recorded by manual run 37618200893, and a passing manual compare
+  run 37620382335 on 2026-10-07. The first scheduled run is on the following
+  Monday.
 - [ ] Freshness outside GitHub (an external watchdog for runs that never start)
   is not implemented; see the runbook limit.
 
