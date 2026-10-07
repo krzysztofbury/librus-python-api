@@ -756,6 +756,9 @@ ARCHIVE_MAX_DESCRIPTIVE = 32
 ARCHIVE_MAX_ACHIEVEMENTS = 256
 ARCHIVE_MAX_TEXT_LENGTH = 65536
 ARCHIVE_MAX_TOTAL_TEXT_LENGTH = 262144
+ARCHIVE_MAX_YEAR_HEADER_LENGTH = 1024 + len("Klasa:  Rok: 0000/0000")
+ARCHIVE_EMPTY_TITLE = "brak danych"
+ARCHIVE_EMPTY_BOX_CLASSES = frozenset({"warning-box", "information", "medium"})
 ANNOUNCEMENT_TABLE_CLASSES = frozenset(
     {"decorated", "big", "center", "printable", "margin-top"}
 )

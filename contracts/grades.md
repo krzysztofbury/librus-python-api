@@ -194,6 +194,100 @@ historical-login semantics. View caches never claim that upstream state is immut
 This is a documented local-first grade delivery, not complete account/layout or
 sustained-load qualification. Other school reads are outside 0.2.0.
 
+## School-year archive (1.3.0)
+
+`AccountClient.school_year_archive(*, budget=None, max_age_seconds=0.0)` reads
+the fixed GET `/archiwum`. All earlier years are rendered on one page; there is
+no year-selection request or session-view mutation. The parser ignores the
+student-name header, chart containers and scripts. It never calls the chart AJAX
+route or follows page links. Config and OpenAPI classify the read as retry-safe,
+`SideEffect.NONE`; authentication still has its ordinary last-login effects.
+Account identity, cache/coalescing, parser admission and original request/body/
+deadline budgets are inherited from the shared read path.
+
+The evidence is an owner-authorized read-only browser observation on 2026-10-07
+of one early-education parent account. The page showed three earlier years;
+menu counters were unchanged. A subsequent owner-authorized installed-wheel
+check on two independent parent logins confirmed populated and explicit empty
+archives, with notification counters unchanged. It also established the
+post-footer chart-table repair described below. Fixtures and all record values
+are independently authored synthetic examples. Older numeric layouts, populated
+behaviour, more than three years and broader school coverage remain unqualified.
+
+For a populated archive the parser requires one decorated archive table and one
+achievement table, located by their semantic first-row headers. Ancestor/nested
+tables fail with `PARSE`, except the observed trailing chart container below.
+The archive has an empty leading TD plus one colspan-3 TD per year,
+with span/b header markup; each year is a unique consecutive `YYYY/YYYY+1` pair
+with a nonempty class name. An empty leading period cell precedes repeated
+`okres 1`, `okres 2`, `koniec roku` columns. In order, the body contains:
+
+1. Subject rows (TH label, three TD marks per year) and descriptive rows (TH
+   label, one colspan-3 TD per year), with unique labels across both families.
+2. One `Zachowanie` heading and one row with an empty TH, then a TD and a
+   colspan-2 TD per year.
+3. One `Nieobecności` heading, then exactly one row for each upstream label:
+   `nieusprawiedlione`, `usprawiedlione`, `spóźnienia`. Spelling is intentional;
+   case is ignored. Each count is one to six ASCII digits, not a computed sum.
+4. One empty full-width footer row, with no subsequent archive rows.
+
+Achievement headers are `Data`, `Klasa`, `Kategoria`, `Osiągnięcie`; rows hold
+four TD cells with civil dates. A header-only table is an explicit empty list.
+An optional footer must be a single empty full-width TD and the final row.
+The live HTML leaves one bare nested table directly after the achievements
+TFOOT, containing charts/scripts. This final sibling is ignored only when it
+has no attributes, nested tables, rows, cells or table sections. Other nested
+tables still fail. Scripts are never executed or chart endpoints requested.
+Data cells allow plain text, with BR additionally allowed in descriptive and
+achievement text. Tooltips, event handlers and other child markup are unsupported
+rather than silently discarded. Whitespace is normalized; explicit BR boundaries
+remain newlines. Missing tables, an unfinished section sequence, duplicate
+years/labels, invalid dates/counts and contradictory footers fail with `PARSE`;
+unexpected section rows, unknown labels, markup and geometry fail with
+`UNSUPPORTED_CAPABILITY`.
+
+`SchoolYearArchive` carries identity, observation, per-year `ArchiveYear` records
+and `ArchiveAchievement` records. All school text and record containers are
+excluded from reprs. Empty marks and `-` stay unchanged. The archive's `year_end`
+mark is not asserted to be the same as `SubjectGradeSummary.annual`. Raw
+`behaviour_first_semester` and `behaviour_second_semester_and_year_end` preserve
+position without claiming populated semantics. Unlike current-grade parsing,
+these explicitly named raw fields do not infer grade kinds from their contents.
+
+The observed empty layout is a `warning-box information medium` DIV directly
+inside `container-background`, with a `warning-head` DIV containing one
+`warning-title` SPAN reading exactly `Brak danych` after normalization. With no
+archive/achievement or decorated data tables, it returns empty tuples for both
+collections. Duplicate notices and contradictions with data tables fail; a
+missing table without that marker still fails with `PARSE`. Repeated school
+years, including class changes, also fail with `PARSE`; no data is merged or
+silently dropped.
+Bounds are 16 years, 128 subjects, 32 descriptive rows, 256 achievements, 1024
+characters per label/mark/class/category, 65536 per long text cell and 262144
+rendered characters shared across both tables. Exceeding a bound raises `LIMIT`.
+Shared HTML byte/node/depth and transport limits remain in force.
+
+`tests/test_school_year_archive.py` owns parser values, geometry, malformed
+layouts, limits and header-name exclusion. `tests/test_account_reads.py` owns
+account isolation, coalescing, freshness, budgets, view-disabled handling,
+safe-read recovery and exact GET-without-body delivery. Weekly fixtures cover
+redaction and no-effect traffic. The weekly check reports only year counts and
+uses a method-availability guard for older pinned library releases. Its committed
+slot-0 expectation is empty, matching the dedicated live-check account rather
+than assuming another independent login's populated history applies. The focused
+installed live check passed on both layouts; a full weekly-profile run including
+the new read remains separate.
+
+### Per-grade detail finding (#40)
+
+In the same recorded browser observation, the per-grade detail page contained
+the mark, category, dates, teacher, subject, optional count flag, added-by field
+and full comment already present in the list tooltip. A correction row used
+TD/TD rather than TH/TD. No additional public field was established, so no new
+route or per-grade read is enabled. This closes that discovery question for the
+observed layout only; it does not establish every school's detail fields. The
+observation card remains separate work under #26.
+
 ## Observation card (not read)
 
 Observed on 2026-10-02 on both student contexts: the grades page can contain a

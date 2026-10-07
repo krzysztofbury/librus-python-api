@@ -51,6 +51,7 @@ Persistent state migration is not automatic or implemented by this release.
 | `0.7.0` | Application-keyed contexts, stdlib logging, POSIX metadata, lean archives and user-facing README | Implemented; offline qualification recorded in VERIFICATION.md |
 | `1.0.0rc1` | Library-only candidate on real PyPI | Published and public hashes/fresh installation verified; consumer acceptance pending |
 | `1.0.0` | Stable native library API for the later MCP 2.0 cutover | Published 2026-10-05; 1.0.1 to 1.2.1 followed on 2026-10-06 |
+| `1.3.0` | School-year archive read (#40), typed per-year records and guarded weekly coverage | Implemented; offline and installed populated/empty live checks in VERIFICATION.md. Publication evidence belongs in the versioned GitHub release; grade-detail observation adds no fields beyond list tooltips |
 | MCP `2.0.0` | Direct backend replacement and modernization (P8/P9, A01-A18) | Released as `librus-mcp` 2.0.0 and 2.0.1 on 2026-10-06, pinned to `librus-python-api` 1.0.2 |
 
 P0-P9 below are the detailed acceptance checklist for 1.0. Each release

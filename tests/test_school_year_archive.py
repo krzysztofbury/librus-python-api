@@ -1,6 +1,7 @@
 """Original contracts for the school-year archive page (`/archiwum`)."""
 
 from collections.abc import Callable
+from dataclasses import asdict
 from datetime import date
 
 import pytest
@@ -11,6 +12,7 @@ from librus_python_api.school_year_archive import parse_school_year_archive
 from tests.school_year_archive_support import (
     ABSENCES,
     CANARY_NAME,
+    EMPTY_ARCHIVE,
     SUBJECTS,
     YEARS,
     achievements_table,
@@ -83,7 +85,11 @@ def test_unobserved_numeric_layout_with_populated_behaviour_scales_with_years() 
 
 def test_header_only_achievements_table_is_an_explicit_empty_list() -> None:
     _, achievements = parse_school_year_archive(
-        archive_page(achievements=achievements_table(())).encode()
+        archive_page(
+            achievements=achievements_table(()).replace(
+                '<tfoot><tr><td colspan="4"></td></tr></tfoot>', ""
+            )
+        ).encode()
     )
     assert achievements == ()
 
@@ -103,6 +109,167 @@ def test_the_name_in_the_page_header_never_reaches_the_result() -> None:
     ]
     assert all(CANARY_NAME not in text for text in [rendered, *fields])
     assert "Fixture" not in repr(years[0])  # School text stays out of reprs.
+    assert CANARY_NAME not in repr([asdict(item) for item in years])
+    assert CANARY_NAME not in repr([asdict(item) for item in achievements])
+
+
+def test_explicit_archive_empty_notice_returns_empty_records() -> None:
+    assert parse(archive_page(archive="", achievements="", extra=EMPTY_ARCHIVE)) == (
+        (),
+        (),
+    )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        EMPTY_ARCHIVE * 2,
+        EMPTY_ARCHIVE.replace("Brak danych", "Fixture unknown notice"),
+        EMPTY_ARCHIVE.replace("warning-title", "fixture-title"),
+        EMPTY_ARCHIVE.replace("warning-head", "fixture-head"),
+        EMPTY_ARCHIVE.replace("information", "fixture-kind"),
+        EMPTY_ARCHIVE + '<table class="decorated"><tr><td>Fixture</td></tr></table>',
+    ],
+)
+def test_unknown_or_contradictory_empty_pages_are_not_silent_success(
+    extra: str,
+) -> None:
+    with pytest.raises(LibrusError):
+        parse(archive_page(archive="", achievements="", extra=extra))
+
+
+def test_empty_notice_cannot_override_populated_archive_tables() -> None:
+    with pytest.raises(LibrusError) as failure:
+        parse(archive_page(extra=EMPTY_ARCHIVE))
+    assert failure.value.kind is ErrorKind.PARSE
+
+
+def test_rowless_chart_table_after_achievements_footer_is_ignored() -> None:
+    # The upstream closing-table typo causes lxml to nest the chart container.
+    # Only this geometry is reproduced; all chart/text values are invented.
+    malformed = achievements_table().removesuffix("</table>") + (
+        "<table><br><script>fixture_chart();</script>"
+        "<div>Fixture chart label</div></table></table>"
+    )
+    expected = parse(archive_page())
+    assert parse(archive_page(achievements=malformed)) == expected
+
+
+@pytest.mark.parametrize(
+    "trailer",
+    [
+        "<table><tr><td>Fixture data</td></tr></table>",
+        "<table><div><table></table></div></table>",
+        '<table class="decorated"></table>',
+        "<table></table><div>Fixture later section</div>",
+    ],
+)
+def test_chart_exception_does_not_hide_nested_data_or_unknown_geometry(
+    trailer: str,
+) -> None:
+    table = achievements_table().removesuffix("</table>") + trailer + "</table>"
+    with pytest.raises(LibrusError) as failure:
+        parse(archive_page(achievements=table))
+    assert failure.value.kind is ErrorKind.PARSE
+
+
+def test_descriptions_and_achievements_preserve_explicit_line_breaks() -> None:
+    years, achievements = parse_school_year_archive(
+        archive_page(
+            archive=archive_table(
+                descriptive=(("Fixture skills", ("First<br>Second", "b", "c")),)
+            ),
+            achievements=achievements_table(
+                (("2042-05-17", "4", "Fixture", "Place<br>Details"),)
+            ),
+        ).encode()
+    )
+    assert years[0].descriptive[0].text == "First\nSecond"
+    assert achievements[0].text == "Place\nDetails"
+
+
+@pytest.mark.parametrize(
+    "before,after,kind",
+    [
+        (
+            '<td class="center">4</td>',
+            '<th class="center">4</th>',
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            '<td class="center">4</td>',
+            '<td title="Extra mark metadata">4</td>',
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            "<td>okres 1</td>",
+            "<td><a href='/x'>okres 1</a></td>",
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        ("<td>okres 1</td>", "<th>okres 1</th>", ErrorKind.UNSUPPORTED_CAPABILITY),
+        (
+            "<tr><td></td><td colspan=",
+            "<tr><th></th><td colspan=",
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            "<td>Data</td>",
+            "<td colspan='2'>Data</td>",
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            "<td>Data</td>",
+            "<td><a href='/x'>Data</a></td>",
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            "<td>2042-05-17</td>",
+            "<th>2042-05-17</th>",
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            '<td colspan="4"></td>',
+            '<td colspan="3"></td>',
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            '<td colspan="4"></td>',
+            '<td colspan="4"><a href="/x"></a></td>',
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        (
+            '<td colspan="10"></td>',
+            '<th colspan="10"></th>',
+            ErrorKind.UNSUPPORTED_CAPABILITY,
+        ),
+        ("<tfoot>", "<tfoot><tr><td colspan='10'></td></tr>", ErrorKind.PARSE),
+    ],
+)
+def test_unrecognized_cell_geometry_and_markup_are_not_flattened(
+    before: str, after: str, kind: ErrorKind
+) -> None:
+    page = archive_page()
+    assert before in page
+    with pytest.raises(LibrusError) as failure:
+        parse(page.replace(before, after, 1))
+    assert failure.value.kind is kind
+
+
+def test_an_archive_nested_in_a_wrapper_table_is_not_a_top_level_archive() -> None:
+    with pytest.raises(LibrusError) as failure:
+        parse(
+            archive_page(archive=f"<table><tr><td>{archive_table()}</td></tr></table>")
+        )
+    assert failure.value.kind is ErrorKind.PARSE
+
+
+def test_class_name_field_limit_is_not_reduced_by_the_year_header_prefix() -> None:
+    years, _ = parse_school_year_archive(
+        archive_page(
+            archive=archive_table(years=(("x" * 1024, "2041/2042"), *YEARS[1:]))
+        ).encode()
+    )
+    assert years[0].class_name == "x" * 1024
 
 
 def corrected(label: str) -> dict[str, tuple[tuple[str, str, str], ...]]:
@@ -115,6 +282,34 @@ def link_in_mark() -> str:
 
 
 MALFORMED: list[tuple[str, Callable[[], str], ErrorKind]] = [
+    (
+        "duplicate absence row",
+        lambda: archive_page(
+            archive=archive_table(
+                body_tail="<tr><th>spóźnienia</th>" + "<td>0</td>" * 9 + "</tr>"
+            )
+        ),
+        ErrorKind.PARSE,
+    ),
+    (
+        "no footer",
+        lambda: archive_page(archive=archive_table(footer="")),
+        ErrorKind.PARSE,
+    ),
+    (
+        "two achievement tables",
+        lambda: archive_page(achievements=achievements_table() * 2),
+        ErrorKind.PARSE,
+    ),
+    (
+        "row after footer",
+        lambda: archive_page(
+            archive=archive_table(
+                footer='<tr><td colspan="10"></td></tr><tr><td>Extra</td></tr>'
+            )
+        ),
+        ErrorKind.PARSE,
+    ),
     ("no archive table", lambda: archive_page(archive=""), ErrorKind.PARSE),
     (
         "two archive tables",
@@ -300,3 +495,112 @@ def test_oversized_text_is_a_limit_not_a_truncation() -> None:
     with pytest.raises(LibrusError) as failure:
         parse(page)
     assert failure.value.kind is ErrorKind.LIMIT
+
+
+@pytest.mark.parametrize("count", [16, 17])
+def test_year_count_boundary(count: int) -> None:
+    page = archive_page(
+        archive=archive_table(
+            years=tuple((f"{i}q", f"{2000 + i}/{2001 + i}") for i in range(count)),
+            subjects=(),
+            descriptive=(),
+            absences={label: (("0", "0", "0"),) * count for label in ABSENCES},
+        )
+    )
+    if count == 17:
+        with pytest.raises(LibrusError) as failure:
+            parse(page)
+        assert failure.value.kind is ErrorKind.LIMIT
+    else:
+        years, _ = parse_school_year_archive(page.encode())
+        assert len(years) == 16
+        assert years[-1].school_year == "2015/2016"
+
+
+@pytest.mark.parametrize(
+    "family,maximum", [("subjects", 128), ("descriptive", 32), ("achievements", 256)]
+)
+@pytest.mark.parametrize("overflow", [False, True])
+def test_collection_count_boundaries(family: str, maximum: int, overflow: bool) -> None:
+    count = maximum + overflow
+    if family == "subjects":
+        page = archive_page(
+            archive=archive_table(
+                subjects=tuple(
+                    (f"Fixture subject {i}", (("4", "5", "6"),) * 3)
+                    for i in range(count)
+                )
+            )
+        )
+    elif family == "descriptive":
+        page = archive_page(
+            archive=archive_table(
+                descriptive=tuple(
+                    (f"Fixture description {i}", ("a", "b", "c")) for i in range(count)
+                )
+            )
+        )
+    else:
+        page = archive_page(
+            achievements=achievements_table(
+                tuple(
+                    ("2042-05-17", "4q", "Fixture", f"Synthetic {i}")
+                    for i in range(count)
+                )
+            )
+        )
+    if overflow:
+        with pytest.raises(LibrusError) as failure:
+            parse(page)
+        assert failure.value.kind is ErrorKind.LIMIT
+    else:
+        years, achievements = parse_school_year_archive(page.encode())
+        items = achievements if family == "achievements" else getattr(years[0], family)
+        assert len(items) == maximum
+
+
+def test_total_text_budget_is_shared_across_both_tables() -> None:
+    page = archive_page(
+        archive=archive_table(descriptive=(("Fixture", ("x" * 60000,) * 3),)),
+        achievements=achievements_table(
+            (
+                ("2042-05-17", "4q", "Fixture", "x" * 60000),
+                ("2042-05-18", "4q", "Fixture", "x" * 60000),
+            )
+        ),
+    )
+    with pytest.raises(LibrusError) as failure:
+        parse(page)
+    assert failure.value.kind is ErrorKind.LIMIT
+
+
+@pytest.mark.parametrize("field", ["mark", "class", "text", "count"])
+@pytest.mark.parametrize("overflow", [False, True])
+def test_scalar_boundaries(field: str, overflow: bool) -> None:
+    if field == "class":
+        archive = archive_table(
+            years=(("x" * (1024 + overflow), "2041/2042"), *YEARS[1:])
+        )
+    elif field == "mark":
+        archive = archive_table(
+            subjects=(("Fixture", (("x" * (1024 + overflow), "", "-"),) * 3),)
+        )
+    elif field == "text":
+        archive = archive_table(
+            descriptive=(("Fixture", ("x" * (65536 + overflow), "", "")),)
+        )
+    else:
+        archive = archive_table(
+            absences=ABSENCES | {"spóźnienia": (("9" * (6 + overflow), "0", "1"),) * 3}
+        )
+    if overflow:
+        with pytest.raises(LibrusError) as failure:
+            parse(archive_page(archive=archive))
+        assert failure.value.kind is (
+            ErrorKind.PARSE if field == "count" else ErrorKind.LIMIT
+        )
+    else:
+        years, _ = parse_school_year_archive(archive_page(archive=archive).encode())
+        assert len(years) == 3
+        if field == "count":
+            assert years[0].absences.late == ArchiveCounts(999999, 0, 1)

@@ -33,6 +33,13 @@ ACHIEVEMENTS: tuple[tuple[str, str, str, str], ...] = (
     ("2043-03-02", "5", "Fixture olympiad", "Synthetic finalist."),
 )
 
+# Original structure-only fixture for the independently observed empty notice.
+EMPTY_ARCHIVE = (
+    '<div class="warning-box information medium"><div class="warning-head">'
+    '<span></span><span class="warning-title">Brak danych</span>'
+    "</div><div></div><div></div></div>"
+)
+
 
 def _year_header(class_name: str, school_year: str) -> str:
     return (

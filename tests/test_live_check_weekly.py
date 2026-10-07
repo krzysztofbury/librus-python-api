@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from librus_python_api import AccountClient
 from scripts.live_check.profiles import RELEASE, WEEKLY, month_bounds
 from scripts.live_check.report import Status, render_json, render_summary
 from scripts.live_check.runner import Profile
@@ -79,6 +80,7 @@ def test_weekly_profile_runs_every_check_without_side_effects() -> None:
         "agenda_detail",
         "homework_detail",
         "message_content_sent",
+        "school_year_archive",
     ):
         assert fixture.count(operation) == len(CANARY_LOGINS), operation
     assert fixture.count("message_content_received") == 0
@@ -92,6 +94,20 @@ def test_weekly_profile_runs_every_check_without_side_effects() -> None:
         for s in stages
     )
     assert not fixture.sends
+
+
+def test_weekly_skips_archive_when_an_older_library_lacks_the_method(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delattr(AccountClient, "school_year_archive")
+    fixture = WeeklyFixture()
+    report = run_fixture(WEEKLY, fixture, ("student",))
+    steps = report.slots[0].steps
+    archive = next(step for step in steps if step.step == "school_year_archive")
+    assert archive.status is Status.SKIPPED
+    assert fixture.count("school_year_archive") == 0
+    assert steps[-1].status is Status.OK
+    assert report.violations == []
 
 
 def test_weekly_output_carries_no_credentials_or_school_text() -> None:

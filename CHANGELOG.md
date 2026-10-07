@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 (2026-10-07) - School-year archive read
+
+Compatible minor release. Existing calls and results are unchanged.
+
+- Add `AccountClient.school_year_archive()` and frozen per-year records for
+  subject marks, descriptive text, raw behaviour cells, absence counts and
+  dated achievements. One read-only GET covers all earlier years without year
+  selection, chart requests or fetching grade-detail links.
+- Apply the shared account-isolated cache, coalescing, recovery and budgets.
+  Reject ambiguous tables, unknown markup and exceeded bounds without partial
+  output. Preserve empty marks and school-provided year-end values.
+- Add guarded weekly archive coverage with redacted year counts. Older pinned
+  libraries without the method skip this check. Installed live checks passed
+  on two parent logins, covering populated and explicit empty archives with
+  unchanged notification counters. Broader school-layout support is unqualified.
+- Recognize the observed `Brak danych` empty notice and the malformed HTML
+  chart container after the achievements footer. Nested tabular data still fails.
+- Record the #40 grade-detail finding: the observed page added no fields beyond
+  the list tooltip, so no separate grade-detail read is introduced.
+
 ## 1.2.1 (2026-10-06) - Live fixes for archive listing and teacher subjects
 
 Compatible patch release found by the new pre-publication live check. 1.1.0 and
