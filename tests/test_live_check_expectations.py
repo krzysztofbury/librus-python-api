@@ -78,6 +78,12 @@ def test_drift_is_reported_by_fixed_reason(
     assert compare(report_of(*steps), {0: expected}) == [reason]
 
 
+def test_an_expected_slot_that_did_not_run_fails() -> None:
+    # For example, all slot 1 secrets were removed after expectations existed.
+    expected = {0: {"grades": Expected.POPULATED}, 1: {"grades": Expected.ANY}}
+    assert compare(report_of(OK_POPULATED), expected) == ["slot 1 slot: not_executed"]
+
+
 def test_a_slot_without_expectations_fails() -> None:
     assert compare(report_of(OK_POPULATED), {}) == ["slot 0 slot: no_expectations"]
 

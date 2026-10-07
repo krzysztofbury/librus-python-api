@@ -94,6 +94,9 @@ def compare(
                 )
         for name in sorted(set(expected) - seen):
             problems.append(problem(slot.slot, name, "not_executed"))
+    ran = {slot.slot for slot in report.slots}
+    for missing in sorted(set(expectations) - ran):
+        problems.append(problem(missing, "slot", "not_executed"))
     return problems
 
 
