@@ -1,13 +1,15 @@
 """The live-check transport can only make declared, side-effect-free reads."""
 
 import asyncio
+import inspect
 
 import pytest
 
 from librus_python_api import RequestBudget
 from librus_python_api.config import ENDPOINTS
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from scripts.live_check.guard import EXCLUDED, SAFE, guarded
+from librus_python_api.transport import AiohttpTransport
+from scripts.live_check.guard import EXCLUDED, SAFE, GuardedTransport, guarded
 
 UNSAFE = sorted(
     name
@@ -82,3 +84,21 @@ def test_each_profile_transport_keeps_its_own_violations() -> None:
     first, second = guarded({"identity"}, ()), guarded({"identity"}, ())
     refused(first.__new__(first), "send_message")
     assert first.violations and not second.violations
+
+
+# Reviewed unguarded network methods: `follow` and `authenticate_modern` only
+# reach authentication routes; `aclose` closes sessions.
+REVIEWED = {"follow", "authenticate_modern", "aclose"}
+
+
+def test_every_transport_network_method_is_guarded_or_reviewed() -> None:
+    # A method added to the library later must be refused or reviewed here,
+    # because weekly runs exercise the current main build.
+    network = {
+        name
+        for name, member in inspect.getmembers(AiohttpTransport)
+        if not name.startswith("_")
+        and (inspect.iscoroutinefunction(member) or inspect.isasyncgenfunction(member))
+    }
+    overridden = {name for name in network if name in vars(GuardedTransport)}
+    assert network - overridden == REVIEWED
