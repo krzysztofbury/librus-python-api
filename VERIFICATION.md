@@ -3,6 +3,45 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Route observations and first weekly live checks (2026-10-06 to 2026-10-07)
+
+Owner-authorized browser check (#42, 2026-10-06, one parent login, read-only):
+these catalogue routes responded with the expected layouts: `identity`,
+`student_information`, `final_grades` and `grades` (default view),
+`attendance`, `attendance_detail`, `gateway_attendance`, `attendance_lessons`,
+`attendance_subjects`, `attendance_lesson`, `attendance_subject`, `timetable`,
+`announcements`, `agenda`, `agenda_detail`, `homework` (default view),
+`messages_received`, `messages_sent`, `recipient_groups`,
+`message_content_sent`, `modern_launch`, `modern_identity`,
+`modern_recipient_types`, `modern_recipients`, `modern_school_recipients`,
+`modern_messages_received` and `modern_messages_sent`. Also observed:
+
+- `completed_lessons` showed the school's disabled-view notice, which the
+  existing typed handling covers.
+- `behaviour_notes_probe` (`/uwagi`) showed the explicit empty state.
+- The announcement unread badge stayed after a GET, consistent with
+  `SideEffect.NONE` (one sample).
+- The menu links `/terminarz`, the catalogue uses `/terminarz/`; both
+  returned 200.
+
+Weekly live check (2026-10-07, one parent login): manual runs
+[37618200893](https://github.com/krzysztofbury/librus-python-api/actions/runs/37618200893)
+(`record`, `b6cf97d`) and
+[37620382335](https://github.com/krzysztofbury/librus-python-api/actions/runs/37620382335)
+(compare, `bafb535`) installed a wheel built from `main` (1.2.1) and passed:
+50 requests each, every check executed, no guard violations, one credential
+submission. Every weekly check returned populated data through the public
+library API except `completed_lessons` (view disabled) and `homework` and
+`homework_detail` (no homework in the month). This adds installed-library
+evidence beyond the browser check for the `recipients` POST, legacy and modern
+sent-content opens, both archive mailboxes, sender and receiver lists, teacher
+subjects, unread counters and the unread-only filter.
+
+Still pending: `homework_detail` (no populated month observed; the weekly check
+reads it whenever homework exists) and a populated `completed_lessons` page.
+Not exercised by design: received-content opens (mark read),
+`consume_schedule_events`, sends and attachments. No school data is recorded.
+
 ## 1.2.1 live release check (2026-10-06)
 
 The owner authorized `scripts/live_release_check.py` on the four configured
