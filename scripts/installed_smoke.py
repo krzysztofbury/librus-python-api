@@ -31,9 +31,14 @@ async def reads() -> None:
             client = service.account("fixture")
             profile = await client.student_information()
             grades = await client.final_grades()
+            archive = await client.school_year_archive()
             assert profile.identity.owner.id == "fixture" and grades.items
+            assert archive.identity == profile.identity
+            assert archive.years[0].school_year == "2041/2042"
+            assert archive.years[0].subjects[0].marks.year_end == "5"
+            assert archive.observation.source == "school_year_archive"
             assert len(client.context.identifier) == 64
-        assert len(fixture.reads) == 2
+        assert len(fixture.reads) == 3
 
 
 if __name__ == "__main__":

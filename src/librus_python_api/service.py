@@ -138,6 +138,7 @@ from librus_python_api.models import (
     SchedulerSnapshot,
     SchoolDetail,
     SchoolReference,
+    SchoolYearArchive,
     SendResult,
     SendSubmission,
     StudentInformation,
@@ -196,6 +197,7 @@ from librus_python_api.school_reads import (
     parse_homework,
     parse_school_detail,
 )
+from librus_python_api.school_year_archive import parse_school_year_archive
 from librus_python_api.sending import SendAttempt, parse_send_acknowledgement
 from librus_python_api.timetable import parse_timetable
 from librus_python_api.transport import (
@@ -1485,6 +1487,30 @@ class AccountClient:
             )
 
         return await self._read(("announcements",), fetch, budget, max_age_seconds)
+
+    async def school_year_archive(
+        self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
+    ) -> SchoolYearArchive:
+        """Read every earlier school year's summary and the achievements list.
+
+        One GET with no side effect; the page's student name and charts are
+        never read. A layout other than the observed one is unsupported.
+        """
+
+        async def fetch(budget: RequestBudget, _: bool) -> SchoolYearArchive:
+            years, achievements = await self._page(
+                "school_year_archive", budget, parse_school_year_archive
+            )
+            return SchoolYearArchive(
+                self._session_identity(),
+                years,
+                achievements,
+                self._observation("school_year_archive"),
+            )
+
+        return await self._read(
+            ("school_year_archive",), fetch, budget, max_age_seconds
+        )
 
     async def agenda(
         self,

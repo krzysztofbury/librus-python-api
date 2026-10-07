@@ -16,9 +16,10 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.0.x` freezes the documented native library API. It does not claim
-completed MCP cutover, production-state migration or universal live-school
-compatibility. Those consumer/live gates remain separate. School features depend
+**Status:** `1.3.0` adds a read-only school-year archive.
+Installed live checks passed for populated and empty
+archives on two parent logins; see [verification](VERIFICATION.md).
+The stable 1.x API does not guarantee every school layout. School features depend
 on what each account can access. See the [compatibility policy](API.md#compatibility-policy).
 See [limitations](#supported-features-and-limitations) below.
 
@@ -27,7 +28,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.2.1
+python -m pip install librus-python-api==1.3.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -43,7 +44,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.2.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.3.0-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.
@@ -124,6 +125,11 @@ attendance = await client.attendance_window(today.replace(day=1), today)
 
 # Permit reuse of this account's cached result for up to 60 seconds.
 announcements = await client.announcements(max_age_seconds=60)
+
+# Earlier school years, separate from the message archive (1.3.0).
+archive = await client.school_year_archive()
+for year in archive.years:
+    print(year.school_year, year.subjects)
 ```
 
 Collections expose named record tuples, for example `homework.items`, rather than
@@ -209,7 +215,7 @@ removed in 0.7.
 
 | Area | Available |
 | --- | --- |
-| School data | Profile, grades, attendance, timetable, announcements, agenda, homework and completed lessons |
+| School data | Profile, grades, school-year archive, attendance, timetable, announcements, agenda, homework and completed lessons |
 | Communication | Legacy/modern message lists and content, recipient discovery, bounded attachment streams and explicit sending |
 | Application workflows | Shared multi-account limits, caching, notification checkpoints, optional durable send/notification stores |
 

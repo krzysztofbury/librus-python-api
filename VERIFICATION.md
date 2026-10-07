@@ -3,6 +3,89 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## School-year archive, 1.3.0 preparation (#40, 2026-10-07)
+
+Implemented locally on `school-year-archive`: the typed read-only account read,
+strict per-year parser, catalogue/OpenAPI contract, shared read-suite coverage
+and guarded weekly check. Focused installed-library live qualification passed
+for populated and empty layouts. Publication evidence is tracked separately in
+the versioned GitHub release notes.
+
+The input evidence is an owner-authorized read-only browser observation of one
+early-education parent login on 2026-10-07: three earlier years on one page,
+unchanged menu counters and no year-selection/session switch. The observed
+grade-detail page added no fields beyond the list tooltip, so no grade-detail
+route is enabled. All fixtures are original synthetic markup and values; no
+raw school page or identifiable data is committed. See
+[the contract](contracts/grades.md#school-year-archive-130) for unobserved layouts
+and deliberate raw behaviour/empty-archive/duplicate-year handling.
+
+Local review used the pair-programmer checklist across the full branch. Fixed
+Important findings under TigerStyle #6 (positive and negative space) and #12
+(full error handling): descriptive BRs were rejected, while unsupported cell
+tags, tooltip metadata, period/header markup, achievement footer geometry and
+an ancestor wrapper table could pass. The year-header prefix also reduced the
+documented class-name limit. Regression cases failed before the fixes (14
+failures), then passed. Added explicit scalar/collection/total-text bounds and
+an older-library weekly skip proof. No unresolved Critical/Important findings
+remained in the local review.
+
+Initial offline qualification on Linux, Python 3.14.7 with locked dependencies,
+before the subsequent live-layout fixes below:
+
+- Focused parser, account-read, OpenAPI and weekly/expectation suites:
+  `385 passed`.
+- Full `uv run --locked pytest -q`: `1804 passed, 25 skipped, 1 deselected`.
+  The 25 skips require Windows NTFS; the deselection is the optional benchmark.
+- Ruff check and format check, strict mypy (166 source files), `uv lock --check`
+  and `pre-commit run --all-files`: passed.
+- Built the local wheel and sdist; strict Twine checks passed. Installed each
+  artifact in turn outside the checkout with locked dependencies: `uv pip check`,
+  the installed loopback runtime smoke (including archive values/identity/source)
+  and the same focused suite passed, `385 passed` per artifact. The smoke
+  verifies that imports resolve inside the artifact environment. These were
+  local development artifacts, not sealed or published release artifacts.
+
+### Authorized live confirmation and follow-up fixes
+
+The owner subsequently authorized live testing. The first installed-wheel run
+returned `PARSE`. Structure-only diagnostics, held in memory without saving raw
+pages, identified two gaps the original fixtures missed:
+
+- The populated page has a bare rowless chart table nested directly after the
+  achievements footer. The data sections already parsed correctly, but blanket
+  descendant-table rejection blocked the read. A narrow post-footer exception
+  now ignores this container; nested rows/cells/tables still fail.
+- The dedicated weekly account has an explicit `Brak danych` information notice,
+  rather than the populated archive of the other independent parent login.
+  The parser now recognizes that notice as empty and rejects conflicting data
+  tables. The weekly slot-0 expectation was corrected to `empty`.
+
+Original synthetic regressions reproduced three failures before the fixes and
+passed afterward. The focused offline suite then passed `398` tests. The full
+post-fix suite passed `1817` tests, with 25 Windows-only skips and one optional
+benchmark deselection. Ruff check/format, strict mypy and lock validation passed.
+
+The final check started at `2026-10-07T14:25:58Z`, using an installed local
+`1.3.0` wheel on Linux/Python 3.14.7 with locked runtime dependencies. Its SHA256
+was `d745380560967c4eff8ade0da5dc717fe628ccf2b228123e30fc7a0666223502`.
+This identifies the tested development artifact, not a sealed release artifact.
+The guarded focused profile ran identity, notification counters, the standard
+weekly archive probe and notification counters again. Limits were two separate
+logins, 12 requests and 90 seconds per login, 180 seconds overall; no retries
+or reauthentication. Results:
+
+- Populated layout: `OK`, three years, 12 requests, counters unchanged.
+- Explicit empty layout: `OK`, zero years, 12 requests, counters unchanged.
+- All eight checks passed; no transport guard violations. No received messages,
+  chart requests, files, read-once events or notification persistence were used.
+  Authentication has its ordinary last-login effects. Scratch wheels and
+  environments were removed after each run.
+
+This confirms the two tested layouts, not every school or every account role.
+The complete weekly profile and hosted platform/release gates were not run as
+part of this focused confirmation.
+
 ## Route observations and first weekly live checks (2026-10-06 to 2026-10-07)
 
 Owner-authorized browser check (#42, 2026-10-06, one parent login, read-only):

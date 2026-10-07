@@ -191,7 +191,45 @@ source)` with an aware UTC timestamp.
   selection. It reuses only that view's cache; averages and undated summaries
   remain outside the window.
 
-The observation card ("Karta spostrzeżeń") shown on some grades pages is not
+### School-year archive (1.3.0)
+
+`school_year_archive(*, budget=None, max_age_seconds=0.0)` returns
+`SchoolYearArchive(identity, years, achievements, observation)`. It performs one
+read-only GET for all earlier years, with the same per-login cache, coalescing,
+budgets and safe-read session recovery as `announcements()`. There is no year
+selection or chart request. This is separate from the modern message archive.
+
+- `years` contains `ArchiveYear` in page order: `class_name`, `school_year`,
+  `first_year`, `subjects`, `descriptive`, two raw behaviour fields and `absences`.
+- Each `ArchiveSubject(subject, marks)` has `ArchiveMarks(first_semester,
+  second_semester, year_end)`. Empty text and `-` remain distinct. `year_end` is
+  not asserted to equal `SubjectGradeSummary.annual`.
+- `ArchiveDescriptive(label, text)` keeps whole-year text, with explicit BR
+  boundaries as newlines. Source whitespace is normalized.
+- `behaviour_first_semester` and `behaviour_second_semester_and_year_end` retain
+  positional text. Populated behaviour semantics have not been observed.
+- `ArchiveAbsences(unexcused, excused, late)` contains `ArchiveCounts` with the
+  same three period names. Counts are rendered integers, never summed or repaired.
+- `achievements` contains `ArchiveAchievement(day, class_name, category, text)`;
+  `day` is a civil `date`. A header-only achievements table yields an empty tuple.
+
+All archive types are root exports. School text and record containers are omitted
+from reprs; the page's student-name header does not enter archive records.
+Limits: 16 unique consecutive school-year pairs, 128 subject rows, 32 descriptive
+rows, 256 achievements, 1024 characters per short field, 65536 per long text
+cell and 262144 total rendered characters, plus the shared transport/tree bounds.
+
+The observed `Brak danych` information notice returns empty `years` and
+`achievements`. Missing tables without that explicit marker still raise `PARSE`;
+an empty notice combined with data tables is rejected. Repeated school years
+(including a class-change layout) are ambiguous and raise `PARSE`. Unknown
+geometry/markup raises `UNSUPPORTED_CAPABILITY`; bounds raise `LIMIT`, never
+partial success. Consumers must handle these states before exposing the read.
+See [archive evidence and limitations](contracts/grades.md#school-year-archive-130).
+
+The observed grade-detail page added no fields beyond the list tooltip, so
+there is no separate per-grade detail request. This finding is limited to the
+observed layout. The observation card ("Karta spostrzeżeń") shown on some grades pages is not
 read yet.
 
 ## Attendance

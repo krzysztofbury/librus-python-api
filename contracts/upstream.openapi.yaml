@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.2.1
+  version: 1.3.0
   license:
     name: MIT
   description: |
@@ -1498,6 +1498,63 @@ paths:
         entries. Session isolation must not be replaced by reference equality.
         Final layout/evidence details
         are recorded in contracts/announcements.md and VERIFICATION.md.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
+  /archiwum:
+    get:
+      operationId: school_year_archive
+      tags: [Grades]
+      summary: Read the summary of every earlier school year
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Owner-authorized browser observation and installed-wheel checks on 2026-10-07 of two independent parent logins covered three earlier years and an explicit empty archive; notification counters were unchanged. Populated behaviour cells, older numeric layouts, more years and broader school coverage remain unqualified. Original synthetic fixtures; see VERIFICATION.md.
+      description: |
+        Fixed GET with no form, query, year selection or session change. The
+        page renders every earlier school year at once. The library never reads
+        the header table with the student's name, the chart containers or the
+        chart AJAX POST. Account-isolated sessions/cache/coalescing and shared
+        request/deadline/body/parser budgets apply; only proven session expiry
+        permits one safe-read recovery within the original budget.
+        Exactly one archive table is located by its first row: an empty cell and
+        one colspan-3 cell per year reading "Klasa: <class> Rok: <YYYY>/<YYYY+1>"
+        (span/b children only). The next row repeats okres 1, okres 2 and koniec
+        roku per year. The body is read in order: subject rows (TH plus three
+        mark cells per year, rendered text with "-" and empty preserved) and
+        descriptive rows (TH plus one colspan-3 text cell per year, with BR
+        preserved as line breaks) in any order
+        with unique labels; one bolded Zachowanie heading and exactly one
+        behaviour row (empty TH, then per year one cell and one colspan-2 cell,
+        kept as raw positional text without asserted meaning); one bolded
+        Nieobecnosci heading and exactly the rows nieusprawiedlione,
+        usprawiedlione and spoznienia (upstream spelling) with three ASCII
+        integer counts per year; then one empty footer row. Achievements come
+        from exactly one table headed Data, Klasa, Kategoria, Osiagniecie with
+        four-TD rows (ISO civil date, BR allowed in achievement text) and an
+        optional single empty full-width footer; a header-only table
+        is the explicit empty case.
+        Live malformed HTML nests a bare chart table as the final direct child
+        after the achievements TFOOT. Only that single attribute-free container,
+        with no nested tables, rows, cells or table sections, is ignored.
+        Unknown headings, labels, geometry, tooltips, event handlers or markup
+        inside data cells are an
+        unsupported capability; contradictions inside the known layout (missing
+        or several tables, duplicate labels or years, non-consecutive years,
+        missing sections, invalid counts or dates, other nested tables, nonempty
+        footers) are parse errors. The observed warning-box information medium
+        DIV inside container-background, with warning-head / warning-title SPAN
+        text Brak danych, explicitly yields empty years and achievements when
+        data tables are absent. Duplicated notices or contradictions with data
+        tables fail; missing tables without the notice still fail.
+        Limits are 16 years, 128 subjects, 32 descriptive rows, 256
+        achievements, 1024 characters per label, mark, class and category,
+        65536 per text cell and 262144 rendered characters per page, plus shared
+        byte/tree/depth/request/admission bounds. Details are in
+        contracts/grades.md.
       security: [{SessionCookie: []}]
       responses:
         '200': {$ref: '#/components/responses/Html'}
