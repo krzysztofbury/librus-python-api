@@ -6,6 +6,7 @@ import pytest
 
 from scripts.live_check.profiles import RELEASE, WEEKLY, month_bounds
 from scripts.live_check.report import Status, render_json, render_summary
+from scripts.live_check.runner import Profile
 from tests.http_support import FIXTURE_SECRET
 from tests.live_check_support import WeeklyFixture, run_fixture
 
@@ -102,3 +103,20 @@ def test_weekly_output_carries_no_credentials_or_school_text() -> None:
         "student-shared",
     ):
         assert canary not in output
+
+
+@pytest.mark.parametrize("profile", [RELEASE, WEEKLY], ids=lambda p: p.name)
+def test_a_lost_session_is_never_repaired_by_logging_in_again(
+    profile: Profile,
+) -> None:
+    fixture = WeeklyFixture()
+    # The counter page redirects to login, as after an upstream logout.
+    fixture.failures["student_information"] = [302]
+    report = run_fixture(profile, fixture, ("student",))
+    assert fixture.logins == {"student": 1}
+    assert report.violations == ["login_submit"]
+    steps = report.slots[0].steps
+    assert steps[0].status is Status.OK
+    assert (steps[1].step, steps[1].status) == ("notification_counts", Status.ERROR)
+    assert {s.status for s in steps[2:]} == {Status.NOT_RUN}
+    assert not report.passed

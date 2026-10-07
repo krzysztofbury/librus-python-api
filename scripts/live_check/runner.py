@@ -81,9 +81,13 @@ def _fatal(result: StepResult) -> bool:
     return result.status is Status.FAILED and result.kind in FATAL_CODES
 
 
-async def run_slot(checks: Sequence[Check], context: Context) -> list[StepResult]:
+async def run_slot(
+    checks: Sequence[Check], context: Context, violations: Sequence[str] = ()
+) -> list[StepResult]:
+    """Run checks in order; a fatal error or a guard refusal ends the login."""
     results: list[StepResult] = []
     statuses: dict[str, Status] = {}
+    refused = len(violations)
     stopped = False
     for item in checks:
         result = (
@@ -93,7 +97,7 @@ async def run_slot(checks: Sequence[Check], context: Context) -> list[StepResult
         )
         results.append(result)
         statuses[item.name] = result.status
-        stopped = stopped or _fatal(result)
+        stopped = stopped or _fatal(result) or len(violations) > refused
     return results
 
 
@@ -134,7 +138,7 @@ async def run_profile(
                 service.account(alias), budget, today, (identities or {}).get(alias)
             )
             started = time.monotonic()
-            steps = await run_slot(profile.checks, context)
+            steps = await run_slot(profile.checks, context, transport.violations)
             report.slots.append(
                 SlotReport(
                     index,

@@ -1,9 +1,11 @@
 """A transport that can only make a profile's declared, side-effect-free reads.
 
 Authentication (`login_*`) and the modern session handoff are allowed, as the
-library performs them itself. Everything else must be declared by a check and
-be marked `none` or `select_view` in config.py, which mirrors the OpenAPI
-contract. Refusals are recorded so a run can never pass after a refusal.
+library performs them itself, but credentials are submitted at most once per
+login: the library's recovery of an expired session must not log in again.
+Everything else must be declared by a check and be marked `none` or
+`select_view` in config.py, which mirrors the OpenAPI contract. Refusals are
+recorded so a run can never pass after a refusal.
 """
 
 from collections.abc import Iterable, Mapping
@@ -45,7 +47,11 @@ class GuardedTransport(AiohttpTransport):
         reference_id: str | None = None,
         query: Mapping[str, str] | None = None,
     ) -> TransportResponse:
-        if not endpoint_id.startswith("login_") and (
+        if endpoint_id == "login_submit":
+            if getattr(self, "_credentials_submitted", False):
+                self._refuse(endpoint_id)
+            self._credentials_submitted = True
+        elif not endpoint_id.startswith("login_") and (
             endpoint_id not in self.allowed
             or (reference_id is not None and endpoint_id not in self.with_reference)
         ):
