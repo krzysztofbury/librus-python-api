@@ -1,1 +1,48 @@
-{"slots": {}}
+{
+  "slots": {
+    "0": {
+      "checks": {
+        "agenda": "any",
+        "agenda_detail": "any",
+        "announcements": "populated",
+        "attendance": "any",
+        "attendance_detail": "any",
+        "attendance_frequency": "populated",
+        "attendance_window": "any",
+        "completed_lessons": "disabled",
+        "filtered_page received": "populated",
+        "filtered_page sent": "populated",
+        "final_grades": "any",
+        "grades": "any",
+        "grades_window": "any",
+        "homework": "any",
+        "homework_detail": "any",
+        "identity": "populated",
+        "legacy_messages received": "populated",
+        "legacy_messages sent": "populated",
+        "legacy_sent_content": "populated",
+        "modern_archive_page received": "populated",
+        "modern_archive_page sent": "populated",
+        "modern_correspondents received": "populated",
+        "modern_correspondents sent": "populated",
+        "modern_identity": "populated",
+        "modern_page received": "populated",
+        "modern_page sent": "populated",
+        "modern_recipient_types": "populated",
+        "modern_recipients": "populated",
+        "modern_sent_content": "populated",
+        "modern_teacher_subjects": "populated",
+        "modern_unread_counts": "populated",
+        "notification_counts": "populated",
+        "recipient_groups": "populated",
+        "recipients": "populated",
+        "session_alive": "populated",
+        "student_information": "populated",
+        "subject_frequency": "any",
+        "timetable": "any",
+        "unread_only_page": "any"
+      },
+      "role": "parent"
+    }
+  }
+}
