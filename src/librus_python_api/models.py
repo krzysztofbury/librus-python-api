@@ -38,6 +38,7 @@ type OperationName = Literal[
     "attachment_download",
     "recipient_groups",
     "recipients",
+    "school_year_archive",
     "notification_counts",
     "consume_schedule_events",
     "decode_schedule_events",
@@ -775,6 +776,79 @@ class Announcement:
 class Announcements:
     identity: Identity
     items: tuple[Announcement, ...] = field(repr=False)
+    observation: Observation
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveCounts:
+    """Counts per period as rendered; the year-end value is not checked as a sum."""
+
+    first_semester: int
+    second_semester: int
+    year_end: int
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveAbsences:
+    unexcused: ArchiveCounts
+    excused: ArchiveCounts
+    late: ArchiveCounts
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveMarks:
+    """Rendered marks; "-" and empty text are preserved, never invented.
+
+    `year_end` is the archive's year-end column, not asserted to equal the
+    published annual grade of `SubjectGradeSummary`.
+    """
+
+    first_semester: str = field(repr=False)
+    second_semester: str = field(repr=False)
+    year_end: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveSubject:
+    subject: str = field(repr=False)
+    marks: ArchiveMarks = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveDescriptive:
+    label: str = field(repr=False)
+    text: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveYear:
+    """One earlier school year. Behaviour cells are raw positional text: the
+    first-semester column and the cell spanning second semester and year end;
+    their populated meaning is not established."""
+
+    class_name: str = field(repr=False)
+    school_year: str = field(repr=False)
+    first_year: int = field(repr=False)
+    subjects: tuple[ArchiveSubject, ...] = field(repr=False)
+    descriptive: tuple[ArchiveDescriptive, ...] = field(repr=False)
+    behaviour_first_semester: str = field(repr=False)
+    behaviour_second_semester_and_year_end: str = field(repr=False)
+    absences: ArchiveAbsences = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class ArchiveAchievement:
+    day: date = field(repr=False)
+    class_name: str = field(repr=False)
+    category: str = field(repr=False)
+    text: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class SchoolYearArchive:
+    identity: Identity
+    years: tuple[ArchiveYear, ...] = field(repr=False)
+    achievements: tuple[ArchiveAchievement, ...] = field(repr=False)
     observation: Observation
 
 

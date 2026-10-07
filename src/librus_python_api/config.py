@@ -722,6 +722,32 @@ ANNOUNCEMENT_MAX_ITEMS = 256
 ANNOUNCEMENT_MAX_FIELD_LENGTH = 1024
 ANNOUNCEMENT_MAX_CONTENT_LENGTH = 65536
 ANNOUNCEMENT_MAX_TOTAL_TEXT_LENGTH = 262144
+
+# School-year archive (/archiwum): labels as rendered upstream, including the
+# absence spellings. Matching is case-insensitive and exact otherwise.
+ARCHIVE_TABLE_CLASSES = frozenset({"decorated"})
+ARCHIVE_ACHIEVEMENT_TABLE_CLASSES = frozenset({"decorated", "big", "center"})
+ARCHIVE_YEAR_PATTERN = (
+    r"Klasa: (?P<class_name>\S(?:.*\S)?) Rok: (?P<first>[0-9]{4})/(?P<second>[0-9]{4})"
+)
+ARCHIVE_PERIOD_LABELS = ("okres 1", "okres 2", "koniec roku")
+ARCHIVE_BEHAVIOUR_HEADING = "zachowanie"
+ARCHIVE_ABSENCES_HEADING = "nieobecności"
+ARCHIVE_ABSENCE_LABELS = MappingProxyType(
+    {
+        "nieusprawiedlione": "unexcused",
+        "usprawiedlione": "excused",
+        "spóźnienia": "late",
+    }
+)
+ARCHIVE_ACHIEVEMENT_HEADERS = ("data", "klasa", "kategoria", "osiągnięcie")
+ARCHIVE_YEAR_HEADER_TAGS = frozenset({"span", "b"})
+ARCHIVE_MAX_YEARS = 16
+ARCHIVE_MAX_SUBJECTS = 128
+ARCHIVE_MAX_DESCRIPTIVE = 32
+ARCHIVE_MAX_ACHIEVEMENTS = 256
+ARCHIVE_MAX_TEXT_LENGTH = 65536
+ARCHIVE_MAX_TOTAL_TEXT_LENGTH = 262144
 ANNOUNCEMENT_TABLE_CLASSES = frozenset(
     {"decorated", "big", "center", "printable", "margin-top"}
 )
