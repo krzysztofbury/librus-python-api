@@ -1,0 +1,83 @@
+name: Weekly live check
+
+# Credentialed, read-only drift check against live Librus. Runs trusted main
+# code only. Secrets live in the `live-check` environment, restricted to main.
+# See RELEASE.md, "Weekly live check".
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released version to check instead of main, such as 1.2.1'
+        required: false
+        default: ''
+        type: string
+      record:
+        description: 'Print the observed coverage map instead of comparing expectations'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  live:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: live-check
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: '0.12.7'
+          checksum: 788f18abea7c5f55d6216e4f5613fd89d4d59b631efeec117b2b07fe72f1da21
+          enable-cache: false
+      - name: Install the build under test
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          uv python install 3.14
+          uv export --quiet --locked --no-emit-project --no-dev --format requirements-txt --output-file "$RUNNER_TEMP/deps.txt"
+          uv venv --python 3.14 "$RUNNER_TEMP/live"
+          uv pip install --python "$RUNNER_TEMP/live/bin/python" --require-hashes --requirement "$RUNNER_TEMP/deps.txt"
+          if [[ -z "$VERSION" ]]; then
+            uv build --no-sources --wheel --out-dir "$RUNNER_TEMP/dist"
+            uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "$RUNNER_TEMP"/dist/*.whl
+          else
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[1-9][0-9]*)?$ ]]; then
+              echo "::error::version must look like 1.2.1 or 1.2.1rc1"
+              exit 1
+            fi
+            uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "librus-python-api==$VERSION"
+          fi
+      - name: Run the live check
+        env:
+          LIBRUS_LIVE_LOGIN_0: ${{ secrets.LIBRUS_LIVE_LOGIN_0 }}
+          LIBRUS_LIVE_PASSWORD_0: ${{ secrets.LIBRUS_LIVE_PASSWORD_0 }}
+          LIBRUS_LIVE_IDENTITY_0: ${{ secrets.LIBRUS_LIVE_IDENTITY_0 }}
+          LIBRUS_LIVE_LOGIN_1: ${{ secrets.LIBRUS_LIVE_LOGIN_1 }}
+          LIBRUS_LIVE_PASSWORD_1: ${{ secrets.LIBRUS_LIVE_PASSWORD_1 }}
+          LIBRUS_LIVE_IDENTITY_1: ${{ secrets.LIBRUS_LIVE_IDENTITY_1 }}
+          RECORD: ${{ inputs.record }}
+        run: |
+          args=(run --profile weekly --from-env --summary "$GITHUB_STEP_SUMMARY")
+          if [[ "$RECORD" == "true" ]]; then
+            args+=(--record)
+          else
+            args+=(--expectations contracts/live-check-expectations.json)
+          fi
+          "$RUNNER_TEMP/live/bin/python" -m scripts.live_check "${args[@]}"

@@ -1,5 +1,7 @@
 # librus-python-api
 
+[![Weekly live check](https://github.com/krzysztofbury/librus-python-api/actions/workflows/live-check.yml/badge.svg?branch=main)](https://github.com/krzysztofbury/librus-python-api/actions/workflows/live-check.yml)
+
 Read grades, attendance, homework, timetables and messages from **Librus Synergia**
 in Python. This independent, asynchronous client handles login, session recovery,
 pagination and request limits, returning typed Python objects rather than HTML.
