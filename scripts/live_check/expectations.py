@@ -9,8 +9,8 @@ from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any
 
-from librus_python_api.exceptions import ErrorKind
 from scripts.live_check.report import (
+    AVAILABILITY_KINDS,
     STEP,
     Coverage,
     Report,
@@ -20,12 +20,6 @@ from scripts.live_check.report import (
 )
 
 ROLES = frozenset({"parent", "student", "unknown"})
-# Errors that describe availability rather than a broken read.
-COVERAGE_ERRORS = {
-    ErrorKind.VIEW_DISABLED.value: Coverage.DISABLED,
-    ErrorKind.ACCESS_DENIED.value: Coverage.UNAVAILABLE,
-    ErrorKind.UNSUPPORTED_CAPABILITY.value: Coverage.UNAVAILABLE,
-}
 
 
 class Expected(StrEnum):
@@ -40,7 +34,7 @@ def observed(step: StepResult) -> Coverage | None:
     if step.status is Status.OK:
         return step.coverage
     if step.status is Status.ERROR and step.kind is not None:
-        return COVERAGE_ERRORS.get(step.kind)
+        return AVAILABILITY_KINDS.get(step.kind)
     return None
 
 

@@ -6,9 +6,16 @@ from typing import Any
 
 from librus_python_api import AccountCredentials, ConnectionSettings, RequestBudget
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from scripts.live_check.checks import Context
+from scripts.live_check.checks import Check, Context, Observed, check
+from scripts.live_check.expectations import Expected, compare
 from scripts.live_check.profiles import RELEASE
-from scripts.live_check.report import Report, Status, render_json
+from scripts.live_check.report import (
+    Report,
+    SlotReport,
+    Status,
+    StepResult,
+    render_json,
+)
 from scripts.live_check.runner import release_problems, run_profile, run_slot
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.test_modern_communication import CommunicationFixture
@@ -137,3 +144,40 @@ def test_a_lost_session_marks_every_later_check_not_run_without_calling_it() -> 
     assert (steps[1].status, steps[1].kind) == (Status.ERROR, "session_expired")
     assert {s.status for s in steps[2:]} == {Status.NOT_RUN}  # includes session_alive
     assert client.later_calls == 0
+
+
+def stub_profile(kind: ErrorKind) -> tuple[Check, ...]:
+    @check("parent_view")
+    async def parent(_: Context) -> Observed:
+        raise LibrusError(kind)
+
+    @check("child_view", after="parent_view")
+    async def child(_: Context) -> Observed:
+        raise AssertionError("a dependent of a failed check must not run")
+
+    return (parent, child)
+
+
+def run_stub(checks: tuple[Check, ...]) -> list[StepResult]:
+    context = Context(object(), RequestBudget(max_requests=5), date(2026, 10, 7))
+    return asyncio.run(run_slot(checks, context))
+
+
+def test_dependents_of_an_unavailable_view_share_its_expected_coverage() -> None:
+    steps = run_stub(stub_profile(ErrorKind.VIEW_DISABLED))
+    assert [(s.step, s.status, s.kind) for s in steps] == [
+        ("parent_view", Status.ERROR, "view_disabled"),
+        ("child_view", Status.ERROR, "view_disabled"),
+    ]
+    report = Report("weekly", "1.2.1", "installed", "unknown", "now")
+    report.slots.append(SlotReport(0, 1, 0.0, steps))
+    expected = {0: {"parent_view": Expected.DISABLED, "child_view": Expected.DISABLED}}
+    assert compare(report, expected) == []
+
+
+def test_dependents_of_a_broken_check_are_not_run() -> None:
+    steps = run_stub(stub_profile(ErrorKind.PARSE))
+    assert [(s.status, s.kind) for s in steps] == [
+        (Status.ERROR, "parse"),
+        (Status.NOT_RUN, None),
+    ]

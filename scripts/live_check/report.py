@@ -30,6 +30,15 @@ class Coverage(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+# Error kinds that describe whether a view exists for an account rather than a
+# broken read; they map to a coverage value an expectation can name.
+AVAILABILITY_KINDS = {
+    "view_disabled": Coverage.DISABLED,
+    "access_denied": Coverage.UNAVAILABLE,
+    "unsupported_capability": Coverage.UNAVAILABLE,
+}
+
+
 @dataclass(frozen=True, slots=True)
 class StepResult:
     step: str

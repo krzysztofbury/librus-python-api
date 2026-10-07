@@ -17,6 +17,7 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from scripts.live_check.checks import Check, CheckFailed, Context
 from scripts.live_check.guard import guarded
 from scripts.live_check.report import (
+    AVAILABILITY_KINDS,
     IDENTIFIER,
     Report,
     SlotReport,
@@ -53,10 +54,19 @@ class Profile:
 
 
 async def execute(
-    check: Check, context: Context, statuses: Mapping[str, Status]
+    check: Check, context: Context, done: Mapping[str, StepResult]
 ) -> StepResult:
-    if check.after is not None and statuses.get(check.after) is not Status.OK:
-        return StepResult(check.name, Status.NOT_RUN)
+    if check.after is not None:
+        prerequisite = done.get(check.after)
+        if prerequisite is None or prerequisite.status is not Status.OK:
+            if (
+                prerequisite is not None
+                and prerequisite.status is Status.ERROR
+                and prerequisite.kind in AVAILABILITY_KINDS
+            ):
+                # Not reachable for this account, like its prerequisite.
+                return StepResult(check.name, Status.ERROR, kind=prerequisite.kind)
+            return StepResult(check.name, Status.NOT_RUN)
     if not check.requires(context.client):
         return StepResult(check.name, Status.SKIPPED)
     try:
@@ -86,17 +96,17 @@ async def run_slot(
 ) -> list[StepResult]:
     """Run checks in order; a fatal error or a guard refusal ends the login."""
     results: list[StepResult] = []
-    statuses: dict[str, Status] = {}
+    done: dict[str, StepResult] = {}
     refused = len(violations)
     stopped = False
     for item in checks:
         result = (
             StepResult(item.name, Status.NOT_RUN)
             if stopped
-            else await execute(item, context, statuses)
+            else await execute(item, context, done)
         )
         results.append(result)
-        statuses[item.name] = result.status
+        done[item.name] = result
         stopped = stopped or _fatal(result) or len(violations) > refused
     return results
 
