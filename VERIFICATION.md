@@ -22,9 +22,10 @@ with `unsupported_capability`, because the live assessment cell nests the
 empty marker inside the link, which the synthetic fixture had placed beside it.
 After correcting the fixture to the observed markup and the parser, a second
 run read grades on both logins with two formative items each, both mirrored in
-the grid. Student-login rendering therefore matches the parent login. The two
-logins of the other family were not checked. Release gate: the same check on
-the remaining logins, then publication; both pending.
+the grid. Student-login rendering therefore matches the parent login. A third
+run on the other family's parent and student logins also passed, with six
+formative items each, all mirrored in the grid. All four configured logins
+pass; publication is pending.
 
 ## School-year archive, 1.3.0 preparation (#40, 2026-10-07)
 
