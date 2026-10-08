@@ -3,6 +3,18 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Formative grades, 1.4.0 preparation (#26, 2026-10-08)
+
+Owner-authorized browser observation of one parent login (read-only, structure
+only, notification counters unchanged) established the "Oceny kształtujące"
+table, the "KARTA SPOSTRZEŻEŃ" pseudo-subject, matching IDs between the grid
+and the table, and a detail page adding only visibility. Implemented offline
+on `formative-grades` with original synthetic fixtures: the formative parser,
+computed `formative_id` with a pinned 1.3.0 grade identity and decode test,
+window filtering and weekly counts. Not observed: grouped subjects (rowspan
+greater than 1), other type values, student logins, other schools. Installed
+live qualification and publication are pending.
+
 ## School-year archive, 1.3.0 preparation (#40, 2026-10-07)
 
 Implemented locally on `school-year-archive`: the typed read-only account read,

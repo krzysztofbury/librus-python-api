@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.3.0
+  version: 1.4.0
   license:
     name: MIT
   description: |
@@ -890,6 +890,17 @@ paths:
         common subject/column/value/tree/transport/parser/operation bounds.
         Date-window filtering uses the same complete supported collection and
         creates no extra upstream operation or per-window cache.
+        The same page's formative-assessment table ("Oceny kształtujące", whose
+        subject may be the pseudo-subject KARTA SPOSTRZEŻEŃ) is read from its
+        exact header labels (Przedmiot, Ocena kształtująca, Kategoria, Okres,
+        Data, Typ): subject TH (a rowspan groups following rows), one formative
+        detail link with the full text plus an empty marker, category, period 1
+        or 2, ISO date and type. A missing section yields no formative items; a
+        hidden template row (ID 000000) is skipped; unknown markup, foreign or
+        stray formative links are unsupported; duplicates, broken groups, bad
+        periods or dates and nonempty footers fail. Formative detail links are
+        recognised, never requested. Grid records keep their fields; the
+        formative ID is computed, so stored record identities do not change.
       security: [{SessionCookie: []}]
       requestBody:
         required: true

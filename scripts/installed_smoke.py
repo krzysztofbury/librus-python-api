@@ -7,6 +7,12 @@ from importlib.resources import files
 from pathlib import Path
 
 import librus_python_api
+from tests.grade_records_support import (
+    FORMATIVE_LINK,
+    formative_table,
+    grade_box,
+    grades_html,
+)
 from tests.http_support import serve
 from tests.reads_support import ReadsFixture
 
@@ -25,6 +31,9 @@ def main() -> None:
 
 async def reads() -> None:
     fixture = ReadsFixture()
+    box = grade_box("T", "2041-09-15", href=FORMATIVE_LINK.format("901"))
+    page = grades_html(box, subject="KARTA SPOSTRZEŻEŃ", extra=formative_table())
+    fixture.bodies["grades"] = (page.encode(), "text/html")
     async with serve(fixture.app()) as origin:
         fixture.origin = origin
         async with fixture.service(("fixture",)) as service:
@@ -37,8 +46,11 @@ async def reads() -> None:
             assert archive.years[0].school_year == "2041/2042"
             assert archive.years[0].subjects[0].marks.year_end == "5"
             assert archive.observation.source == "school_year_archive"
+            records = (await client.grades()).records
+            assert [f.detail_id for f in records.formative] == ["901", "902"]
+            assert records.numeric[0].formative_id == "901"
             assert len(client.context.identifier) == 64
-        assert len(fixture.reads) == 3
+        assert len(fixture.reads) == 4
 
 
 if __name__ == "__main__":
