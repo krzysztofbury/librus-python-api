@@ -16,9 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.3.0` adds a read-only school-year archive.
-Installed live checks passed for populated and empty
-archives on two parent logins; see [verification](VERIFICATION.md).
+**Status:** `1.4.0` adds formative assessments, including the observation card,
+to grade results. The 1.3.0 archive read passed installed live checks for
+populated and empty archives on two parent logins; see [verification](VERIFICATION.md).
 The stable 1.x API does not guarantee every school layout. School features depend
 on what each account can access. See the [compatibility policy](API.md#compatibility-policy).
 See [limitations](#supported-features-and-limitations) below.
@@ -28,7 +28,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.3.0
+python -m pip install librus-python-api==1.4.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -44,7 +44,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.3.0-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.4.0-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.
@@ -219,8 +219,8 @@ removed in 0.7.
 | Communication | Legacy/modern message lists and content, recipient discovery, bounded attachment streams and explicit sending |
 | Application workflows | Shared multi-account limits, caching, notification checkpoints, optional durable send/notification stores |
 
-Completed lessons may be disabled by the school. Behaviour notes and observation
-cards are not implemented. Some recipient, archive and receipt layouts remain
+Completed lessons may be disabled by the school. Behaviour notes are not
+implemented. Some recipient, archive and receipt layouts remain
 unqualified; backend acceptance is not proof of delivery. Tests cover supported
 contracts, not every school or role. Detailed coverage is in the
 [verification log][verification] and [roadmap][roadmap].

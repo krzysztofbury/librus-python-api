@@ -8,6 +8,12 @@ from librus_python_api import AccountClient
 from scripts.live_check.profiles import RELEASE, WEEKLY, month_bounds
 from scripts.live_check.report import Status, render_json, render_summary
 from scripts.live_check.runner import Profile
+from tests.grade_records_support import (
+    FORMATIVE_LINK,
+    formative_table,
+    grade_box,
+    grades_html,
+)
 from tests.http_support import FIXTURE_SECRET
 from tests.live_check_support import WeeklyFixture, run_fixture
 from tests.school_year_archive_support import CANARY_NAME
@@ -139,3 +145,15 @@ def test_a_lost_session_is_never_repaired_by_logging_in_again(
     assert (steps[1].step, steps[1].status) == ("notification_counts", Status.ERROR)
     assert {s.status for s in steps[2:]} == {Status.NOT_RUN}
     assert not report.passed
+
+
+def test_weekly_grades_step_reports_formative_counts_only() -> None:
+    fixture = WeeklyFixture()
+    box = grade_box("T", "2041-09-15", href=FORMATIVE_LINK.format("901"))
+    body = grades_html(box, subject="KARTA SPOSTRZEŻEŃ", extra=formative_table())
+    fixture.bodies["grades"] = (body.encode(), "text/html")
+    report = run_fixture(WEEKLY, fixture, ("student",))
+    step = next(s for s in report.slots[0].steps if s.step == "grades")
+    assert step.status is Status.OK
+    assert dict(step.facts)["formative"] == 2
+    assert dict(step.facts)["formative_in_grid"] == 1

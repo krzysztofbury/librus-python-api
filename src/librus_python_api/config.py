@@ -721,6 +721,18 @@ ATTENDANCE_MAX_LESSONS = 4096
 ATTENDANCE_MAX_SUBJECTS = 1024
 # Collection recognition and detail retrieval share this central path family.
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
+# Recognition only: formative detail links are classified, never requested.
+FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
+FORMATIVE_HEADERS = (
+    "przedmiot",
+    "ocena kształtująca",
+    "kategoria",
+    "okres",
+    "data",
+    "typ",
+)
+FORMATIVE_TEMPLATE_ID = "000000"
+FORMATIVE_MAX_TEXT_LENGTH = 65536
 ATTENDANCE_DETAIL_MAX_FIELDS = 32
 ATTENDANCE_METADATA_CACHE_SIZE = 256
 ATTENDANCE_RESULT_CACHE_SIZE = 64

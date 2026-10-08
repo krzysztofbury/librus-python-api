@@ -1019,6 +1019,19 @@ class NumericGrade:
     metadata: tuple[tuple[str, str], ...] = field(repr=False)
     kind: GradeKind = GradeKind.CURRENT
 
+    @property
+    def formative_id(self) -> str | None:
+        """The formative-assessment ID when `href` is a formative detail link.
+
+        Computed, not a field: canonical notification IDs hash the record's
+        fields, so stored identities stay unchanged.
+        """
+        # Lazy import: config imports this module.
+        from librus_python_api.config import FORMATIVE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
+
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveGrade:
@@ -1031,6 +1044,19 @@ class DescriptiveGrade:
     metadata: tuple[tuple[str, str], ...] = field(repr=False)
     kind: GradeKind = GradeKind.CURRENT
     href: str | None = field(default=None, repr=False)
+
+    @property
+    def formative_id(self) -> str | None:
+        """The formative-assessment ID when `href` is a formative detail link.
+
+        Computed, not a field: canonical notification IDs hash the record's
+        fields, so stored identities stay unchanged.
+        """
+        # Lazy import: config imports this module.
+        from librus_python_api.config import FORMATIVE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1052,6 +1078,22 @@ class DescriptiveGradeSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class FormativeGrade:
+    """One row of the grades page's formative-assessment ("Oceny kształtujące")
+    table. "KARTA SPOSTRZEŻEŃ" (observation card) appears as a subject value.
+    The same item may also appear in the grid with a matching `formative_id`.
+    """
+
+    subject: str = field(repr=False)
+    text: str = field(repr=False)
+    category: str = field(repr=False)
+    semester: Literal[1, 2]
+    day: date = field(repr=False)
+    assessment_type: str = field(repr=False)
+    detail_id: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class GradeRecords:
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
@@ -1059,6 +1101,7 @@ class GradeRecords:
     descriptive_summaries: tuple[DescriptiveGradeSummary, ...] = field(
         default=(), repr=False
     )
+    formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1078,6 +1121,7 @@ class GradeWindow:
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
     observation: Observation
     view: GradeView = GradeView.ALL
+    formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

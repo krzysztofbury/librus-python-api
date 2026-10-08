@@ -3,6 +3,30 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Formative grades, 1.4.0 preparation (#26, 2026-10-08)
+
+Owner-authorized browser observation of one parent login (read-only, structure
+only, notification counters unchanged) established the "Oceny kształtujące"
+table, the "KARTA SPOSTRZEŻEŃ" pseudo-subject, matching IDs between the grid
+and the table, and a detail page adding only visibility. Implemented offline
+on `formative-grades` with original synthetic fixtures: the formative parser,
+computed `formative_id` with a pinned 1.3.0 grade identity and decode test,
+window filtering and weekly counts. Not observed: grouped subjects (rowspan
+greater than 1), other type values, student logins, other schools. A second
+read-only check located the page's template box (an ordinary grade link to
+`000000` in a hidden table without THEAD) and added it as a regression fixture.
+Installed weekly-profile live check in record mode (owner-authorized,
+2026-10-08, one parent and one student login of the same family, one login
+each, no guard violations): the first run failed the grades read on both logins
+with `unsupported_capability`, because the live assessment cell nests the
+empty marker inside the link, which the synthetic fixture had placed beside it.
+After correcting the fixture to the observed markup and the parser, a second
+run read grades on both logins with two formative items each, both mirrored in
+the grid. Student-login rendering therefore matches the parent login. A third
+run on the other family's parent and student logins also passed, with six
+formative items each, all mirrored in the grid. All four configured logins
+pass; publication is pending.
+
 ## School-year archive, 1.3.0 preparation (#40, 2026-10-07)
 
 Implemented locally on `school-year-archive`: the typed read-only account read,

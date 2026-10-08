@@ -65,8 +65,8 @@ each release is in [VERIFICATION.md](VERIFICATION.md).
   disabled.
 - [ ] Behaviour notes: implement the public read once a populated page is
   observed ([decision](contracts/behaviour-notes.md)).
-- [ ] Grades page observation card ("Karta spostrzeżeń", formative assessments):
-  design a typed read. It is shown on both observed students' pages.
+- [x] Grades page observation card ("Karta spostrzeżeń", formative assessments):
+  1.4.0 reads the formative table into `GradeRecords.formative` (#26, card half).
 - [ ] Broaden coverage: other schools and roles, populated last-login views,
   custom attendance types, full-year subject-frequency resolution, parallel
   group lessons in the timetable, empty and rich announcement layouts, and

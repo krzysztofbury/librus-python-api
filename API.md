@@ -229,8 +229,16 @@ See [archive evidence and limitations](contracts/grades.md#school-year-archive-1
 
 The observed grade-detail page added no fields beyond the list tooltip, so
 there is no separate per-grade detail request. This finding is limited to the
-observed layout. The observation card ("Karta spostrzeżeń") shown on some grades pages is not
-read yet.
+observed layout.
+
+Formative assessments (1.4.0) come from the same page with no extra request.
+`grades().records.formative` and `grades_window(...).formative` hold
+`FormativeGrade(subject, text, category, semester, day, assessment_type,
+detail_id)`; the observation card ("KARTA SPOSTRZEŻEŃ") appears as a subject
+value. The same items stay in `numeric`/`descriptive` unchanged; their
+`formative_id` property (computed, not a field, so stored notification
+identities are unchanged) links them to `detail_id`. A page without the
+section returns `()`. See [formative grades](contracts/grades.md#formative-grades-and-the-observation-card-140).
 
 ## Attendance
 

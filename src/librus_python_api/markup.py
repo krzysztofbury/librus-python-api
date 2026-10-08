@@ -131,8 +131,19 @@ def attendance_detail_id(element: html.HtmlElement) -> str | None:
     )
     if match is None:
         return None
+    return detail_id(match[2], ATTENDANCE_DETAIL_PATH_PREFIX)
+
+
+def detail_id(link: str | None, prefix: str) -> str | None:
+    """The numeric ID of a relative or same-origin Synergia detail link.
+
+    Recognition only: the link is never followed. Queries, fragments, other
+    origins, credentials and non-digit IDs are not detail links.
+    """
+    if link is None or len(link) > GRADE_MAX_METADATA_LENGTH:
+        return None
     try:
-        target = urlsplit(match[2])
+        target = urlsplit(link)
     except ValueError:
         return None
     if target.query or target.fragment or target.username or target.password:
@@ -141,7 +152,7 @@ def attendance_detail_id(element: html.HtmlElement) -> str | None:
         expected = urlsplit(UPSTREAM_ORIGINS["synergia"])
         if (target.scheme, target.netloc) != (expected.scheme, expected.netloc):
             return None
-    if not target.path.startswith(ATTENDANCE_DETAIL_PATH_PREFIX):
+    if not target.path.startswith(prefix):
         return None
-    identifier = target.path[len(ATTENDANCE_DETAIL_PATH_PREFIX) :]
+    identifier = target.path[len(prefix) :]
     return identifier if re.fullmatch(r"[0-9]{1,64}", identifier) else None

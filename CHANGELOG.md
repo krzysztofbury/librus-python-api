@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.0 - Formative assessments and the observation card
+
+Compatible minor release. Existing fields, results and stored notification
+identities are unchanged. One new failure mode: a page whose formative table
+is recognised but uses unknown markup (for example an empty-state row, markup
+inside the assessment text or a stray formative link) now fails the grades
+read instead of being ignored, rather than returning partial output.
+
+- Add `GradeRecords.formative` and `GradeWindow.formative`: `FormativeGrade`
+  records from the grades page's "Oceny kształtujące" table, including the
+  "KARTA SPOSTRZEŻEŃ" observation card, read from the page `grades()` already
+  fetches. No request is added; formative detail links are never followed.
+- Add the computed `formative_id` property to `NumericGrade` and
+  `DescriptiveGrade`, identifying grid records that mirror a formative item.
+  It is not a dataclass field, so grade notification identities stay stable.
+- Reject unknown formative markup and stray formative links instead of
+  dropping them; a page without the section has no formative items.
+- The weekly live check reports formative counts for the grades step.
+
 ## 1.3.0 (2026-10-07) - School-year archive read
 
 Compatible minor release. Existing calls and results are unchanged.

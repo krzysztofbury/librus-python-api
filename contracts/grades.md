@@ -286,15 +286,51 @@ and full comment already present in the list tooltip. A correction row used
 TD/TD rather than TH/TD. No additional public field was established, so no new
 route or per-grade read is enabled. This closes that discovery question for the
 observed layout only; it does not establish every school's detail fields. The
-observation card remains separate work under #26.
+observation card is covered in the formative section below (#26).
 
-## Observation card (not read)
+## Formative grades and the observation card (1.4.0)
 
-Observed on 2026-10-02 on both student contexts: the grades page can contain a
-separate table headed "KARTA SPOSTRZEŻEŃ". Each row has a coloured marker, a
-free-text observation, an area (for example "OBSZAR I POZYTYWNE"), points, a
-date and a type such as "Bieżąca". Detail links use
-`/przegladaj_oceny/szczegoly/ksztaltujace/<id>`. `grades()` does not read this
-table, and the reference client does not either. Every real grade box on those pages became a
-record. The page also contains one hidden template box (detail ID `000000`),
-which is correctly ignored.
+Observed on 2026-10-08 on one parent login (owner-authorized, read-only,
+structure only; notification counters unchanged). The grades page has an H3
+"Oceny kształtujące" section with a `stretch decorated` table whose THEAD row
+holds TD labels Przedmiot, Ocena kształtująca, Kategoria, Okres, Data and Typ.
+Body rows have a subject TH, a cell with one formative detail link
+(`/przegladaj_oceny/szczegoly/ksztaltujace/<id>`, link text is the full
+assessment text) plus an empty `span.grade-box` marker, the category, the
+period, an ISO date and the type; the footer is one empty cell.
+
+"KARTA SPOSTRZEŻEŃ" (observation card) is a pseudo-subject: it is the
+Przedmiot of formative rows and a subject row of the grade grid. Real subjects
+carry formative items too. This corrects the 2026-10-02 note recorded here
+for two student contexts, which read that subject cell as a table heading and
+the integer column as points; the observed header is "Okres" (period).
+Student-login rendering is not re-verified.
+
+`GradeRecords.formative` returns `FormativeGrade` records from this table, and
+`GradeWindow.formative` filters them by date. The grid already returned the
+same items as ordinary records (same IDs); they are unchanged. Their computed
+`formative_id` property identifies them. It is deliberately not a dataclass
+field: grade notification identities hash the record's fields, and a new field
+would change every stored identity.
+
+Rules: exact header labels; a subject TH may span its group with `rowspan`
+(only rowspan 1 was observed; grouping is synthetic coverage); exactly the
+observed cell vocabulary; a hidden template row with ID `000000` is skipped.
+Unknown markup, foreign links and formative links outside both known tables
+are unsupported. Duplicate IDs, broken groups, periods other than 1 or 2,
+invalid dates and nonempty footers fail. Formative rows count toward the
+2048-record bound; assessment text is bounded at 65536 characters.
+
+Compatibility note: 1.3.0 ignored this table. From 1.4.0 a recognised but
+unknown formative layout (an empty-state row, markup inside the assessment
+text, category-sort grouping beyond the supported rowspan form) fails the
+whole grades read instead of returning partial output. The observed template
+box is an ordinary grade link to detail ID `000000` in a separate hidden table
+without THEAD; it is not formative and is still ignored.
+
+Choices: a page without the section yields no formative items, because the
+week and last-login views may not render it; the parser does not cross-check
+the grid against the table. The view semantics of the table are not
+established, so `formative` may include items outside the selected view. The
+formative detail page added only "Widoczność" (visibility) beyond the table
+and tooltip, so no detail request is enabled.
