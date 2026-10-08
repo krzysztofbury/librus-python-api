@@ -136,7 +136,7 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 __all__ = [
     "ArchiveAbsences",

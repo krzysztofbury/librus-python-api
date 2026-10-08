@@ -34,13 +34,25 @@ def attachment_html(
 
 
 def sent_content_html(
-    receipts: tuple[tuple[str, str], ...] = (
+    receipts: tuple[tuple[str, ...], ...] = (
         ("Fixture Office", "2026-10-03 09:00:00"),
     ),
 ) -> str:
-    """Original sent shape: no correspondent field, separate recipient receipts."""
+    """Original sent shape: no correspondent field, separate recipient receipts.
+
+    A three-value receipt adds the observed middle class-label column
+    (recipient, class, status); values here are invented.
+    """
     rows = "".join(
-        f"<tr><td>{name}</td><td>{status}</td></tr>" for name, status in receipts
+        "<tr>"
+        + "".join(
+            f'<td class="center small">{value}</td>'
+            if len(receipt) == 3 and index == 1
+            else f"<td>{value}</td>"
+            for index, value in enumerate(receipt)
+        )
+        + "</tr>"
+        for receipt in receipts
     )
     return f"""<html><body><table class="stretch"><tbody>
     <tr><td>Temat</td><td>Fixture sent subject</td></tr>

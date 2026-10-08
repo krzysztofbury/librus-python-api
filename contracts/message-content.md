@@ -88,3 +88,15 @@ and body semantics agree with the independent rendered evidence.
 
 No received content was opened in 0.4.5. Sent downloads, richer metadata,
 multiple-recipient live receipts and other read-status variants remain pending.
+
+## 1.5.0 recipient class column (#60)
+
+A structure-only observation (2026-10-08, one parent login, sent open only)
+found the same `Przeczytano` heading spanning three columns, followed by
+three-cell rows: recipient, a centred class label, and the status. Another
+parent login's first sent message kept the two-cell rows on the same day. The
+label is kept raw as `recipient_class`; an empty middle cell (not observed)
+becomes `None`. Every row of one table must have the width of the first data
+row, two or three cells; mixed or other widths are `UNSUPPORTED_CAPABILITY`.
+What decides whether the column is shown is not established. Original
+invented fixtures cover both layouts; no school text was recorded.

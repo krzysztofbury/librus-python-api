@@ -57,26 +57,33 @@ def _recipient_receipts(
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     result = []
     total = 0
+    # Rows are recipient/status, or recipient/class/status when the page adds
+    # the class-label column; one table never mixes the two.
+    width = len(cells(table_rows[1]))
     for row in table_rows[1:]:
         columns = cells(row)
-        if len(columns) != 2 or any(
-            c.tag != "td"
-            or c.get("colspan", "1") != "1"
-            or c.get("rowspan", "1") != "1"
-            or next(c.iterdescendants("table"), None) is not None
-            for c in columns
+        if (
+            len(columns) != width
+            or width not in (2, 3)
+            or any(
+                c.tag != "td"
+                or c.get("colspan", "1") != "1"
+                or c.get("rowspan", "1") != "1"
+                or next(c.iterdescendants("table"), None) is not None
+                for c in columns
+            )
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        recipient, status = [
-            text(c, MESSAGE_MAX_FIELD_LENGTH, multiline=True) for c in columns
-        ]
+        values = [text(c, MESSAGE_MAX_FIELD_LENGTH, multiline=True) for c in columns]
+        recipient, status = values[0], values[-1]
         if not recipient or not status:
             raise LibrusError(ErrorKind.PARSE)
-        total += len(recipient) + len(status)
+        total += sum(map(len, values))
         if total > MESSAGE_MAX_RECEIPT_TEXT_LENGTH:
             raise LibrusError(ErrorKind.LIMIT)
         stamp = None if status == "NIE" else _timestamp(status)
-        result.append(MessageRecipientReceipt(recipient, status, stamp))
+        label = values[1] if width == 3 and values[1] else None
+        result.append(MessageRecipientReceipt(recipient, status, stamp, label))
     return tuple(result)
 
 
