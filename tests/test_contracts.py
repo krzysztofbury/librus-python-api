@@ -1,3 +1,4 @@
+import re
 from copy import deepcopy
 from typing import Any
 
@@ -8,6 +9,14 @@ from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 from librus_python_api import __version__
 from librus_python_api.config import ENDPOINTS, Endpoint, Evidence, SideEffect
 from tests.contract_support import SPEC_PATH, check_contract
+
+CHANGELOG = SPEC_PATH.parents[1] / "CHANGELOG.md"
+
+
+def test_the_package_version_has_a_dated_changelog_entry() -> None:
+    # The release gate refuses a tag without one; catch it before merging.
+    heading = rf"^## {re.escape(__version__)} \([0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}\)"
+    assert re.search(heading, CHANGELOG.read_text(), re.MULTILINE)
 
 
 def fixture_contract() -> dict[str, Any]:

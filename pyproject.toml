@@ -56,6 +56,8 @@ include = ["/src", "/pyproject.toml", "/uv.lock", "/README.md", "/SECURITY.md", 
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib -ra -m 'not performance'"
+# Dump every thread's stack if one test runs this long, so a hang names itself.
+faulthandler_timeout = 300
 markers = [
   "performance: opt-in hardware-sensitive resource measurements",
 ]
