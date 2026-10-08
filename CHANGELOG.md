@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 - Formative assessments and the observation card
+## 1.4.0 (2026-10-08) - Formative assessments and the observation card
 
 Compatible minor release. Existing fields, results and stored notification
 identities are unchanged. One new failure mode: a page whose formative table
