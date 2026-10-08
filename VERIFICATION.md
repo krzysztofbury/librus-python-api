@@ -15,11 +15,16 @@ window filtering and weekly counts. Not observed: grouped subjects (rowspan
 greater than 1), other type values, student logins, other schools. A second
 read-only check located the page's template box (an ordinary grade link to
 `000000` in a hidden table without THEAD) and added it as a regression fixture.
-Release gate: an installed weekly-profile live check in record mode
-(`python -m scripts.live_check run --profile weekly --secrets FILE --record`,
-which reads grades) on every configured login, students included, must pass
-before publication; the release profile does not read grades. Both the check
-and publication are pending.
+Installed weekly-profile live check in record mode (owner-authorized,
+2026-10-08, one parent and one student login of the same family, one login
+each, no guard violations): the first run failed the grades read on both logins
+with `unsupported_capability`, because the live assessment cell nests the
+empty marker inside the link, which the synthetic fixture had placed beside it.
+After correcting the fixture to the observed markup and the parser, a second
+run read grades on both logins with two formative items each, both mirrored in
+the grid. Student-login rendering therefore matches the parent login. The two
+logins of the other family were not checked. Release gate: the same check on
+the remaining logins, then publication; both pending.
 
 ## School-year archive, 1.3.0 preparation (#40, 2026-10-07)
 

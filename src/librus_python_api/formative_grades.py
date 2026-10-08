@@ -56,27 +56,32 @@ def _plain(cell: html.HtmlElement) -> str:
 
 
 def _link(cell: html.HtmlElement) -> tuple[str, str]:
-    """The detail ID and full text of the assessment cell."""
+    """The detail ID and full text of the assessment cell.
+
+    Observed: one link whose optional first child is an empty coloured
+    `span.grade-box` marker, followed by the text. Anything else is new markup.
+    """
     _single(cell)
-    anchors = [node for node in cell if node.tag == "a"]
-    markers = [
-        node
-        for node in cell
-        if node.tag == "span" and "grade-box" in node.get("class", "").split()
-    ]
-    others = [
-        node
-        for node in cell.iterdescendants()
-        if isinstance(node.tag, str) and node not in anchors and node not in markers
-    ]
-    if len(anchors) != 1 or len(markers) > 1 or others:
+    anchors = [node for node in cell if isinstance(node.tag, str)]
+    if len(anchors) != 1 or anchors[0].tag != "a":
         _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
-    if markers and markup.text(markers[0]):
-        _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
-    identifier = markup.detail_id(anchors[0].get("href"), FORMATIVE_DETAIL_PATH_PREFIX)
+    anchor = anchors[0]
+    children = [node for node in anchor.iterdescendants() if isinstance(node.tag, str)]
+    if children:
+        marker = children[0]
+        if (
+            len(children) != 1
+            or marker.getparent() is not anchor
+            or anchor.index(marker) != 0
+            or marker.tag != "span"
+            or "grade-box" not in marker.get("class", "").split()
+            or markup.text(marker)
+        ):
+            _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
+    identifier = markup.detail_id(anchor.get("href"), FORMATIVE_DETAIL_PATH_PREFIX)
     if identifier is None:
         _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
-    return identifier, markup.text(anchors[0], FORMATIVE_MAX_TEXT_LENGTH)
+    return identifier, markup.text(anchor, FORMATIVE_MAX_TEXT_LENGTH)
 
 
 def _template(row: html.HtmlElement) -> bool:

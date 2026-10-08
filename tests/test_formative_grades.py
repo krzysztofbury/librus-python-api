@@ -234,6 +234,26 @@ MALFORMED = [
         UnsupportedCapabilityError,
     ),
     (
+        "marker beside the link",
+        bad(
+            formative_row(
+                assessment=f'<a href="{FORMATIVE_LINK.format(1)}">x</a>'
+                '<span class="grade-box"></span>'
+            )
+        ),
+        UnsupportedCapabilityError,
+    ),
+    (
+        "marker with text",
+        bad(
+            formative_row(
+                assessment=f'<a href="{FORMATIVE_LINK.format(1)}">'
+                '<span class="grade-box">x</span>y</a>'
+            )
+        ),
+        UnsupportedCapabilityError,
+    ),
+    (
         "foreign link",
         bad(
             formative_row(

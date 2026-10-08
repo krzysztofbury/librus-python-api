@@ -70,11 +70,16 @@ def formative_cells(
     *,
     assessment: str | None = None,
 ) -> str:
-    """The five data cells of one formative row, in the observed order."""
+    """The five data cells of one formative row, in the observed order.
+
+    Observed 2026-10-08: the empty coloured marker is the link's first child,
+    and the link carries empty title and class attributes.
+    """
     if assessment is None:
         assessment = (
-            f'<a href="{FORMATIVE_LINK.format(detail)}">{text}</a>'
-            '<span class="grade-box"></span>'
+            f'<a title="" class="" href="{FORMATIVE_LINK.format(detail)}">'
+            '<span class="grade-box" style="background-color: #fixture;"></span>'
+            f"{text}</a>"
         )
     return (
         f'<td class="spacing">{assessment}</td>'
