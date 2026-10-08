@@ -1019,6 +1019,19 @@ class NumericGrade:
     metadata: tuple[tuple[str, str], ...] = field(repr=False)
     kind: GradeKind = GradeKind.CURRENT
 
+    @property
+    def formative_id(self) -> str | None:
+        """The formative-assessment ID when `href` is a formative detail link.
+
+        Computed, not a field: canonical notification IDs hash the record's
+        fields, so stored identities stay unchanged.
+        """
+        # Lazy import: config imports this module.
+        from librus_python_api.config import FORMATIVE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
+
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveGrade:
@@ -1031,6 +1044,19 @@ class DescriptiveGrade:
     metadata: tuple[tuple[str, str], ...] = field(repr=False)
     kind: GradeKind = GradeKind.CURRENT
     href: str | None = field(default=None, repr=False)
+
+    @property
+    def formative_id(self) -> str | None:
+        """The formative-assessment ID when `href` is a formative detail link.
+
+        Computed, not a field: canonical notification IDs hash the record's
+        fields, so stored identities stay unchanged.
+        """
+        # Lazy import: config imports this module.
+        from librus_python_api.config import FORMATIVE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
 
 
 @dataclass(frozen=True, slots=True)
