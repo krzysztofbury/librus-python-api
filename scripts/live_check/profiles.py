@@ -217,7 +217,16 @@ async def student_information(ctx: Context) -> Observed:
 async def grades(ctx: Context) -> Observed:
     records = (await ctx.client.grades(budget=ctx.budget)).records
     numeric, descriptive = len(records.numeric), len(records.descriptive)
-    return coverage_of(numeric + descriptive, numeric=numeric, descriptive=descriptive)
+    facts: dict[str, int | bool] = {"numeric": numeric, "descriptive": descriptive}
+    formative = getattr(records, "formative", None)  # absent before 1.4.0
+    if formative is not None:
+        facts["formative"] = len(formative)
+        facts["formative_in_grid"] = sum(
+            1
+            for grade in (*records.numeric, *records.descriptive)
+            if getattr(grade, "formative_id", None) is not None
+        )
+    return coverage_of(numeric + descriptive, **facts)
 
 
 @check("grades_window", reads={"grades"})

@@ -1307,6 +1307,11 @@ class AccountClient:
             ),
             result.observation,
             result.view,
+            tuple(
+                g
+                for g in result.records.formative
+                if (start is None or start <= g.day) and (end is None or g.day <= end)
+            ),
         )
 
     async def attendance(

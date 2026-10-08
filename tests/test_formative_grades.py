@@ -1,5 +1,6 @@
 """Formative grades on the grades page: identity safety, recognition, parsing."""
 
+import asyncio
 from dataclasses import asdict, fields
 from datetime import date
 
@@ -21,12 +22,14 @@ from librus_python_api.models import (
 )
 from tests.grade_records_support import (
     FORMATIVE_LINK,
+    GradeRecordsFixture,
     formative_cells,
     formative_row,
     formative_table,
     grade_box,
     grades_html,
 )
+from tests.http_support import serve
 
 FORMATIVE_PATH = "/przegladaj_oceny/szczegoly/ksztaltujace/987"
 
@@ -270,3 +273,25 @@ def test_malformed_formative_markup_fails_with_a_typed_error(
 ) -> None:
     with pytest.raises(error):
         parse_grade_records(body)
+
+
+def test_grades_window_filters_formative_items_by_inclusive_dates() -> None:
+    async def scenario() -> None:
+        fixture = GradeRecordsFixture()
+        fixture.grade_body = page().decode()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                whole = await client.grades_window()
+                assert [f.detail_id for f in whole.formative] == ["901", "902"]
+                first = await client.grades_window(
+                    date(2041, 9, 15), date(2041, 9, 15), max_age_seconds=60
+                )
+                assert [f.detail_id for f in first.formative] == ["901"]
+                later = await client.grades_window(
+                    start=date(2041, 9, 16), max_age_seconds=60
+                )
+                assert [f.detail_id for f in later.formative] == ["902"]
+
+    asyncio.run(scenario())
