@@ -3,6 +3,20 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Sent receipt class column, 1.5.0 preparation (#60, 2026-10-08)
+
+Owner-authorized structure-only probe through the live-check guard (allowlist:
+identity, sent list, sent open; no guard violations), printing labels, cell
+shapes and counts only. On the failing parent login the first sent message's
+individual receipt row had three cells (recipient, centred class label,
+timestamp) under the three-column `Przeczytano` heading; the other parent
+login's first sent message had the known two cells. Implemented offline with
+original fixtures for both layouts, mixed widths and bounds. The fixed source
+then opened the same sent message without error. An installed 1.5.0 wheel
+weekly-profile live check in record mode on both parent logins passed, with
+`legacy_sent_content` populated on each and no guard violations. Publication
+is pending.
+
 ## Formative grades, 1.4.0 preparation (#26, 2026-10-08)
 
 Owner-authorized browser observation of one parent login (read-only, structure

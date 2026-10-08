@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0 (2026-10-08) - Sent receipts with a recipient class column
+
+Compatible minor release. Existing fields, results and the two-column receipt
+layout are unchanged.
+
+- Read sent-message individual receipt tables that add a middle class-label
+  column (recipient, class, status). Such a sent open previously failed with
+  `UNSUPPORTED_CAPABILITY` (#60).
+- Add `MessageRecipientReceipt.recipient_class` (default `None`, hidden from
+  repr): the displayed class label, or `None` without that column or when its
+  cell is empty. Consumers serializing receipts field by field see one new key.
+- Rows of one receipt table must share one layout; mixed or other widths still
+  fail. Class labels count toward the existing receipt text bounds.
+
 ## 1.4.0 (2026-10-08) - Formative assessments and the observation card
 
 Compatible minor release. Existing fields, results and stored notification

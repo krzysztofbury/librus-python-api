@@ -210,6 +210,8 @@ class MessageRecipientReceipt:
     recipient: str = field(repr=False)
     raw_status: str = field(repr=False)
     read_timestamp: MessageTimestamp | None = field(repr=False)
+    # Displayed class label of the optional middle column; None without it.
+    recipient_class: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

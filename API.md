@@ -883,12 +883,15 @@ Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
   `Przeczytano` value; it is not inbox unread or per-recipient status.
 - Sent content may omit an `Adresat` field: `correspondent=None` then preserves
   absence rather than inventing a name from another table. `recipient_receipts`
-  holds ordered `MessageRecipientReceipt(recipient, raw_status, read_timestamp)`
-  records when a separate individual receipt table is displayed. Equal labels
+  holds ordered `MessageRecipientReceipt(recipient, raw_status, read_timestamp,
+  recipient_class)` records when a separate individual receipt table is displayed.
+  `recipient_class` (1.5.0) keeps the displayed class label when the table has the
+  middle class column, and is `None` without it or when that cell is empty.
+  Rows of one table must share one layout. Equal labels
   survive; no recipient IDs or aggregate read time are invented. `NIE` has no
   read timestamp; displayed dates retain school civil time. Unknown statuses fail.
   At most 256 receipt rows, 4,096 characters per field and 128 KiB total receipt
-  text are accepted. An absent table means no reported receipts, not zero recipients.
+  text (class labels included) are accepted. An absent table means no reported receipts, not zero recipients.
 - `text` is full plain text with supported block/`br` boundaries and normalized
   whitespace, at most 65,536 characters. No HTML, scripts or external resources
   are returned or fetched. Active body content is unsupported, not executed.

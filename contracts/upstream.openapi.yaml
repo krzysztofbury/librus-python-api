@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.4.0
+  version: 1.5.0
   license:
     name: MIT
   description: |
@@ -530,7 +530,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Two 0.4.5 sent opens on independent login contexts observed subject/date metadata without an Adresat field and separate individual read receipts. Original fixtures and Chromium check these exact bytes; richer and sent-attachment layouts remain pending.
+      x-evidence-note: Two 0.4.5 sent opens on independent login contexts observed subject/date metadata without an Adresat field and separate individual read receipts. A 1.5.0 structure-only observation on another parent login added a middle class-label receipt column (recipient, class, status). Original fixtures and Chromium check these exact bytes; richer and sent-attachment layouts remain pending.
       parameters:
         - in: path
           name: id

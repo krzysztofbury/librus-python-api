@@ -54,7 +54,57 @@ def test_sent_content_with_no_correspondent_preserves_ordered_individual_receipt
         data.recipient_receipts[1].read_timestamp is None
         and data.recipient_receipts[1].raw_status == "NIE"
     )
+    assert [r.recipient_class for r in data.recipient_receipts] == [None] * 3
     assert "Fixture" not in repr(data.recipient_receipts[0])
+
+
+def test_sent_receipts_with_the_class_column_keep_the_displayed_class() -> None:
+    # Observed 2026-10-08 (issue #60): recipient, centred class label, status.
+    data = parse_message_content(
+        sent_content_html(
+            (
+                ("Fixture Pupil", "7q FX", "2026-10-03 09:00:00"),
+                ("Fixture Office", "", "NIE"),
+            )
+        ).encode(),
+        replace(REFERENCE, folder=MessageFolder.SENT),
+    )
+    assert [
+        (r.recipient, r.recipient_class, r.raw_status)
+        for r in data.recipient_receipts
+    ] == [
+        ("Fixture Pupil", "7q FX", "2026-10-03 09:00:00"),
+        ("Fixture Office", None, "NIE"),
+    ]
+    stamp = data.recipient_receipts[0].read_timestamp
+    assert stamp is not None and stamp.local == datetime(2026, 10, 3, 9)
+    assert data.recipient_receipts[1].read_timestamp is None
+    assert "7q" not in repr(data.recipient_receipts[0])
+
+
+THREE_COLUMNS = (("Fixture Pupil", "7q FX", "2026-10-03 09:00:00"),)
+
+
+@pytest.mark.parametrize(
+    "receipts",
+    [
+        # Rows of one table must share one layout.
+        (("Fixture Office", "NIE"),) + THREE_COLUMNS,
+        THREE_COLUMNS + (("Fixture Office", "NIE"),),
+        (("Fixture Pupil", "7q FX", "Extra", "NIE"),),
+        (("Fixture Pupil", "<table><tr><td>7q</td></tr></table>", "NIE"),),
+        (("", "7q FX", "NIE"),),
+        (("Fixture Pupil", "7q FX", "TAK"),),
+    ],
+)
+def test_unknown_or_mixed_class_column_rows_fail_whole_content(
+    receipts: tuple[tuple[str, ...], ...],
+) -> None:
+    with pytest.raises((ParseError, UnsupportedCapabilityError)):
+        parse_message_content(
+            sent_content_html(receipts).encode(),
+            replace(REFERENCE, folder=MessageFolder.SENT),
+        )
 
 
 @pytest.mark.parametrize(
@@ -111,6 +161,20 @@ def test_sent_receipt_limits_are_errors_not_partial_results(
             sent_content_html(
                 (("Fixture Office", "NIE"), ("Other fixture", "NIE"))
             ).encode(),
+            replace(REFERENCE, folder=MessageFolder.SENT),
+        )
+
+
+def test_the_class_label_counts_toward_receipt_text_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 2 + 4 + 3 characters; without the class label the row would fit.
+    monkeypatch.setattr(
+        "librus_python_api.message_content.MESSAGE_MAX_RECEIPT_TEXT_LENGTH", 8
+    )
+    with pytest.raises(LimitError):
+        parse_message_content(
+            sent_content_html((("Fx", "7q F", "NIE"),)).encode(),
             replace(REFERENCE, folder=MessageFolder.SENT),
         )
 
