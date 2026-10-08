@@ -1078,6 +1078,22 @@ class DescriptiveGradeSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class FormativeGrade:
+    """One row of the grades page's formative-assessment ("Oceny kształtujące")
+    table. "KARTA SPOSTRZEŻEŃ" (observation card) appears as a subject value.
+    The same item may also appear in the grid with a matching `formative_id`.
+    """
+
+    subject: str = field(repr=False)
+    text: str = field(repr=False)
+    category: str = field(repr=False)
+    semester: Literal[1, 2]
+    day: date = field(repr=False)
+    assessment_type: str = field(repr=False)
+    detail_id: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class GradeRecords:
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
@@ -1085,6 +1101,7 @@ class GradeRecords:
     descriptive_summaries: tuple[DescriptiveGradeSummary, ...] = field(
         default=(), repr=False
     )
+    formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1104,6 +1121,7 @@ class GradeWindow:
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
     observation: Observation
     view: GradeView = GradeView.ALL
+    formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

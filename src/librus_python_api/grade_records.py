@@ -8,6 +8,7 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_CURRENT_HEADER,
@@ -23,11 +24,13 @@ from librus_python_api.config import (
     GRADE_PUBLICATION_TEACHER_LABEL,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.formative_grades import is_formative_table, read_formative_table
 from librus_python_api.grade_parsers import _locate, _subject_rows, _summary
 from librus_python_api.models import (
     Availability,
     DescriptiveGrade,
     DescriptiveGradeSummary,
+    FormativeGrade,
     GradeKind,
     GradeRecords,
     GradeSummaryValue,
@@ -138,13 +141,21 @@ class _Collection:
     subjects: set[tuple[bool, str]] = field(default_factory=set, repr=False)
     consumed: set[html.HtmlElement] = field(default_factory=set, repr=False)
     publication_rows: set[html.HtmlElement] = field(default_factory=set, repr=False)
+    formative: int = 0
 
     def check_size(self) -> None:
         if (
-            len(self.numeric) + len(self.descriptive) + len(self.descriptive_summaries)
+            len(self.numeric)
+            + len(self.descriptive)
+            + len(self.descriptive_summaries)
+            + self.formative
             > GRADE_MAX_RECORDS
         ):
             raise LibrusError(ErrorKind.LIMIT)
+
+    def count_formative(self, count: int) -> None:
+        self.formative = count
+        self.check_size()
 
     def subject(self, value: str, *, descriptive: bool = False) -> None:
         key = (descriptive, value)
@@ -400,7 +411,14 @@ def parse_grade_records(body: bytes) -> GradeRecords:
             numeric_tables.append(table)
     if len(numeric_tables) > 1:
         raise LibrusError(ErrorKind.PARSE)
+    formative_tables = [table for table in tables if is_formative_table(table)]
+    if len(formative_tables) > 1:
+        raise LibrusError(ErrorKind.PARSE)
+    formative: tuple[FormativeGrade, ...] = ()
     for table in tables:
+        if table in formative_tables:
+            formative = read_formative_table(table, collection.count_formative)
+            continue
         _read_publications(table, collection)
         if table in numeric_tables:
             _read_numeric_table(table, collection)
@@ -434,6 +452,15 @@ def parse_grade_records(body: bytes) -> GradeRecords:
                 ):
                     continue
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    for anchor in document.iter("a"):
+        # A formative link outside both known tables is a new layout.
+        if markup.detail_id(
+            anchor.get("href"), FORMATIVE_DETAIL_PATH_PREFIX
+        ) and not any(
+            parent in numeric_tables or parent in formative_tables
+            for parent in anchor.iterancestors("table")
+        ):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     if not collection.subjects and not collection.descriptive:
         raise LibrusError(ErrorKind.PARSE)
     for descriptive, subject in sorted(collection.subjects):
@@ -451,4 +478,5 @@ def parse_grade_records(body: bytes) -> GradeRecords:
         tuple(collection.descriptive),
         tuple(collection.averages),
         tuple(collection.descriptive_summaries),
+        formative,
     )
