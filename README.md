@@ -16,9 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.4.0` adds formative assessments, including the observation card, to grade results.
-Installed live checks passed for populated and empty
-archives on two parent logins; see [verification](VERIFICATION.md).
+**Status:** `1.4.0` adds formative assessments, including the observation card,
+to grade results. The 1.3.0 archive read passed installed live checks for
+populated and empty archives on two parent logins; see [verification](VERIFICATION.md).
 The stable 1.x API does not guarantee every school layout. School features depend
 on what each account can access. See the [compatibility policy](API.md#compatibility-policy).
 See [limitations](#supported-features-and-limitations) below.

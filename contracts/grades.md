@@ -321,6 +321,13 @@ are unsupported. Duplicate IDs, broken groups, periods other than 1 or 2,
 invalid dates and nonempty footers fail. Formative rows count toward the
 2048-record bound; assessment text is bounded at 65536 characters.
 
+Compatibility note: 1.3.0 ignored this table. From 1.4.0 a recognised but
+unknown formative layout (an empty-state row, markup inside the assessment
+text, category-sort grouping beyond the supported rowspan form) fails the
+whole grades read instead of returning partial output. The observed template
+box is an ordinary grade link to detail ID `000000` in a separate hidden table
+without THEAD; it is not formative and is still ignored.
+
 Choices: a page without the section yields no formative items, because the
 week and last-login views may not render it; the parser does not cross-check
 the grid against the table. The view semantics of the table are not

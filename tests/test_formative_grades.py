@@ -295,3 +295,63 @@ def test_grades_window_filters_formative_items_by_inclusive_dates() -> None:
                 assert [f.detail_id for f in later.formative] == ["902"]
 
     asyncio.run(scenario())
+
+
+# Observed 2026-10-08: the page's template box is an ordinary grade link to
+# detail ID 000000 inside a separate hidden table with no THEAD.
+HIDDEN_TEMPLATE = (
+    '<table class="decorated stretch" style="display: none;"><tbody>'
+    '<tr class="line0"><td></td><td></td><td><span class="grade-box">'
+    '<a class="ocena" href="/przegladaj_oceny/szczegoly/000000">x</a>'
+    "</span></td></tr></tbody></table>"
+)
+
+
+def test_the_observed_hidden_template_table_is_still_ignored() -> None:
+    records = parse_grade_records(page(formative_table() + HIDDEN_TEMPLATE))
+    assert [f.detail_id for f in records.formative] == ["901", "902"]
+    assert len(records.numeric) == 1
+
+
+def test_unrelated_header_markup_is_never_read_as_formative_labels() -> None:
+    # Before 1.4.0 other tables' headers were never rendered as text.
+    form_table = (
+        "<table><thead><tr><td><form><select></select></form></td></tr></thead>"
+        "<tbody><tr><td></td></tr></tbody></table>"
+    )
+    records = parse_grade_records(page(formative_table() + form_table))
+    assert len(records.formative) == 2
+
+
+def test_a_visible_template_id_is_not_a_real_item() -> None:
+    with pytest.raises(ParseError):
+        parse_grade_records(page(formative_table(formative_row(detail="000000"))))
+
+
+def test_a_hidden_template_row_must_be_empty() -> None:
+    row = formative_row(detail="000000", attributes=' style="display: none"')
+    with pytest.raises(ParseError):
+        parse_grade_records(page(formative_table(row)))
+
+
+def test_oversized_formative_text_and_rowspan_are_limits() -> None:
+    with pytest.raises(LimitError):
+        parse_grade_records(page(formative_table(formative_row(text="x" * 65537))))
+    with pytest.raises(LimitError):
+        parse_grade_records(
+            page(formative_table(formative_row(rowspan=str(GRADE_MAX_RECORDS + 1))))
+        )
+
+
+def test_an_absolute_same_origin_link_in_the_table_is_read() -> None:
+    link = "https://synergia.librus.pl" + FORMATIVE_LINK.format("905")
+    assessment = f'<a href="{link}">Fixture absolute.</a>'
+    records = parse_grade_records(
+        page(formative_table(formative_row(assessment=assessment)))
+    )
+    assert records.formative[0].detail_id == "905"
+
+
+def test_formative_repr_shows_only_the_semester() -> None:
+    records = parse_grade_records(page())
+    assert repr(records.formative[0]) == "FormativeGrade(semester=1)"

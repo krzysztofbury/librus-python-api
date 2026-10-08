@@ -31,9 +31,15 @@ def _fail(kind: ErrorKind) -> NoReturn:
 
 
 def is_formative_table(table: html.HtmlElement) -> bool:
+    # Cheap structural gates first: other tables' header text is never read.
+    if not {"stretch", "decorated"} <= set(table.get("class", "").split()):
+        return False
     heads = [row for row in markup.rows(table) if markup.in_header(row)]
-    return len(heads) == 1 and [
-        markup.text(cell).casefold() for cell in markup.cells(heads[0])
+    if len(heads) != 1:
+        return False
+    cells = markup.cells(heads[0])
+    return len(cells) == len(FORMATIVE_HEADERS) and [
+        markup.text(cell).casefold() for cell in cells
     ] == list(FORMATIVE_HEADERS)
 
 
@@ -74,13 +80,21 @@ def _link(cell: html.HtmlElement) -> tuple[str, str]:
 
 
 def _template(row: html.HtmlElement) -> bool:
-    """The hidden empty template entry the page renders for scripts."""
+    """A hidden, empty template entry (ID 000000) rendered for scripts.
+
+    Not observed inside this table (the page's observed template is an ordinary
+    grade link in a separate hidden table); kept narrow on purpose.
+    """
     hidden = "display:none" in row.get("style", "").replace(" ", "").casefold()
     links = [
         markup.detail_id(anchor.get("href"), FORMATIVE_DETAIL_PATH_PREFIX)
         for anchor in row.iter("a")
     ]
-    return hidden and links == [FORMATIVE_TEMPLATE_ID]
+    if not hidden or links != [FORMATIVE_TEMPLATE_ID]:
+        return False
+    if any(markup.text(anchor) for anchor in row.iter("a")):
+        _fail(ErrorKind.PARSE)
+    return True
 
 
 def _item(subject: str, cells: list[html.HtmlElement]) -> FormativeGrade:
@@ -91,7 +105,7 @@ def _item(subject: str, cells: list[html.HtmlElement]) -> FormativeGrade:
     period = _plain(cells[2])
     day = markup.civil_date(_plain(cells[3]))
     kind = _plain(cells[4])
-    if not text or period not in ("1", "2"):
+    if not text or period not in ("1", "2") or identifier == FORMATIVE_TEMPLATE_ID:
         _fail(ErrorKind.PARSE)
     return FormativeGrade(
         subject,

@@ -2,8 +2,11 @@
 
 ## 1.4.0 - Formative assessments and the observation card
 
-Compatible minor release. Existing calls, results and stored notification
-identities are unchanged.
+Compatible minor release. Existing fields, results and stored notification
+identities are unchanged. One new failure mode: a page whose formative table
+is recognised but uses unknown markup (for example an empty-state row, markup
+inside the assessment text or a stray formative link) now fails the grades
+read instead of being ignored, rather than returning partial output.
 
 - Add `GradeRecords.formative` and `GradeWindow.formative`: `FormativeGrade`
   records from the grades page's "Oceny kształtujące" table, including the
