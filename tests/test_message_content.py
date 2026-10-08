@@ -70,8 +70,7 @@ def test_sent_receipts_with_the_class_column_keep_the_displayed_class() -> None:
         replace(REFERENCE, folder=MessageFolder.SENT),
     )
     assert [
-        (r.recipient, r.recipient_class, r.raw_status)
-        for r in data.recipient_receipts
+        (r.recipient, r.recipient_class, r.raw_status) for r in data.recipient_receipts
     ] == [
         ("Fixture Pupil", "7q FX", "2026-10-03 09:00:00"),
         ("Fixture Office", None, "NIE"),
