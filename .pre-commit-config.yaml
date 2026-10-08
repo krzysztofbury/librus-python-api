@@ -9,6 +9,17 @@ repos:
 
   - repo: local
     hooks:
+      # The same commands as the CI quality job, so formatting drift fails locally.
+      - id: ruff-check
+        name: ruff check (locked)
+        language: system
+        entry: uv run --locked ruff check
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format --check (locked)
+        language: system
+        entry: uv run --locked ruff format --check
+        types_or: [python, pyi]
       - id: forbid-private-files
         name: Block local credentials, sessions, and raw captures
         language: fail
