@@ -35,6 +35,8 @@ from librus_python_api.models import (
     AttendanceView,
     AttendanceWindow,
     Availability,
+    ClassFreeDay,
+    ClassFreeDays,
     CompletedLesson,
     CompletedLessons,
     CompletedLessonsCursor,
@@ -136,7 +138,7 @@ from librus_python_api.models import (
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 __all__ = [
     "ArchiveAbsences",
@@ -216,6 +218,8 @@ __all__ = [
     "AccountClient",
     "AccountCredentials",
     "Availability",
+    "ClassFreeDay",
+    "ClassFreeDays",
     "Attendance",
     "Announcement",
     "Agenda",

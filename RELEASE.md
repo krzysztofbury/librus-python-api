@@ -209,7 +209,23 @@ Enable email for failed workflows under GitHub Settings, Notifications,
 Actions. A green badge is only as fresh as its run date: GitHub disables
 scheduled workflows in public repositories after 60 days without repository
 activity and may delay or drop scheduled runs. Check the run history if no
-weekly run appears; a missing run sends no email.
+weekly run appears; a missing run sends no email from that workflow itself.
+
+The separate dependency-drift workflow runs `scripts/check_live_freshness.py`
+in its own job with `contents: read` and `actions: read` only. It queries the
+GitHub API for completed `live-check.yml` runs on `main` and fails if the most
+recent completion (`updated_at`) is older than eight days, missing or malformed.
+It also rejects future/inconsistent timestamps and unexpected workflow/branch
+records. API/authentication errors fail the job. No Librus credentials are used.
+Freshness includes completed failed runs; the live workflow's own status and
+failure notifications still report their outcome.
+
+Reproduce the offline recent/stale decisions with `uv run pytest
+tests/test_live_freshness.py`. Its fixture is a projection of public GitHub run
+metadata retrieved on 2026-10-09, with no school data. A manual dependency-drift
+dispatch can exercise the watchdog on a feature branch while it inspects only
+`main` live runs. If GitHub suppresses both schedules, neither can alert; inspect
+run history when both are missing.
 
 ### If a credential may have leaked
 

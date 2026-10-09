@@ -20,6 +20,7 @@ from tests.school_year_archive_support import CANARY_NAME
 
 CANARY_LOGINS = ("canary-login-a", "canary-login-b")
 WEEKLY_ONLY = [
+    "class_free_days",
     "student_information",
     "grades",
     "grades_window",

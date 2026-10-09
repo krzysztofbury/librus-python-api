@@ -10,6 +10,7 @@
         "attendance_frequency": "populated",
         "attendance_window": "any",
         "completed_lessons": "disabled",
+        "class_free_days": "any",
         "filtered_page received": "populated",
         "filtered_page sent": "populated",
         "final_grades": "any",

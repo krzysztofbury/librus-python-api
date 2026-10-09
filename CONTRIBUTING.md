@@ -55,8 +55,9 @@ uv pip install --python "$TMP/venv/bin/python" --no-deps dist/*.whl
 cd "$TMP" && PYTHONPATH=/path/to/checkout "$TMP/venv/bin/python" -m pytest /path/to/checkout/tests
 ```
 
-`uv run pytest -m performance` runs the opt-in parser memory and heartbeat
-measurement.
+`uv run pytest -m performance -s` runs the opt-in parser memory/heartbeat and
+fixture-server load measurements. Scoped thresholds, baselines and the targeted
+mutation command are in [quality evidence](contracts/quality-evidence.md).
 
 ## Where tests live
 

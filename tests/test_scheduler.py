@@ -86,20 +86,38 @@ def test_global_and_account_queue_limits_reject_without_dispatch() -> None:
             budget = RequestBudget()
             first = asyncio.create_task(scheduler.run("a", budget, action))
             await started.wait()
-            queued_a = asyncio.create_task(scheduler.run("a", budget, action))
-            await asyncio.sleep(0)
-            with pytest.raises(LibrusError, match="^limit$"):
-                await scheduler.run("a", budget, action)
-            queued_b = asyncio.create_task(scheduler.run("b", budget, action))
-            await asyncio.sleep(0)
-            with pytest.raises(LibrusError, match="^limit$"):
-                await scheduler.run("c", budget, action)
-            assert calls == ["request"]
-            assert budget.requests_dispatched == 1
-            release.set()
-            await asyncio.gather(first, queued_a, queued_b)
-            assert len(calls) == 3
-            assert scheduler.snapshot().queued == 0
+            tasks = [first]
+            try:
+                queued_a = asyncio.create_task(scheduler.run("a", budget, action))
+                tasks.append(queued_a)
+                await asyncio.sleep(0)
+                rejected_a = asyncio.create_task(scheduler.run("a", budget, action))
+                tasks.append(rejected_a)
+                await asyncio.sleep(0)
+                assert rejected_a.done(), "Full account queue must reject immediately"
+                with pytest.raises(LibrusError, match="^limit$"):
+                    await rejected_a
+                queued_b = asyncio.create_task(scheduler.run("b", budget, action))
+                tasks.append(queued_b)
+                await asyncio.sleep(0)
+                rejected_c = asyncio.create_task(scheduler.run("c", budget, action))
+                tasks.append(rejected_c)
+                await asyncio.sleep(0)
+                assert rejected_c.done(), "Full global queue must reject immediately"
+                with pytest.raises(LibrusError, match="^limit$"):
+                    await rejected_c
+                assert calls == ["request"]
+                assert budget.requests_dispatched == 1
+                release.set()
+                await asyncio.gather(first, queued_a, queued_b)
+                assert len(calls) == 3
+                assert scheduler.snapshot().queued == 0
+            finally:
+                release.set()
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     run(scenario())
 

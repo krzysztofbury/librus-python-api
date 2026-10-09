@@ -16,6 +16,7 @@ from librus_python_api.exceptions import ErrorKind
 
 type OperationName = Literal[
     "identity",
+    "class_free_days",
     "student_information",
     "final_grades",
     "grades",
@@ -629,6 +630,24 @@ class CompletedLessons:
     items: tuple[CompletedLesson, ...] = field(repr=False)
     pages_fetched: int
     next_cursor: CompletedLessonsCursor | None = field(repr=False)
+    observation: "Observation"
+
+
+@dataclass(frozen=True, slots=True)
+class ClassFreeDay:
+    identifier: str = field(repr=False)
+    class_id: str = field(repr=False)
+    type_id: str = field(repr=False)
+    date_from: date = field(repr=False)
+    date_to: date = field(repr=False)
+    lesson_no_from: int | None = None
+    lesson_no_to: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ClassFreeDays:
+    identity: "Identity" = field(repr=False)
+    items: tuple[ClassFreeDay, ...] = field(repr=False)
     observation: "Observation"
 
 

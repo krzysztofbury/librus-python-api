@@ -40,6 +40,14 @@ def test_matching_expectations_pass() -> None:
     assert compare(report_of(OK_POPULATED, OK_EMPTY, DISABLED), expected) == []
 
 
+def test_module_unavailable_is_capability_coverage_not_empty_success() -> None:
+    report = report_of(StepResult("grades", Status.ERROR, kind="module_unavailable"))
+    assert compare(report, {0: {"grades": Expected.UNAVAILABLE}}) == []
+    assert compare(report, {0: {"grades": Expected.ANY}}) == [
+        "slot 0 grades: expected_any_got_unavailable"
+    ]
+
+
 @pytest.mark.parametrize(
     "steps,expected,reason",
     [

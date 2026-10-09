@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.5.0
+  version: 1.6.0
   license:
     name: MIT
   description: |
@@ -16,6 +16,43 @@ servers:
   - url: http://localhost:8080
     description: Local fixture server; replace explicitly for authorized validation
 paths:
+  /gateway/api/2.0/ClassFreeDays:
+    get:
+      operationId: class_free_days
+      tags: [School]
+      summary: Read the class free days collection
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Populated gateway response independently observed on 2026-10-06; structure-only qualification for issue 66 is recorded in contracts/class-free-days.md.
+      description: Fixed GET with no query or form. Account-isolated sessions and shared request, deadline, body and parser budgets apply. No linked resources are followed.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Bounded class free days JSON collection, including an explicit empty array
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ClassFreeDays]
+                properties:
+                  ClassFreeDays:
+                    type: array
+                    maxItems: 4096
+                    items:
+                      type: object
+                      required: [Id, Class, Type, DateFrom, DateTo]
+                      properties:
+                        Id: {type: integer, minimum: 0}
+                        Class: {$ref: '#/components/schemas/ClassFreeDayReference'}
+                        Type: {$ref: '#/components/schemas/ClassFreeDayReference'}
+                        DateFrom: {type: string, format: date}
+                        DateTo: {type: string, format: date}
+                        LessonNoFrom: {type: integer, minimum: 0, maximum: 99}
+                        LessonNoTo: {type: integer, minimum: 0, maximum: 99}
+        default: {$ref: '#/components/responses/Failure'}
   /wiadomosci3:
     get:
       operationId: modern_launch
@@ -1787,6 +1824,11 @@ components:
       required: true
       schema: {type: string, enum: ['46'], default: '46'}
   schemas:
+    ClassFreeDayReference:
+      type: object
+      required: [Id]
+      properties:
+        Id: {type: integer, minimum: 0}
     NumericIdentifier:
       oneOf:
         - {type: integer, minimum: 0}

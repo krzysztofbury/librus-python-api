@@ -27,6 +27,7 @@ from librus_python_api.attendance_frequency import (
 )
 from librus_python_api.budget import RequestBudget
 from librus_python_api.checkpoint import CHECKPOINT_SERVICE, validate_checkpoint
+from librus_python_api.class_free_days import parse_class_free_days
 from librus_python_api.completed_lessons import (
     parse_completed_lessons,
     validate_selection,
@@ -42,6 +43,7 @@ from librus_python_api.config import (
     GRADE_MAX_WINDOW_DAYS,
     MESSAGE_MAX_CURSOR_IDS,
     MODERN_RECIPIENT_OPERATIONS,
+    MODULE_UNAVAILABLE_PATH,
     NOTIFICATION_COUNTS_ENDPOINT,
     SCHEDULE_RESPONSE_VERSION,
     SESSION_COOKIE,
@@ -83,6 +85,7 @@ from librus_python_api.models import (
     AttendanceFrequency,
     AttendanceView,
     AttendanceWindow,
+    ClassFreeDays,
     CompletedLesson,
     CompletedLessons,
     CompletedLessonsCursor,
@@ -1314,6 +1317,24 @@ class AccountClient:
             ),
         )
 
+    async def class_free_days(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> ClassFreeDays:
+        """Read one bounded collection; dates are civil and references stay opaque."""
+
+        async def fetch(budget: RequestBudget, _: bool) -> ClassFreeDays:
+            items = await self._page(
+                "class_free_days", budget, parse_class_free_days, content_type=JSON
+            )
+            return ClassFreeDays(
+                self._session_identity(), items, self._observation("class_free_days")
+            )
+
+        return await self._read(("class_free_days",), fetch, budget, max_age_seconds)
+
     async def attendance(
         self,
         *,
@@ -2438,6 +2459,8 @@ class AccountClient:
         self, response: TransportResponse, content_type: str
     ) -> None:
         if 300 <= response.status < 400:
+            if self._is_module_unavailable_redirect(response):
+                raise LibrusError(ErrorKind.MODULE_UNAVAILABLE)
             # A redirect proves expiry only when it targets a login route.
             # Other redirects must not trigger a new credential submission.
             if self._is_login_redirect(response):
@@ -2445,6 +2468,25 @@ class AccountClient:
             raise LibrusError(ErrorKind.ACCESS_DENIED)
         if response.status != 200 or _media_type(response) != content_type:
             raise LibrusError(ErrorKind.PARSE)
+
+    def _is_module_unavailable_redirect(self, response: TransportResponse) -> bool:
+        location = response.headers.get("location", "")
+        if not location or len(location) > 4096:
+            return False
+        try:
+            target = urlsplit(urljoin(response.url, location))
+            source = urlsplit(response.url)
+        except ValueError:
+            return False
+        expected = urlsplit(self._service._connection.origin(ENDPOINTS["identity"]))
+        return (
+            (source.scheme, source.netloc) == (expected.scheme, expected.netloc)
+            and (target.scheme, target.netloc) == (expected.scheme, expected.netloc)
+            and not (
+                target.username or target.password or target.query or target.fragment
+            )
+            and target.path == MODULE_UNAVAILABLE_PATH
+        )
 
     def _is_login_redirect(self, response: TransportResponse) -> bool:
         location = response.headers.get("location", "")
