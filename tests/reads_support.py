@@ -17,6 +17,7 @@ from librus_python_api import (
 from librus_python_api.config import ENDPOINTS
 from tests.announcements_support import announcement_table, page
 from tests.attendance_support import DETAIL, attendance_html, gateway_rows
+from tests.class_free_days_support import free_days_body
 from tests.completed_lessons_support import lessons_html
 from tests.grade_records_support import grades_html
 from tests.grade_support import summary_html
@@ -30,6 +31,7 @@ from tests.timetable_support import MONDAY, timetable_html
 
 HTML, JSON = "text/html", "application/json"
 VALID: dict[str, tuple[bytes, str]] = {
+    "class_free_days": (free_days_body(), JSON),
     "student_information": (profile_html().encode(), HTML),
     "final_grades": (summary_html().encode(), HTML),
     "grades": (grades_html().encode(), HTML),

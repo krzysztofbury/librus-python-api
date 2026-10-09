@@ -3,6 +3,35 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Ready-work implementation (#66, 2026-10-09)
+
+- Pre-implementation and post-implementation pair-programmer reviews covered
+  shared read admission, account/session boundaries, redirect handling, parser
+  bounds, workflow permissions, fixture workloads and failure cleanup. The
+  post-review tightened accepted watchdog conclusions and made the new OpenAPI
+  reference schema match the observed integer-only parser. No unresolved
+  correctness findings remained after those changes.
+- Offline suite: 1936 passed, 25 Windows-only tests skipped, two opt-in
+  performance tests deselected. Ruff, formatting, strict mypy and lock checks
+  passed. Additional watchdog malformed-conclusion cases were added during
+  final review and checked with the focused watchdog/contract suites.
+- Guarded structure-only class-free-days capture and installed-wheel checks:
+  see [contract](contracts/class-free-days.md). All eight identity/read steps
+  succeeded across four independent logins, with 10 requests per login. The
+  wheel was built from this branch (still carrying the existing 1.5.0 package
+  metadata), not downloaded from PyPI. Only authentication, identity and the
+  new collection were in scope. No raw pages or school values were retained.
+- Eight named mutations each failed after a passing baseline; no survivors or
+  equivalent mutants. The queue test's initial timeout-only result was replaced
+  by direct rejection evidence. See [quality evidence](contracts/quality-evidence.md).
+- Both opt-in performance checks passed. Final fixture workload: 2.10 seconds,
+  3,351,791 traced peak bytes, two active/two queued, exact request budgets and
+  joined cancellation/recovery. Thresholds are scoped to the documented local
+  workload, not upstream performance.
+- Real dependency-drift workflow acceptance is pending the branch dispatch.
+  The complete weekly credentialed profile was not run for this change; only
+  the explicitly authorized class-free-days profile was exercised live.
+
 ## Sent receipt class column, 1.5.0 preparation (#60, 2026-10-08)
 
 Owner-authorized structure-only probe through the live-check guard (allowlist:

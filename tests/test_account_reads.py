@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 import pytest
+from aiohttp import web
 
 from librus_python_api import (
     AccountClient,
@@ -27,6 +28,7 @@ from librus_python_api.exceptions import (
     LibrusError,
     LimitError,
     MaintenanceError,
+    ModuleUnavailableError,
     OperationTimeoutError,
     ParseError,
     SessionExpiredError,
@@ -152,14 +154,72 @@ def test_unrecognized_page_fails_whole_read_and_is_not_cached(operation: str) ->
     run(scenario)
 
 
+@pytest.mark.parametrize(
+    "notice,error",
+    [
+        (VIEW_DISABLED, ViewDisabledError),
+        (
+            "Ten moduł nie jest dostępny w wykorzystywanym przez szkołę wariancie "
+            "rozwiązania LIBRUS Synergia.",
+            ModuleUnavailableError,
+        ),
+    ],
+)
 @pytest.mark.parametrize("operation", HTML_OPERATIONS)
-def test_view_disabled_by_school_is_typed_for_every_page(operation: str) -> None:
+def test_view_disabled_by_school_is_typed_for_every_page(
+    operation: str, notice: str, error: type[LibrusError]
+) -> None:
     async def scenario(fixture: ReadsFixture, service: Any) -> None:
-        fixture.bodies[operation] = (warning_html(VIEW_DISABLED).encode(), "text/html")
-        with pytest.raises(ViewDisabledError):
+        fixture.bodies[operation] = (warning_html(notice).encode(), "text/html")
+        with pytest.raises(error):
             await read(service.account("student"), "student", operation)()
 
     run(scenario)
+
+
+@pytest.mark.parametrize(
+    "location,expected",
+    [
+        ("/modul_niedostepny", ModuleUnavailableError),
+        ("{origin}/modul_niedostepny", ModuleUnavailableError),
+        ("https://example.invalid/modul_niedostepny", AccessDeniedError),
+        ("/modul_niedostepny/extra", AccessDeniedError),
+        ("/modul_niedostepny?next=1", AccessDeniedError),
+        ("/modul_niedostepny#fragment", AccessDeniedError),
+        ("/other", AccessDeniedError),
+    ],
+)
+def test_module_redirect_is_typed_without_following_or_reauthenticating(
+    location: str, expected: type[LibrusError]
+) -> None:
+    # A dedicated fixture preserves the authentication identity response, then
+    # redirects the explicit public read under test.
+    class RedirectFixture(ReadsFixture):
+        redirect_now = False
+
+        async def identity(self, request: web.Request) -> web.Response:
+            if not self.redirect_now:
+                return await super().identity(request)
+            self.record(request)
+            return web.Response(
+                status=302, headers={"Location": location.format(origin=self.origin)}
+            )
+
+    async def scenario() -> None:
+        fixture = RedirectFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.identity()
+                before = len(fixture.calls)
+                fixture.redirect_now = True
+                with pytest.raises(expected):
+                    await client.identity()
+                assert len(fixture.calls) == before + 1
+                assert fixture.logins == {"student": 1}
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("operation", OPERATIONS)

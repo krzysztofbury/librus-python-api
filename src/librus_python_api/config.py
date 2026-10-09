@@ -450,6 +450,14 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
             Endpoint(
+                "class_free_days",
+                "GET",
+                "/gateway/api/2.0/ClassFreeDays",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
+            Endpoint(
                 "gateway_attendance",
                 "GET",
                 "/gateway/api/2.0/Attendances",
@@ -855,12 +863,18 @@ WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
 # Observed page-level notices shown instead of the requested content.
 PAGE_NOTICES = MappingProxyType(
     {
+        (
+            "Ten moduł nie jest dostępny w wykorzystywanym przez szkołę wariancie "
+            "rozwiązania LIBRUS Synergia."
+        ): ErrorKind.MODULE_UNAVAILABLE,
         "Ten widok został wyłączony przez administratora szkoły.": (
             ErrorKind.VIEW_DISABLED
         ),
         "Wybrano nieprawidłowy zakres daty.": ErrorKind.INVALID_INPUT,
     }
 )
+MODULE_UNAVAILABLE_PATH = "/modul_niedostepny"
+CLASS_FREE_DAYS_MAX_RECORDS = 4096
 COMPLETED_LESSONS_MAX_WINDOW_DAYS = 371
 COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
 COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256

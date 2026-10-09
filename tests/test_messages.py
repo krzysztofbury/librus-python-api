@@ -362,7 +362,6 @@ def test_resume_integrity_and_later_page_failures_never_return_partial_success(
 def test_foreign_folder_account_and_invalid_history_fail_before_any_login() -> None:
     async def scenario() -> None:
         fixture = ReadsFixture()
-        fixture.origin = "http://localhost:8080"
         cursor = MessagesCursor(
             "student", MessageFolder.RECEIVED, 0, 1, 3, "a" * 64, ("101",)
         )
@@ -378,11 +377,13 @@ def test_foreign_folder_account_and_invalid_history_fail_before_any_login() -> N
             replace(cursor, seen_ids=()),
             replace(cursor, seen_ids=tuple(str(i) for i in range(2001))),
         ]
-        async with fixture.service() as service:
-            for value in bad:
-                with pytest.raises(InvalidInputError):
-                    await service.account("student").messages(cursor=value)
-            assert fixture.calls == []
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                for value in bad:
+                    with pytest.raises(InvalidInputError):
+                        await service.account("student").messages(cursor=value)
+                assert fixture.calls == []
 
     asyncio.run(scenario())
 

@@ -34,6 +34,7 @@ class Coverage(StrEnum):
 # broken read; they map to a coverage value an expectation can name.
 AVAILABILITY_KINDS = {
     "view_disabled": Coverage.DISABLED,
+    "module_unavailable": Coverage.UNAVAILABLE,
     "access_denied": Coverage.UNAVAILABLE,
     "unsupported_capability": Coverage.UNAVAILABLE,
 }

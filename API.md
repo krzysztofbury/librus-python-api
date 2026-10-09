@@ -261,6 +261,17 @@ section returns `()`. See [formative grades](contracts/grades.md#formative-grade
 
 ## Timetable
 
+### Class free days
+
+`class_free_days(*, budget=None, max_age_seconds=0.0)` returns frozen
+`ClassFreeDays` with `identity`, `items` and `observation`. Each `ClassFreeDay`
+contains `identifier`, `class_id`, `type_id`, civil `date_from`/`date_to` and
+optional paired `lesson_no_from`/`lesson_no_to`. One bounded read-only GET;
+reference URLs are not followed and type labels are not inferred. An explicit
+empty collection returns `items=()`. See [contract](contracts/class-free-days.md).
+
+### Weekly timetable
+
 `timetable(monday)` takes a `date` that is a Monday and returns `Timetable` with
 seven `TimetableDay`s. Each `TimetablePeriod` has a number, a local-time
 `interval`, its `lessons` (subject and the combined teacher/classroom text),
@@ -1083,6 +1094,7 @@ text. `error_for(kind)` builds one.
 | `SessionExpiredError` | Proven expiry that could not be recovered |
 | `AccessDeniedError` | Denied, or an unexpected redirect or identity |
 | `ViewDisabledError` | The school administrator disabled this view |
+| `ModuleUnavailableError` | The school's Synergia variant does not include this module; exact same-origin unavailable redirect or fixed page notice, without follow/retry ([contract](contracts/module-unavailable.md)) |
 | `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
 | `ParseError` | The page or JSON does not match the expected structure |
 | `StaleCursorError` | A previously valid continuation no longer matches the current sequence; restart explicitly |

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Add the bounded, account-isolated `class_free_days()` gateway read, frozen
+  `ClassFreeDays`/`ClassFreeDay` results and a guarded weekly check.
+- Recognize the exact module-unavailable redirect and page notice as
+  `ModuleUnavailableError`, separate from disabled views and parser failures.
+- Add an independent live-check freshness job to the dependency-drift workflow.
+- Add reproducible targeted guard mutations and representative loopback load
+  measurements with scoped numerical thresholds. See [quality evidence](contracts/quality-evidence.md).
+
 ## 1.5.0 (2026-10-08) - Sent receipts with a recipient class column
 
 Compatible minor release. Existing fields, results and the two-column receipt

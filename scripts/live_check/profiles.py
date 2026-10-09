@@ -471,7 +471,14 @@ async def modern_sent_content(ctx: Context) -> Observed:
     return POPULATED
 
 
+@check("class_free_days", reads={"class_free_days"})
+async def class_free_days(ctx: Context) -> Observed:
+    result = await ctx.client.class_free_days(budget=ctx.budget)
+    return coverage_of(len(result.items), count=len(result.items))
+
+
 WEEKLY_READS: tuple[Check, ...] = (
+    class_free_days,
     student_information,
     grades,
     grades_window,
