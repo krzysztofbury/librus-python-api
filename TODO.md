@@ -24,15 +24,15 @@ Rules that hold for every release:
 
 ## Next
 
-Two issues track all open work: #66 (ready now) and #67 (blocked on evidence,
-authorization or recurrence).
+The #66 implementation is complete, with local, installed live, mutation/load
+and GitHub workflow evidence in [VERIFICATION.md](VERIFICATION.md). #67 tracks
+work blocked on evidence, authorization or recurrence.
 
-- [ ] Ready work (#66): typed module-unavailable outcome, class free days read,
-  weekly live check freshness watchdog, targeted mutation tests,
-  representative load evidence.
+- [ ] Merge and release the #66 implementation.
 - [ ] Then bump `librus-mcp` from 1.0.2 to the current library and expose the
   reads added since (archive mailbox and unread counts, correspondent filters,
-  teacher subjects, school-year archive, formative grades, receipt class labels).
+  teacher subjects, school-year archive, formative grades, receipt class labels,
+  class free days and the module-unavailable outcome).
 
 ## Blocked on live evidence (#67)
 

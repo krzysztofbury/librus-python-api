@@ -28,9 +28,14 @@ in the Git history of this file.
   3,351,791 traced peak bytes, two active/two queued, exact request budgets and
   joined cancellation/recovery. Thresholds are scoped to the documented local
   workload, not upstream performance.
-- Real dependency-drift workflow acceptance is pending the branch dispatch.
-  The complete weekly credentialed profile was not run for this change; only
-  the explicitly authorized class-free-days profile was exercised live.
+- [Dependency-drift run 37898653070](https://github.com/krzysztofbury/librus-python-api/actions/runs/37898653070)
+  passed on implementation commit `4d619a2494b6c934ce3e02a2330e06cd97ad9218`.
+  The freshness job used read-only Actions permissions and accepted completed
+  main run `37620382335`. Both Python 3.13/3.14 jobs qualified the installed
+  wheel and sdist with newest permitted dependencies: each of the four suites
+  reported 1938 passed, 25 skipped, two deselected. No matrix-duration outlier
+  occurred. The complete weekly credentialed profile was not run for this
+  change; only the authorized class-free-days profile was exercised live.
 
 ## Sent receipt class column, 1.5.0 preparation (#60, 2026-10-08)
 
