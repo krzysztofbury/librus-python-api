@@ -24,30 +24,34 @@ Rules that hold for every release:
 
 ## Next
 
-- [ ] Triage the unmapped Synergia menu modules (#41) into concrete read
-  candidates, out-of-scope modules and evidence needs.
-- [ ] Evaluate unmapped Gateway API 2.0 resources (#39); populated JSON is
-  already observed for lucky numbers, free days, calendars and school notices.
+Two issues track all open work: #66 (ready now) and #67 (blocked on evidence,
+authorization or recurrence).
+
+- [ ] Ready work (#66): typed module-unavailable outcome, class free days read,
+  weekly live check freshness watchdog, targeted mutation tests,
+  representative load evidence.
 - [ ] Then bump `librus-mcp` from 1.0.2 to the current library and expose the
   reads added since (archive mailbox and unread counts, correspondent filters,
   teacher subjects, school-year archive, formative grades, receipt class labels).
 
-## Blocked on live evidence
+## Blocked on live evidence (#67)
 
 Do not relax guards, guess layouts or repeat known-empty probes to close these.
 
-- [ ] Behaviour notes (#26): implement the public read once a populated page is
+- [ ] Behaviour notes: implement the public read once a populated page is
   observed ([decision](contracts/behaviour-notes.md)). Every available login
   shows an explicit empty page.
 - [ ] Completed lessons: verify a populated page and pagination on an account
   whose school has the view enabled. All four available logins show it disabled.
-- [ ] Modern notes, trash, drafts and archived content (#45).
+- [ ] Synergia menu modules with only empty pages so far (achievements, duties,
+  school files, e-justifications) and the remaining gateway resources.
+- [ ] Modern notes, trash, drafts and archived content.
 - [ ] Broader school-layout coverage: other schools and roles, populated
   last-login views, custom attendance types, full-year subject-frequency
   resolution, parallel group lessons, empty and rich announcement layouts,
   populated descriptive grades and publications.
 
-## Communication gaps
+## Communication gaps (#67)
 
 - [ ] Attachments: sent-message downloads, multiple/empty files, broader
   signed-key/handler/header variants and upstream read-effect evidence. Do not
@@ -79,7 +83,7 @@ each only with the evidence it names; empty observations are not passes.
 - [ ] **C04 - Archive content:** archive mailbox listing shipped in 1.1.0 and
   original-body/withdrawal metadata is offline-tested. Archived content opens
   stay `UNSUPPORTED_CAPABILITY` until fixed routes, references and side effects
-  are established (#45).
+  are established (#67).
 - [ ] **C05 - Expanded and CC/BCC receipt live coverage:** parsing and channels
   are offline-tested. Resume with an existing multi-recipient example and
   independently verified expectations. Never send test messages to close it.
@@ -87,19 +91,9 @@ each only with the evidence it names; empty observations are not passes.
 ## Quality and operations
 
 - [ ] Intermittent macOS qualify hang in the notification checkpoint tests
-  (#64). The next occurrence dumps stacks via `faulthandler_timeout`.
-- [ ] Representative load evidence: fixture-server workloads (full mailboxes,
-  changing pages, warm/cold caches, slow bodies, cancellation under saturated
-  concurrency), recorded request counts, elapsed-time distribution, peak memory
-  and numeric acceptance thresholds. No performance claim before this exists.
-  Parser resource measurements exist under `tests/performance` (opt-in).
-- [ ] Targeted mutation tests for critical guards: account isolation, bounded
-  queues/bodies/pages, send non-retry, checkpoint ordering, redirect rejection.
-  Do not use an untriaged mutation score as acceptance.
+  (#67). The next occurrence dumps stacks via `faulthandler_timeout`.
 - [ ] Model unpublished data (for example an unpublished timetable) separately
-  from empty success, once a live example shows its markup.
-- [ ] Weekly live check freshness outside GitHub: no external watchdog detects
-  scheduled runs that never start; see [RELEASE.md](RELEASE.md#weekly-live-check).
+  from empty success, once a live example shows its markup (#67).
 
 ## Consumer-owned (tracked in librus-mcp)
 
