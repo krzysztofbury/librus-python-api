@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 (2026-10-09) - Class free days and capability outcomes
+
+Compatible minor release with a new typed module-unavailable outcome. Consumers
+matching error kinds exhaustively should handle `module_unavailable`.
 
 - Add the bounded, account-isolated `class_free_days()` gateway read, frozen
   `ClassFreeDays`/`ClassFreeDay` results and a guarded weekly check.

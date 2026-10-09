@@ -24,12 +24,11 @@ Rules that hold for every release:
 
 ## Next
 
-The #66 implementation is complete, with local, installed live, mutation/load
-and GitHub workflow evidence in [VERIFICATION.md](VERIFICATION.md). #67 tracks
-work blocked on evidence, authorization or recurrence.
+Version 1.6.0 contains the #66 implementation; qualification and publication
+evidence are recorded in [VERIFICATION.md](VERIFICATION.md) and its GitHub
+release. #67 tracks work blocked on evidence, authorization or recurrence.
 
-- [ ] Merge and release the #66 implementation.
-- [ ] Then bump `librus-mcp` from 1.0.2 to the current library and expose the
+- [ ] Bump `librus-mcp` from 1.0.2 to the current library and expose the
   reads added since (archive mailbox and unread counts, correspondent filters,
   teacher subjects, school-year archive, formative grades, receipt class labels,
   class free days and the module-unavailable outcome).
