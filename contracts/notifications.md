@@ -1,23 +1,22 @@
-# Notification and checkpoint primitives (0.4.4)
+# Notification counts and checkpoint primitives
 
-## Ownership and design decision
+## Ownership
 
-The core client provides typed ordinary count/event records and an explicitly
-consenting read-once primitive. Its contracts remain independent of storage.
-The superseding S3 design assigns reusable notification orchestration, first-run
-rules, canonical IDs, bounded replay, transactions and recovery to the explicit
-optional API persistence layer, not MCP. This workflow is not implemented yet;
-the original 0.4.4 primitives below remain the current public contract.
-MCP will select categories and map its old formats in its separate repository
-at backend migration time. See [persistence.md](persistence.md).
+The core client provides typed notification counts, event records and a read-once
+primitive requiring explicit consent. These primitives are independent of storage.
+The optional `NotificationStore` and `NotificationWorkflow`, shipped in 0.4.9,
+provide durable delivery, first-run rules, canonical IDs, bounded replay,
+transactions and recovery. MCP selects categories, presents consent and adapts
+its own formats. See [persistence.md](persistence.md) for the durable workflow.
 
-Pair-programmer design intentionally strengthens P5's original validated-batch
-handoff to **complete encoded-response checkpoint before validation/parsing**.
+The read-once primitive requires a **complete encoded-response checkpoint before
+validation/parsing**.
 Malformed gzip, MIME, markup or parser limits must not destroy the only fully
 received representation. A successful callback acknowledges application-selected
 durable storage. Only then can a complete typed batch be returned. The consumer
-must drain existing durable responses before another consume; the library
-cannot inspect an external spool or enforce cross-process transactions.
+must drain existing durable responses before another consume. The primitive
+cannot inspect an external spool; `NotificationWorkflow` enforces replay and
+context transactions when used with `NotificationStore`.
 
 ## Count semantics
 
@@ -34,12 +33,13 @@ the logout was not isolated. The route remains in the catalogue only as an
 accepted login redirect target and is never requested directly.
 
 Six known menu destinations map to typed categories. Messages link to the legacy
-`/wiadomosci` or the modern launcher `/wiadomosci3`; both count as messages. Labels and nonnegative
-integer counters are returned in displayed order. An absent counter for a shown
-category means zero; an absent category is not invented. Invalid, duplicate or
-oversized counters fail rather than silently becoming zero. Unknown navigation
-links stay inert. These counters may be token-scoped snapshots: fetching their
-page again does not promise a fresh notification poll or force a new login.
+`/wiadomosci` or the modern launcher `/wiadomosci3`; both count as messages.
+Labels and nonnegative integer counters are returned in displayed order. An
+absent counter for a shown category means zero; an absent category is not invented.
+Invalid, duplicate or oversized counters fail rather than silently becoming zero.
+Unknown navigation links stay inert. These counters may be token-scoped snapshots:
+fetching their page again does not promise a fresh notification poll or force a
+new login.
 
 ## Consume and replay boundary
 
@@ -61,9 +61,9 @@ page again does not promise a fresh notification poll or force a new login.
 - `decode_schedule_events` locally replays a consumer-persisted envelope using
   bounded parser workers and an operation budget. It never authenticates or
   dispatches HTTP, preserves original identity/observation, and requires the
-  same account alias and supported envelope version. Serialization and recovery
-   policy remain application-selected pending the optional S3 workflow;
-   envelopes are not authorization tokens.
+  same account alias and supported envelope version. Applications may supply
+  their own storage or use `NotificationStore` and `NotificationWorkflow` for
+  serialization and recovery. Envelopes are not authorization tokens.
 - Events preserve added-date text, free-form type and normalized multiline data,
   order and duplicates. No synthetic ID, hash, detail link, UTC conversion or
   upstream category enum is invented. The conservative four-column/header and
@@ -108,12 +108,13 @@ checkpoint ordering, restart decoding, repeated cancellation, callback failures,
 shared saturation and bounds. Read-once live qualification remains pending and
 must not use production events as routine verification. It needs a dedicated
 test login with owner-controlled disposable events and separately approved
-recovery/compatibility integration; the existing MCP spool cannot read this new
-raw-envelope format automatically.
+recovery/compatibility integration. Legacy MCP spool files are not native raw
+envelopes; their conversion is consumer-owned, not implicit in these primitives.
 
-Fresh live scope here permits ordinary counts only: one configured login context,
-one credential submission and 24 total authentication/identity/count HTTP attempts.
-No read-once retrieval, message open, sending, deletion or consumer-state change.
+The original live check authorized ordinary counts only: one login context,
+one credential submission and at most 24 authentication/identity/count HTTP
+attempts. It excluded read-once retrieval, message opens, sending, deletion and
+consumer-state changes.
 Exact evidence and unresolved gaps belong in [VERIFICATION.md](../VERIFICATION.md).
 
 The installed wheel used one login and ten requests to observe five shown

@@ -22,16 +22,14 @@ Rules that hold for every release:
 - Consumer (`librus-mcp`) changes are a separately authorized task. Change the
   library version only when its own contract changes.
 
-## Next
+## Current status
 
-Version 1.6.0 contains the #66 implementation; qualification and publication
-evidence are recorded in [VERIFICATION.md](VERIFICATION.md) and its GitHub
-release. #67 tracks work blocked on evidence, authorization or recurrence.
-
-- [ ] Bump `librus-mcp` from 1.0.2 to the current library and expose the
-  reads added since (archive mailbox and unread counts, correspondent filters,
-  teacher subjects, school-year archive, formative grades, receipt class labels,
-  class free days and the module-unavailable outcome).
+The #66 work shipped in [1.6.0](https://github.com/krzysztofbury/librus-python-api/releases/tag/v1.6.0).
+Its qualification evidence is in [VERIFICATION.md](VERIFICATION.md) and the
+release notes. `librus-mcp` 2.1.0 adopted library 1.6.0 and exposed the added
+reads and capability outcomes; see its [changelog](https://github.com/krzysztofbury/librus-mcp/blob/v2.1.0/CHANGELOG.md).
+Remaining library work is tracked in #67 and needs new evidence, authorization
+or recurrence of the intermittent failure described below.
 
 ## Blocked on live evidence (#67)
 
