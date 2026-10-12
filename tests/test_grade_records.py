@@ -18,11 +18,22 @@ from tests.grade_records_support import GradeRecordsFixture, grade_box, grades_h
 from tests.http_support import serve
 
 
-@pytest.mark.parametrize("day", ["2026-09-30", "2026-09-30 (śr.)"])
-def test_grade_date_is_a_civil_date_with_optional_display_weekday(day: str) -> None:
+@pytest.mark.parametrize(
+    "day,expected",
+    [
+        ("2026-09-30", "2026-09-30"),
+        ("2026-09-30 (śr.)", "2026-09-30"),
+        ("2026-10-04 (nd.)", "2026-10-04"),
+        ("2026-10-04 (ndz.)", "2026-10-04"),
+    ],
+)
+def test_grade_date_is_a_civil_date_with_optional_display_weekday(
+    day: str, expected: str
+) -> None:
+    # The short Sunday label was observed in a guarded structure-only capture.
     result = parse_grade_records(grades_html(first=grade_box(day=day)).encode())
     (grade,) = result.numeric
-    assert grade.day.isoformat() == "2026-09-30"
+    assert grade.day.isoformat() == expected
     assert dict(grade.metadata)["Data"] == day
 
 

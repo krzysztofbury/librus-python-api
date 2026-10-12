@@ -9,11 +9,11 @@ from lxml import etree, html
 
 from librus_python_api.config import (
     ATTENDANCE_DETAIL_PATH_PREFIX,
+    CIVIL_DATE_WEEKDAY_LABELS,
     GRADE_MAX_COLUMNS,
     GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
     UPSTREAM_ORIGINS,
-    WEEKDAY_LABELS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.parsers import parse_html_document
@@ -109,7 +109,9 @@ def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
 def civil_date(value: str | None) -> date:
     """An ISO date, optionally followed by its weekday label in parentheses."""
     match = re.fullmatch(r"([0-9]{4}-[0-9]{2}-[0-9]{2})(?: \(([^()]+)\))?", value or "")
-    if match is None or (match[2] is not None and match[2] not in WEEKDAY_LABELS):
+    if match is None or (
+        match[2] is not None and match[2] not in CIVIL_DATE_WEEKDAY_LABELS
+    ):
         raise LibrusError(ErrorKind.PARSE)
     try:
         return date.fromisoformat(match[1])

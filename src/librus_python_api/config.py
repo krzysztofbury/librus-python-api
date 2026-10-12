@@ -860,6 +860,8 @@ HOMEWORK_MARK_DONE_HANDLER = (
     r"\s*showConfirmQuestion\(\s*[0-9]{1,64}\s*,\s*[0-9]{1,64}\s*\);?\s*"
 )
 WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
+# Grade tooltips also use the short Sunday display label.
+CIVIL_DATE_WEEKDAY_LABELS = frozenset((*WEEKDAY_LABELS, "nd."))
 # Observed page-level notices shown instead of the requested content.
 PAGE_NOTICES = MappingProxyType(
     {
@@ -881,6 +883,8 @@ COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256
 COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
+# Recognition only: closure details are not ordinary agenda-detail references.
+AGENDA_CLOSURE_DETAIL_PATH_PREFIX = "/terminarz/szczegoly_wolne/"
 HOMEWORK_DETAIL_PATH_PREFIX = "/moje_zadania/podglad/"
 MESSAGE_MAX_PAGE_COUNT = 1000
 MESSAGE_MAX_PAGE_ITEMS = 50

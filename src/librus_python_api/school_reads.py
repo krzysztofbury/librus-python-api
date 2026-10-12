@@ -9,6 +9,7 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    AGENDA_CLOSURE_DETAIL_PATH_PREFIX,
     AGENDA_DESCRIPTION_LABEL,
     AGENDA_DETAIL_PATH_PREFIX,
     AGENDA_TOOLTIP_LABELS,
@@ -42,13 +43,14 @@ def school_reference(
 ) -> SchoolReference | None:
     """Find the single detail link.
 
-    Agenda cells must not carry any other handler. Homework rows also carry a
-    mark-done button; the library never follows handlers, so it is inert here.
+    Closure handlers stay inert without an ordinary agenda-detail reference.
+    Homework rows also carry a mark-done button; handlers are never followed.
     """
     prefix = (
         AGENDA_DETAIL_PATH_PREFIX if kind == "agenda" else HOMEWORK_DETAIL_PATH_PREFIX
     )
     found: set[str] = set()
+    closure = False
     for node in nodes:
         if not isinstance(node.tag, str):
             continue
@@ -56,6 +58,19 @@ def school_reference(
         if len(action) > 4096:
             raise LibrusError(ErrorKind.LIMIT)
         if not action:
+            continue
+        if (
+            kind == "agenda"
+            and node is nodes[0]
+            and node.tag == "td"
+            and re.fullmatch(
+                r"location\.href='"
+                + re.escape(AGENDA_CLOSURE_DETAIL_PATH_PREFIX)
+                + r"[0-9]{1,64}'",
+                action,
+            )
+        ):
+            closure = True
             continue
         if kind == "homework" and prefix not in action:
             # Only the observed mark-done button is inert; anything else is new.
@@ -66,7 +81,7 @@ def school_reference(
         if len(paths) != 1:
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         found.add(paths[0].removeprefix(prefix))
-    if len(found) > 1:
+    if len(found) > 1 or (closure and found):
         raise LibrusError(ErrorKind.PARSE)
     return SchoolReference(kind, next(iter(found)), account) if found else None
 

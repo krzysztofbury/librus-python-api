@@ -85,6 +85,11 @@ preceded the narrow date fix. In-memory replay also established HTML comments
 and the `Brak ocen` empty-cell marker; original regressions protect both. No
 private capture or school value is a fixture.
 
+A guarded structure-only capture on 2026-10-12 established `nd.` as another
+Sunday tooltip suffix. Civil-date parsing now accepts it alongside `ndz.`;
+original metadata remains unchanged and unknown suffixes still fail. Synthetic
+regressions exercise both spellings without retaining school values.
+
 The parser requires the summary table alignment contract plus exactly two
 `Oceny bieżące` headers, assigning semester 1/2 in displayed order. Average title
 labels and bounds live in config.py. Inline grade-box anchors preserve symbolic
