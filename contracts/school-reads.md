@@ -21,8 +21,16 @@ last login" agenda, submit work, download attachments or mark anything as read.
   span dozens of lines, some containing colons. Lines after `Opis` therefore
   continue that field until the next known label, so they never become fields
   of their own. Lines are capped at 256, under the 8192-character tooltip bound.
-- An agenda cell may carry only a detail handler (`/terminarz/szczegoly/<id>`).
-  Any other handler, such as a link to the read-once view, is unsupported.
+- An ordinary agenda cell carries a detail handler (`/terminarz/szczegoly/<id>`).
+  A closure cell may instead carry the observed
+  `location.href='/terminarz/szczegoly_wolne/<id>'` assignment. Its date and text
+  are retained, but `reference` is `None`: that separate detail page is not an
+  ordinary agenda-detail operation and is never fetched. Other handlers, such
+  as a link to the read-once view, remain unsupported.
+- The closure shape was established by an authorized live-check-guard capture
+  on 2026-10-12, retaining only tags, attributes and masked value shapes. The
+  regression uses invented text and IDs, and proves that an ordinary event and
+  a closure survive in one month without assigning the wrong detail reference.
 
 ## Homework
 

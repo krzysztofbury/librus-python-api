@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.1 (2026-10-12) - Sunday grade dates and calendar closures
+
+- Accept both observed Sunday tooltip labels, `nd.` and `ndz.`, while retaining
+  the original grade metadata and strict rejection of unknown date suffixes.
+- Preserve calendar closure events whose handler targets the separate closure
+  details page. Such events retain their text and date with `reference=None`;
+  they are never misrouted to ordinary agenda details or fetched automatically.
+- Add regressions based on guarded structure-only observations with independently
+  authored text and IDs. Unknown closure handlers still fail closed.
+
 ## 1.6.0 (2026-10-09) - Class free days and capability outcomes
 
 Compatible minor release with a new typed module-unavailable outcome. Consumers

@@ -149,6 +149,52 @@ def test_subjectless_multiline_title_is_not_replaced_with_its_note() -> None:
     assert event.lesson_number is None and event.subject is None
 
 
+def test_calendar_closure_keeps_text_without_a_wrong_ordinary_detail_reference() -> (
+    None
+):
+    # Guarded structure-only capture: a td with a location.href assignment to
+    # the separate closure route, no tooltip or subject span. Text/ID are invented.
+    closure = (
+        '<td class="no-border-left no-border-right" '
+        "onclick=\"location.href='/terminarz/szczegoly_wolne/456'\">"
+        "Fixture closure</td>"
+    )
+    body = agenda_html().replace("</tr></table>", f"</tr><tr>{closure}</tr></table>")
+    events = parse_agenda(body.encode(), 2026, 10, "fixture")[1].events
+    assert len(events) == 2
+    assert events[0].reference == SchoolReference("agenda", "123", "fixture")
+    assert events[1].title == events[1].text == "Fixture closure"
+    assert events[1].day == date(2026, 10, 2)
+    assert events[1].reference is None
+    assert events[1].subject is None and events[1].lesson_number is None
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "location.href='/terminarz/szczegoly_wolne/456';other()",
+        "location.href='https://example.invalid/terminarz/szczegoly_wolne/456'",
+        "location.href='/terminarz/szczegoly_wolne/456?extra=1'",
+        "location.href='/terminarz/szczegoly_wolne/not-an-id'",
+        "location.href='/terminarz/szczegoly_wolne/" + "1" * 65 + "'",
+    ],
+)
+def test_calendar_closure_does_not_allow_unrecognized_handlers(action: str) -> None:
+    cell = f'<td onclick="{action}">Fixture closure</td>'
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_agenda(agenda_html(cell=cell).encode(), 2026, 10, "fixture")
+
+
+def test_calendar_closure_rejects_a_conflicting_ordinary_detail_reference() -> None:
+    cell = (
+        "<td onclick=\"location.href='/terminarz/szczegoly_wolne/456'\">"
+        "Fixture closure<a onclick=\"open('/terminarz/szczegoly/123')\">"
+        "Fixture conflicting detail</a></td>"
+    )
+    with pytest.raises(ParseError):
+        parse_agenda(agenda_html(cell=cell).encode(), 2026, 10, "fixture")
+
+
 def test_inline_subject_header_does_not_hide_lesson_number_or_punctuation() -> None:
     cell = (
         "<td>Lekcja nr: 4, <span>Fixture Biology</span><br>Fixture quiz, revision</td>"
