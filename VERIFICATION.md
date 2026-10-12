@@ -3,6 +3,22 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Weekly agenda baseline (2026-10-12)
+
+The [scheduled run](https://github.com/krzysztofbury/librus-python-api/actions/runs/38254376106)
+reported `unsupported_capability` for `agenda`; `agenda_detail` inherited that
+result without a detail request. An owner-authorized local check using the CI
+credential configuration reproduced both outcomes with one login, 10 requests
+and no live-check guard violations. The allowlist covered identity, ordinary
+agenda and agenda detail, with a 16-request cap and a 90-second budget.
+
+The structure-only observation showed HTTP 200 and a full calendar. This is
+unsupported client coverage, not evidence that the school disabled the module.
+No school text or raw pages were retained. At the owner's request, both slot 0
+expectations now name `unavailable`, which is the checker's coverage mapping
+for this error. The parser remains unchanged. Available coverage will fail this
+baseline comparison again; unrelated errors and guard violations still fail.
+
 ## Ready-work implementation (#66, 2026-10-09)
 
 - Pre-implementation and post-implementation pair-programmer reviews covered
