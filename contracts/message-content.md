@@ -50,8 +50,7 @@ owner-only `rendered-content.json`, deleted with the captures.
 
 The reference client omits attachment metadata and read receipts. Its agreement on common
 fields is not a correctness oracle. Exact qualification, request accounting and
-remaining gaps are in [VERIFICATION.md](../VERIFICATION.md). Streams are 0.4.3;
-sending remains separately planned and authorized.
+remaining gaps are in [VERIFICATION.md](../VERIFICATION.md). Streams are 0.4.3.
 
 Later 0.4.3 qualification observes one populated attachment layout on two
 already-read content responses. Filename and message/file route linkage agree

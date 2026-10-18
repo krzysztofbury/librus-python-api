@@ -127,7 +127,7 @@ domain references remain appropriate for simple operations.
 ## Remaining limits
 
 The review does not establish populated behaviour-note or observation-card wire
-contracts, additional school/role support, archive mailbox navigation, or live
+contracts, additional school/role support, archived content opens, or live
 read-once recovery. Those need independent evidence and the existing live gates.
 See [the cutover matrix](mcp-cutover-review.md) for compatibility differences that
 must remain explicit when adapting the consumer's less expressive schemas.

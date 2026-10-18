@@ -54,15 +54,10 @@ No generic repository/UoW or common JSON envelope is added to the library:
 upstream calls are not transactional, and a wire envelope is a consumer schema.
 Existing typed domain collections provide the necessary facts.
 
-## Next acceptance slice
+## Acceptance slice
 
-1. Define MCP 2.0 schemas and native service lifecycle with one shared scheduler.
-2. Exercise every enabled tool through stdio against the installed library and a
-   local fixture server; assert new schemas, effects, budgets and account binding.
-3. Prove state import/quarantine and rollback with disposable stores, retaining
-   pending events and UNKNOWN send history without duplicate dispatch.
-4. Remove old backend dependencies, redundant scraping/recovery/caches and
-   old wire models after the replacement invariants pass.
+The MCP 2.0 cutover checklist is complete ([TODO.md](../TODO.md)).
+`librus-mcp` 2.1.0 adopted library 1.6.0.
 
 Behaviour notes, observation cards and wider live qualification remain the
 evidence-dependent gaps in [TODO.md](../TODO.md). This review does not enable new
