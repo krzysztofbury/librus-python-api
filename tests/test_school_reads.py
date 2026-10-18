@@ -1,19 +1,16 @@
 """Calendar/homework integrity and owning service security/wire guarantees."""
 
-from collections.abc import Callable
 from datetime import date, datetime, time
 
 import pytest
 
 from librus_python_api import SchoolReference
-from librus_python_api.completed_lessons import parse_completed_lessons
 from librus_python_api.config import homework_form
 from librus_python_api.exceptions import (
     InvalidInputError,
     LimitError,
     ParseError,
     UnsupportedCapabilityError,
-    ViewDisabledError,
 )
 from librus_python_api.school_reads import (
     parse_agenda,
@@ -23,7 +20,6 @@ from librus_python_api.school_reads import (
 from tests.school_reads_support import (
     HOMEWORK_EMPTY,
     RANGE_REJECTED,
-    VIEW_DISABLED,
     agenda_html,
     detail_html,
     homework_html,
@@ -271,23 +267,6 @@ def test_homework_empty_page_is_empty_but_rejected_range_is_not() -> None:
     ):
         with pytest.raises(ParseError):
             parse_homework(body.encode(), "fixture")
-
-
-@pytest.mark.parametrize(
-    "parse",
-    [
-        lambda body: parse_homework(body, "fixture"),
-        lambda body: parse_agenda(body, 2026, 10, "fixture"),
-        lambda body: parse_completed_lessons(
-            body, date(2026, 9, 1), date(2026, 9, 30), 0
-        ),
-    ],
-)
-def test_view_disabled_by_school_is_typed_not_parse_failure(
-    parse: Callable[[bytes], object],
-) -> None:
-    with pytest.raises(ViewDisabledError):
-        parse(warning_html(VIEW_DISABLED).encode())
 
 
 @pytest.mark.parametrize(

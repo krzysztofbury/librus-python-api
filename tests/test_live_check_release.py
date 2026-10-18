@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from librus_python_api import AccountCredentials, ConnectionSettings, RequestBudget
+from librus_python_api import AccountCredentials, RequestBudget
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from scripts.live_check.checks import Check, Context, Observed, check
 from scripts.live_check.expectations import Expected, compare
@@ -25,10 +25,9 @@ from scripts.live_check.runner import (
     run_profile,
     run_slot,
 )
-from tests.http_support import FIXTURE_SECRET, serve
+from tests.live_check_support import run_fixture
 from tests.test_modern_communication import CommunicationFixture
 
-LOGINS = ("student", "parent")
 # Captured from the retired single-purpose script before porting.
 RELEASE_STEPS = [
     "identity",
@@ -54,34 +53,9 @@ def run_release(
     identities: dict[str, str] | None = None,
     profile: Profile = RELEASE,
 ) -> Report:
-    async def scenario() -> Report:
-        fixture.aliases = LOGINS
-        async with (
-            serve(fixture.app()) as native,
-            serve(fixture.modern_app()) as modern,
-        ):
-            fixture.origin, fixture.modern_origin = native, modern
-            report = await run_profile(
-                profile,
-                {
-                    f"slot-{index}": AccountCredentials(
-                        login=login, password=FIXTURE_SECRET
-                    )
-                    for index, login in enumerate(LOGINS)
-                },
-                today=date(2026, 10, 7),
-                identities=identities,
-                connection=ConnectionSettings(
-                    synergia_origin=native,
-                    api_origin=native,
-                    messages_origin=modern,
-                    download_origin=fixture.download_origin,
-                ),
-            )
-        report.problems = release_problems(report)
-        return report
-
-    return asyncio.run(scenario())
+    report = run_fixture(profile, fixture, identities=identities)
+    report.problems = release_problems(report)
+    return report
 
 
 def test_release_profile_passes_without_opening_sending_or_consuming() -> None:

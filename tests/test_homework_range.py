@@ -24,6 +24,11 @@ class RangeFixture(SchoolReadsFixture):
         self.conflict = False
         self.fail_second = False
 
+    def app(self) -> web.Application:
+        app = super().app()
+        app.router.add_post("/moje_zadania", self.homework)
+        return app
+
     async def homework(self, request: web.Request) -> web.Response:
         login, form = await self.selected(request, "homework")
         assert set(form) == {"dataOd", "dataDo", "przedmiot", "status"}

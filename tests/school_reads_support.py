@@ -1,8 +1,6 @@
-"""Original ordinary-calendar/homework requirements and exact loopback routes."""
+"""Original ordinary-calendar and homework markup requirements."""
 
-import asyncio
 import calendar
-from datetime import date
 from html import escape
 
 from aiohttp import web
@@ -141,19 +139,6 @@ class SchoolReadsFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()
         self.forms: list[tuple[str, str, dict[str, str]]] = []
-        self.detail_gets: list[tuple[str, str, str]] = []
-        self.status: dict[str, int] = {}
-        self.bodies: dict[str, str] = {}
-        self.wait: asyncio.Event | None = None
-        self.started = asyncio.Event()
-
-    def app(self) -> web.Application:
-        app = super().app()
-        app.router.add_post("/terminarz/", self.agenda)
-        app.router.add_post("/moje_zadania", self.homework)
-        app.router.add_get("/terminarz/szczegoly/{id}", self.agenda_detail)
-        app.router.add_get("/moje_zadania/podglad/{id}", self.homework_detail)
-        return app
 
     async def selected(
         self, request: web.Request, kind: str
@@ -162,52 +147,4 @@ class SchoolReadsFixture(SchoolFixture):
         assert not request.query and "X-Requested-With" not in request.headers
         form = {k: str(v) for k, v in (await request.post()).items()}
         self.forms.append((kind, login, form))
-        self.started.set()
-        if self.wait is not None:
-            await self.wait.wait()
         return login, form
-
-    def response(self, kind: str, body: str) -> web.Response:
-        return web.Response(
-            status=self.status.get(kind, 200),
-            text=self.bodies.get(kind, body),
-            content_type="text/html",
-            headers={"Location": "/loguj"} if self.status.get(kind) == 302 else None,
-        )
-
-    async def agenda(self, request: web.Request) -> web.Response:
-        login, form = await self.selected(request, "agenda")
-        assert set(form) == {"rok", "miesiac"}
-        assert form["miesiac"] == f"{int(form['miesiac']):02}"
-        return self.response(
-            "agenda",
-            agenda_html(
-                int(form["rok"]),
-                int(form["miesiac"]),
-                event_cell().replace("Fixture test", "Fixture " + login),
-            ),
-        )
-
-    async def homework(self, request: web.Request) -> web.Response:
-        login, form = await self.selected(request, "homework")
-        assert set(form) == {"dataOd", "dataDo", "przedmiot", "status"}
-        assert form["przedmiot"] == form["status"] == "-1"
-        assert date.fromisoformat(form["dataOd"]) <= date.fromisoformat(form["dataDo"])
-        return self.response(
-            "homework",
-            homework_html().replace(
-                "Fixture topic", "Fixture " + login + " " + form["dataOd"]
-            ),
-        )
-
-    async def detail(self, request: web.Request, kind: str) -> web.Response:
-        login = self.record(request)
-        assert not request.query and not await request.read()
-        self.detail_gets.append((kind, login, request.match_info["id"]))
-        return self.response(kind + "_detail", detail_html(kind))
-
-    async def agenda_detail(self, request: web.Request) -> web.Response:
-        return await self.detail(request, "agenda")
-
-    async def homework_detail(self, request: web.Request) -> web.Response:
-        return await self.detail(request, "homework")

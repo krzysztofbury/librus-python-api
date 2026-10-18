@@ -21,8 +21,6 @@ class WeeklyFixture(CommunicationFixture):
         app = super().app()
         app.router.add_get("/gateway/api/2.0/Lessons", self.gateway_lessons)
         app.router.add_get("/gateway/api/2.0/Subjects", self.gateway_subjects)
-        app.router.add_get("/gateway/api/2.0/Lessons/{id}", self.gateway_lesson)
-        app.router.add_get("/gateway/api/2.0/Subjects/{id}", self.gateway_subject)
         return app
 
     async def gateway_lessons(self, request: web.Request) -> web.Response:
@@ -35,23 +33,6 @@ class WeeklyFixture(CommunicationFixture):
         self.record(request)
         return web.json_response(
             {"Subjects": [{"Id": 51, "Name": "Fixture subject", "No": 1, "Short": "F"}]}
-        )
-
-    async def gateway_lesson(self, request: web.Request) -> web.Response:
-        self.record(request)
-        return web.json_response(
-            {"Lesson": {"Id": int(request.match_info["id"]), "Subject": {"Id": 51}}}
-        )
-
-    async def gateway_subject(self, request: web.Request) -> web.Response:
-        self.record(request)
-        return web.json_response(
-            {
-                "Subject": {
-                    "Id": int(request.match_info["id"]),
-                    "Name": "Fixture subject",
-                }
-            }
         )
 
 

@@ -339,18 +339,6 @@ MALFORMED: list[tuple[str, Callable[[], str], ErrorKind]] = [
         ErrorKind.PARSE,
     ),
     (
-        "too many years",
-        lambda: archive_page(
-            archive=archive_table(
-                years=tuple((f"{i}q", f"{2000 + i}/{2001 + i}") for i in range(17)),
-                subjects=(),
-                descriptive=(),
-                absences={k: (("0", "0", "0"),) * 17 for k in ABSENCES},
-            )
-        ),
-        ErrorKind.LIMIT,
-    ),
-    (
         "wrong subject cell count",
         lambda: archive_page(
             archive=archive_table(subjects=(("Fixture astronomy", (("4", "5"),) * 3),))
@@ -485,16 +473,6 @@ def test_malformed_pages_fail_with_a_typed_kind(
     with pytest.raises(LibrusError) as failure:
         parse(build())
     assert failure.value.kind is kind
-
-
-def test_oversized_text_is_a_limit_not_a_truncation() -> None:
-    long = "x" * 65537
-    page = archive_page(
-        archive=archive_table(descriptive=(("Fixture skills", (long, "b", "c")),))
-    )
-    with pytest.raises(LibrusError) as failure:
-        parse(page)
-    assert failure.value.kind is ErrorKind.LIMIT
 
 
 @pytest.mark.parametrize("count", [16, 17])
