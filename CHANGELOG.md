@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased - School layout variants
+
+Fixes for one school's completed-lesson and grade pages, which 1.6.1 rejected
+with `ParseError`. Observed offline in an owner-provided page; the guarded live
+gate is pending.
+
+- Completed lessons: accept the item range after the page count
+  (`Strona 1 z 3 Pozycje 1..20 z 47`) and require it to match the parsed rows;
+  ignore the `decorated filters` date-filter table; locate the optional
+  `e-Tablica` column by its header label (nonempty cells raise
+  `UnsupportedCapabilityError`); skip a blank full-width closing row.
+- Completed lessons: strip whitespace and line breaks around the subject/teacher
+  comma, so `<b>Subject</b>, <br>Teacher` no longer yields the whole cell as the
+  subject with no teacher.
+- Grades: recognize behaviour points in the `Zachowanie` row (starting points
+  and point entries linking to behaviour details). They are validated and not
+  returned as grades, so the whole grade read no longer fails on them. Other
+  content beside the starting points still fails.
+
 ## 1.6.1 (2026-10-12) - Sunday grade dates and calendar closures
 
 - Accept both observed Sunday tooltip labels, `nd.` and `ndz.`, while retaining
