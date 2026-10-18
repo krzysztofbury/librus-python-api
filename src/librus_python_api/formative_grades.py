@@ -31,7 +31,6 @@ def _fail(kind: ErrorKind) -> NoReturn:
 
 
 def is_formative_table(table: html.HtmlElement) -> bool:
-    # Cheap structural gates first: other tables' header text is never read.
     if not {"stretch", "decorated"} <= set(table.get("class", "").split()):
         return False
     heads = [row for row in markup.rows(table) if markup.in_header(row)]

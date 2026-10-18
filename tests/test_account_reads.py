@@ -192,8 +192,6 @@ def test_view_disabled_by_school_is_typed_for_every_page(
 def test_module_redirect_is_typed_without_following_or_reauthenticating(
     location: str, expected: type[LibrusError]
 ) -> None:
-    # A dedicated fixture preserves the authentication identity response, then
-    # redirects the explicit public read under test.
     class RedirectFixture(ReadsFixture):
         redirect_now = False
 

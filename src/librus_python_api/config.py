@@ -931,7 +931,6 @@ MODERN_DIRECTORY_QUERIES = MappingProxyType(
         "modern_recipients": (("receiverType", "parentsCouncil"),),
     }
 )
-MODERN_SUPPORTED_RECIPIENT_TYPE = "parentsCouncil"
 MODERN_RECIPIENT_OPERATIONS = MappingProxyType(
     {
         **{

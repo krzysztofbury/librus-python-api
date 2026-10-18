@@ -1,4 +1,4 @@
-"""Explicit optional durable sending, independent of MCP and core transport."""
+"""Durable sending and the notification store and workflow."""
 
 import hashlib
 import json

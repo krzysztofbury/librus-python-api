@@ -127,7 +127,6 @@ def test_malformed_expectations_are_rejected(text: str) -> None:
 
 
 def test_the_committed_expectations_file_is_valid() -> None:
-    # Starts as {"slots": {}}; later holds the owner's recorded map.
     load((ROOT / "contracts/live-check-expectations.json").read_text())
 
 
