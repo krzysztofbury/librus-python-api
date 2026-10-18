@@ -33,6 +33,7 @@ def grades_html(
     second: str = "",
     subject: str = "Fixture Language",
     extra: str = "",
+    rows: str = "",
 ) -> str:
     if first is None:
         first = grade_box()
@@ -45,7 +46,47 @@ def grades_html(
     <th title="Średnia roczna">Average</th><th title="Ocena roczna">Annual</th>
     </tr></thead><tbody><tr><td></td><td>{subject}</td>
     <td>{first}</td><td>4,25</td><td>-</td><td>{second}</td><td></td><td>-</td>
-    <td>-</td><td>-</td></tr></tbody></table>{extra}</body></html>"""
+    <td>-</td><td>-</td></tr>{rows}</tbody></table>{extra}</body></html>"""
+
+
+BEHAVIOUR_DETAIL = "/przegladaj_oceny/zachowanie_szczegoly/{}"
+
+
+def behaviour_box(points: str = "3", detail: str = "901", **attributes: str) -> str:
+    """A behaviour-points entry; its tooltip opens with an unlabelled line."""
+    title = escape(
+        f"fixture points category({points})<br/>Zakres od: 1<br/>Zakres do: 5"
+        "<br />Data wystawienia: 2026-09-21<br />Dodał: Teacher Fixture"
+        "<br>Komentarz: Fixture remark",
+        quote=True,
+    )
+    href = attributes.get("href", BEHAVIOUR_DETAIL.format(detail))
+    return (
+        '<span class="grade-box positive-behaviour">'
+        f'<a title="{title}" href="{href}">{points}</a></span>'
+    )
+
+
+def behaviour_points(start: str = "50", boxes: str = "") -> str:
+    """A behaviour-row cell: starting points, then any point entries."""
+    return (
+        '<span class="tooltip" style="cursor: pointer;" title="Punkty startowe">'
+        f"\n    {start}    </span>\n{boxes}  &#160;\n"
+    )
+
+
+def behaviour_row(first: str | None = None, second: str | None = None) -> str:
+    """The behaviour row: each period's current and average cells are merged."""
+    if first is None:
+        first = behaviour_points(boxes=behaviour_box())
+    if second is None:
+        second = behaviour_points()
+    return (
+        '<tr class="bolded line0"><td class="center micro screen-only"></td>'
+        f'<td>\n Zachowanie\n</td><td colspan="2">{first}</td>'
+        f'<td class="center">-</td><td colspan="2">{second}</td>'
+        '<td>-</td><td>-</td><td class="center">-</td></tr>'
+    )
 
 
 FORMATIVE_LINK = "/przegladaj_oceny/szczegoly/ksztaltujace/{}"

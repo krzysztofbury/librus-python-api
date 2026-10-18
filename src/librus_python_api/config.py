@@ -658,6 +658,10 @@ GRADE_MAX_COLUMNS = 64
 GRADE_MAX_SUBJECTS = 128
 GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
+# The behaviour row's current-grade cells may hold behaviour points instead:
+# a starting-points tooltip followed by point entries linking to behaviour
+# details. Points are not grades; they are validated and not returned.
+GRADE_BEHAVIOUR_POINTS_LABEL = "Punkty startowe"
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
 GRADE_VIEW_FIELDS = MappingProxyType(
     {
@@ -731,6 +735,8 @@ ATTENDANCE_MAX_SUBJECTS = 1024
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 # Recognition only: formative detail links are classified, never requested.
 FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
+# Recognition only: behaviour-point detail links are classified, never requested.
+BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
 FORMATIVE_HEADERS = (
     "przedmiot",
     "ocena kształtująca",
