@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased - School layout variants
+## 1.6.2 (2026-10-19) - School layout variants and behaviour points
 
-Fixes for one school's completed-lesson and grade pages, which 1.6.1 rejected
-with `ParseError`. Observed offline in an owner-provided page; the guarded live
-gate is pending.
+Fixes for completed-lesson and grade pages that 1.6.1 rejected with
+`ParseError`. The layouts were observed offline in owner-provided pages and one
+issue report; the guarded live gate for them is pending. Public types and
+signatures are unchanged.
 
 - Completed lessons: accept the item range after the page count
   (`Strona 1 z 3 Pozycje 1..20 z 47`) and require it to match the parsed rows;
@@ -19,6 +20,12 @@ gate is pending.
   They are validated and not returned as grades, so the whole grade read no
   longer fails on them (#76). Other content beside the points tooltip still
   fails.
+- Internal: share aiohttp session setup and message send dispatch in the
+  transport, remove an unused recipient constant, orphaned 0.4.x qualification
+  scripts and dead test-support code, and correct stale status sentences in the
+  contracts. Behaviour is unchanged.
+- Development dependencies and pinned GitHub Actions are updated; runtime
+  dependency ranges are unchanged.
 
 ## 1.6.1 (2026-10-12) - Sunday grade dates and calendar closures
 
