@@ -19,6 +19,16 @@ expectations now name `unavailable`, which is the checker's coverage mapping
 for this error. The parser remains unchanged. Available coverage will fail this
 baseline comparison again; unrelated errors and guard violations still fail.
 
+## Weekly agenda baseline restored (2026-10-19)
+
+1.6.1 parses the closure events behind the `unsupported_capability` result
+above. A manually dispatched
+[weekly run](https://github.com/krzysztofbury/librus-python-api/actions/runs/39243208678)
+on main reported `populated` for slot 0 `agenda` and `agenda_detail` and failed
+only on the `unavailable` expectation. Both expectations return to `any`, the
+mapping for naturally volatile calendar coverage. An unavailable agenda fails
+the comparison again.
+
 ## Ready-work implementation (#66, 2026-10-09)
 
 - Pre-implementation and post-implementation pair-programmer reviews covered

@@ -2,8 +2,8 @@
   "slots": {
     "0": {
       "checks": {
-        "agenda": "unavailable",
-        "agenda_detail": "unavailable",
+        "agenda": "any",
+        "agenda_detail": "any",
         "announcements": "populated",
         "attendance": "any",
         "attendance_detail": "any",
