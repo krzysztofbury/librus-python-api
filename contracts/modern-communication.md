@@ -182,8 +182,8 @@ independent implementation is retained without an external fallback or copied
 fixtures. See [VERIFICATION.md](../VERIFICATION.md#reference-client-and-provenance).
 
 Archive attachment resolution and archived flags in an ordinary detail response
-must not be confused with archive mailbox navigation: explicit archive list/detail
-APIs and archive-qualified message navigation are not implemented. That contract
-work, plus remaining live layout/availability evidence and independent delivery
-semantics, stays in TODO C01-C05. Suitable evidence and fresh authorization are
-required to resume; repeated checks on unavailable data are not planned.
+must not be confused with archive mailbox navigation: archived content opens
+stay `UNSUPPORTED_CAPABILITY` (TODO C04). Remaining live layout/availability
+evidence and independent delivery semantics stay in TODO C01-C05. Suitable
+evidence and fresh authorization are required to resume; repeated checks on
+unavailable data are not planned.

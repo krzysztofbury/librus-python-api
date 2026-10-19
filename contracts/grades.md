@@ -1,9 +1,8 @@
 # Grade contracts and provenance
 
 The development increments implement `AccountClient.final_grades()`, `grades()`,
-and `grades_window()`. The revised 0.2.0 release scope is grades-only; other
-academic/school-read families move to 0.3.0. Delivery and qualification status
-are recorded in VERIFICATION.md.
+and `grades_window()`. Delivery and qualification status are recorded in
+VERIFICATION.md.
 
 ## Research boundary
 
@@ -133,8 +132,7 @@ implicit first-period default. Unknown layouts fail closed.
 `tests/test_grade_records.py` owns numeric/descriptive/average/window semantics,
 metadata/date/bounds failures, unsupported-layout detection, fixed form delivery,
 no POST recovery, shared default-policy four-login traffic, coalescing/cache reuse,
-and cancellation. `tests/test_grade_view.py` owns credential-form destination
-rejection before dispatch. Common transport/identity/scheduler tests retain their
+and cancellation. Common transport/identity/scheduler tests retain their
 existing guarantees. Numeric populated discovery is observed; populated
 descriptive and numeric-average live coverage is not claimed by synthetic tests.
 

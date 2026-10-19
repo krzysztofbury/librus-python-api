@@ -289,5 +289,4 @@ Versioned 0.5.0 source/wheel/sdist qualification passes the same 1,385 portable
 tests on both Python versions with metadata/import/runtime checks and reproducible
 archives. New local artifacts total 637,301 bytes in `dist/0.5.0/`; no extra live
 calls were made. Final versioned evidence:
-`release-evidence/0.5.0-modern-qualification.json`. Remote PR CI remains pending
-until observed at the exact pushed head.
+`release-evidence/0.5.0-modern-qualification.json`.

@@ -5,7 +5,6 @@ numeric detail reads with fields/notes, gateway records, overall/semester ratios
 and per-subject ratios with bounded metadata resolution. A populated installed
 native/reference-client pair completed on one context. Wider role/layout coverage, custom-type
 semantics, populated last-login, and the remaining school families remain pending.
-This is not a completed 0.3.0 release or general compatibility claim.
 
 ## Baseline and provenance
 

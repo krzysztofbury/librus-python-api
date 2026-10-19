@@ -47,8 +47,8 @@ submission and three fresh summary reads. Imports and two-second between-read
 pacing were excluded. Native's then-default one-request/second shared limiter stayed
 enabled; apix has no corresponding limiter. Consumer-mapped summary fields matched.
 No credential, cookie, account detail, or response capture is retained here.
-The default is now five requests/second with a shared burst of ten. These timings
-are historical, not measurements of the revised default.
+These timings are historical, not measurements of the current `SchedulerLimits`
+default of ten requests/second with a shared burst of twenty.
 
 | Metric | Native development API | apix 1.5.3 + summary parser |
 | --- | ---: | ---: |
