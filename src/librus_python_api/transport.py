@@ -210,51 +210,51 @@ class AiohttpTransport:
         self._modern_session: aiohttp.ClientSession | None = None
         self._closed = False
 
+    def _open_session(
+        self,
+        *,
+        cookie_jar: aiohttp.abc.AbstractCookieJar | None = None,
+        read_bufsize: int = 16 * 1024,
+        per_request_timeout: bool = False,
+    ) -> aiohttp.ClientSession:
+        _require_no_connection_retry()
+        timeout = (
+            None
+            if per_request_timeout
+            else aiohttp.ClientTimeout(
+                total=self._limits.request_timeout_seconds,
+                connect=self._limits.connect_timeout_seconds,
+            )
+        )
+        session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(
+                limit=1,
+                ssl=self._connection.ssl_context or True,
+            ),
+            cookie_jar=aiohttp.CookieJar() if cookie_jar is None else cookie_jar,
+            trust_env=False,
+            auto_decompress=False,
+            read_bufsize=read_bufsize,
+            timeout=timeout,
+            headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+        )
+        # aiohttp otherwise silently replays GET on a stale keepalive
+        # connection. Some GETs mark read; every attempt must be budgeted.
+        session._retry_connection = False
+        return session
+
     def _get_session(self) -> aiohttp.ClientSession:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._session is None:
-            _require_no_connection_retry()
-            self._session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(
-                    limit=1,
-                    ssl=self._connection.ssl_context or True,
-                ),
-                cookie_jar=aiohttp.CookieJar(),
-                trust_env=False,
-                auto_decompress=False,
-                read_bufsize=16 * 1024,
-                timeout=aiohttp.ClientTimeout(
-                    total=self._limits.request_timeout_seconds,
-                    connect=self._limits.connect_timeout_seconds,
-                ),
-                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
-            )
-            # aiohttp otherwise silently replays GET on a stale keepalive
-            # connection. Some GETs mark read; every attempt must be budgeted.
-            self._session._retry_connection = False
+            self._session = self._open_session()
         return self._session
 
     def _get_modern_session(self) -> aiohttp.ClientSession:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._modern_session is None:
-            _require_no_connection_retry()
-            self._modern_session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(
-                    limit=1, ssl=self._connection.ssl_context or True
-                ),
-                cookie_jar=aiohttp.CookieJar(),
-                trust_env=False,
-                auto_decompress=False,
-                read_bufsize=16 * 1024,
-                timeout=aiohttp.ClientTimeout(
-                    total=self._limits.request_timeout_seconds,
-                    connect=self._limits.connect_timeout_seconds,
-                ),
-                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
-            )
-            self._modern_session._retry_connection = False
+            self._modern_session = self._open_session()
         return self._modern_session
 
     def _url(self, endpoint: Endpoint) -> str:
@@ -392,25 +392,12 @@ class AiohttpTransport:
         budget: RequestBudget,
         dispatched: Callable[[], None],
     ) -> TransportResponse:
-        payload = encode_modern_send(submission, self._account)
-        if self._closed:
-            raise LibrusError(ErrorKind.CLOSED)
-        kind: ErrorKind | None = None
-        try:
-            return await self._scheduler.run(
-                self._account,
-                budget,
-                partial(self._send_exchange, payload, budget, dispatched, modern=True),
-                preserve_completed=True,
-            )
-        except aiohttp.ClientError:
-            kind = ErrorKind.CONNECTION
-        except TimeoutError:
-            kind = ErrorKind.TIMEOUT
-        except (ValueError, OverflowError, zlib.error):
-            kind = ErrorKind.PARSE
-        assert kind is not None
-        raise LibrusError(kind)
+        return await self._send_exchange(
+            encode_modern_send(submission, self._account),
+            budget,
+            dispatched,
+            modern=True,
+        )
 
     async def send_message(
         self,
@@ -418,25 +405,11 @@ class AiohttpTransport:
         budget: RequestBudget,
         dispatched: Callable[[], None],
     ) -> TransportResponse:
-        payload = encode_send_form(submission, self._account)
-        if self._closed:
-            raise LibrusError(ErrorKind.CLOSED)
-        kind: ErrorKind | None = None
-        try:
-            return await self._scheduler.run(
-                self._account,
-                budget,
-                partial(self._send_exchange, payload, budget, dispatched),
-                preserve_completed=True,
-            )
-        except aiohttp.ClientError:
-            kind = ErrorKind.CONNECTION
-        except TimeoutError:
-            kind = ErrorKind.TIMEOUT
-        except (ValueError, OverflowError, zlib.error):
-            kind = ErrorKind.PARSE
-        assert kind is not None
-        raise LibrusError(kind)
+        return await self._send_exchange(
+            encode_send_form(submission, self._account),
+            budget,
+            dispatched,
+        )
 
     async def _send_exchange(
         self,
@@ -446,34 +419,57 @@ class AiohttpTransport:
         *,
         modern: bool = False,
     ) -> TransportResponse:
-        endpoint = ENDPOINTS["modern_send_message" if modern else "send_message"]
-        session = self._get_modern_session() if modern else self._get_session()
-        proxy = self._connection.proxy_url
-        dispatched()
-        async with session.post(
-            self._url(endpoint),
-            data=payload,
-            headers={
-                "Content-Type": "application/json"
-                if modern
-                else "application/x-www-form-urlencoded; charset=utf-8"
-            },
-            allow_redirects=False,
-            proxy=proxy.get_secret_value() if proxy is not None else None,
-        ) as response:
-            self._check_headers(response)
-            if len(session.cookie_jar) > self._limits.max_cookies:
-                session.cookie_jar.clear()
-                raise LibrusError(ErrorKind.LIMIT)
-            if not modern or response.status not in (400, 422):
-                self._check_status(response)
-            body = await self._read_body(response, budget)
-            return TransportResponse(
-                response.status,
-                body,
-                str(response.url),
-                MappingProxyType({k.lower(): v for k, v in response.headers.items()}),
+        if self._closed:
+            raise LibrusError(ErrorKind.CLOSED)
+
+        async def exchange() -> TransportResponse:
+            endpoint = ENDPOINTS["modern_send_message" if modern else "send_message"]
+            session = self._get_modern_session() if modern else self._get_session()
+            proxy = self._connection.proxy_url
+            dispatched()
+            async with session.post(
+                self._url(endpoint),
+                data=payload,
+                headers={
+                    "Content-Type": "application/json"
+                    if modern
+                    else "application/x-www-form-urlencoded; charset=utf-8"
+                },
+                allow_redirects=False,
+                proxy=proxy.get_secret_value() if proxy is not None else None,
+            ) as response:
+                self._check_headers(response)
+                if len(session.cookie_jar) > self._limits.max_cookies:
+                    session.cookie_jar.clear()
+                    raise LibrusError(ErrorKind.LIMIT)
+                if not modern or response.status not in (400, 422):
+                    self._check_status(response)
+                body = await self._read_body(response, budget)
+                return TransportResponse(
+                    response.status,
+                    body,
+                    str(response.url),
+                    MappingProxyType(
+                        {k.lower(): v for k, v in response.headers.items()}
+                    ),
+                )
+
+        kind: ErrorKind | None = None
+        try:
+            return await self._scheduler.run(
+                self._account,
+                budget,
+                exchange,
+                preserve_completed=True,
             )
+        except aiohttp.ClientError:
+            kind = ErrorKind.CONNECTION
+        except TimeoutError:
+            kind = ErrorKind.TIMEOUT
+        except (ValueError, OverflowError, zlib.error):
+            kind = ErrorKind.PARSE
+        assert kind is not None
+        raise LibrusError(kind)
 
     async def consume_schedule_events(
         self,
@@ -607,18 +603,11 @@ class AiohttpTransport:
         if self._closed:
             raise LibrusError(ErrorKind.CLOSED)
         if self._download_session is None:
-            _require_no_connection_retry()
-            self._download_session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(
-                    limit=1, ssl=self._connection.ssl_context or True
-                ),
+            self._download_session = self._open_session(
                 cookie_jar=aiohttp.DummyCookieJar(),
-                trust_env=False,
-                auto_decompress=False,
                 read_bufsize=ATTACHMENT_CHUNK_BYTES,
-                headers={"Accept-Encoding": "identity", "User-Agent": USER_AGENT},
+                per_request_timeout=True,
             )
-            self._download_session._retry_connection = False
         return self._download_session
 
     async def stream_download(
