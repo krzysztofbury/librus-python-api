@@ -56,11 +56,11 @@ Existing typed domain collections provide the necessary facts.
 
 ## Acceptance slice
 
-The MCP 2.0 cutover checklist is complete ([TODO.md](../TODO.md)).
+The MCP 2.0 cutover checklist is complete.
 `librus-mcp` 2.0.0 and later releases run on this library.
 
-Behaviour notes, observation cards and wider live qualification remain the
-evidence-dependent gaps in [TODO.md](../TODO.md). This review does not enable new
+Behaviour notes and wider live qualification remain the evidence-dependent
+gaps in [#67](https://github.com/krzysztofbury/librus-python-api/issues/67). This review does not enable new
 live access or complete the consumer migration.
 
 [roadmap]: https://github.com/krzysztofbury/librus-mcp/blob/0aaf658c657197817a7c8cae35d39f05484403fd/TODO.md#major-release-200

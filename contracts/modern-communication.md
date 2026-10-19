@@ -183,7 +183,7 @@ fixtures. See [VERIFICATION.md](../VERIFICATION.md#reference-client-and-provenan
 
 Archive attachment resolution and archived flags in an ordinary detail response
 must not be confused with archive mailbox navigation: archived content opens
-stay `UNSUPPORTED_CAPABILITY` (TODO C04). Remaining live layout/availability
-evidence and independent delivery semantics stay in TODO C01-C05. Suitable
+stay `UNSUPPORTED_CAPABILITY` ([#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C04). Remaining live layout/availability
+evidence and independent delivery semantics stay in [#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C01-C05. Suitable
 evidence and fresh authorization are required to resume; repeated checks on
 unavailable data are not planned.
