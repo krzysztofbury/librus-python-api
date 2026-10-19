@@ -224,7 +224,7 @@ Completed lessons may be disabled by the school. Behaviour notes are not
 implemented. Some recipient, archive and receipt layouts remain
 unqualified; backend acceptance is not proof of delivery. Tests cover supported
 contracts, not every school or role. Detailed coverage is in the
-[verification log][verification] and [roadmap][roadmap].
+[verification log][verification]; open work is tracked in [issues][issues].
 
 ## Development and support
 
@@ -239,7 +239,6 @@ MIT licensed. See [LICENSE][license].
 [api]: https://github.com/krzysztofbury/librus-python-api/blob/main/API.md
 [upgrade]: https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/account-context.md
 [verification]: https://github.com/krzysztofbury/librus-python-api/blob/main/VERIFICATION.md
-[roadmap]: https://github.com/krzysztofbury/librus-python-api/blob/main/TODO.md
 [contributing]: https://github.com/krzysztofbury/librus-python-api/blob/main/CONTRIBUTING.md
 [issues]: https://github.com/krzysztofbury/librus-python-api/issues
 [security]: https://github.com/krzysztofbury/librus-python-api/blob/main/SECURITY.md

@@ -112,4 +112,4 @@ another school privately and offline: it showed the filter table, the
 spacer handled above. Fixtures copy that structure with invented values. The
 guarded live gate for this layout is still pending. The row and pagination rules above come from source-informed requirements
 and original fixtures. Verify them on an account with the view enabled before
-relying on them (see [TODO.md](../TODO.md)).
+relying on them (see [#67](https://github.com/krzysztofbury/librus-python-api/issues/67)).

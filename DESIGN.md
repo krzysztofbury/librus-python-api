@@ -135,6 +135,34 @@ and cross-event-loop budget rejection. `tests/test_account_reads.py` checks the
 read path for every operation over real loopback HTTP. None of this claims a
 speedup over the existing client.
 
+## Ownership
+
+| Concern | Owner |
+| --- | --- |
+| Account credentials/configuration, aliases, feature flags | MCP |
+| Session lifecycle, authentication, scoped cookies, transport budgets | Library |
+| Shared rate/burst/concurrency/queue limits across independent account clients | Library service, reused across MCP calls |
+| Choosing logins, combining overlapping results, and summary generation | MCP |
+| Retry classification, bounded reauthentication, account/operation cooldown machinery | Library, with public policy settings supplied by MCP |
+| Endpoint capabilities, JSON/HTML parsing, typed domain data, pagination, reference caches | Library |
+| Requested-category orchestration, first-run/diff/seen-state policy | Optional API notification workflow; MCP selects requested categories and serializes results |
+| Durable checkpoints, canonical hashes, process locks, transactions, recovery | Optional API persistence layer |
+| Attachment authorization and bounded byte streaming | Library |
+| Download destination selection | MCP configuration |
+| Reusable safe filenames, bounded temporary files, atomic non-overwriting publication | Optional API file layer |
+| Message send transport and typed delivery outcome | Library |
+| Durable send confirmation expiry/binding, single-use claims and recovery | Optional API persistence layer |
+| Human approval and permission to invoke a write | MCP or other application |
+| Stable detail keys and explicit attendance ratios | Library |
+| MCP schemas, JSON serialization, response envelopes and context limits | MCP |
+
+## Not planned
+
+- Sync facade, persistent session export/import, extra account-management APIs
+  and wider endpoint coverage need a demonstrated consumer first. Session
+  persistence would need full cookie restrictions and explicit secure storage.
+- Rust and a copied upstream compatibility namespace are out of scope.
+
 ## Authentication research direction
 
 The reviewed clients describe a cookie-based portal/form/redirect flow, not the

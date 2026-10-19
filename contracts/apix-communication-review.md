@@ -29,11 +29,11 @@ Review facts and hashes: [../release-evidence/0.5-apix-communication-review.json
 
 | Remaining area | Reviewed external behavior | Current independent library and disposition |
 | --- | --- | --- |
-| Independent recipient delivery acknowledgement | No dedicated delivery model, timestamp or acknowledgement. Legacy sent parsing exposes a single `unread` boolean, not recipient delivery evidence | Keep backend acceptance, recipient reading and independent delivery separate. Delivery remains unknown; TODO C01 |
-| Virtual/class-parent directories | Legacy group-token discovery and label-to-ID lookup only. Virtual selection is fixed off. No modern type discovery or class-parent route | Explicit modern virtual and class-parent lookups already have original offline wire tests. Missing live availability stays TODO C02 |
-| Populated legacy subgroups | Lookup fixes subgroup selection to zero; there is no subgroup-choice API or positive-selection parameter | Bounded root choice discovery and explicit positive selection already exist independently. Populated live examples stay TODO C03 |
-| Archive/withdrawn-original layouts | Legacy content result includes only correspondent, subject, body and date. No archive navigation, original-body metadata or archive attachment resolver | Original/withdrawal flags and explicit archive attachment resolution have offline tests. Archived content opens stay `UNSUPPORTED_CAPABILITY` (TODO C04) |
-| Expanded and CC/BCC recipient receipts | No per-recipient receipt collection or CC/BCC read-status parsing | The modern parser already preserves source-established rosters, channel and read/null/unknown observations. Expanded live layouts stay TODO C05 |
+| Independent recipient delivery acknowledgement | No dedicated delivery model, timestamp or acknowledgement. Legacy sent parsing exposes a single `unread` boolean, not recipient delivery evidence | Keep backend acceptance, recipient reading and independent delivery separate. Delivery remains unknown; [#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C01 |
+| Virtual/class-parent directories | Legacy group-token discovery and label-to-ID lookup only. Virtual selection is fixed off. No modern type discovery or class-parent route | Explicit modern virtual and class-parent lookups already have original offline wire tests. Missing live availability stays [#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C02 |
+| Populated legacy subgroups | Lookup fixes subgroup selection to zero; there is no subgroup-choice API or positive-selection parameter | Bounded root choice discovery and explicit positive selection already exist independently. Populated live examples stay [#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C03 |
+| Archive/withdrawn-original layouts | Legacy content result includes only correspondent, subject, body and date. No archive navigation, original-body metadata or archive attachment resolver | Original/withdrawal flags and explicit archive attachment resolution have offline tests. Archived content opens stay `UNSUPPORTED_CAPABILITY` ([#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C04) |
+| Expanded and CC/BCC recipient receipts | No per-recipient receipt collection or CC/BCC read-status parsing | The modern parser already preserves source-established rosters, channel and read/null/unknown observations. Expanded live layouts stay [#67](https://github.com/krzysztofbury/librus-python-api/issues/67) C05 |
 | Attachment download, for comparison | A mailbox attachment indicator only; no dedicated resolver or byte-stream implementation | Ordinary modern and legacy streams are already implemented with strict destinations and isolated credential-free downloads. No missing external stream logic to reproduce |
 
 The reviewed communication routes are legacy Synergia HTML routes. An arbitrary
@@ -61,7 +61,7 @@ new send or migration is introduced. Existing source-informed/offline coverage
 remains available, with exact live limits in
 [modern-communication.md](modern-communication.md).
 
-Remaining tasks are explicitly tracked as C01-C05 in [../TODO.md](../TODO.md).
+Remaining tasks are explicitly tracked as C01-C05 in [#67](https://github.com/krzysztofbury/librus-python-api/issues/67).
 They may be resumed if qualifying contract evidence or suitable data becomes
 available, with separate authorization for any live access. Repeated empty
 discoveries or synthetic fixture success do not close those tasks.
