@@ -57,7 +57,7 @@ Existing typed domain collections provide the necessary facts.
 ## Acceptance slice
 
 The MCP 2.0 cutover checklist is complete ([TODO.md](../TODO.md)).
-`librus-mcp` 2.1.0 adopted library 1.6.0.
+`librus-mcp` 2.0.0 and later releases run on this library.
 
 Behaviour notes, observation cards and wider live qualification remain the
 evidence-dependent gaps in [TODO.md](../TODO.md). This review does not enable new
