@@ -76,6 +76,16 @@ def test_behaviour_starting_points_are_not_a_malformed_grade_cell() -> None:
     ]
 
 
+def test_behaviour_running_total_alone_is_not_a_malformed_grade_cell() -> None:
+    total = '<span class="tooltip" title="Fixture points history"> {} </span>'
+    records = parse_grade_records(
+        _with_behaviour(total.format("120"), total.format("-15"))
+    )
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+    assert records.descriptive == ()
+    assert records.descriptive_summaries == ()
+
+
 def test_behaviour_point_entries_are_recognized_but_never_reported_as_grades() -> None:
     boxes = behaviour_box() + behaviour_box("-2", "902")
     records = parse_grade_records(_with_behaviour(behaviour_points(boxes=boxes), "-"))
@@ -87,7 +97,9 @@ def test_behaviour_point_entries_are_recognized_but_never_reported_as_grades() -
     "first",
     [
         behaviour_points("many"),
-        behaviour_points().replace("Punkty startowe", "Fixture label"),
+        behaviour_points("1.5"),
+        behaviour_points("<b>50</b>"),
+        '<span class="fixture">50</span>',
         behaviour_points() + behaviour_points(),
         behaviour_points() + "Fixture text",
         behaviour_points(boxes="<b>Fixture</b>"),

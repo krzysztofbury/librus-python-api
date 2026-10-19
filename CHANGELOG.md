@@ -14,10 +14,11 @@ gate is pending.
 - Completed lessons: strip whitespace and line breaks around the subject/teacher
   comma, so `<b>Subject</b>, <br>Teacher` no longer yields the whole cell as the
   subject with no teacher.
-- Grades: recognize behaviour points in the `Zachowanie` row (starting points
-  and point entries linking to behaviour details). They are validated and not
-  returned as grades, so the whole grade read no longer fails on them. Other
-  content beside the starting points still fails.
+- Grades: recognize behaviour points in the `Zachowanie` row (a starting-points
+  or running-total tooltip, and point entries linking to behaviour details).
+  They are validated and not returned as grades, so the whole grade read no
+  longer fails on them (#76). Other content beside the points tooltip still
+  fails.
 
 ## 1.6.1 (2026-10-12) - Sunday grade dates and calendar closures
 

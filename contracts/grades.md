@@ -109,15 +109,17 @@ Predicted-period labels extend the established semantic summary vocabulary in
 original synthetic fixtures; they are not independently observed live layouts.
 
 The behaviour row (`GRADE_MERGED_SUBJECTS`) may hold behaviour points in its
-current-grade cells: one `Punkty startowe` tooltip with a nonnegative integer,
-then point entries in grade boxes whose only child links to a behaviour-points
-detail (`BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX`) with an integer label. Their
-tooltips open with an unlabelled line and use `Data wystawienia`, not `Data`.
-Points are not grades: such a cell is validated and contributes no records. Any
-other content beside the starting points, or the starting points outside the
-behaviour row, fails. Behaviour cells without starting points keep the ordinary
-grade rules. Observed offline on 2026-10-18 in one school's page; the guarded
-live gate is pending.
+current-grade cells: one tooltip span whose only content is an integer (starting
+points or a running total; the title is not interpreted), then optional point
+entries in grade boxes whose only child links to a behaviour-points detail
+(`BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX`) with an integer label. Their tooltips
+open with an unlabelled line and use `Data wystawienia`, not `Data`. Points are
+not grades: such a cell is validated and contributes no records. Any other
+content beside the points tooltip, or the points tooltip outside the behaviour
+row, fails. Behaviour cells without a points tooltip keep the ordinary grade
+rules. Observed offline on 2026-10-18 in two schools' pages, one with starting
+points and entries and one with a running total alone; the guarded live gate is
+pending.
 
 Missing metadata remains `None`. Raw school averages have explicit column
 availability; empty/unassigned values do not become zero. Numeric weights require

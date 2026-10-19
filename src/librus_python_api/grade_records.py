@@ -11,7 +11,6 @@ from librus_python_api.config import (
     BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX,
     FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
-    GRADE_BEHAVIOUR_POINTS_LABEL,
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_CURRENT_HEADER,
     GRADE_EMPTY_MARKERS,
@@ -180,9 +179,10 @@ def _boxes(cell: html.HtmlElement) -> list[html.HtmlElement]:
 def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
     """Recognize and validate a behaviour-points cell; points are not grades.
 
-    The cell holds one starting-points tooltip and point entries linking to
-    behaviour details, each with its own unlabelled tooltip. Any other content
-    next to the starting points fails instead of being skipped.
+    The cell holds one points tooltip (starting points or a running total; its
+    title is not interpreted) and point entries linking to behaviour details,
+    each with its own unlabelled tooltip. Any other content next to the points
+    tooltip fails instead of being skipped.
     """
     tallies = [
         node
@@ -195,9 +195,8 @@ def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
     boxes = [node for node in elements if node not in tallies]
     if (
         len(tallies) != 1
-        or tallies[0].get("title") != GRADE_BEHAVIOUR_POINTS_LABEL
         or len(tallies[0])
-        or not re.fullmatch(r"[0-9]{1,4}", markup.text(tallies[0]))
+        or not re.fullmatch(r"-?[0-9]{1,4}", markup.text(tallies[0]))
         or (cell.text or "").strip()
         or any((node.tail or "").strip() for node in cell)
         or _boxes(cell) != boxes
