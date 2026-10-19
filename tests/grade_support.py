@@ -1,6 +1,5 @@
 """New synthetic grade markup and HTTP fixtures, not copied school captures."""
 
-import asyncio
 from html import escape
 
 from aiohttp import web
@@ -44,10 +43,6 @@ class GradeFixture(SchoolFixture):
         self.grade_status: dict[str, int] = {}
         self.expire_grades: dict[str, int] = {}
         self.grade_body: str | None = None
-        self.grade_bodies: dict[str, str] = {}
-        self.grade_content_type = "text/html"
-        self.wait_grades: asyncio.Event | None = None
-        self.grades_started = asyncio.Event()
         self.grant_chain = False
         self.portal_without_redirect = False
 
@@ -102,9 +97,6 @@ class GradeFixture(SchoolFixture):
     async def grades(self, request: web.Request) -> web.Response:
         login = self.record(request)
         assert not request.query
-        self.grades_started.set()
-        if self.wait_grades is not None:
-            await self.wait_grades.wait()
         if self.expire_grades.get(login, 0):
             self.expire_grades[login] -= 1
             return web.Response(status=401)
@@ -113,6 +105,6 @@ class GradeFixture(SchoolFixture):
         return web.Response(
             text=self.grade_body
             if self.grade_body is not None
-            else self.grade_bodies.get(login, summary_html(subject=f"Fixture {login}")),
-            content_type=self.grade_content_type,
+            else summary_html(subject=f"Fixture {login}"),
+            content_type="text/html",
         )

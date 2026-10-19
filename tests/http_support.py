@@ -1,7 +1,6 @@
 """Original synthetic loopback fixtures; not captured Librus responses."""
 
 import asyncio
-import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -39,7 +38,6 @@ class SchoolFixture:
     def __init__(self) -> None:
         self.origin = ""
         self.calls: list[tuple[str, str]] = []
-        self.dispatch_times: list[float] = []
         self.logins: dict[str, int] = {}
         self.profile_status: dict[str, int] = {}
         self.expire_profile: dict[str, int] = {}
@@ -65,7 +63,6 @@ class SchoolFixture:
     def record(self, request: web.Request) -> str:
         login = request.cookies.get("oauth_token", "")
         self.calls.append((request.path, login))
-        self.dispatch_times.append(time.monotonic())
         self.connections.add(id(request.transport))
         return login
 

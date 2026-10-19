@@ -1,6 +1,5 @@
 """Independently authored grade markup; no external fixture or captured HTML."""
 
-import asyncio
 from html import escape
 
 from aiohttp import web
@@ -135,11 +134,7 @@ class GradeRecordsFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()
         self.grade_body: str | None = None
-        self.grade_status = 200
-        self.grade_content_type = "text/html"
         self.view_posts: list[tuple[str, dict[str, str]]] = []
-        self.wait_grades: asyncio.Event | None = None
-        self.grades_started = asyncio.Event()
 
     def app(self) -> web.Application:
         app = super().app()
@@ -156,14 +151,9 @@ class GradeRecordsFixture(SchoolFixture):
         )
         assert "X-Requested-With" not in request.headers
         self.view_posts.append((login, form))
-        self.grades_started.set()
-        if self.wait_grades is not None:
-            await self.wait_grades.wait()
         return web.Response(
-            status=self.grade_status,
             text=self.grade_body
             if self.grade_body is not None
             else grades_html(subject=f"Fixture {login}"),
-            content_type=self.grade_content_type,
-            headers={"Location": "/loguj"} if self.grade_status == 302 else None,
+            content_type="text/html",
         )
