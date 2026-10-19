@@ -144,7 +144,6 @@ def _seen_after(
 class NotificationStore(_SQLiteStore):
     """Private native recovery store. No MCP files, auto migration or live access.
 
-    Context locks require POSIX flock. Unsupported platforms fail explicitly.
     Raw checkpoints contain private account/content metadata, never HTTP cookies.
     """
 

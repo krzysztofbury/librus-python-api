@@ -34,7 +34,6 @@ def normalize_detail_fields(
     fields: tuple[tuple[str, str], ...],
     kind: Literal["agenda", "homework", "attendance"],
 ) -> tuple[DetailField, ...]:
-    """Run after bounded HTML parsing, before publishing or caching a result."""
     labels: set[str] = set()
     keys: set[DetailFieldKey] = set()
     result = []
