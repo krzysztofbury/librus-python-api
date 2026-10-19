@@ -8,6 +8,7 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX,
     FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
     GRADE_BODY_PREFIX_COLUMNS,
@@ -16,6 +17,7 @@ from librus_python_api.config import (
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_RECORDS,
     GRADE_MAX_SUBJECTS,
+    GRADE_MERGED_SUBJECTS,
     GRADE_PERIOD_HEADERS,
     GRADE_PREDICTED_ANNUAL_HEADER,
     GRADE_PREDICTED_PERIOD_HEADERS,
@@ -174,6 +176,50 @@ def _boxes(cell: html.HtmlElement) -> list[html.HtmlElement]:
     ]
 
 
+def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
+    """Recognize and validate a behaviour-points cell; points are not grades.
+
+    The cell holds one points tooltip (starting points or a running total; its
+    title is not interpreted) and point entries linking to behaviour details,
+    each with its own unlabelled tooltip. Any other content next to the points
+    tooltip fails instead of being skipped.
+    """
+    tallies = [
+        node
+        for node in cell
+        if node.tag == "span" and "tooltip" in node.get("class", "").split()
+    ]
+    if not tallies:
+        return False
+    elements = [node for node in cell if isinstance(node.tag, str)]
+    boxes = [node for node in elements if node not in tallies]
+    if (
+        len(tallies) != 1
+        or len(tallies[0])
+        or not re.fullmatch(r"-?[0-9]{1,4}", markup.text(tallies[0]))
+        or (cell.text or "").strip()
+        or any((node.tail or "").strip() for node in cell)
+        or _boxes(cell) != boxes
+    ):
+        raise LibrusError(ErrorKind.PARSE)
+    for box in boxes:
+        anchors = [node for node in box if isinstance(node.tag, str)]
+        if (
+            box.getparent() is not cell
+            or len(anchors) != 1
+            or anchors[0].tag != "a"
+            or len(anchors[0])
+            or markup.detail_id(
+                anchors[0].get("href"), BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX
+            )
+            is None
+            or not re.fullmatch(r"[+-]?[0-9]{1,4}", markup.text(anchors[0]))
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        collection.consumed.add(box)
+    return True
+
+
 def _entries(
     cell: html.HtmlElement,
     subject: str,
@@ -320,9 +366,13 @@ def _read_numeric_table(table: html.HtmlElement, collection: _Collection) -> Non
         seen: set[html.HtmlElement] = set()
         for period, index in enumerate(current, start=1):
             if columns[index] not in seen:
-                _entries(
-                    columns[index], subject, cast(Literal[1, 2], period), collection
-                )
+                if not (
+                    subject in GRADE_MERGED_SUBJECTS
+                    and _behaviour_points(columns[index], collection)
+                ):
+                    _entries(
+                        columns[index], subject, cast(Literal[1, 2], period), collection
+                    )
                 seen.add(columns[index])
         for (period, kind), index in periods.items():
             cell = columns[index]

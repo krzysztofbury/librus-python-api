@@ -23,9 +23,13 @@ from librus_python_api.exceptions import (
     UnsupportedCapabilityError,
 )
 from tests.completed_lessons_support import (
+    FILTER_TABLE,
+    WHITEBOARD_HEADER,
     CompletedLessonsFixture,
     lesson_row,
     lessons_html,
+    whiteboard_html,
+    whiteboard_row,
 )
 from tests.http_support import serve
 
@@ -116,6 +120,126 @@ def test_malformed_rows_and_metadata_never_become_partial(
 ) -> None:
     with pytest.raises((ParseError, UnsupportedCapabilityError)):
         parse(lessons_html().replace(before, after))
+
+
+def test_pagination_may_append_the_item_range() -> None:
+    body = lessons_html(1, 9).replace(
+        "Strona 2 z 9",
+        "Strona&#160;2&#160;z&#160;9&#160;&#160;&#160;&#160;&#160;"
+        "Pozycje&#160;21..21&#160;z&#160;121",
+    )
+    items, count, _ = parse(body, 1)
+    assert len(items) == 1 and count == 9
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        "Pozycje 1..2 z 2",
+        "Pozycje 2..1 z 2",
+        "Pozycje 1..1 z 0",
+        "Pozycje 0..0 z 1",
+        "Pozycje 1 z 1",
+        "Fixture 1..1 z 1",
+    ],
+)
+def test_item_range_must_describe_the_rows_on_the_page(suffix: str) -> None:
+    with pytest.raises(ParseError):
+        parse(lessons_html().replace("Strona 1 z 1", "Strona 1 z 1 " + suffix))
+
+
+def test_date_filter_form_table_is_not_a_second_data_table() -> None:
+    body = lessons_html().replace("<body>", '<body><form method="POST">' + FILTER_TABLE)
+    assert parse(body.replace("</body>", "</form></body>")) == parse(lessons_html())
+
+
+def _with_whiteboard(row: str = lesson_row(), board: str = "&#160;") -> str:
+    row = row.replace("<td>Fixture Z</td>", "<td>Fixture Z</td><td>" + board + "</td>")
+    return lessons_html(rows=row).replace(
+        "<thead><tr><th>Fixture headings</th></tr></thead>", WHITEBOARD_HEADER
+    )
+
+
+def test_whiteboard_column_is_located_by_its_header_label() -> None:
+    assert parse(_with_whiteboard()) == parse(lessons_html())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _with_whiteboard().replace("e-Tablica", "Fixture column"),
+        _with_whiteboard().replace(">Frekwencja<", ">e-Tablica<"),
+        _with_whiteboard().replace("<td>Fixture Z</td><td>&#160;</td>", "<td>Z</td>"),
+        _with_whiteboard().replace('<td colspan="2">Data</td>', "<td>Data</td>"),
+    ],
+)
+def test_whiteboard_header_and_row_widths_must_agree(body: str) -> None:
+    with pytest.raises(ParseError):
+        parse(body)
+
+
+def test_whiteboard_content_is_an_unsupported_layout_not_dropped() -> None:
+    with pytest.raises(UnsupportedCapabilityError):
+        parse(_with_whiteboard(board="Fixture board"))
+
+
+def test_blank_full_width_closing_row_is_layout_not_a_lesson() -> None:
+    body = lessons_html().replace(
+        "</tbody>", '<tr><td colspan="7">&#160;</td></tr></tbody>'
+    )
+    assert parse(body) == parse(lessons_html())
+
+
+@pytest.mark.parametrize(
+    "spacer",
+    [
+        '<tr><td colspan="7">Fixture</td></tr>',
+        '<tr><td colspan="6">&#160;</td></tr>',
+        '<tr><th colspan="7">&#160;</th></tr>',
+        '<tr><td colspan="7"><span></span></td></tr>',
+        '<tr><td colspan="7"></td></tr>' + lesson_row(),
+        '<tr><td colspan="7"></td></tr><tr><td colspan="7"></td></tr>',
+    ],
+)
+def test_closing_row_exception_stays_narrow(spacer: str) -> None:
+    with pytest.raises(ParseError):
+        parse(lessons_html().replace("</tbody>", spacer + "</tbody>"))
+    with pytest.raises(ParseError):
+        parse(lessons_html(rows=spacer))
+
+
+@pytest.mark.parametrize(
+    "cell",
+    [
+        "<b>Fixture Biology</b>, <br>Fixture Teacher",
+        "Fixture Biology ,  Fixture Teacher",
+    ],
+)
+def test_subject_and_teacher_are_trimmed_around_the_separator(cell: str) -> None:
+    body = lessons_html().replace("Fixture Biology, Fixture Teacher", cell)
+    item = parse(body)[0][0]
+    assert (item.subject, item.teacher) == ("Fixture Biology", "Fixture Teacher")
+    assert "Fixture Biology" in item.subject_teacher_text
+
+
+@pytest.mark.parametrize("cell", [" , Fixture Teacher", "Fixture Biology ,  "])
+def test_blank_subject_or_teacher_around_the_separator_fails(cell: str) -> None:
+    with pytest.raises(ParseError):
+        parse(lessons_html().replace("Fixture Biology, Fixture Teacher", cell))
+
+
+def test_observed_whiteboard_school_layout_reads_every_field() -> None:
+    body = whiteboard_html(
+        whiteboard_row("Fixture one") + whiteboard_row("Fixture<br>two"),
+        pagination="Strona 1 z 1 Pozycje 1..2 z 2",
+    )
+    items, count, _ = parse(body)
+    assert count == 1 and [i.topic for i in items] == ["Fixture one", "Fixture\ntwo"]
+    item = items[0]
+    assert item.day == date(2026, 10, 5) and item.weekday == "pn."
+    assert item.lesson_number == 3 and item.z_value == ""
+    assert (item.subject, item.teacher) == ("Fixture Chemistry", "Teacher Fixture")
+    assert item.attendance_symbol == "ob" and item.attendance_detail_id == "456"
 
 
 @pytest.mark.parametrize(

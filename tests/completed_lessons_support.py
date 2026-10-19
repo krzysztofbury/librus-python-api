@@ -33,6 +33,63 @@ def lessons_html(page: int = 0, count: int = 1, rows: str | None = None) -> str:
     )
 
 
+# Observed layout variant (structure only, values invented): a date-filter
+# table precedes the data table, the header adds an e-Tablica column, the
+# subject cell bolds the subject before a line break, pagination appends the
+# item range, and a blank full-width row closes the body.
+FILTER_TABLE = (
+    '<table class="decorated filters medium center">'
+    '<thead><tr><td colspan="2">&#160;</td></tr></thead><tbody><tr>'
+    '<th>Fixture range</th><td><input type="text" name="data1" value="2026-10-01">'
+    '</td></tr></tbody><tfoot><tr><td colspan="2">'
+    '<input type="submit" value="Fixture filter"></td></tr></tfoot></table>'
+)
+WHITEBOARD_HEADER = (
+    '<thead><tr><td colspan="2">Data</td><td class="tiny">Nr lekcji</td>'
+    '<td class="big">Zajęcia edukacyjne </td><td>Temat zajęć edukacyjnych</td>'
+    '<td><a href="#" title="Fixture resources">Z</a></td>'
+    '<td class="small">e-Tablica</td><td class="tiny">Frekwencja</td> </tr>'
+    "</thead>"
+)
+SPACER_ROW = '<tr><td colspan="8">&#160;</td></tr>'
+
+
+def whiteboard_row(topic: str = "Fixture variant topic", board: str = "&#160;") -> str:
+    return (
+        '<tr class="line1">\n<td class="center small">2026-10-05</td>\n'
+        '<td class="tiny">pn. </td>\n<td>3 </td>\n'
+        "<td><b>Fixture Chemistry</b>, <br>Teacher Fixture</td>\n"
+        "<td>" + topic + " </td><td>&#160;</td><td>" + board + "</td>"
+        '<td><p class="box"><a href="javascript:void(0);" class="ocena" '
+        "onclick=\"otworz_w_nowym_oknie('/przegladaj_nb/szczegoly/456',"
+        "'fixture',850,400)\">ob</a></p></td></tr>"
+    )
+
+
+def whiteboard_html(
+    rows: str | None = None,
+    *,
+    pagination: str = "Strona&#160;1&#160;z&#160;1&#160;&#160;&#160;&#160;&#160;"
+    "Pozycje&#160;1..1&#160;z&#160;1",
+    spacer: str = SPACER_ROW,
+) -> str:
+    if rows is None:
+        rows = whiteboard_row()
+    return (
+        '<html><body><form action="/fixture" method="POST">'
+        + FILTER_TABLE
+        + '<br/><table class="decorated">'
+        + WHITEBOARD_HEADER
+        + "<tbody>"
+        + rows
+        + spacer
+        + '</tbody></table><div class="pagination"><hr><span>'
+        + pagination
+        + '</span><ul><li class="active">&#160;1&#160;</li></ul></div>'
+        "</form></body></html>"
+    )
+
+
 class CompletedLessonsFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()

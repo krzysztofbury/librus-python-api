@@ -731,6 +731,8 @@ ATTENDANCE_MAX_SUBJECTS = 1024
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 # Recognition only: formative detail links are classified, never requested.
 FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
+# Recognition only: behaviour-point detail links are classified, never requested.
+BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
 FORMATIVE_HEADERS = (
     "przedmiot",
     "ocena kształtująca",
@@ -882,6 +884,10 @@ COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
 COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256
 COMPLETED_LESSONS_MAX_BATCH_PAGES = 8
 COMPLETED_LESSONS_MAX_BATCH_ITEMS = 256
+# Header labels of columns some schools add to the completed-lesson table. Their
+# content is not modelled: such a column must be empty in every lesson row.
+COMPLETED_LESSONS_OPTIONAL_HEADERS = frozenset({"e-Tablica"})
+COMPLETED_LESSONS_COLUMNS = 7
 AGENDA_DETAIL_PATH_PREFIX = "/terminarz/szczegoly/"
 # Recognition only: closure details are not ordinary agenda-detail references.
 AGENDA_CLOSURE_DETAIL_PATH_PREFIX = "/terminarz/szczegoly_wolne/"

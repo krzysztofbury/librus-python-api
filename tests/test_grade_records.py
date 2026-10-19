@@ -14,7 +14,14 @@ from librus_python_api.exceptions import (
     UnsupportedCapabilityError,
 )
 from librus_python_api.grade_records import parse_grade_records
-from tests.grade_records_support import GradeRecordsFixture, grade_box, grades_html
+from tests.grade_records_support import (
+    GradeRecordsFixture,
+    behaviour_box,
+    behaviour_points,
+    behaviour_row,
+    grade_box,
+    grades_html,
+)
 from tests.http_support import serve
 
 
@@ -44,6 +51,76 @@ def test_invalid_or_unevidenced_grade_date_is_not_silently_skipped(day: str) -> 
     with pytest.raises(ParseError) as caught:
         parse_grade_records(grades_html(first=grade_box(day=day)).encode())
     assert caught.value.__context__ is None
+
+
+def _with_behaviour(first: str | None = None, second: str | None = None) -> bytes:
+    return grades_html(rows=behaviour_row(first, second)).encode()
+
+
+def test_behaviour_starting_points_are_not_a_malformed_grade_cell() -> None:
+    records = parse_grade_records(
+        _with_behaviour(behaviour_points(), behaviour_points())
+    )
+    assert records == parse_grade_records(
+        _with_behaviour(behaviour_points("45"), behaviour_points("0"))
+    )
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+    assert [
+        (a.semester, a.value.availability)
+        for a in records.averages
+        if a.subject == "Zachowanie"
+    ] == [
+        (1, Availability.UNAVAILABLE),
+        (2, Availability.UNAVAILABLE),
+        (0, Availability.AVAILABLE),
+    ]
+
+
+def test_behaviour_running_total_alone_is_not_a_malformed_grade_cell() -> None:
+    total = '<span class="tooltip" title="Fixture points history"> {} </span>'
+    records = parse_grade_records(
+        _with_behaviour(total.format("120"), total.format("-15"))
+    )
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+    assert records.descriptive == ()
+    assert records.descriptive_summaries == ()
+
+
+def test_behaviour_point_entries_are_recognized_but_never_reported_as_grades() -> None:
+    boxes = behaviour_box() + behaviour_box("-2", "902")
+    records = parse_grade_records(_with_behaviour(behaviour_points(boxes=boxes), "-"))
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+    assert records.descriptive == ()
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        behaviour_points("many"),
+        behaviour_points("1.5"),
+        behaviour_points("<b>50</b>"),
+        '<span class="fixture">50</span>',
+        behaviour_points() + behaviour_points(),
+        behaviour_points() + "Fixture text",
+        behaviour_points(boxes="<b>Fixture</b>"),
+        behaviour_points(boxes=grade_box()),
+        behaviour_points(boxes=behaviour_box(href="fixture-link")),
+        behaviour_points(boxes=behaviour_box("many")),
+        behaviour_points(boxes=behaviour_box().replace("</a>", "</a><a>1</a>")),
+    ],
+)
+def test_behaviour_points_layout_fails_closed(first: str) -> None:
+    with pytest.raises(ParseError):
+        parse_grade_records(_with_behaviour(first))
+
+
+def test_starting_points_outside_the_behaviour_row_fail() -> None:
+    body = grades_html(first=behaviour_points(boxes=behaviour_box()))
+    with pytest.raises(ParseError):
+        parse_grade_records(body.encode())
+    body = grades_html(first=behaviour_points())
+    with pytest.raises(ParseError):
+        parse_grade_records(body.encode())
 
 
 def test_numeric_symbols_descriptive_entries_and_school_averages_are_lossless() -> None:
