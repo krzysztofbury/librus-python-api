@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.6.3 (2026-10-22) - Dependency security update
+
+Raises dependency floors and tooling pins past published advisories. Public
+types, signatures and parser behaviour are unchanged.
+
+- Runtime: require `aiohttp>=3.14.4`. Earlier 3.14 releases are affected by
+  GHSA-494j-54xm-rwp3 (a Secure cookie in the shared cookie jar could be sent
+  over plain HTTP) and GHSA-gx76-c99x-2c96 (a subdomain could strip the
+  host-only flag from a parent-domain cookie), both relevant to the client
+  cookie jar, plus server-side advisories that this client does not reach. The
+  lock already used 3.14.5; the floor stops a resolver from choosing an affected
+  release.
+- Development lock: certifi 2026.10.19 drops the compromised emSign ECC Root CA
+  G3 (GHSA-6q48-6c7w-9gw2), and virtualenv 21.14.12 fixes activation-script and
+  path quoting advisories. Neither is a runtime dependency.
+- CI and release workflows pin uv 0.13.5 with per-platform checksums. uv 0.12.7
+  trusted the same compromised root (GHSA-hq85-5cpj-mr62) and could write
+  outside the install prefix on Windows (GHSA-2cv4-cqwr-gwf7). The lockfile
+  format revision moves from 3 to 5 with no resolution change.
+
 ## 1.6.2 (2026-10-19) - School layout variants and behaviour points
 
 Fixes for completed-lesson and grade pages that 1.6.1 rejected with

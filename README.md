@@ -16,9 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.6.2` accepts more completed-lesson and grade layouts, including
-behaviour points, which are validated and not reported as grades.
-Class free days, typed capability outcomes and the live-check freshness watchdog
+**Status:** `1.6.3` requires an aiohttp release without known advisories and
+keeps the 1.6.2 completed-lesson and grade layouts, including behaviour points,
+which are validated and not reported as grades. Class free days, typed capability outcomes and the live-check freshness watchdog
 remain available. See [verification](VERIFICATION.md).
 The stable 1.x API does not guarantee every school layout. School features depend
 on what each account can access. See the [compatibility policy](API.md#compatibility-policy).
@@ -29,7 +29,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.6.2
+python -m pip install librus-python-api==1.6.3
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -45,7 +45,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.6.2-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.6.3-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.
