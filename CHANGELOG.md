@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Development lock: virtualenv 21.14.13 fixes CVE-2026-115586; it is not a
+  runtime dependency.
+- SECURITY.md adds GitHub private vulnerability reporting beside email and lists
+  the repository protections; Dependabot runs on a fixed weekly schedule.
+
 ## 1.6.3 (2026-10-22) - Dependency security update
 
 Raises dependency floors and tooling pins past published advisories. Public
