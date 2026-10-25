@@ -15,11 +15,10 @@ from collections.abc import Callable
 from datetime import date
 from functools import partial
 from pathlib import Path
-from typing import Any
-
-from playwright.async_api import Page, async_playwright
+from typing import TYPE_CHECKING, Any
 
 from librus_python_api.completed_lessons import parse_completed_lessons
+from librus_python_api.config import PROFILE_LABELS
 from librus_python_api.exceptions import LibrusError
 from librus_python_api.messages import parse_messages
 from librus_python_api.models import MessageFolder, RecipientGroupReference
@@ -31,6 +30,9 @@ from librus_python_api.school_reads import (
     parse_school_detail,
 )
 from librus_python_api.timetable import parse_timetable
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 CHROMIUM = "/usr/bin/chromium"
 
@@ -59,12 +61,24 @@ HOMEWORK_DOM = """() => ({
   .map(r=>[...r.children].map(c=>c.innerText))
 })"""
 
-LESSONS_DOM = r"""() => ({
- pagination:[...document.querySelectorAll('div.pagination > span')]
-  .map(n=>n.innerText),
- rows:[...document.querySelectorAll('table.decorated tr')]
-  .filter(r=>!r.closest('thead')).map(r=>[...r.children].map(c=>c.innerText))
-})"""
+LESSONS_DOM = r"""() => {
+ const table = document.querySelector('table.decorated:not(.filters)');
+ const optional = [];
+ for (const r of table ? table.querySelectorAll('thead tr') : []) {
+  let position = 0;
+  for (const c of r.children) {
+   if (c.innerText.trim() === 'e-Tablica') optional.push(position);
+   position += c.colSpan;
+  }
+ }
+ return {
+  pagination:[...document.querySelectorAll('div.pagination > span')]
+   .map(n=>n.innerText),
+  optional,
+  rows:table ? [...table.rows].filter(r=>!r.closest('thead'))
+   .map(r=>[...r.children].map(c=>({cls:c.className, text:c.innerText}))) : [],
+ };
+}"""
 
 
 TIMETABLE_DOM = r"""() => [...document.querySelectorAll('td#timetableEntryBox')]
@@ -196,9 +210,44 @@ def check_lessons(body: bytes, form: Form, view: Any) -> str:
         date.fromisoformat(form["data2"]),
         int(form["numer_strony1001"]),
     )
-    if len(items) != len(view["rows"]):
+    rows = view["rows"]
+    # A blank full-width row closes some schools' tables; it is not a lesson.
+    if rows and len(rows[-1]) == 1 and not normalized(rows[-1][0]["text"]):
+        rows = rows[:-1]
+    if len(items) != len(rows):
         raise AssertionError("lesson row count differs")
-    return f"{len(items)} lessons, {count} pages"
+    for item, row in zip(items, rows, strict=True):
+        texts: dict[str, list[str]] = {"date": [], "weekday": [], "data": []}
+        for i, cell in enumerate(row):
+            if i in view["optional"]:
+                continue
+            classes = set(cell["cls"].split())
+            kind = (
+                "date"
+                if {"center", "small"} <= classes
+                else "weekday"
+                if "tiny" in classes
+                else "data"
+            )
+            texts[kind].append(cell["text"])
+        same([item.raw_day], texts["date"], "lesson date")
+        same([item.weekday], texts["weekday"], "lesson weekday")
+        native = [
+            item.raw_lesson_number,
+            item.subject_teacher_text,
+            item.topic,
+            item.z_value,
+            item.attendance_symbol,
+        ]
+        same(native, texts["data"], "lesson cells")
+    labels = [normalized(text) for text in view["pagination"]]
+    pages = re.match(r"(?:Strona )?[0-9]+ z ([0-9]+)", labels[0]) if labels else None
+    if len(labels) > 1 or (int(pages[1]) if pages else 1) != count:
+        raise AssertionError("lesson page count differs")
+    shown = re.search(r"Pozycje ([0-9]+)\.\.([0-9]+)", labels[0]) if labels else None
+    if shown and int(shown[2]) - int(shown[1]) + 1 != len(items):
+        raise AssertionError("lesson item range differs")
+    return f"{len(items)} lessons, {count} pages; cells and pagination agree"
 
 
 def check_timetable(body: bytes, form: Form, view: Any) -> str:
@@ -231,15 +280,17 @@ def check_timetable(body: bytes, form: Form, view: Any) -> str:
 
 def check_profile(body: bytes, form: Form, view: Any) -> str:
     fields = parse_profile(body)
-    labels = {
-        "name": "Imię i nazwisko ucznia",
-        "class_name": "Klasa",
-        "tutor": "Wychowawca",
-        "school": "Szkoła",
-    }
-    for attribute, label in labels.items():
-        same([getattr(fields, attribute)], [view.get(label)], label)
-    same([str(fields.register_number)], [view.get("Nr w dzienniku")], "number")
+    # Resolve rendered rows through every label alias the parser accepts.
+    rendered: dict[str, str] = {}
+    for label, value in view.items():
+        attribute = PROFILE_LABELS.get(label)
+        if attribute is None:
+            continue
+        if attribute in rendered:
+            raise AssertionError(f"profile {attribute} rendered twice")
+        rendered[attribute] = value
+    for attribute in sorted(set(PROFILE_LABELS.values())):
+        same([str(getattr(fields, attribute))], [rendered.get(attribute)], attribute)
     return "profile fields"
 
 
@@ -388,11 +439,33 @@ CHECKS: dict[str, tuple[str, Callable[[bytes, Form, Any], str]]] = {
 }
 
 
-async def check_directory(page: Page, directory: Path) -> bool:
+# JSON reads and the unparsed behaviour probe have no rendered page to compare.
+NOT_RENDERED = frozenset(
+    {
+        "identity",
+        "gateway_attendance",
+        "attendance_lessons",
+        "attendance_subjects",
+        "attendance_lesson",
+        "attendance_subject",
+        "class_free_days",
+        "behaviour_notes_probe",
+    }
+)
+
+
+async def check_directory(page: "Page", directory: Path) -> bool:
     passed = True
     for entry in json.loads((directory / "index.json").read_text())["captured"]:
         check = CHECKS.get(entry["endpoint"])
         if check is None:
+            if entry["endpoint"] in NOT_RENDERED:
+                detail = "not a rendered page, skipped"
+            else:
+                # A captured page nobody compared must not read as agreement.
+                passed = False
+                detail = f"NOT COMPARED, no comparator for {entry['endpoint']}"
+            print(f"{directory.name}/{entry['file']}: {detail}")
             continue
         body = (directory / entry["file"]).read_bytes()
         await page.set_content(body.decode())
@@ -418,6 +491,8 @@ async def check_directory(page: Page, directory: Path) -> bool:
 
 
 async def main(directories: list[Path]) -> int:
+    from playwright.async_api import async_playwright
+
     async with async_playwright() as engine:
         browser = await engine.chromium.launch(executable_path=CHROMIUM)
         context = await browser.new_context(java_script_enabled=False, offline=True)

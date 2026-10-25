@@ -45,10 +45,14 @@ ALLOWED = frozenset(
         "attendance",
         "attendance_detail",
         "gateway_attendance",
+        "attendance_lessons",
+        "attendance_subjects",
         "attendance_lesson",
         "attendance_subject",
+        "class_free_days",
         "timetable",
         "announcements",
+        "school_year_archive",
         "agenda",
         "agenda_detail",
         "homework",
@@ -128,7 +132,8 @@ class CapturingTransport(ReadOnlyCaptureTransport):
             if CapturingTransport.logins > 1:
                 raise SystemExit("Refusing a second credential submission")
         elif not endpoint_id.startswith("login_") and endpoint_id not in ALLOWED:
-            raise SystemExit(f"Refusing operation outside the allowlist: {endpoint_id}")
+            # An ordinary error: the run records the failed step and continues.
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         response = await super().request(
             endpoint_id, budget, form=form, reference_id=reference_id
         )
@@ -210,9 +215,13 @@ async def capture(
                 "subject_frequency",
                 lambda: client.subject_frequency(day, day, budget=budget),
             )
+        await step("class_free_days", lambda: client.class_free_days(budget=budget))
         monday = today - timedelta(days=today.weekday())
         await step("timetable", lambda: client.timetable(monday, budget=budget))
         await step("announcements", lambda: client.announcements(budget=budget))
+        await step(
+            "school_year_archive", lambda: client.school_year_archive(budget=budget)
+        )
         homework = await step(
             "homework",
             lambda: client.homework(month_start, today, budget=budget),

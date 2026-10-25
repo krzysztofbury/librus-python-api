@@ -105,6 +105,10 @@ With the owner's authorization for a stated scope and request budget:
    uv run --with playwright python scripts/crosscheck.py DIR
    ```
 
+   A captured page with no browser comparator prints `NOT COMPARED` and fails
+   the run, so a green run means every rendered page was compared. Compare
+   those pages by hand. JSON reads have no rendered page and are skipped.
+
 3. For each failure, read the captured page, write an original fixture with the
    same structure and invented values, add a failing test, then fix.
 4. Rerun the capture on the fixed build and record the results in

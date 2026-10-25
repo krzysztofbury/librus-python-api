@@ -9,11 +9,6 @@ on:
     - cron: '17 5 * * 1'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Released version to check instead of main, such as 1.2.1'
-        required: false
-        default: ''
-        type: string
       record:
         description: 'Print the observed coverage map instead of comparing expectations'
         required: false
@@ -47,23 +42,13 @@ jobs:
           checksum: f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f
           enable-cache: false
       - name: Install the build under test
-        env:
-          VERSION: ${{ inputs.version }}
         run: |
           uv python install 3.14
           uv export --quiet --locked --no-emit-project --no-dev --format requirements-txt --output-file "$RUNNER_TEMP/deps.txt"
           uv venv --python 3.14 "$RUNNER_TEMP/live"
           uv pip install --python "$RUNNER_TEMP/live/bin/python" --require-hashes --requirement "$RUNNER_TEMP/deps.txt"
-          if [[ -z "$VERSION" ]]; then
-            uv build --no-sources --wheel --out-dir "$RUNNER_TEMP/dist"
-            uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "$RUNNER_TEMP"/dist/*.whl
-          else
-            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[1-9][0-9]*)?$ ]]; then
-              echo "::error::version must look like 1.2.1 or 1.2.1rc1"
-              exit 1
-            fi
-            uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "librus-python-api==$VERSION"
-          fi
+          uv build --no-sources --wheel --out-dir "$RUNNER_TEMP/dist"
+          uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps "$RUNNER_TEMP"/dist/*.whl
       - name: Run the live check
         env:
           LIBRUS_LIVE_LOGIN_0: ${{ secrets.LIBRUS_LIVE_LOGIN_0 }}

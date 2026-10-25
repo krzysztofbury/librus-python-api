@@ -157,8 +157,8 @@ dependency pin for rollback.
 ## Weekly live check
 
 `.github/workflows/live-check.yml` detects upstream drift. Every Monday at
-05:17 UTC, and on manual dispatch, it builds a wheel from `main` (or installs
-an exact released version given as input), logs in once per configured account
+05:17 UTC, and on manual dispatch, it builds a wheel from `main`, installs it
+with hash-pinned locked dependencies, logs in once per configured account
 and makes only the side-effect-free reads declared in `scripts/live_check`.
 It never sends, opens received messages, consumes read-once events, downloads
 files or writes notification state. It fails on rejected credentials, required
@@ -170,10 +170,8 @@ Hard limits: at most two logins, 70 requests and 4 minutes per login, and 10
 minutes per run. Logins the run deadline leaves unchecked are reported as not
 run, which fails the run.
 
-The manual `version` input installs that exact release from PyPI with the
-dependency versions locked on `main`, not the ones locked when it was released.
-Checks newer than the release report the missing read as
-`unexpected_attributeerror`, which fails the run. Use it for recent releases.
+It never installs a release from PyPI. To check a published release, run the
+local release profile on its installed wheel (Procedure, step 4).
 
 Logs, job summaries and artifacts of this public repository are readable by
 anyone. The check prints versions, statuses, coverage values and counts only.

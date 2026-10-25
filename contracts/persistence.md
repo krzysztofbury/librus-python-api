@@ -306,7 +306,7 @@ effect (checkpoint, staging, acknowledgement) wait up to `final_busy_timeout_sec
 still joined, and a late commit is replayed rather than lost. Archive import
 rejects raw cursor progress past any event missing from the imported seen set.
 
-Defaults: 16 contexts, 8 workers/workflows, 0.1 s busy timeout, 32 checkpoints or
+Defaults: 16 contexts, 8 workers/workflows, 1 s busy timeout, 32 checkpoints or
 uncertainty reservations, 16 MiB combined checkpoint/reservation bytes, 4 MiB total
 seen-state bytes, 4,096 seen IDs per category, 500 delivery items and 1 MiB batch
 bytes. Schedule slices contain at most 500 new events and 128 KiB canonical value

@@ -10,10 +10,12 @@ from librus_python_api import (
     ConnectionSettings,
     LibrusService,
     RecipientReference,
+    RequestBudget,
     SchedulerLimits,
     SendStatus,
 )
 from librus_python_api.exceptions import UnsupportedCapabilityError
+from librus_python_api.transport import AiohttpTransport
 from scripts.capture_attachment_streams import StreamCaptureTransport
 from scripts.capture_communication_coverage import CoverageTransport
 from scripts.capture_message_content import ContentCaptureTransport
@@ -29,6 +31,7 @@ from scripts.live_capture import (
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.notification_persistence_support import NotificationWorkflowFixture
 from tests.sending_support import SendFixture
+from tests.test_attendance_frequency import FrequencyFixture
 
 
 @pytest.mark.parametrize("inside", [REPOSITORY, REPOSITORY / "captures" / "run"])
@@ -78,7 +81,9 @@ def test_every_capture_transport_keeps_write_and_read_once_refusals(
         assert getattr(transport, name) is getattr(ReadOnlyCaptureTransport, name)
 
 
-def capture_service(origin: str) -> LibrusService:
+def capture_service(
+    origin: str, transport: type[AiohttpTransport] = ReadOnlyCaptureTransport
+) -> LibrusService:
     return LibrusService(
         context_key=bytes(range(32)),
         accounts={
@@ -86,8 +91,45 @@ def capture_service(origin: str) -> LibrusService:
         },
         connection=ConnectionSettings(synergia_origin=origin, api_origin=origin),
         scheduler_limits=SchedulerLimits(requests_per_second=1000, burst=16),
-        transport_factory=ReadOnlyCaptureTransport,
+        transport_factory=transport,
     )
+
+
+def test_capture_follows_subject_frequency_and_survives_a_refused_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # capture() sets these class attributes once per process; restore them after.
+    monkeypatch.setattr(CapturingTransport, "out", tmp_path, raising=False)
+    monkeypatch.setattr(CapturingTransport, "index", [], raising=False)
+    monkeypatch.setattr(CapturingTransport, "logins", 0)
+
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with capture_service(origin, CapturingTransport) as service:
+                client = service.account("student")
+                # Populated gateway attendance fans out to the metadata collections.
+                frequency = await client.subject_frequency()
+                assert frequency.items
+                # A read outside the allowlist is an ordinary error that the
+                # capture loop records before moving on, not a process exit.
+                with pytest.raises(UnsupportedCapabilityError):
+                    await client._transport.request(
+                        "messages_received", RequestBudget()
+                    )
+        assert not any(path.startswith("/wiadomosci") for path, _ in fixture.calls)
+
+    asyncio.run(scenario())
+    endpoints = [entry["endpoint"] for entry in CapturingTransport.index]
+    assert endpoints == [
+        "identity",
+        "gateway_attendance",
+        "attendance_lessons",
+        "attendance_subjects",
+    ]
+    for entry in CapturingTransport.index:
+        assert (tmp_path / entry["file"]).stat().st_mode & 0o777 == 0o600
 
 
 def test_capture_transport_refuses_sends_before_dispatch() -> None:
