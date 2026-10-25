@@ -657,7 +657,7 @@ creates state, reads old MCP files or starts background recovery.
   files and unsafe POSIX permissions or Windows ACLs fail closed, never reset state.
   No automatic retry, reconciliation, deletion of consumed history or polling.
 - Defaults: 8 admitted storage workers and 8 send workflows, 256 total records,
-  32 unused previews, 300-second expiry and 0.1-second SQLite busy timeout.
+  32 unused previews, 300-second expiry and 1-second SQLite busy timeout.
   Configured maxima: 64 each, 4,096 records, 256 previews, 300 seconds and 5 seconds.
   Storage workers are serialized per store; full queues/contention fail immediately
   or after the bounded busy interval. The final outcome save after a claim waits
@@ -760,7 +760,7 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   state without HTTP. Pending batches do not mark IDs seen. Defaults are bounded:
   16 contexts, 8 workers/workflows, 32 raw/reservation records, 16 MiB checkpoint
   bytes, 4 MiB total seen-state bytes, 4,096 IDs/category, 500 items/1 MiB per batch,
-  500 events/128 KiB value JSON per replay slice, 0.1 s busy timeout, and 5 s
+  500 events/128 KiB value JSON per replay slice, 1 s busy timeout, and 5 s
   `final_busy_timeout_seconds` for checkpoint, staging and acknowledgement saves
   that follow upstream work, since all contexts share one write lock. The full
   envelope is capped at 4 MiB encoded body plus 4 MiB metadata; database main file

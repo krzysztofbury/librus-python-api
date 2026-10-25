@@ -67,14 +67,20 @@ def test_actions_are_pinned_and_nothing_is_cached_or_uploaded() -> None:
             assert step["with"]["enable-cache"] == "false"
 
 
-def test_manual_version_input_is_validated_before_use() -> None:
+def test_credentialed_job_installs_only_the_checkout_wheel() -> None:
+    # The job holding live secrets never resolves a package from an index
+    # without hashes: dependencies are hash-pinned and the library is built here.
     data = workflow()
-    assert set(data["on"]["workflow_dispatch"]["inputs"]) == {"version", "record"}
+    assert set(data["on"]["workflow_dispatch"]["inputs"]) == {"record"}
     install = next(
         s for s in steps() if s.get("name") == "Install the build under test"
     )
-    assert "inputs.version" not in install["run"]  # passed via env only
-    assert install["env"]["VERSION"] == "${{ inputs.version }}"
-    assert "=~ ^[0-9]+" in install["run"]
-    # A rejected version says why instead of failing silently.
-    assert "::error::" in install["run"]
+    installs = [
+        line.strip() for line in install["run"].splitlines() if "uv pip install" in line
+    ]
+    assert installs == [
+        'uv pip install --python "$RUNNER_TEMP/live/bin/python" --require-hashes '
+        '--requirement "$RUNNER_TEMP/deps.txt"',
+        'uv pip install --python "$RUNNER_TEMP/live/bin/python" --no-deps '
+        '"$RUNNER_TEMP"/dist/*.whl',
+    ]
