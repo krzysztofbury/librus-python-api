@@ -1,9 +1,24 @@
 # Changelog
 
-## Unreleased
+## 1.6.4 (2026-10-26) - Message body rendering security fix
 
-- Development lock: virtualenv 21.14.13 fixes CVE-2026-115586; it is not a
-  runtime dependency.
+Fixes a denial of service in message body rendering. Public types, signatures
+and parser behaviour are unchanged.
+
+- Security (GHSA-c9qq-qqr2-hf23, CWE-1333): `modern_message_content` decided
+  whether a body is an XML `Message` wrapper with a regular expression that
+  backtracked exponentially over a run of XML comments or processing
+  instructions with no wrapper after it. A body of a few hundred bytes, which any
+  Librus user can send, blocked the calling thread for minutes; that includes
+  every client that renders received messages, such as librus-mcp. A single
+  linear scan now makes the same decision: it accepts exactly the inputs the
+  expression accepted, so routing between the XML and HTML readers is
+  unchanged. All releases up to 1.6.3 are affected.
+- Development lock: virtualenv 21.14.13 fixes CVE-2026-115586, pre-commit 4.7.0
+  and ruff 0.17.1. None is a runtime dependency.
+- CI and release workflows use setup-uv 10.3.2 and pypi-publish 1.14.3. The
+  publish action up to 1.14.2 trusted the revoked emSign root CA in the
+  Sigstore chain used for Trusted Publishing (GHSA-5xjx-3w67-w9x9).
 - SECURITY.md adds GitHub private vulnerability reporting beside email and lists
   the repository protections; Dependabot runs on a fixed weekly schedule.
 
