@@ -11,11 +11,8 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.markup import text
 from librus_python_api.parsers import parse_html_document
 
-_XML_PREFIX = re.compile(
-    r"\s*(?:(?:<!--.*?-->|<\?(?!xml\b).*?\?>)\s*)*"
-    r"(?:<\?xml\b|<Message(?=[\s/>]))",
-    re.DOTALL,
-)
+_XML_START = re.compile(r"<\?xml\b|<Message(?=[\s/>])")
+_XML_DECLARATION = re.compile(r"<\?xml\b")
 
 
 def render_body(encoded: str) -> str:
@@ -34,7 +31,7 @@ def render_body(encoded: str) -> str:
     decoded = decoded.removeprefix("\ufeff")
     # XML comments/PIs and a UTF-8 BOM must not route a Message wrapper through
     # the permissive HTML renderer, losing CDATA or bypassing Content checks.
-    if _XML_PREFIX.match(decoded):
+    if _xml_prefixed(decoded):
         decoded = _xml_content(decoded)
     if not decoded:
         return ""
@@ -45,6 +42,36 @@ def render_body(encoded: str) -> str:
         MESSAGE_MAX_CONTENT_LENGTH,
         multiline=True,
     )
+
+
+def _xml_prefixed(decoded: str) -> bool:
+    """Whether whitespace, comments and non-declaration PIs precede an XML start.
+
+    A comment or PI may end at any later terminator, as the lazy pattern this
+    replaces allowed, but one left-to-right pass decides it: once an item has
+    opened, every later terminator closes it. A regex backtracks exponentially
+    over a run of items with no XML start after it.
+    """
+    starts = bytearray(len(decoded) + 1)
+    starts[0] = 1
+    comment_from = pi_from = len(decoded) + 1
+    for index, char in enumerate(decoded):
+        if starts[index]:
+            if char.isspace():
+                starts[index + 1] = 1
+            elif _XML_START.match(decoded, index):
+                return True
+            elif decoded.startswith("<!--", index):
+                comment_from = min(comment_from, index + 4)
+            elif decoded.startswith("<?", index) and not _XML_DECLARATION.match(
+                decoded, index
+            ):
+                pi_from = min(pi_from, index + 2)
+        if index >= comment_from and decoded.startswith("-->", index):
+            starts[index + 3] = 1
+        if index >= pi_from and decoded.startswith("?>", index):
+            starts[index + 2] = 1
+    return False
 
 
 def _xml_content(decoded: str) -> str:

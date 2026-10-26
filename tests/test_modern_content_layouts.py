@@ -3,12 +3,14 @@
 import asyncio
 import base64
 import json
+import time
 from typing import Any
 
 import pytest
 
 from librus_python_api import MessageFolder, ModernMessageReference
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.modern_body import render_body
 from tests.test_modern_communication import CommunicationFixture
 
 
@@ -95,6 +97,25 @@ def test_detail_without_list_flag_decodes_original_body_not_wrapper(
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("<!---->" * 26 + "x", "x"),
+        ("<?a?>" * 26 + "x", "x"),
+        ("<!-- --> " * 26 + "<x", ""),
+    ],
+    ids=["comments", "instructions", "spaced_comments"],
+)
+def test_comment_and_pi_runs_without_xml_start_render_as_html_promptly(
+    body: str, expected: str
+) -> None:
+    # Any Librus user can author a body; a backtracking preamble check took
+    # seconds at this length and doubled with every repetition.
+    started = time.perf_counter()
+    assert render_body(base64.b64encode(body.encode()).decode()) == expected
+    assert time.perf_counter() - started < 1
+
+
 def test_archived_withdrawn_detail_preserves_inert_original_and_attachment_scope() -> (
     None
 ):
@@ -141,6 +162,7 @@ def test_archived_withdrawn_detail_preserves_inert_original_and_attachment_scope
         "xml_entity",
         "xml_nested",
         "xml_preamble_duplicate",
+        "xml_preamble_terminator",
         "xml_encoding",
         "attachment_mismatch",
         "bad_flag",
@@ -178,6 +200,11 @@ def test_detail_rejects_ambiguous_receipts_or_active_wrapper_without_partial_out
                 "xml_preamble_duplicate": (
                     b"<!-- Fixture -->\n<Message><Content>A</Content>"
                     b"<Content>B</Content></Message>"
+                ),
+                # A comment may close at a later terminator, so this still
+                # routes to the strict XML reader rather than to HTML.
+                "xml_preamble_terminator": (
+                    b"<!-- Fixture --> text --><Message><Content>A</Content></Message>"
                 ),
                 "xml_encoding": (
                     b'<?xml version="1.0" encoding="ISO-8859-1"?>'
