@@ -19,6 +19,7 @@ from librus_python_api.config import (
     GRADE_MAX_SUBJECTS,
     GRADE_MERGED_SUBJECTS,
     GRADE_PERIOD_HEADERS,
+    GRADE_POINT_RESULT_HEADERS,
     GRADE_PREDICTED_ANNUAL_HEADER,
     GRADE_PREDICTED_PERIOD_HEADERS,
     GRADE_PUBLICATION_DATE_LABEL,
@@ -27,7 +28,14 @@ from librus_python_api.config import (
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.formative_grades import is_formative_table, read_formative_table
-from librus_python_api.grade_parsers import _locate, _subject_rows, _summary
+from librus_python_api.grade_parsers import (
+    _locate,
+    _subject_columns,
+    _subject_rows,
+    _summary,
+    is_point_table,
+    point_layout,
+)
 from librus_python_api.models import (
     Availability,
     DescriptiveGrade,
@@ -46,7 +54,9 @@ def _label(title: str) -> str:
     return " ".join(re.split(r"<br\s*/?>", title, flags=re.I)[0].split())
 
 
-def _layout(table: html.HtmlElement) -> tuple[list[int], dict[int, int]]:
+def _layout(
+    table: html.HtmlElement, *, points: bool = False
+) -> tuple[list[int], dict[int, int]]:
     current: list[int] = []
     averages: dict[int, int] = {}
     for row in markup.rows(table):
@@ -64,6 +74,8 @@ def _layout(table: html.HtmlElement) -> tuple[list[int], dict[int, int]]:
                     raise LibrusError(ErrorKind.PARSE)
                 current.append(position)
             period = GRADE_AVERAGE_HEADERS.get(_label(cell.get("title", "")))
+            if points and period is None:
+                period = GRADE_POINT_RESULT_HEADERS.get(markup.text(cell))
             if period is not None:
                 if period in averages or markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
@@ -140,7 +152,9 @@ class _Collection:
         default_factory=list, repr=False
     )
     averages: list[SchoolAverage] = field(default_factory=list, repr=False)
+    point_averages: list[SchoolAverage] = field(default_factory=list, repr=False)
     subjects: set[tuple[bool, str]] = field(default_factory=set, repr=False)
+    point_subjects: set[str] = field(default_factory=set, repr=False)
     consumed: set[html.HtmlElement] = field(default_factory=set, repr=False)
     publication_rows: set[html.HtmlElement] = field(default_factory=set, repr=False)
     formative: int = 0
@@ -164,7 +178,15 @@ class _Collection:
         if not value or key in self.subjects:
             raise LibrusError(ErrorKind.PARSE)
         self.subjects.add(key)
-        if len(self.subjects) > GRADE_MAX_SUBJECTS:
+        if len(self.subjects) + len(self.point_subjects) > GRADE_MAX_SUBJECTS:
+            raise LibrusError(ErrorKind.LIMIT)
+
+    def point_subject(self, value: str) -> None:
+        # A subject can appear in both the ordinary and the point table.
+        if not value or value in self.point_subjects:
+            raise LibrusError(ErrorKind.PARSE)
+        self.point_subjects.add(value)
+        if len(self.subjects) + len(self.point_subjects) > GRADE_MAX_SUBJECTS:
             raise LibrusError(ErrorKind.LIMIT)
 
 
@@ -337,19 +359,30 @@ def _period_columns(table: html.HtmlElement) -> dict[tuple[int, GradeKind], int]
     return result
 
 
-def _read_numeric_table(table: html.HtmlElement, collection: _Collection) -> None:
-    # Preserve the established full-row and summary alignment validation.
-    _, fields, width = _locate(table)
-    current, means = _layout(table)
+def _read_numeric_table(
+    table: html.HtmlElement, collection: _Collection, *, points: bool = False
+) -> None:
+    # Preserve the established full-row and summary alignment validation. A
+    # point table aligns on its current-grade header row and may lack summaries.
+    if points:
+        fields, width = point_layout(table)
+    else:
+        _, fields, width = _locate(table)
+    current, means = _layout(table, points=points)
     periods = _period_columns(table)
+    averages = collection.point_averages if points else collection.averages
     for cells in _subject_rows(table, width):
         if cells[0].getparent() in collection.publication_rows:
             continue
-        if _descriptive_row(cells):
+        if points:
+            subject = _subject_columns(cells, width)[0]
+            collection.point_subject(subject)
+        elif _descriptive_row(cells):
             _read_descriptive_row(cells, collection)
             continue
-        subject = _summary(cells, fields, width).subject
-        collection.subject(subject)
+        else:
+            subject = _summary(cells, fields, width).subject
+            collection.subject(subject)
         columns = [cell for cell in cells for _ in range(markup.colspan(cell))]
         for period in (1, 2, 0):
             index = means.get(period)
@@ -360,7 +393,7 @@ def _read_numeric_table(table: html.HtmlElement, collection: _Collection) -> Non
                     Availability.AVAILABLE, markup.text(columns[index])
                 )
             )
-            collection.averages.append(SchoolAverage(subject, period, value))
+            averages.append(SchoolAverage(subject, period, value))
         if columns[current[0]] is columns[current[1]] and _boxes(columns[current[0]]):
             raise LibrusError(ErrorKind.PARSE)
         seen: set[html.HtmlElement] = set()
@@ -445,13 +478,36 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
         collection.check_size()
 
 
+def _assigned(value: GradeSummaryValue) -> bool:
+    return value.raw is not None and value.raw not in GRADE_EMPTY_MARKERS
+
+
+def _merge_point_averages(collection: _Collection) -> None:
+    """Point results fill a subject's unassigned averages; both set is ambiguous."""
+    index = {(a.subject, a.semester): i for i, a in enumerate(collection.averages)}
+    for average in collection.point_averages:
+        position = index.get((average.subject, average.semester))
+        if position is None:
+            index[(average.subject, average.semester)] = len(collection.averages)
+            collection.averages.append(average)
+        elif _assigned(average.value):
+            if _assigned(collection.averages[position].value):
+                raise LibrusError(ErrorKind.PARSE)
+            collection.averages[position] = average
+
+
 def parse_grade_records(body: bytes) -> GradeRecords:
     document = parse_page(body)
     collection = _Collection()
     numeric_tables = []
     tables = list(document.iter("table"))
+    point_tables = [table for table in tables if is_point_table(table)]
+    if len(point_tables) > 1:
+        raise LibrusError(ErrorKind.PARSE)
     for table in tables:
-        if not {"decorated", "stretch"} <= set(table.get("class", "").split()):
+        if not {"decorated", "stretch"} <= set(
+            table.get("class", "").split()
+        ) or is_point_table(table):
             continue
         if any(
             next(row.iterancestors("thead"), None) is not None
@@ -472,6 +528,8 @@ def parse_grade_records(body: bytes) -> GradeRecords:
         _read_publications(table, collection)
         if table in numeric_tables:
             _read_numeric_table(table, collection)
+        elif table in point_tables:
+            _read_numeric_table(table, collection, points=True)
         else:
             for row in markup.rows(table):
                 cells = markup.cells(row)
@@ -484,6 +542,7 @@ def parse_grade_records(body: bytes) -> GradeRecords:
                     <= set(cells[0].get("class", "").split())
                 ):
                     raise LibrusError(ErrorKind.PARSE)
+    grade_tables = numeric_tables + point_tables
     for element in document.iter():
         if not isinstance(element.tag, str) or element in collection.consumed:
             continue
@@ -491,14 +550,12 @@ def parse_grade_records(body: bytes) -> GradeRecords:
             "Data:" in (node.get("title") or "") for node in element.iter()
         )
         if dated_box:
-            if any(
-                parent in numeric_tables for parent in element.iterancestors("table")
-            ):
+            if any(parent in grade_tables for parent in element.iterancestors("table")):
                 # Expanded full-row detail mirrors were intentionally excluded.
                 cell = next(element.iterancestors("td", "th"), None)
                 if (
                     cell is not None
-                    and next(cell.iterancestors("table"), None) not in numeric_tables
+                    and next(cell.iterancestors("table"), None) not in grade_tables
                 ):
                     continue
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
@@ -511,7 +568,11 @@ def parse_grade_records(body: bytes) -> GradeRecords:
             for parent in anchor.iterancestors("table")
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    if not collection.subjects and not collection.descriptive:
+    if (
+        not collection.subjects
+        and not collection.point_subjects
+        and not collection.descriptive
+    ):
         raise LibrusError(ErrorKind.PARSE)
     for descriptive, subject in sorted(collection.subjects):
         if descriptive and (False, subject) not in collection.subjects:
@@ -523,6 +584,7 @@ def parse_grade_records(body: bytes) -> GradeRecords:
                 )
                 for period in (1, 2, 0)
             )
+    _merge_point_averages(collection)
     return GradeRecords(
         tuple(collection.numeric),
         tuple(collection.descriptive),

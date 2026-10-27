@@ -8,11 +8,14 @@ from lxml import html
 from librus_python_api import markup
 from librus_python_api.config import (
     GRADE_BODY_PREFIX_COLUMNS,
+    GRADE_CURRENT_HEADER,
+    GRADE_EMPTY_MARKERS,
     GRADE_INLINE_DETAIL_LABEL,
     GRADE_MAX_COLUMNS,
     GRADE_MAX_SUBJECTS,
     GRADE_MAX_VALUE_LENGTH,
     GRADE_MERGED_SUBJECTS,
+    GRADE_POINT_ROW_NODE,
     GRADE_SUMMARY_HEADERS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -48,12 +51,43 @@ def _header(row: html.HtmlElement) -> tuple[dict[str, int], int]:
     return fields, position
 
 
-def _locate(
+def is_point_table(table: html.HtmlElement) -> bool:
+    """A grade table whose subject rows carry point-grade expander images."""
+    if not {"decorated", "stretch"} <= set(table.get("class", "").split()):
+        return False
+    return any(
+        GRADE_POINT_ROW_NODE.fullmatch(image.get("id", ""))
+        for row in markup.rows(table)
+        for cell in markup.cells(row)[:1]
+        for image in cell.iter("img")
+    )
+
+
+def point_layout(table: html.HtmlElement) -> tuple[dict[str, int], int]:
+    """Summary fields and width from the point table's current-grade header row.
+
+    Point tables are not required to have an annual column, so the row with
+    the two current-grade headers defines the body alignment instead.
+    """
+    headers = [
+        row
+        for row in markup.rows(table)
+        if next(row.iterancestors("thead"), None) is not None
+        and any(markup.text(cell) == GRADE_CURRENT_HEADER for cell in markup.cells(row))
+    ]
+    if len(headers) != 1:
+        raise LibrusError(ErrorKind.PARSE)
+    return _header(headers[0])
+
+
+def _candidates(
     document: html.HtmlElement,
-) -> tuple[html.HtmlElement, dict[str, int], int]:
+) -> list[tuple[html.HtmlElement, dict[str, int], int]]:
     candidates: list[tuple[html.HtmlElement, dict[str, int], int]] = []
     for table in document.iter("table"):
         if not {"decorated", "stretch"} <= set(table.get("class", "").split()):
+            continue
+        if is_point_table(table):
             continue
         for row in markup.rows(table):
             if next(row.iterancestors("thead"), None) is None:
@@ -64,6 +98,13 @@ def _locate(
                 continue
             fields, width = _header(row)
             candidates.append((table, fields, width))
+    return candidates
+
+
+def _locate(
+    document: html.HtmlElement,
+) -> tuple[html.HtmlElement, dict[str, int], int]:
+    candidates = _candidates(document)
     if len(candidates) != 1:
         raise LibrusError(ErrorKind.PARSE)
     return candidates[0]
@@ -85,11 +126,9 @@ def _outside_nested_tables(row: html.HtmlElement) -> str:
     return " ".join(parts).strip()
 
 
-def _summary(
-    cells: list[html.HtmlElement],
-    fields: dict[str, int],
-    width: int,
-) -> SubjectGradeSummary:
+def _subject_columns(
+    cells: list[html.HtmlElement], width: int
+) -> tuple[str, list[html.HtmlElement]]:
     if len(cells) < GRADE_BODY_PREFIX_COLUMNS:
         raise LibrusError(ErrorKind.PARSE)
     subject = markup.text(cells[1])
@@ -105,6 +144,15 @@ def _summary(
         columns.extend([cell] * span)
     if len(columns) != width:
         raise LibrusError(ErrorKind.PARSE)
+    return subject, columns
+
+
+def _summary(
+    cells: list[html.HtmlElement],
+    fields: dict[str, int],
+    width: int,
+) -> SubjectGradeSummary:
+    subject, columns = _subject_columns(cells, width)
     selected = [columns[index] for index in fields.values()]
     if len({id(cell) for cell in selected}) != len(selected):
         # A single merged value cannot mean two different summary fields.
@@ -150,20 +198,48 @@ def _subject_rows(
         yield cells
 
 
+def _unassigned(item: SubjectGradeSummary) -> bool:
+    return all(
+        value.raw is None or value.raw in GRADE_EMPTY_MARKERS
+        for value in (item.midterm, item.predicted_annual, item.annual)
+    )
+
+
 def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
-    table, fields, width = _locate(parse_page(body))
-    items: list[SubjectGradeSummary] = []
-    subjects: set[str] = set()
-    for cells in _subject_rows(table, width):
-        item = _summary(cells, fields, width)
-        if item.subject in subjects:
-            raise LibrusError(ErrorKind.PARSE)
-        subjects.add(item.subject)
-        items.append(item)
-        if len(items) > GRADE_MAX_SUBJECTS:
-            raise LibrusError(ErrorKind.LIMIT)
+    document = parse_page(body)
+    point_tables = [table for table in document.iter("table") if is_point_table(table)]
+    if len(point_tables) > 1:
+        raise LibrusError(ErrorKind.PARSE)
+    # A point-grade school may also show the ordinary table, with or without
+    # grades; only then is that table optional.
+    sources = _candidates(document)
+    if len(sources) > 1 or not (sources or point_tables):
+        raise LibrusError(ErrorKind.PARSE)
+    if point_tables:
+        fields, width = point_layout(point_tables[0])
+        if "annual" in fields:
+            sources.append((point_tables[0], fields, width))
+    items: dict[str, SubjectGradeSummary] = {}
+    for family, (table, fields, width) in enumerate(sources):
+        family_subjects: set[str] = set()
+        for cells in _subject_rows(table, width):
+            item = _summary(cells, fields, width)
+            if item.subject in family_subjects:
+                raise LibrusError(ErrorKind.PARSE)
+            family_subjects.add(item.subject)
+            # A subject listed in both tables keeps the side that has values;
+            # two different assigned summaries for one subject are ambiguous.
+            previous = items.get(item.subject)
+            if previous is not None and family and not _unassigned(item):
+                if not _unassigned(previous):
+                    raise LibrusError(ErrorKind.PARSE)
+                items[item.subject] = item
+            elif previous is None:
+                items[item.subject] = item
+            if len(items) > GRADE_MAX_SUBJECTS:
+                raise LibrusError(ErrorKind.LIMIT)
     # No evidenced no-subject marker exists. Missing rows are not empty success;
     # a valid all-unassigned page still lists its subjects with raw '-' values.
     if not items:
         raise LibrusError(ErrorKind.PARSE)
-    return tuple(items)
+    return tuple(items.values())

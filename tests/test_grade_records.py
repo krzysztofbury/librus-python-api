@@ -21,6 +21,9 @@ from tests.grade_records_support import (
     behaviour_row,
     grade_box,
     grades_html,
+    point_box,
+    point_row,
+    point_table,
 )
 from tests.http_support import serve
 
@@ -121,6 +124,70 @@ def test_starting_points_outside_the_behaviour_row_fail() -> None:
     body = grades_html(first=behaviour_points())
     with pytest.raises(ParseError):
         parse_grade_records(body.encode())
+
+
+def test_point_table_beside_the_ordinary_table_adds_percentage_scores() -> None:
+    # Point-grade schools add an "Oceny punktowe" table with its own current
+    # grade columns; both tables used to make the whole read ambiguous.
+    rows = point_row(second=point_box("100", "7003", "2027-02-01")) + point_row(
+        point_box("100", "7004"), subject="Fixture Language", node="72"
+    )
+    ordinary = grades_html().replace("<td>4,25</td>", "<td>-</td>")
+    records = parse_grade_records(
+        ordinary.replace("</body>", point_table(rows) + "</body>").encode()
+    )
+    symbol, first, low, later, same_subject = records.numeric
+    assert symbol.point_grade_id is None
+    assert [(g.subject, g.raw, g.semester) for g in (first, low, later)] == [
+        ("Fixture Science", "90", 1),
+        ("Fixture Science", "44", 1),
+        ("Fixture Science", "100", 2),
+    ]
+    assert [g.point_grade_id for g in (first, low, later)] == ["7001", "7002", "7003"]
+    assert first.category == "Fixture essay (0-100)"
+    assert first.day == date(2026, 10, 5)
+    assert first.counts_toward_average is None
+    assert ("Licz do wyniku", "TAK") in first.metadata
+    assert (same_subject.subject, same_subject.raw) == ("Fixture Language", "100")
+    # "Wyn." results are the school's period averages; they fill an unassigned
+    # ordinary average and never add a second entry for the same period.
+    assert [(a.subject, a.semester, a.value.raw) for a in records.averages] == [
+        ("Fixture Language", 1, "67"),
+        ("Fixture Language", 2, ""),
+        ("Fixture Language", 0, "-"),
+        ("Fixture Science", 1, "67"),
+        ("Fixture Science", 2, "-"),
+        ("Fixture Science", 0, "-"),
+    ]
+
+
+def test_point_table_alone_is_a_complete_grade_page() -> None:
+    body = f"<!doctype html><html><body>{point_table(annual=False)}</body></html>"
+    records = parse_grade_records(body.encode())
+    assert [g.raw for g in records.numeric] == ["90", "44"]
+    assert records.averages[0].value.raw == "67"
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        point_table() + point_table(point_row(node="73")),
+        point_table(point_row() + point_row(node="73")),
+        point_table().replace('<td class="center">67</td>', ""),
+        point_table().replace("<td>Wyn.I</td>", "<td>Oceny bieżące</td>"),
+        point_table(point_row(subject="Fixture Language")),
+    ],
+    ids=[
+        "two-point-tables",
+        "duplicate-subject",
+        "short-row",
+        "third-current",
+        "conflicting-average",
+    ],
+)
+def test_ambiguous_point_table_fails_closed(extra: str) -> None:
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(extra=extra).encode())
 
 
 def test_numeric_symbols_descriptive_entries_and_school_averages_are_lossless() -> None:

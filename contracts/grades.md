@@ -350,3 +350,41 @@ the grid against the table. The view semantics of the table are not
 established, so `formative` may include items outside the selected view. The
 formative detail page added only "Widoczność" (visibility) beyond the table
 and tooltip, so no detail request is enabled.
+
+## Point grades (1.7.0)
+
+Evidence: a parent account at a point-grade school returned `PARSE` from both
+grade reads (relayed 2026-10-27, with a screenshot of the "Oceny punktowe"
+table). A public issue report on another Librus client quoted one subject row
+of that table; two public browser extensions refer to its row IDs. The
+screenshot shows the current-grade and "Wyn.I" header labels, percentage
+entries (90 and 44) and their first-period result (67). No page was captured,
+no third-party code or markup is incorporated and the fixtures are original.
+
+Cause: the table is a second `decorated stretch` table with two "Oceny bieżące"
+headers. `grades()` requires exactly one such table and `final_grades()`
+exactly one table with an annual summary title, so its presence made both
+reads ambiguous.
+
+Rules: a point table is a `decorated stretch` table whose subject rows carry an
+expander image with ID `przedmioty_OP_<id>_node`. At most one is accepted. It
+aligns on its single current-grade header row, not on an annual column, and
+needs no ordinary table beside it. Its rows use the ordinary width, colspan,
+nested-detail and behaviour rules; hidden detail rows mirror the entries and
+are skipped. Entries keep their raw score and tooltip fields; "Licz do wyniku"
+stays metadata and is not mapped to `counts_toward_average`. The computed
+`point_grade_id` recognises the point-grade detail link, which is never
+requested; like `formative_id` it is not a field, so notification identities
+stay unchanged.
+
+"Wyn.I", "Wyn.II" and "Wyn.R" header text marks the period results. Only
+"Wyn.I" was observed; schools differ in which result columns they show. A
+result fills a subject's unassigned ordinary average or adds the subject's
+averages; two assigned values for the same subject and period fail. Titled
+summary columns follow the ordinary vocabulary. In `final_grades()` a point
+table contributes subjects only when it has an annual column; a subject in
+both tables keeps the assigned side, and two assigned summaries fail.
+
+Limits: the full header titles, the period result layout beyond "Wyn.I" and a
+point-table behaviour row are not observed. Live qualification on a
+point-grade account is pending.

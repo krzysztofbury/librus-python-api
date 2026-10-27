@@ -89,6 +89,72 @@ def behaviour_row(first: str | None = None, second: str | None = None) -> str:
     )
 
 
+POINT_LINK = "/przegladaj_oceny_punktowe/szczegoly/{}"
+
+
+def point_box(
+    score: str = "90", detail: str = "7001", day: str = "2026-10-05 (pon.)"
+) -> str:
+    """A percentage entry; its category names the scale, it counts to a result."""
+    title = escape(
+        f"Kategoria: Fixture essay  (0-100)<br>Data: {day}<br>Nauczyciel: Fixture"
+        " Teacher<br>Licz do wyniku: TAK<br/>Fixture pool: NIE",
+        quote=True,
+    )
+    return (
+        f'<span class="grade-box"><a title="{title}" '
+        f'href="{POINT_LINK.format(detail)}">{score}</a></span>'
+    )
+
+
+def point_row(
+    first: str | None = None,
+    second: str = "Brak ocen",
+    *,
+    subject: str = "Fixture Science",
+    node: str = "71",
+    result: str = "67",
+    annual: str = "-",
+) -> str:
+    """A subject row and its hidden detail row, which mirrors the entries.
+
+    As in an owner-relayed screenshot: 90 and 44 on a 0-100 scale make a
+    first-period result of 67 while the period grade is not yet assigned.
+    """
+    if first is None:
+        first = point_box() + point_box("44", "7002", "2026-10-12 (pon.)")
+    return (
+        f'<tr class="line0"><td class="center micro screen-only"><img '
+        f'src="/images/tree_colapsed.png" id="przedmioty_OP_{node}_node"></td>'
+        f'<td>{subject}</td><td>{first}</td><td class="center">{result}</td>'
+        f'<td class="center"> - </td><td>{second}</td><td class="center"> - </td>'
+        f'<td class="center"> - </td><td class="center">{annual}</td></tr>'
+        f'<tr class="line1" id="przedmioty_OP_{node}" style="display: none;">'
+        f'<td>&nbsp;</td><td colspan="7"><table class="stretch"><tr><td>{first}'
+        "</td></tr></table></td></tr>"
+    )
+
+
+def point_table(rows: str | None = None, *, annual: bool = True) -> str:
+    """The "Oceny punktowe" section: untitled result columns beside summaries.
+
+    Result columns are known only by their visible "Wyn." labels; which of
+    them a school shows varies.
+    """
+    if rows is None:
+        rows = point_row()
+    annual_title = ' title="Ocena roczna"' if annual else ""
+    return (
+        '<h3 class="center">Oceny punktowe</h3><table class="decorated stretch">'
+        '<thead><tr><td rowspan="2"></td><td rowspan="2">Przedmiot</td>'
+        '<td colspan="3">Okres 1</td><td colspan="2">Okres 2</td>'
+        '<td colspan="2">Koniec roku</td></tr><tr><td>Oceny bieżące</td>'
+        '<td>Wyn.I</td><td title="Ocena śródroczna z pierwszego okresu">I</td>'
+        "<td>Oceny bieżące</td><td>Wyn.II</td><td>Wyn.R</td>"
+        f"<td{annual_title}>R</td></tr></thead><tbody>{rows}</tbody></table>"
+    )
+
+
 FORMATIVE_LINK = "/przegladaj_oceny/szczegoly/ksztaltujace/{}"
 FORMATIVE_HEADERS = (
     "Przedmiot",

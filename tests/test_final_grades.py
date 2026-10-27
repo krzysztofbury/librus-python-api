@@ -11,6 +11,7 @@ from librus_python_api.exceptions import (
     ParseError,
 )
 from librus_python_api.grade_parsers import parse_final_grades
+from tests.grade_records_support import point_row, point_table
 from tests.grade_support import GradeFixture, summary_html
 from tests.http_support import serve
 
@@ -154,6 +155,58 @@ def test_behaviour_can_span_unused_columns_without_losing_values() -> None:
     assert item.midterm.raw == "good"
     assert item.annual.raw == "very good"
     assert item.predicted_annual.raw == "-"
+
+
+def _with_points(
+    rows: str, *, ordinary: str | None = None, annual: bool = True
+) -> bytes:
+    if ordinary is None:
+        ordinary = summary_html()
+    return ordinary.replace(
+        "</body>", point_table(rows, annual=annual) + "</body>"
+    ).encode()
+
+
+def test_point_table_summaries_join_the_ordinary_summaries() -> None:
+    rows = point_row(annual="5") + point_row(
+        subject="Fixture Language", node="72", annual="-"
+    )
+    items = parse_final_grades(_with_points(rows))
+    assert [(item.subject, item.annual.raw) for item in items] == [
+        ("Fixture Language", "4+"),
+        ("Fixture Science", "5"),
+    ]
+    science = items[1]
+    assert science.midterm.raw == "-"
+    assert science.predicted_annual.availability == Availability.UNAVAILABLE
+    # The point table holds the values when the ordinary row is unassigned.
+    unassigned = summary_html(annual="-", midterm="", predicted="-")
+    (item,) = parse_final_grades(
+        _with_points(
+            point_row(subject="Fixture Language", annual="3"), ordinary=unassigned
+        )
+    )
+    assert item.annual.raw == "3"
+    # A point table without an annual column adds no summaries.
+    items = parse_final_grades(_with_points(point_row(annual="5"), annual=False))
+    assert [item.subject for item in items] == ["Fixture Language"]
+
+
+def test_point_table_alone_is_a_summary_source() -> None:
+    body = (
+        f"<!doctype html><html><body>{point_table(point_row(annual='4'))}</body></html>"
+    )
+    (item,) = parse_final_grades(body.encode())
+    assert (item.subject, item.annual.raw) == ("Fixture Science", "4")
+    without_annual = body.replace(' title="Ocena roczna"', "")
+    with pytest.raises(ParseError):
+        parse_final_grades(without_annual.encode())
+
+
+def test_conflicting_summaries_across_tables_fail() -> None:
+    rows = point_row(subject="Fixture Language", annual="5")
+    with pytest.raises(ParseError):
+        parse_final_grades(_with_points(rows))
 
 
 def test_other_tables_and_detail_rows_are_not_summary_subjects() -> None:
