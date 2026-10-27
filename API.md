@@ -245,8 +245,9 @@ schools show beside, or instead of, the ordinary table. Its entries are
 `NumericGrade`s in `numeric` whose computed `point_grade_id` property holds the
 point-grade detail ID; `raw` is then a score on the scale named by `category`,
 such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
-reported as that subject's `SchoolAverage`s and its titled summary columns
-join `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
+`GradeRecords.point_results` (`SchoolAverage`s on the score scale, never mixed
+into `averages`), and a point table with titled summary columns adds its
+subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
 
 ## Attendance
 

@@ -63,6 +63,15 @@ def is_point_table(table: html.HtmlElement) -> bool:
     )
 
 
+def _current_header(table: html.HtmlElement) -> bool:
+    """A grade table: decorated, with a current-grade header row."""
+    return {"decorated", "stretch"} <= set(table.get("class", "").split()) and any(
+        next(row.iterancestors("thead"), None) is not None
+        and any(markup.text(cell) == GRADE_CURRENT_HEADER for cell in markup.cells(row))
+        for row in markup.rows(table)
+    )
+
+
 def point_layout(table: html.HtmlElement) -> tuple[dict[str, int], int]:
     """Summary fields and width from the point table's current-grade header row.
 
@@ -166,7 +175,8 @@ def _summary(
         subject,
         values.get("midterm", absent),
         values.get("predicted_annual", absent),
-        values["annual"],
+        # Only a point table may lack the annual column.
+        values.get("annual", absent),
     )
 
 
@@ -212,7 +222,10 @@ def merge_value(
     )
     if first_set and other_set and first.raw != other.raw:
         raise LibrusError(ErrorKind.PARSE)
-    return other if other_set and not first_set else first
+    if other_set and not first_set:
+        return other
+    # An unassigned shown column still says more than an absent one.
+    return other if first.availability is Availability.UNAVAILABLE else first
 
 
 def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
@@ -220,14 +233,21 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
     point_tables = [table for table in document.iter("table") if is_point_table(table)]
     if len(point_tables) > 1:
         raise LibrusError(ErrorKind.PARSE)
-    # A point-grade school may also show the ordinary table, with or without
-    # grades; only then is that table optional.
+    # A point-grade school may show the ordinary table or omit it. An ordinary
+    # grade table without an annual column is still an unknown layout.
     sources = _candidates(document)
     if len(sources) > 1 or not (sources or point_tables):
         raise LibrusError(ErrorKind.PARSE)
     if point_tables:
+        located = {id(table) for table, _, _ in sources}
+        if any(
+            _current_header(table) and id(table) not in located
+            for table in document.iter("table")
+            if table not in point_tables
+        ):
+            raise LibrusError(ErrorKind.PARSE)
         fields, width = point_layout(point_tables[0])
-        if "annual" in fields:
+        if fields:
             sources.append((point_tables[0], fields, width))
     items: dict[str, SubjectGradeSummary] = {}
     for table, fields, width in sources:

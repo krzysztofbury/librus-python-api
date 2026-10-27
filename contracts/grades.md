@@ -356,10 +356,12 @@ and tooltip, so no detail request is enabled.
 Evidence: a parent account at a point-grade school returned `PARSE` from both
 grade reads (relayed 2026-10-27, with a screenshot of the "Oceny punktowe"
 table). A public issue report on another Librus client quoted one subject row
-of that table; two public browser extensions refer to its row IDs. The
-screenshot shows the current-grade and "Wyn.I" header labels, percentage
-entries (90 and 44) and their first-period result (67). No page was captured,
-no third-party code or markup is incorporated and the fixtures are original.
+of that table, including the row expander ID, the tooltip labels and the
+`/przegladaj_oceny_punktowe/szczegoly/<id>` entry link; two public browser
+extensions refer to the same row IDs. The screenshot shows the current-grade
+and "Wyn.I" header labels, percentage entries (90 and 44) and their
+first-period result (67). No page was captured and no third-party code or
+fixture is incorporated; the fixtures are original.
 
 Cause: the table is a second `decorated stretch` table with two "Oceny bieżące"
 headers. `grades()` requires exactly one such table and `final_grades()`
@@ -369,23 +371,29 @@ reads ambiguous.
 Rules: a point table is a `decorated stretch` table whose subject rows carry an
 expander image with ID `przedmioty_OP_<id>_node`. At most one is accepted. It
 aligns on its single current-grade header row, not on an annual column, and
-needs no ordinary table beside it. Its rows use the ordinary width, colspan,
+needs no ordinary table beside it. An ordinary grade table beside it still
+needs its annual column. Point rows use the ordinary width, colspan,
 nested-detail and behaviour rules; hidden detail rows mirror the entries and
 are skipped. Entries keep their raw score and tooltip fields; "Licz do wyniku"
-stays metadata and is not mapped to `counts_toward_average`. The computed
-`point_grade_id` recognises the point-grade detail link, which is never
-requested; like `formative_id` it is not a field, so notification identities
-stay unchanged.
+stays metadata and is not mapped to `counts_toward_average`. Every current
+point entry must link to a point-grade detail, which is never requested, so an
+unseen link layout fails instead of passing as a grade symbol. The computed
+`point_grade_id` holds that detail ID; like `formative_id` it is not a field,
+so notification identities stay unchanged. A period grade both tables show is
+one record.
 
-"Wyn.I", "Wyn.II" and "Wyn.R" header text marks the period results. Only
-"Wyn.I" was observed; schools differ in which result columns they show. A
-result fills a subject's unassigned ordinary average or adds the subject's
-averages. Titled summary columns follow the ordinary vocabulary. In
-`final_grades()` a point table contributes subjects only when it has an annual
-column. For a subject in both tables each average and summary value is merged
-on its own: an assigned value fills an unassigned one, equal values are one
-value and two different assigned values fail.
+"Wyn.I", "Wyn.II" and "Wyn.R" header text (optionally with a space after the
+dot) marks the period results, reported as `point_results`. They are on the
+score scale, so they are never merged with the ordinary `averages`, even for a
+subject both tables list. Only "Wyn.I" was observed; schools differ in which
+result columns they show. In `final_grades()` a point table contributes
+subjects when it has titled summary columns, and an absent column is
+unavailable. For a subject in both tables each summary value is merged on its
+own: an assigned value fills an unassigned one, equal values are one value and
+two different assigned values fail. The subject bound counts ordinary and point
+rows separately in `grades()` and unique subjects in `final_grades()`.
 
-Limits: the full header titles, the period result layout beyond "Wyn.I" and a
-point-table behaviour row are not observed. Live qualification on a
-point-grade account is pending.
+Limits: the full header titles, the result layout beyond "Wyn.I", the hidden
+detail row markup and a point-table behaviour row are not observed. A point
+table with no subject rows is not recognised and still fails. Live
+qualification on a point-grade account is pending.

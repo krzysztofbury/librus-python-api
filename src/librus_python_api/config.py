@@ -677,7 +677,8 @@ GRADE_AVERAGE_HEADERS = MappingProxyType(
 # Point tables label their period results by visible text, not by title. Only
 # "Wyn.I" was observed (owner-relayed screenshot, 2026-10-27); the others
 # follow the same period naming as the ordinary I/II/R summary columns.
-GRADE_POINT_RESULT_HEADERS = MappingProxyType({"Wyn.I": 1, "Wyn.II": 2, "Wyn.R": 0})
+GRADE_POINT_RESULT_HEADER = re.compile(r"Wyn\.\s?(I|II|R)")
+GRADE_POINT_RESULT_PERIODS = MappingProxyType({"I": 1, "II": 2, "R": 0})
 GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32

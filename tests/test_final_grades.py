@@ -11,7 +11,7 @@ from librus_python_api.exceptions import (
     ParseError,
 )
 from librus_python_api.grade_parsers import parse_final_grades
-from tests.grade_records_support import point_row, point_table
+from tests.grade_records_support import grades_html, point_row, point_table
 from tests.grade_support import GradeFixture, summary_html
 from tests.http_support import serve
 
@@ -187,9 +187,13 @@ def test_point_table_summaries_join_the_ordinary_summaries() -> None:
         )
     )
     assert item.annual.raw == "3"
-    # A point table without an annual column adds no summaries.
+    # Without an annual column the titled midterm still makes a summary.
     items = parse_final_grades(_with_points(point_row(annual="5"), annual=False))
-    assert [item.subject for item in items] == ["Fixture Language"]
+    assert [(item.subject, item.annual.availability) for item in items] == [
+        ("Fixture Language", Availability.AVAILABLE),
+        ("Fixture Science", Availability.UNAVAILABLE),
+    ]
+    assert items[1].midterm.raw == "-"
 
 
 def test_point_table_alone_is_a_summary_source() -> None:
@@ -198,9 +202,37 @@ def test_point_table_alone_is_a_summary_source() -> None:
     )
     (item,) = parse_final_grades(body.encode())
     assert (item.subject, item.annual.raw) == ("Fixture Science", "4")
-    without_annual = body.replace(' title="Ocena roczna"', "")
+    untitled = body.replace(' title="Ocena roczna"', "").replace(
+        ' title="Ocena śródroczna z pierwszego okresu"', ""
+    )
     with pytest.raises(ParseError):
-        parse_final_grades(without_annual.encode())
+        parse_final_grades(untitled.encode())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # An ordinary grade table without an annual column is not optional.
+        grades_html()
+        .replace('<th title="Ocena roczna">Annual</th>', "<th>Annual</th>")
+        .replace("</body>", point_table() + "</body>"),
+        _with_points(point_row())
+        .decode()
+        .replace(
+            "</body>", point_table(point_row(subject="Fixture Other")) + "</body>"
+        ),
+        _with_points(point_row())
+        .decode()
+        .replace(
+            "<tr><td>Oceny bieżące</td>",
+            "<tr><td>Oceny bieżące</td></tr><tr><td>Oceny bieżące</td>",
+        ),
+    ],
+    ids=["ordinary-without-annual", "two-point-tables", "two-point-headers"],
+)
+def test_ambiguous_point_layout_fails_closed(body: str) -> None:
+    with pytest.raises(ParseError):
+        parse_final_grades(body.encode())
 
 
 def test_a_subject_in_both_tables_merges_each_summary_value() -> None:
@@ -254,8 +286,9 @@ def test_other_tables_and_detail_rows_are_not_summary_subjects() -> None:
         ),
         lambda text: text.replace(
             "<tbody>",
-            "<tbody><tr><td></td><td>Fixture Language</td><td>1</td><td></td>"
-            "<td></td><td>2</td><td>3</td></tr>",
+            # Identical to the real row, so only the duplicate check rejects it.
+            "<tbody><tr><td></td><td>Fixture Language</td><td>4+</td><td></td>"
+            "<td></td><td>progressing</td><td>-</td></tr>",
         ),
         lambda text: text.replace(
             "<tr><td></td><td>Fixture Language</td><td>4+</td><td></td><td></td>"

@@ -19,7 +19,8 @@ from librus_python_api.config import (
     GRADE_MAX_SUBJECTS,
     GRADE_MERGED_SUBJECTS,
     GRADE_PERIOD_HEADERS,
-    GRADE_POINT_RESULT_HEADERS,
+    GRADE_POINT_RESULT_HEADER,
+    GRADE_POINT_RESULT_PERIODS,
     GRADE_PREDICTED_ANNUAL_HEADER,
     GRADE_PREDICTED_PERIOD_HEADERS,
     GRADE_PUBLICATION_DATE_LABEL,
@@ -34,7 +35,6 @@ from librus_python_api.grade_parsers import (
     _subject_rows,
     _summary,
     is_point_table,
-    merge_value,
     point_layout,
 )
 from librus_python_api.models import (
@@ -75,8 +75,9 @@ def _layout(
                     raise LibrusError(ErrorKind.PARSE)
                 current.append(position)
             period = GRADE_AVERAGE_HEADERS.get(_label(cell.get("title", "")))
-            if points and period is None:
-                period = GRADE_POINT_RESULT_HEADERS.get(markup.text(cell))
+            result = GRADE_POINT_RESULT_HEADER.fullmatch(markup.text(cell))
+            if points and period is None and result is not None:
+                period = GRADE_POINT_RESULT_PERIODS[result.group(1)]
             if period is not None:
                 if period in averages or markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
@@ -153,7 +154,7 @@ class _Collection:
         default_factory=list, repr=False
     )
     averages: list[SchoolAverage] = field(default_factory=list, repr=False)
-    point_averages: list[SchoolAverage] = field(default_factory=list, repr=False)
+    point_results: list[SchoolAverage] = field(default_factory=list, repr=False)
     subjects: set[tuple[bool, str]] = field(default_factory=set, repr=False)
     point_subjects: set[str] = field(default_factory=set, repr=False)
     consumed: set[html.HtmlElement] = field(default_factory=set, repr=False)
@@ -371,7 +372,9 @@ def _read_numeric_table(
         _, fields, width = _locate(table)
     current, means = _layout(table, points=points)
     periods = _period_columns(table)
-    averages = collection.point_averages if points else collection.averages
+    averages = collection.point_results if points else collection.averages
+    # Period grades shown by both tables are one record, kept from the first.
+    prior = set(collection.numeric) if points else set()
     for cells in _subject_rows(table, width):
         if cells[0].getparent() in collection.publication_rows:
             continue
@@ -404,14 +407,23 @@ def _read_numeric_table(
                     subject in GRADE_MERGED_SUBJECTS
                     and _behaviour_points(columns[index], collection)
                 ):
+                    start = len(collection.numeric)
                     _entries(
                         columns[index], subject, cast(Literal[1, 2], period), collection
                     )
+                    # A point entry without its detail link would pass as a
+                    # grade symbol; an unseen link layout fails instead.
+                    if points and any(
+                        record.point_grade_id is None
+                        for record in collection.numeric[start:]
+                    ):
+                        raise LibrusError(ErrorKind.PARSE)
                 seen.add(columns[index])
         for (period, kind), index in periods.items():
             cell = columns[index]
             if cell in seen and _boxes(cell):
                 raise LibrusError(ErrorKind.PARSE)
+            start = len(collection.numeric)
             _entries(
                 cell,
                 subject,
@@ -420,6 +432,9 @@ def _read_numeric_table(
                 kind=kind,
                 require_empty_marker=False,
             )
+            collection.numeric[start:] = [
+                record for record in collection.numeric[start:] if record not in prior
+            ]
 
 
 def _read_publications(table: html.HtmlElement, collection: _Collection) -> None:
@@ -477,22 +492,6 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
         collection.consumed.add(header)
         collection.publication_rows.update((row, rows[index + 1]))
         collection.check_size()
-
-
-def _merge_point_averages(collection: _Collection) -> None:
-    """Point results join the subject's ordinary averages, one per period."""
-    index = {(a.subject, a.semester): i for i, a in enumerate(collection.averages)}
-    for average in collection.point_averages:
-        position = index.get((average.subject, average.semester))
-        if position is None:
-            index[(average.subject, average.semester)] = len(collection.averages)
-            collection.averages.append(average)
-        else:
-            ordinary = collection.averages[position]
-            value = merge_value(ordinary.value, average.value)
-            collection.averages[position] = SchoolAverage(
-                ordinary.subject, ordinary.semester, value
-            )
 
 
 def parse_grade_records(body: bytes) -> GradeRecords:
@@ -583,11 +582,11 @@ def parse_grade_records(body: bytes) -> GradeRecords:
                 )
                 for period in (1, 2, 0)
             )
-    _merge_point_averages(collection)
     return GradeRecords(
         tuple(collection.numeric),
         tuple(collection.descriptive),
         tuple(collection.averages),
         tuple(collection.descriptive_summaries),
         formative,
+        tuple(collection.point_results),
     )

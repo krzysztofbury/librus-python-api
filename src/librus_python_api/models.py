@@ -1136,6 +1136,9 @@ class GradeRecords:
         default=(), repr=False
     )
     formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
+    # A point table's period results, on its score scale; never merged into
+    # `averages`, whose values are the ordinary grade-scale means.
+    point_results: tuple[SchoolAverage, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

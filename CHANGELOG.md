@@ -11,15 +11,20 @@ point-grade account is pending.
 - Grades: point entries are returned in `numeric` with their raw score, scale
   category and tooltip fields. The new computed `NumericGrade.point_grade_id`
   property identifies them. It is not a field, so notification identities are
-  unchanged.
-- Grades: "Wyn." period results become the subject's school averages.
-- Final grades: a point table with an annual column adds its subjects. A page
-  with only a point table is valid for both reads.
-- A subject in both tables gets one value per average and summary field: an
-  assigned value fills an unassigned one and equal values are one value. Two
-  different assigned values fail.
-- More than one point table, duplicate point subjects and misaligned rows fail
-  instead of returning partial output.
+  unchanged. A current point entry without its point-grade detail link fails
+  instead of passing as a grade symbol.
+- Grades: the new `GradeRecords.point_results` holds the "Wyn." period
+  results on the score scale. They are never merged into `averages`, which
+  stay the ordinary grade-scale means.
+- Grades: a period grade that both tables show is one record.
+- Final grades: a point table with titled summary columns (midterm, predicted
+  or annual) adds its subjects; a missing column is unavailable. For a subject
+  in both tables, each value is merged on its own: an assigned value fills an
+  unassigned one, equal values are one value and two different assigned values
+  fail.
+- More than one point table, duplicate point subjects, misaligned rows and an
+  ordinary grade table without an annual column fail instead of returning
+  partial output.
 
 ## 1.6.4 (2026-10-26) - Message body rendering security fix
 

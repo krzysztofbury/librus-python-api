@@ -5,6 +5,7 @@ import pytest
 
 from librus_python_api import (
     Availability,
+    GradeKind,
     GradeView,
 )
 from librus_python_api.config import GRADE_MAX_METADATA_LENGTH, GRADE_MAX_RECORDS
@@ -132,10 +133,7 @@ def test_point_table_beside_the_ordinary_table_adds_percentage_scores() -> None:
     rows = point_row(second=point_box("100", "7003", "2027-02-01")) + point_row(
         point_box("100", "7004"), subject="Fixture Language", node="72"
     )
-    ordinary = grades_html().replace("<td>4,25</td>", "<td>-</td>")
-    records = parse_grade_records(
-        ordinary.replace("</body>", point_table(rows) + "</body>").encode()
-    )
+    records = parse_grade_records(grades_html(extra=point_table(rows)).encode())
     symbol, first, low, later, same_subject = records.numeric
     assert symbol.point_grade_id is None
     assert [(g.subject, g.raw, g.semester) for g in (first, low, later)] == [
@@ -149,50 +147,63 @@ def test_point_table_beside_the_ordinary_table_adds_percentage_scores() -> None:
     assert first.counts_toward_average is None
     assert ("Licz do wyniku", "TAK") in first.metadata
     assert (same_subject.subject, same_subject.raw) == ("Fixture Language", "100")
-    # "Wyn." results are the school's period averages; they fill an unassigned
-    # ordinary average and never add a second entry for the same period.
+    # "Wyn." results are on the score scale and stay apart from the ordinary
+    # averages, even for a subject that both tables list.
     assert [(a.subject, a.semester, a.value.raw) for a in records.averages] == [
-        ("Fixture Language", 1, "67"),
+        ("Fixture Language", 1, "4,25"),
         ("Fixture Language", 2, ""),
         ("Fixture Language", 0, "-"),
+    ]
+    assert [(a.subject, a.semester, a.value.raw) for a in records.point_results] == [
         ("Fixture Science", 1, "67"),
         ("Fixture Science", 2, "-"),
         ("Fixture Science", 0, "-"),
+        ("Fixture Language", 1, "67"),
+        ("Fixture Language", 2, "-"),
+        ("Fixture Language", 0, "-"),
     ]
 
 
-def test_equal_point_result_and_ordinary_average_are_one_value() -> None:
-    extra = point_table(point_row(subject="Fixture Language", result="4,25"))
-    records = parse_grade_records(grades_html(extra=extra).encode())
-    assert [(a.semester, a.value.raw) for a in records.averages] == [
-        (1, "4,25"),
-        (2, ""),
-        (0, "-"),
-    ]
-
-
-def test_point_table_alone_is_a_complete_grade_page() -> None:
-    body = f"<!doctype html><html><body>{point_table(annual=False)}</body></html>"
-    records = parse_grade_records(body.encode())
+@pytest.mark.parametrize("label", ["Wyn.I", "Wyn. I"])
+def test_point_table_alone_is_a_complete_grade_page(label: str) -> None:
+    table = point_table(annual=False).replace("Wyn.I", label)
+    records = parse_grade_records(f"<html><body>{table}</body></html>".encode())
     assert [g.raw for g in records.numeric] == ["90", "44"]
-    assert records.averages[0].value.raw == "67"
+    assert records.averages == ()
+    assert records.point_results[0].value.raw == "67"
+
+
+def test_a_period_grade_shown_by_both_tables_is_one_record() -> None:
+    box = grade_box("5", extra="")
+    ordinary = grades_html().replace(
+        "<td>4,25</td><td>-</td>", f"<td>4,25</td><td>{box}</td>"
+    )
+    row = point_row(subject="Fixture Language").replace(
+        '<td class="center"> - </td>', f"<td>{box}</td>", 1
+    )
+    records = parse_grade_records(
+        ordinary.replace("</body>", point_table(row) + "</body>").encode()
+    )
+    assert [g.raw for g in records.numeric if g.kind == GradeKind.PERIOD] == ["5"]
 
 
 @pytest.mark.parametrize(
     "extra",
     [
-        point_table() + point_table(point_row(node="73")),
+        point_table() + point_table(point_row(subject="Fixture Other", node="73")),
         point_table(point_row() + point_row(node="73")),
         point_table().replace('<td class="center">67</td>', ""),
         point_table().replace("<td>Wyn.I</td>", "<td>Oceny bieżące</td>"),
-        point_table(point_row(subject="Fixture Language")),
+        point_table().replace(
+            "/przegladaj_oceny_punktowe/szczegoly/7001", "fixture-link"
+        ),
     ],
     ids=[
         "two-point-tables",
         "duplicate-subject",
         "short-row",
         "third-current",
-        "conflicting-average",
+        "entry-without-point-link",
     ],
 )
 def test_ambiguous_point_table_fails_closed(extra: str) -> None:
