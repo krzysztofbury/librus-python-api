@@ -11,7 +11,12 @@ from librus_python_api.exceptions import (
     ParseError,
 )
 from librus_python_api.grade_parsers import parse_final_grades
-from tests.grade_records_support import grades_html, point_row, point_table
+from tests.grade_records_support import (
+    grades_html,
+    observed_point_page,
+    point_row,
+    point_table,
+)
 from tests.grade_support import GradeFixture, summary_html
 from tests.http_support import serve
 
@@ -207,6 +212,15 @@ def test_point_table_alone_is_a_summary_source() -> None:
     )
     with pytest.raises(ParseError):
         parse_final_grades(untitled.encode())
+
+
+def test_observed_point_page_summaries_include_the_broken_midterm_title() -> None:
+    items = parse_final_grades(observed_point_page("4").encode())
+    assert [(i.subject, i.midterm.raw, i.annual.raw) for i in items] == [
+        ("Fixture Science", "4", "-"),
+        ("Fixture Workshop", "-", "-"),
+        ("Zachowanie", "-", "-"),
+    ]
 
 
 @pytest.mark.parametrize(

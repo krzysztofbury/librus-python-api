@@ -13,6 +13,7 @@ from librus_python_api.config import (
     GRADE_MAX_COLUMNS,
     GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
+    TOOLTIP_MULTILINE_LABELS,
     UPSTREAM_ORIGINS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -81,11 +82,16 @@ def colspan(cell: html.HtmlElement) -> int:
 
 
 def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
-    """Parse a 'Label: value<br>' title attribute into unique labelled fields."""
+    """Parse a 'Label: value<br>' title attribute into unique labelled fields.
+
+    A free-text field may span lines; an unlabelled line after it continues
+    its value. Any other unlabelled line is an unknown layout.
+    """
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
         raise LibrusError(ErrorKind.LIMIT)
     result: dict[str, str] = {}
+    last: str | None = None
     chunks = re.split(r"<br\s*/?>|\n", title, flags=re.I)
     if len(chunks) > GRADE_MAX_METADATA_FIELDS:
         raise LibrusError(ErrorKind.LIMIT)
@@ -100,9 +106,13 @@ def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
         )
         key, separator, value = rendered.partition(":")
         key, value = key.strip(), value.strip()
+        if not separator and last in TOOLTIP_MULTILINE_LABELS:
+            result[last] = f"{result[last]}\n{rendered}".strip()
+            continue
         if not separator or not key or key in result:
             raise LibrusError(ErrorKind.PARSE)
         result[key] = value
+        last = key
     return result
 
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.7.1 (2026-10-27) - Observed point-grade page and multi-line comments
+
+Fixes for layouts 1.7.0 rejected with `ParseError`, established from an
+affected school's real point-grade page and a live grade read. Public types
+and signatures are unchanged.
+
+- Grades: a teacher's multi-line `Komentarz` continues on unlabelled tooltip
+  lines and is kept with its line breaks. Every grade read of an account with
+  such a comment failed in all releases up to 1.7.0; any other unlabelled
+  tooltip line still fails.
+- Point grades: a formative entry among the point entries is accepted as the
+  formative mirror it is; the empty footer row wider than the table is
+  skipped; titles that break their own label (`Ocena śródroczna <br> z
+  pierwszego okresu`) name the period columns, so point midterm grades are
+  read. These rules apply to point tables only.
+- Formative assessments: assessment text may contain line breaks. 1.7.0 and
+  earlier failed such a table with `UnsupportedCapabilityError`.
+
 ## 1.7.0 (2026-10-27) - Point grades
 
 Reads the "Oceny punktowe" table that point-grade schools show on the grades

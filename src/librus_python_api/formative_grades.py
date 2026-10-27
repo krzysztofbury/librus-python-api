@@ -58,7 +58,8 @@ def _link(cell: html.HtmlElement) -> tuple[str, str]:
     """The detail ID and full text of the assessment cell.
 
     Observed: one link whose optional first child is an empty coloured
-    `span.grade-box` marker, followed by the text. Anything else is new markup.
+    `span.grade-box` marker, followed by the text, which may contain empty
+    line breaks (2026-10-27). Anything else is new markup.
     """
     _single(cell)
     anchors = [node for node in cell if isinstance(node.tag, str)]
@@ -66,6 +67,10 @@ def _link(cell: html.HtmlElement) -> tuple[str, str]:
         _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
     anchor = anchors[0]
     children = [node for node in anchor.iterdescendants() if isinstance(node.tag, str)]
+    breaks = [node for node in children if node.tag == "br"]
+    if any(node.getparent() is not anchor or len(node) for node in breaks):
+        _fail(ErrorKind.UNSUPPORTED_CAPABILITY)
+    children = [node for node in children if node.tag != "br"]
     if children:
         marker = children[0]
         if (

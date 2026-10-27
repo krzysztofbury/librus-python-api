@@ -27,22 +27,34 @@ from librus_python_api.models import (
 from librus_python_api.parsers import parse_page
 
 
-def _summary_field(cell: html.HtmlElement) -> str | None:
+def title_label(title: str, *, points: bool = False) -> str:
+    """A header title's label: its first line, or for a point table all of it.
+
+    Ordinary titles append an explanation after a line break. Point tables
+    break the label itself ("Ocena śródroczna <br> z pierwszego okresu").
+    """
+    if points:
+        return " ".join(re.sub(r"<br\s*/?>", " ", title, flags=re.I).split())
+    return " ".join(re.split(r"<br\s*/?>", title, flags=re.I)[0].split())
+
+
+def _summary_field(cell: html.HtmlElement, *, points: bool = False) -> str | None:
     title = cell.get("title", "")
     if len(title) > GRADE_MAX_VALUE_LENGTH:
         raise LibrusError(ErrorKind.LIMIT)
-    label = " ".join(re.split(r"<br\s*/?>", title, flags=re.I)[0].split())
-    return GRADE_SUMMARY_HEADERS.get(label)
+    return GRADE_SUMMARY_HEADERS.get(title_label(title, points=points))
 
 
-def _header(row: html.HtmlElement) -> tuple[dict[str, int], int]:
+def _header(
+    row: html.HtmlElement, *, points: bool = False
+) -> tuple[dict[str, int], int]:
     fields: dict[str, int] = {}
     position = GRADE_BODY_PREFIX_COLUMNS
     for cell in markup.cells(row):
         span = markup.colspan(cell)
         if position + span > GRADE_MAX_COLUMNS:
             raise LibrusError(ErrorKind.LIMIT)
-        field = _summary_field(cell)
+        field = _summary_field(cell, points=points)
         if field is not None:
             if field in fields:
                 raise LibrusError(ErrorKind.PARSE)
@@ -86,7 +98,7 @@ def point_layout(table: html.HtmlElement) -> tuple[dict[str, int], int]:
     ]
     if len(headers) != 1:
         raise LibrusError(ErrorKind.PARSE)
-    return _header(headers[0])
+    return _header(headers[0], points=True)
 
 
 def _candidates(
@@ -181,7 +193,7 @@ def _summary(
 
 
 def _subject_rows(
-    table: html.HtmlElement, width: int
+    table: html.HtmlElement, width: int, *, points: bool = False
 ) -> Iterator[list[html.HtmlElement]]:
     for row in markup.rows(table):
         if next(row.iterancestors("thead"), None) is not None:
@@ -189,6 +201,14 @@ def _subject_rows(
         cells = markup.cells(row)
         if not cells:
             raise LibrusError(ErrorKind.PARSE)
+        # The observed point table closes with an empty footer cell wider than
+        # the table; only an empty footer row is skipped.
+        if (
+            points
+            and next(row.iterancestors("tfoot"), None) is not None
+            and not any(markup.text(cell) for cell in cells)
+        ):
+            continue
         if list(row.iter("table")):
             if _outside_nested_tables(row):
                 raise LibrusError(ErrorKind.PARSE)
@@ -252,7 +272,7 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
     items: dict[str, SubjectGradeSummary] = {}
     for table, fields, width in sources:
         family_subjects: set[str] = set()
-        for cells in _subject_rows(table, width):
+        for cells in _subject_rows(table, width, points=table in point_tables):
             item = _summary(cells, fields, width)
             if item.subject in family_subjects:
                 raise LibrusError(ErrorKind.PARSE)
