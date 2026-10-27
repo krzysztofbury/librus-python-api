@@ -36,6 +36,7 @@ from librus_python_api.grade_parsers import (
     _summary,
     is_point_table,
     point_layout,
+    title_label,
 )
 from librus_python_api.models import (
     Availability,
@@ -51,8 +52,8 @@ from librus_python_api.models import (
 from librus_python_api.parsers import parse_page
 
 
-def _label(title: str) -> str:
-    return " ".join(re.split(r"<br\s*/?>", title, flags=re.I)[0].split())
+def _label(title: str, *, points: bool = False) -> str:
+    return title_label(title, points=points)
 
 
 def _layout(
@@ -74,7 +75,9 @@ def _layout(
                 if markup.colspan(cell) != 1:
                     raise LibrusError(ErrorKind.PARSE)
                 current.append(position)
-            period = GRADE_AVERAGE_HEADERS.get(_label(cell.get("title", "")))
+            period = GRADE_AVERAGE_HEADERS.get(
+                _label(cell.get("title", ""), points=points)
+            )
             result = GRADE_POINT_RESULT_HEADER.fullmatch(markup.text(cell))
             if points and period is None and result is not None:
                 period = GRADE_POINT_RESULT_PERIODS[result.group(1)]
@@ -333,7 +336,9 @@ def _read_descriptive_row(
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
 
-def _period_columns(table: html.HtmlElement) -> dict[tuple[int, GradeKind], int]:
+def _period_columns(
+    table: html.HtmlElement, *, points: bool = False
+) -> dict[tuple[int, GradeKind], int]:
     result: dict[tuple[int, GradeKind], int] = {}
     for row in markup.rows(table):
         cells = markup.cells(row)
@@ -343,7 +348,7 @@ def _period_columns(table: html.HtmlElement) -> dict[tuple[int, GradeKind], int]
             continue
         position = GRADE_BODY_PREFIX_COLUMNS
         for cell in cells:
-            label = _label(cell.get("title", ""))
+            label = _label(cell.get("title", ""), points=points)
             period = GRADE_PERIOD_HEADERS.get(label)
             kind = GradeKind.ANNUAL if period == 0 else GradeKind.PERIOD
             if label == GRADE_PREDICTED_ANNUAL_HEADER:
@@ -371,11 +376,11 @@ def _read_numeric_table(
     else:
         _, fields, width = _locate(table)
     current, means = _layout(table, points=points)
-    periods = _period_columns(table)
+    periods = _period_columns(table, points=points)
     averages = collection.point_results if points else collection.averages
     # Period grades shown by both tables are one record, kept from the first.
     prior = set(collection.numeric) if points else set()
-    for cells in _subject_rows(table, width):
+    for cells in _subject_rows(table, width, points=points):
         if cells[0].getparent() in collection.publication_rows:
             continue
         if points:
@@ -412,9 +417,10 @@ def _read_numeric_table(
                         columns[index], subject, cast(Literal[1, 2], period), collection
                     )
                     # A point entry without its detail link would pass as a
-                    # grade symbol; an unseen link layout fails instead.
+                    # grade symbol; an unseen link layout fails instead. The
+                    # observed point table also shows formative entries.
                     if points and any(
-                        record.point_grade_id is None
+                        record.point_grade_id is None and record.formative_id is None
                         for record in collection.numeric[start:]
                     ):
                         raise LibrusError(ErrorKind.PARSE)
@@ -558,11 +564,11 @@ def parse_grade_records(body: bytes) -> GradeRecords:
                     continue
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     for anchor in document.iter("a"):
-        # A formative link outside both known tables is a new layout.
+        # A formative link outside the known tables is a new layout.
         if markup.detail_id(
             anchor.get("href"), FORMATIVE_DETAIL_PATH_PREFIX
         ) and not any(
-            parent in numeric_tables or parent in formative_tables
+            parent in grade_tables or parent in formative_tables
             for parent in anchor.iterancestors("table")
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)

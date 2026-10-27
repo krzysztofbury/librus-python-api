@@ -155,6 +155,96 @@ def point_table(rows: str | None = None, *, annual: bool = True) -> str:
     )
 
 
+def _observed_result(value: str) -> str:
+    title = escape("Suma punktów: 9<br />Maksymalna ilość punktów: 10", quote=True)
+    link = f'<a href="javascript:void()" title="{title}">{value}</a>'
+    return f'<td class="right">{link}</td>'
+
+
+def _observed_detail(node: str, entries: str = "") -> str:
+    return (
+        f'<tr class="line0" name="przedmioty_OP_all" id="przedmioty_OP_{node}" '
+        'style="display: none;"><td>&nbsp;</td><td colspan="12"><table class="stretch">'
+        "<thead><tr><td>Ocena</td><td>Kategoria</td></tr></thead><tbody>"
+        f'<tr class="line1 bolded"><td colspan="2">Okres 1</td></tr>{entries}</tbody>'
+        '<tfoot><tr><td colspan="12"></td></tr></tfoot></table></td></tr>'
+    )
+
+
+def observed_point_page(midterm: str = " - ") -> str:
+    """The point-table layout of an owner-relayed page (2026-10-27).
+
+    Original values; the structure follows the page: a period's current
+    grades, result and grade under three titled columns, results as links,
+    a formative mirror among point entries, an untitled-subject image, the
+    merged behaviour row, an over-wide empty footer and the formative table
+    whose text holds line breaks.
+    """
+    formative = (
+        '<span class="grade-box"><a title="Ocena: +&lt;br /&gt;\n&lt;br /&gt;\n'
+        "Fixture note: text&lt;br&gt;Kategoria: Fixture task"
+        "&lt;br&gt;Data: 2026-10-16 (pt.)"
+        '&lt;br&gt;Licz do wyniku: NIE" '
+        f'href="{FORMATIVE_LINK.format(951)}">T</a></span>'
+    )
+    head = (
+        '<thead><tr><th class="center micro screen-only" rowspan="2"><img '
+        'id="przedmioty_OP_all_node"></th><td rowspan="2">Przedmiot</td>'
+        '<td class="colspan center" colspan="3"><span>Okres 1</span></td>'
+        '<td class="colspan center" colspan="3"><span>Okres 2</span></td>'
+        '<td class="colspan" colspan="2"><span>Koniec roku</span></td></tr>'
+        '<tr class="no-border-top"><td class="spacing">Oceny bieżące</td>'
+        '<td class="center" title="Wynik z pierwszego okresu">Wyn.I</td>'
+        '<td title="Ocena śródroczna &lt;br&gt; z pierwszego okresu">I</td>'
+        '<td class="center">Oceny bieżące</td>'
+        '<td class="center" title="Wynik z drugiego okresu">Wyn.II</td>'
+        '<td class="center" title="Ocena śródroczna &lt;br&gt; z drugiego okresu">'
+        "II</td>"
+        '<td title="Wynik z całego roku szkolnego">Wyn.R</td>'
+        '<td title="Ocena roczna">R</td></tr></thead>'
+    )
+    node = '<td class="center micro screen-only"><img id="przedmioty_OP_{}_node"></td>'
+    rows = (
+        f'<tr class="line1">{node.format(81)}<td>Fixture Science</td><td>'
+        + point_box()
+        + point_box("44", "7002", "2026-10-12 (pon.)")
+        + formative
+        + f'</td>{_observed_result("67")}<td class="center">{midterm}</td>'
+        '<td>Brak ocen</td><td class="right">-</td><td class="center"> - </td>'
+        f'{_observed_result("67.00")}<td class="center"> - </td></tr>'
+        + _observed_detail("81", "<tr><td>90</td><td>Fixture essay</td></tr>")
+        + f'<tr class="line0">{node.format(82)}<td>Fixture Workshop<img '
+        'src="/images/p_pozalekcyjny.gif" title="Fixture extracurricular"></td>'
+        '<td>Brak ocen</td><td class="right">-</td><td class="center"> - </td>'
+        '<td>Brak ocen</td><td class="right">-</td><td class="center"> - </td>'
+        '<td class="right">0.00</td><td class="center"> - </td></tr>'
+        + _observed_detail("82")
+        + f'<tr class="bolded line1">{node.format("zachowanie")}'
+        '<td class="left">Zachowanie</td><td class="left" colspan="2">&nbsp;</td>'
+        '<td class="center">-</td><td colspan="2">&nbsp;</td>'
+        '<td class="center" colspan="3">-</td></tr>'
+        '<tr class="line0" name="przedmioty_OP_all" id="przedmioty_OP_zachowanie">'
+        '<td colspan="12"><table class="stretch"><tr><td>Brak ocen</td></tr></table>'
+        "</td></tr>"
+    )
+    formative_table = (
+        '<table class="stretch decorated"><thead><tr><td>Przedmiot</td>'
+        "<td>Ocena kształtująca</td><td>Kategoria</td><td>Okres</td><td>Data</td>"
+        '<td>Typ</td></tr></thead><tbody><tr class="line0"><th rowspan="1">Fixture'
+        ' Science</th><td class="spacing">&nbsp;&nbsp;<a title="" class="" '
+        f'href="{FORMATIVE_LINK.format(951)}"><span class="grade-box"></span>+<br>'
+        "<br>\nFixture text</a></td><td>Fixture task</td><td>1</td><td>2026-10-16</td>"
+        '<td>Fixture current</td></tr></tbody><tfoot><tr><td colspan="6">&nbsp;</td>'
+        "</tr></tfoot></table>"
+    )
+    return (
+        '<!doctype html><html><body><h3 class="center">Oceny punktowe</h3>'
+        f'<table class="decorated stretch">{head}<tbody>{rows}</tbody><tfoot><tr>'
+        f'<td colspan="20">&nbsp;</td></tr></tfoot></table>{formative_table}'
+        "</body></html>"
+    )
+
+
 FORMATIVE_LINK = "/przegladaj_oceny/szczegoly/ksztaltujace/{}"
 FORMATIVE_HEADERS = (
     "Przedmiot",

@@ -659,6 +659,9 @@ GRADE_MAX_SUBJECTS = 128
 GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
+# Tooltip fields whose free text may continue on unlabelled lines. A teacher's
+# multi-line grade comment was observed on 2026-10-27.
+TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
 # A point-grade ("Oceny punktowe") table marks each subject row's expander image
 # with this ID; ordinary grade rows use `przedmioty_<id>_node`.
 GRADE_POINT_ROW_NODE = re.compile(r"przedmioty_OP_[0-9A-Za-z_]{1,64}_node")

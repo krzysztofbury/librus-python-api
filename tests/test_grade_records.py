@@ -22,6 +22,7 @@ from tests.grade_records_support import (
     behaviour_row,
     grade_box,
     grades_html,
+    observed_point_page,
     point_box,
     point_row,
     point_table,
@@ -173,6 +174,43 @@ def test_point_table_alone_is_a_complete_grade_page(label: str) -> None:
     assert records.point_results[0].value.raw == "67"
 
 
+def test_observed_point_page_reads_scores_results_and_formative_mirror() -> None:
+    # 1.7.0 failed this layout: a formative entry among the point entries and
+    # an over-wide empty footer.
+    records = parse_grade_records(observed_point_page().encode())
+    first, low, mirror = records.numeric
+    assert [(g.raw, g.point_grade_id) for g in (first, low)] == [
+        ("90", "7001"),
+        ("44", "7002"),
+    ]
+    assert (mirror.raw, mirror.point_grade_id, mirror.formative_id) == (
+        "T",
+        None,
+        "951",
+    )
+    (assessment,) = records.formative
+    assert (assessment.detail_id, assessment.text) == ("951", "+ Fixture text")
+    assert [(a.subject, a.semester, a.value.raw) for a in records.point_results] == [
+        ("Fixture Science", 1, "67"),
+        ("Fixture Science", 2, "-"),
+        ("Fixture Science", 0, "67.00"),
+        ("Fixture Workshop", 1, "-"),
+        ("Fixture Workshop", 2, "-"),
+        ("Fixture Workshop", 0, "0.00"),
+        ("Zachowanie", 1, None),
+        ("Zachowanie", 2, None),
+        ("Zachowanie", 0, None),
+    ]
+    # The midterm title breaks its own label; it still names the period column.
+    box = grade_box("5", extra="")
+    (period,) = [
+        g
+        for g in parse_grade_records(observed_point_page(box).encode()).numeric
+        if g.kind == GradeKind.PERIOD
+    ]
+    assert (period.raw, period.semester) == ("5", 1)
+
+
 def test_a_period_grade_shown_by_both_tables_is_one_record() -> None:
     box = grade_box("5", extra="")
     ordinary = grades_html().replace(
@@ -309,6 +347,8 @@ def test_unrecognized_current_grade_markup_does_not_mean_empty_success() -> None
         "Waga: 1.5",
         "Waga: 10000",
         "Malformed field",
+        # Only the free-text comment continues on unlabelled lines.
+        "Waga: 2\nMalformed field",
     ],
 )
 def test_malformed_metadata_fails_the_whole_collection(extra: str) -> None:
@@ -316,6 +356,17 @@ def test_malformed_metadata_fails_the_whole_collection(extra: str) -> None:
         parse_grade_records(grades_html(first=grade_box(extra=extra)).encode())
     assert caught.value.__context__ is None
     assert "Fixture" not in str(caught.value)
+
+
+def test_a_multi_line_comment_continues_on_unlabelled_lines() -> None:
+    # Observed live 2026-10-27: a comment line break, blank lines and a short
+    # unlabelled line, which failed the whole grade read up to 1.7.0.
+    extra = "Waga: 2<br>Komentarz: first part<br><br>\n\nsecond part\n<br>"
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box(extra=extra)).encode()
+    ).numeric
+    assert grade.comment == "first part\nsecond part"
+    assert grade.weight == 2
 
 
 @pytest.mark.parametrize("counts", ["tak", "nie", "TAK"])

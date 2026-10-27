@@ -393,7 +393,23 @@ own: an assigned value fills an unassigned one, equal values are one value and
 two different assigned values fail. The subject bound counts ordinary and point
 rows separately in `grades()` and unique subjects in `final_grades()`.
 
-Limits: the full header titles, the result layout beyond "Wyn.I", the hidden
-detail row markup and a point-table behaviour row are not observed. A point
-table with no subject rows is not recognised and still fails. Live
-qualification on a point-grade account is pending.
+Observed page (1.7.1): the affected account's point table, relayed as HTML on
+2026-10-27, has all eight titled columns (current grades, "Wyn." result and
+period grade per period, "Wyn.R" and "R"), results as links whose tooltip
+holds the point sums, hidden detail rows with nested tables, a merged
+behaviour row and an empty footer cell spanning 20 columns. 1.7.0 failed it in
+three places, each fixed for point tables only:
+
+- A formative entry (`/przegladaj_oceny/szczegoly/ksztaltujace/<id>`) sits
+  among the point entries; it is the mirror of its formative-table row and
+  keeps `formative_id`.
+- The empty footer row is skipped instead of read as a subject.
+- Period titles break their own label with `<br>`, so a point table's title
+  is read whole instead of up to its first break.
+
+The same page's formative table holds line breaks in its assessment text,
+which the formative reader now accepts in every table. The fixture
+`observed_point_page` is original and follows this structure.
+
+Limits: a point table with no subject rows is not recognised and still fails.
+Point entries other than percentages (`(0-100)`) are not observed.
