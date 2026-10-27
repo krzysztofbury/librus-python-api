@@ -198,11 +198,21 @@ def _subject_rows(
         yield cells
 
 
-def _unassigned(item: SubjectGradeSummary) -> bool:
-    return all(
-        value.raw is None or value.raw in GRADE_EMPTY_MARKERS
-        for value in (item.midterm, item.predicted_annual, item.annual)
+def merge_value(
+    first: GradeSummaryValue, other: GradeSummaryValue
+) -> GradeSummaryValue:
+    """One subject's value shown by both grade tables.
+
+    An assigned value fills an unassigned one and equal values are one value;
+    two different assigned values are ambiguous.
+    """
+    first_set, other_set = (
+        value.raw is not None and value.raw not in GRADE_EMPTY_MARKERS
+        for value in (first, other)
     )
+    if first_set and other_set and first.raw != other.raw:
+        raise LibrusError(ErrorKind.PARSE)
+    return other if other_set and not first_set else first
 
 
 def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
@@ -220,22 +230,24 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
         if "annual" in fields:
             sources.append((point_tables[0], fields, width))
     items: dict[str, SubjectGradeSummary] = {}
-    for family, (table, fields, width) in enumerate(sources):
+    for table, fields, width in sources:
         family_subjects: set[str] = set()
         for cells in _subject_rows(table, width):
             item = _summary(cells, fields, width)
             if item.subject in family_subjects:
                 raise LibrusError(ErrorKind.PARSE)
             family_subjects.add(item.subject)
-            # A subject listed in both tables keeps the side that has values;
-            # two different assigned summaries for one subject are ambiguous.
             previous = items.get(item.subject)
-            if previous is not None and family and not _unassigned(item):
-                if not _unassigned(previous):
-                    raise LibrusError(ErrorKind.PARSE)
-                items[item.subject] = item
-            elif previous is None:
-                items[item.subject] = item
+            items[item.subject] = (
+                item
+                if previous is None
+                else SubjectGradeSummary(
+                    item.subject,
+                    merge_value(previous.midterm, item.midterm),
+                    merge_value(previous.predicted_annual, item.predicted_annual),
+                    merge_value(previous.annual, item.annual),
+                )
+            )
             if len(items) > GRADE_MAX_SUBJECTS:
                 raise LibrusError(ErrorKind.LIMIT)
     # No evidenced no-subject marker exists. Missing rows are not empty success;

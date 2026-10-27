@@ -161,6 +161,16 @@ def test_point_table_beside_the_ordinary_table_adds_percentage_scores() -> None:
     ]
 
 
+def test_equal_point_result_and_ordinary_average_are_one_value() -> None:
+    extra = point_table(point_row(subject="Fixture Language", result="4,25"))
+    records = parse_grade_records(grades_html(extra=extra).encode())
+    assert [(a.semester, a.value.raw) for a in records.averages] == [
+        (1, "4,25"),
+        (2, ""),
+        (0, "-"),
+    ]
+
+
 def test_point_table_alone_is_a_complete_grade_page() -> None:
     body = f"<!doctype html><html><body>{point_table(annual=False)}</body></html>"
     records = parse_grade_records(body.encode())

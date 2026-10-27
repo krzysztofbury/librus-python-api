@@ -380,10 +380,11 @@ stay unchanged.
 "Wyn.I", "Wyn.II" and "Wyn.R" header text marks the period results. Only
 "Wyn.I" was observed; schools differ in which result columns they show. A
 result fills a subject's unassigned ordinary average or adds the subject's
-averages; two assigned values for the same subject and period fail. Titled
-summary columns follow the ordinary vocabulary. In `final_grades()` a point
-table contributes subjects only when it has an annual column; a subject in
-both tables keeps the assigned side, and two assigned summaries fail.
+averages. Titled summary columns follow the ordinary vocabulary. In
+`final_grades()` a point table contributes subjects only when it has an annual
+column. For a subject in both tables each average and summary value is merged
+on its own: an assigned value fills an unassigned one, equal values are one
+value and two different assigned values fail.
 
 Limits: the full header titles, the period result layout beyond "Wyn.I" and a
 point-table behaviour row are not observed. Live qualification on a

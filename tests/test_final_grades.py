@@ -203,10 +203,16 @@ def test_point_table_alone_is_a_summary_source() -> None:
         parse_final_grades(without_annual.encode())
 
 
-def test_conflicting_summaries_across_tables_fail() -> None:
-    rows = point_row(subject="Fixture Language", annual="5")
+def test_a_subject_in_both_tables_merges_each_summary_value() -> None:
+    # The same assigned grade shown by both tables is one value, and each table
+    # can fill what the other leaves unassigned.
+    rows = point_row(subject="Fixture Language", annual="4+")
+    (item,) = parse_final_grades(_with_points(rows))
+    assert (item.midterm.raw, item.annual.raw) == ("progressing", "4+")
     with pytest.raises(ParseError):
-        parse_final_grades(_with_points(rows))
+        parse_final_grades(
+            _with_points(point_row(subject="Fixture Language", annual="5"))
+        )
 
 
 def test_other_tables_and_detail_rows_are_not_summary_subjects() -> None:

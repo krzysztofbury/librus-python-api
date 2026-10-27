@@ -12,11 +12,12 @@ point-grade account is pending.
   category and tooltip fields. The new computed `NumericGrade.point_grade_id`
   property identifies them. It is not a field, so notification identities are
   unchanged.
-- Grades: "Wyn." period results become the subject's school averages. They fill
-  an unassigned ordinary average; two assigned values for one period fail.
-- Final grades: a point table with an annual column adds its subjects. A
-  subject in both tables keeps the assigned summary; two assigned summaries
-  fail. A page with only a point table is valid for both reads.
+- Grades: "Wyn." period results become the subject's school averages.
+- Final grades: a point table with an annual column adds its subjects. A page
+  with only a point table is valid for both reads.
+- A subject in both tables gets one value per average and summary field: an
+  assigned value fills an unassigned one and equal values are one value. Two
+  different assigned values fail.
 - More than one point table, duplicate point subjects and misaligned rows fail
   instead of returning partial output.
 

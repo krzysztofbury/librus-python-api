@@ -34,6 +34,7 @@ from librus_python_api.grade_parsers import (
     _subject_rows,
     _summary,
     is_point_table,
+    merge_value,
     point_layout,
 )
 from librus_python_api.models import (
@@ -478,22 +479,20 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
         collection.check_size()
 
 
-def _assigned(value: GradeSummaryValue) -> bool:
-    return value.raw is not None and value.raw not in GRADE_EMPTY_MARKERS
-
-
 def _merge_point_averages(collection: _Collection) -> None:
-    """Point results fill a subject's unassigned averages; both set is ambiguous."""
+    """Point results join the subject's ordinary averages, one per period."""
     index = {(a.subject, a.semester): i for i, a in enumerate(collection.averages)}
     for average in collection.point_averages:
         position = index.get((average.subject, average.semester))
         if position is None:
             index[(average.subject, average.semester)] = len(collection.averages)
             collection.averages.append(average)
-        elif _assigned(average.value):
-            if _assigned(collection.averages[position].value):
-                raise LibrusError(ErrorKind.PARSE)
-            collection.averages[position] = average
+        else:
+            ordinary = collection.averages[position]
+            value = merge_value(ordinary.value, average.value)
+            collection.averages[position] = SchoolAverage(
+                ordinary.subject, ordinary.semester, value
+            )
 
 
 def parse_grade_records(body: bytes) -> GradeRecords:
