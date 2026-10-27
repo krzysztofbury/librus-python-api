@@ -11,6 +11,7 @@ from librus_python_api.exceptions import (
     ParseError,
 )
 from librus_python_api.grade_parsers import parse_final_grades
+from tests.grade_records_support import grades_html, point_row, point_table
 from tests.grade_support import GradeFixture, summary_html
 from tests.http_support import serve
 
@@ -156,6 +157,96 @@ def test_behaviour_can_span_unused_columns_without_losing_values() -> None:
     assert item.predicted_annual.raw == "-"
 
 
+def _with_points(
+    rows: str, *, ordinary: str | None = None, annual: bool = True
+) -> bytes:
+    if ordinary is None:
+        ordinary = summary_html()
+    return ordinary.replace(
+        "</body>", point_table(rows, annual=annual) + "</body>"
+    ).encode()
+
+
+def test_point_table_summaries_join_the_ordinary_summaries() -> None:
+    rows = point_row(annual="5") + point_row(
+        subject="Fixture Language", node="72", annual="-"
+    )
+    items = parse_final_grades(_with_points(rows))
+    assert [(item.subject, item.annual.raw) for item in items] == [
+        ("Fixture Language", "4+"),
+        ("Fixture Science", "5"),
+    ]
+    science = items[1]
+    assert science.midterm.raw == "-"
+    assert science.predicted_annual.availability == Availability.UNAVAILABLE
+    # The point table holds the values when the ordinary row is unassigned.
+    unassigned = summary_html(annual="-", midterm="", predicted="-")
+    (item,) = parse_final_grades(
+        _with_points(
+            point_row(subject="Fixture Language", annual="3"), ordinary=unassigned
+        )
+    )
+    assert item.annual.raw == "3"
+    # Without an annual column the titled midterm still makes a summary.
+    items = parse_final_grades(_with_points(point_row(annual="5"), annual=False))
+    assert [(item.subject, item.annual.availability) for item in items] == [
+        ("Fixture Language", Availability.AVAILABLE),
+        ("Fixture Science", Availability.UNAVAILABLE),
+    ]
+    assert items[1].midterm.raw == "-"
+
+
+def test_point_table_alone_is_a_summary_source() -> None:
+    body = (
+        f"<!doctype html><html><body>{point_table(point_row(annual='4'))}</body></html>"
+    )
+    (item,) = parse_final_grades(body.encode())
+    assert (item.subject, item.annual.raw) == ("Fixture Science", "4")
+    untitled = body.replace(' title="Ocena roczna"', "").replace(
+        ' title="Ocena śródroczna z pierwszego okresu"', ""
+    )
+    with pytest.raises(ParseError):
+        parse_final_grades(untitled.encode())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # An ordinary grade table without an annual column is not optional.
+        grades_html()
+        .replace('<th title="Ocena roczna">Annual</th>', "<th>Annual</th>")
+        .replace("</body>", point_table() + "</body>"),
+        _with_points(point_row())
+        .decode()
+        .replace(
+            "</body>", point_table(point_row(subject="Fixture Other")) + "</body>"
+        ),
+        _with_points(point_row())
+        .decode()
+        .replace(
+            "<tr><td>Oceny bieżące</td>",
+            "<tr><td>Oceny bieżące</td></tr><tr><td>Oceny bieżące</td>",
+        ),
+    ],
+    ids=["ordinary-without-annual", "two-point-tables", "two-point-headers"],
+)
+def test_ambiguous_point_layout_fails_closed(body: str) -> None:
+    with pytest.raises(ParseError):
+        parse_final_grades(body.encode())
+
+
+def test_a_subject_in_both_tables_merges_each_summary_value() -> None:
+    # The same assigned grade shown by both tables is one value, and each table
+    # can fill what the other leaves unassigned.
+    rows = point_row(subject="Fixture Language", annual="4+")
+    (item,) = parse_final_grades(_with_points(rows))
+    assert (item.midterm.raw, item.annual.raw) == ("progressing", "4+")
+    with pytest.raises(ParseError):
+        parse_final_grades(
+            _with_points(point_row(subject="Fixture Language", annual="5"))
+        )
+
+
 def test_other_tables_and_detail_rows_are_not_summary_subjects() -> None:
     markup = (
         summary_html()
@@ -195,8 +286,9 @@ def test_other_tables_and_detail_rows_are_not_summary_subjects() -> None:
         ),
         lambda text: text.replace(
             "<tbody>",
-            "<tbody><tr><td></td><td>Fixture Language</td><td>1</td><td></td>"
-            "<td></td><td>2</td><td>3</td></tr>",
+            # Identical to the real row, so only the duplicate check rejects it.
+            "<tbody><tr><td></td><td>Fixture Language</td><td>4+</td><td></td>"
+            "<td></td><td>progressing</td><td>-</td></tr>",
         ),
         lambda text: text.replace(
             "<tr><td></td><td>Fixture Language</td><td>4+</td><td></td><td></td>"

@@ -240,6 +240,15 @@ value. The same items stay in `numeric`/`descriptive` unchanged; their
 identities are unchanged) links them to `detail_id`. A page without the
 section returns `()`. See [formative grades](contracts/grades.md#formative-grades-and-the-observation-card-140).
 
+Point grades (1.7.0) come from the "Oceny punktowe" table that point-grade
+schools show beside, or instead of, the ordinary table. Its entries are
+`NumericGrade`s in `numeric` whose computed `point_grade_id` property holds the
+point-grade detail ID; `raw` is then a score on the scale named by `category`,
+such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
+`GradeRecords.point_results` (`SchoolAverage`s on the score scale, never mixed
+into `averages`), and a point table with titled summary columns adds its
+subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
+
 ## Attendance
 
 - `attendance(view=AttendanceView.ALL)` returns `Attendance` with

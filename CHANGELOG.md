@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.7.0 (2026-10-27) - Point grades
+
+Reads the "Oceny punktowe" table that point-grade schools show on the grades
+page. Its presence made `grades()`, `grades_window()` and `final_grades()` fail
+with `ParseError` for those accounts. The layout was established offline from
+a relayed screenshot and a public issue report; live qualification on a
+point-grade account is pending.
+
+- Grades: point entries are returned in `numeric` with their raw score, scale
+  category and tooltip fields. The new computed `NumericGrade.point_grade_id`
+  property identifies them. It is not a field, so notification identities are
+  unchanged. A current point entry without its point-grade detail link fails
+  instead of passing as a grade symbol.
+- Grades: the new `GradeRecords.point_results` holds the "Wyn." period
+  results on the score scale. They are never merged into `averages`, which
+  stay the ordinary grade-scale means.
+- Grades: a period grade that both tables show is one record.
+- Final grades: a point table with titled summary columns (midterm, predicted
+  or annual) adds its subjects; a missing column is unavailable. For a subject
+  in both tables, each value is merged on its own: an assigned value fills an
+  unassigned one, equal values are one value and two different assigned values
+  fail.
+- More than one point table, duplicate point subjects, misaligned rows and an
+  ordinary grade table without an annual column fail instead of returning
+  partial output.
+
 ## 1.6.4 (2026-10-26) - Message body rendering security fix
 
 Fixes a denial of service in message body rendering. Public types, signatures

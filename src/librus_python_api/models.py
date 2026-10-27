@@ -1053,6 +1053,19 @@ class NumericGrade:
 
         return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
 
+    @property
+    def point_grade_id(self) -> str | None:
+        """The point-grade ID when `href` is a point-grade detail link.
+
+        `raw` is then a score on the scale its category names, such as
+        `(0-100)`, not a grade symbol. Computed for the same identity reason
+        as `formative_id`.
+        """
+        from librus_python_api.config import POINT_GRADE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, POINT_GRADE_DETAIL_PATH_PREFIX)
+
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveGrade:
@@ -1123,6 +1136,9 @@ class GradeRecords:
         default=(), repr=False
     )
     formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
+    # A point table's period results, on its score scale; never merged into
+    # `averages`, whose values are the ordinary grade-scale means.
+    point_results: tuple[SchoolAverage, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

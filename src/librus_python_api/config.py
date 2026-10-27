@@ -659,6 +659,9 @@ GRADE_MAX_SUBJECTS = 128
 GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
+# A point-grade ("Oceny punktowe") table marks each subject row's expander image
+# with this ID; ordinary grade rows use `przedmioty_<id>_node`.
+GRADE_POINT_ROW_NODE = re.compile(r"przedmioty_OP_[0-9A-Za-z_]{1,64}_node")
 GRADE_VIEW_FIELDS = MappingProxyType(
     {
         "all": "zmiany_logowanie_wszystkie",
@@ -671,6 +674,11 @@ GRADE_EMPTY_MARKERS = frozenset({"", "-", "Brak ocen"})
 GRADE_AVERAGE_HEADERS = MappingProxyType(
     {"Średnia ocen": 1, "Średnia ocen z drugiego okresu": 2, "Średnia roczna": 0}
 )
+# Point tables label their period results by visible text, not by title. Only
+# "Wyn.I" was observed (owner-relayed screenshot, 2026-10-27); the others
+# follow the same period naming as the ordinary I/II/R summary columns.
+GRADE_POINT_RESULT_HEADER = re.compile(r"Wyn\.\s?(I|II|R)")
+GRADE_POINT_RESULT_PERIODS = MappingProxyType({"I": 1, "II": 2, "R": 0})
 GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32
@@ -733,6 +741,8 @@ ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
 # Recognition only: behaviour-point detail links are classified, never requested.
 BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
+# Recognition only: point-grade detail links are classified, never requested.
+POINT_GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny_punktowe/szczegoly/"
 FORMATIVE_HEADERS = (
     "przedmiot",
     "ocena kształtująca",
