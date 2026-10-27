@@ -529,30 +529,38 @@ def test_modern_interruptions_join_and_preserve_attempt_boundary(
             task = asyncio.create_task(
                 attempt.execute(
                     budget=RequestBudget(
-                        timeout_seconds=0.1 if interrupt == "timeout" else 10
+                        timeout_seconds=0.5 if interrupt == "timeout" else 10
                     )
                 )
             )
-            await fixture.started.wait()
-            if interrupt == "cancel":
-                task.cancel()
-            if interrupt == "shutdown":
-                await service.aclose()
-            if interrupt == "timeout":
-                if stage == "send":
-                    assert (await task).status is SendStatus.UNKNOWN
+            # The deadline runs from budget construction. On a slow runner it
+            # expired before the held stage, and waiting for that stage hung
+            # the job (#98); fail at once instead.
+            held = asyncio.create_task(fixture.started.wait())
+            try:
+                await asyncio.wait({held, task}, return_when=asyncio.FIRST_COMPLETED)
+                assert held.done(), f"the attempt ended before the {stage} stage"
+                if interrupt == "cancel":
+                    task.cancel()
+                if interrupt == "shutdown":
+                    await service.aclose()
+                if interrupt == "timeout":
+                    if stage == "send":
+                        assert (await task).status is SendStatus.UNKNOWN
+                    else:
+                        with pytest.raises(LibrusError):
+                            await task
                 else:
-                    with pytest.raises(LibrusError):
+                    with pytest.raises(asyncio.CancelledError):
                         await task
-            else:
-                with pytest.raises(asyncio.CancelledError):
-                    await task
-            assert attempt.outcome.status is (
-                SendStatus.UNKNOWN if stage == "send" else SendStatus.NOT_DISPATCHED
-            )
-            assert len(fixture.sends) == (1 if stage == "send" else 0)
-            assert service.snapshot().active == service.snapshot().queued == 0
-            fixture.release.set()
+                assert attempt.outcome.status is (
+                    SendStatus.UNKNOWN if stage == "send" else SendStatus.NOT_DISPATCHED
+                )
+                assert len(fixture.sends) == (1 if stage == "send" else 0)
+                assert service.snapshot().active == service.snapshot().queued == 0
+            finally:
+                held.cancel()
+                fixture.release.set()
 
     asyncio.run(scenario())
 

@@ -41,6 +41,7 @@ dev = [
   "types-pywin32>=312,<400",
   "pre-commit>=4.6,<5",
   "pip-audit>=2.10,<3",
+  "pytest-timeout>=2.3,<3",
 ]
 
 [tool.hatch.version]
@@ -56,8 +57,10 @@ include = ["/src", "/pyproject.toml", "/uv.lock", "/README.md", "/SECURITY.md", 
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--import-mode=importlib -ra -m 'not performance'"
-# Dump every thread's stack if one test runs this long, so a hang names itself.
-faulthandler_timeout = 300
+# A hung test dumps every thread's stack, then fails with its id instead of
+# holding the job until its timeout (#64, #98). The slowest test takes 9 s.
+faulthandler_timeout = 100
+timeout = 120
 markers = [
   "performance: opt-in hardware-sensitive resource measurements",
 ]
