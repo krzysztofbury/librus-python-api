@@ -213,7 +213,22 @@ async def student_information(ctx: Context) -> Observed:
     return POPULATED
 
 
-@check("grades", reads={"grades"})
+# An all-view grade read on a page with the new-schema descriptive table also
+# reads these gateway routes; two of them take the login's identifier.
+GRADE_READS = frozenset(
+    {
+        "grades",
+        "descriptive_token_info",
+        "descriptive_user_info",
+        "descriptive_partial_grades",
+        "descriptive_subjects",
+        "descriptive_users",
+    }
+)
+GRADE_REFERENCES = frozenset({"descriptive_user_info", "descriptive_partial_grades"})
+
+
+@check("grades", reads=GRADE_READS, references=GRADE_REFERENCES)
 async def grades(ctx: Context) -> Observed:
     records = (await ctx.client.grades(budget=ctx.budget)).records
     numeric, descriptive = len(records.numeric), len(records.descriptive)
@@ -229,7 +244,7 @@ async def grades(ctx: Context) -> Observed:
     return coverage_of(numeric + descriptive, **facts)
 
 
-@check("grades_window", reads={"grades"})
+@check("grades_window", reads=GRADE_READS, references=GRADE_REFERENCES)
 async def grades_window(ctx: Context) -> Observed:
     window = await ctx.client.grades_window(budget=ctx.budget)
     return coverage_of(len(window.numeric) + len(window.descriptive))
@@ -506,7 +521,9 @@ WEEKLY_READS: tuple[Check, ...] = (
     modern_sent_content,
 )
 # Measured fixture requests per login: 48. The budget leaves live headroom for
-# more attendance rows to resolve, as the design targets about 70.
+# more attendance rows to resolve, as the design targets about 70. A login whose
+# grades page has the new-schema descriptive table adds three to five gateway
+# reads to each of the two all-view grade checks.
 WEEKLY = Profile(
     "weekly",
     (*RELEASE_READS, *WEEKLY_READS, session_alive),

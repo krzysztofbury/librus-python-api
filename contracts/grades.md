@@ -413,3 +413,113 @@ which the formative reader now accepts in every table. The fixture
 
 Limits: a point table with no subject rows is not recognised and still fails.
 Point entries other than percentages (`(0-100)`) are not observed.
+
+## Gateway descriptive grades (unreleased, issue #73)
+
+Evidence: source-informed. The routes and JSON field names come from public
+client code and the official grades page script, not from an observed
+populated response. A guarded structure-only observation on 2026-10-12 found
+the new-schema table (`table.newSchemaGradesByStudentTable`) with empty
+`gradesCell` elements, and explicitly authorized, budgeted probes of the
+PartialGrades read returned valid JSON with an empty `data` collection and a
+pagination member on all four available logins. No populated record has been
+observed, so live qualification of the mapping below is pending. No
+third-party code, test or fixture is incorporated; the fixtures in
+`tests/gateway_grades_support.py` are original and every value is invented.
+The owner decided to implement the read from these requirements before a
+populated capture; the first populated observation must be compared with
+this section.
+
+Page table: rows `tr.studentRow` carry numeric `data-subject_id` and
+`data-user_id`, then an expander `td.micro.center.screen-only`, the subject
+name and two empty `td.gradesCell` cells with `data-semester` 1 and 2. The
+existing parser already reads these rows as descriptive subjects with no
+grades and unavailable averages; that result is unchanged. The table's header
+was not described; the fixture's header has no "Oceny bieżące" label, which
+would make the table an ordinary grade table. In the all view the table must
+be unique, have exactly that row geometry (otherwise `UNSUPPORTED_CAPABILITY`),
+unique numeric subject IDs, nonblank names, at most 128 rows and one
+`data-user_id` (otherwise `PARSE`). A semester cell the page already filled
+would duplicate the gateway records, so it is `UNSUPPORTED_CAPABILITY`.
+
+Reads: only `grades(view=GradeView.ALL)` on a page with the table requests,
+after the grades POST, under the same session, budget, scheduler, parser pool
+and deadline:
+
+1. GET `/gateway/api/2.0/Auth/TokenInfo`: `UserIdentifier`.
+2. GET `/gateway/api/2.0/Auth/UserInfo/{UserIdentifier}`: a parent login's
+   `IdentifierOfStudentAssignedWithUser`; absent, null or empty means the login
+   is the student and its own identifier is used.
+3. POST `/gateway/api/2.0/Auth/DescriptiveGradingSystem/PartialGrades/Student/{id}`
+   with exactly the JSON body `{}` and `Content-Type: application/json`.
+   Callers supply no body; it is classified side-effect free but not
+   retry-safe and is never replayed.
+4. GET `/gateway/api/3.0/Auth/Subjects` and 5. GET `/gateway/api/2.0/Users`,
+   only when step 3 returned records.
+
+A fresh all-view read on such a page therefore makes three more requests, or
+five when there are grades. Both identifiers must match `[A-Za-z0-9_-]{1,128}`
+(the transport enforces it for these two routes only; every other `{id}` route
+stays numeric); an upstream value outside it is a `PARSE` failure. Nothing is
+cached beyond the grade collection itself.
+
+Mapping to `DescriptiveGrade` (no new dataclass field, so notification
+identities keep their shape):
+
+- `subject`: the page's name for the Subjects row whose `numericIdentifier`
+  equals `data-subject_id`, else that row's `name`; an unknown `subjectId` or a
+  subject with neither name is `PARSE`.
+- `raw`: `scaleValue.value`, else `content`; with neither the read fails
+  rather than inventing a symbol. Blank strings count as absent.
+- `day`: the first ten characters of `date`, which must be an ISO date or
+  date-time. A date-time offset does not move the civil date.
+- `semester`: 1 or 2; anything else, including booleans, is `PARSE`.
+- `teacher`: "LastName FirstName" from Users for `teacherId`, or `None` when
+  the user is not listed. `comment`: `comments`.
+- `metadata`: only present fields, in this order: ("Obszar", area name),
+  ("Treść", content), ("Dodał", author name for `addedBy`, omitted when not
+  listed), ("Komentarz", comments), ("Skala", scale value).
+- `kind` is `CURRENT` and `href` is `None`. The records follow the page's
+  descriptive records in `GradeRecords.descriptive`, and grade windows filter
+  them by `day` from the same cached collection.
+
+Views: the page script narrows the week and last-login views by comparing a
+`showGradesSinceDate` with an `addDate` field whose meaning is not
+established. Returning every gateway record for those views would be wrong,
+so they make no gateway request and contain none of these grades.
+Notifications read the last-login view and therefore do not report them.
+
+Failures: gateway HTTP errors propagate as the transport classifies them (401
+session expired without a new login or replay, 403 access denied, 429/503
+throttle and maintenance, other 4xx/5xx connection), and a non-200 or
+non-JSON response is `PARSE`; the grade read never returns without these
+grades. An empty `data` array is a valid empty result. Validation is strict:
+wrong types, missing required fields, duplicate subject `identifier` or
+`numericIdentifier`, and a repeated user `AccountId` with different names are
+`PARSE`. Unknown extra keys are ignored.
+
+Pagination: no paginated response was observed and the member's field names
+are unknown. Every object beside `data` (to depth three) is checked; any of
+these signals fails with `UNSUPPORTED_CAPABILITY` rather than returning a
+first page: a total (`total`, `totalCount`, `totalItems`, `totalRecords`,
+`totalResults`, `count`, `itemCount`, `itemsCount`, `recordCount`) above the
+items received; a page count (`pages`, `totalPages`, `pageCount`,
+`pagesCount`, `lastPage`, `numberOfPages`) above one; a non-empty next link
+or page (`next`, `nextPage`, `nextUrl`, `nextPageUrl`, `nextLink`); a true
+has-more flag (`hasMore`, `hasNext`, `hasNextPage`, `more`); or a page size
+(`limit`, `perPage`, `pageSize`, `itemsPerPage`, `pageLimit`) filled by the
+items with no total. Key matching ignores case and separators. The same rule
+applies to Subjects.
+
+Bounds: 2048 records counted together with the page's records, 8192
+characters per text field (longer is `LIMIT`), 1024 subjects, 8192 users,
+1024 characters per name, 128 per identifier, plus the shared transport,
+body, request and deadline budgets.
+
+`tests/test_gateway_grades.py` owns the table, JSON parsers, mapping,
+pagination, wire (routes, methods, body, content type, identifiers), view,
+failure, budget and bound behaviour. `tests/test_transport.py` and
+`tests/test_attendance_frequency.py` hold the body and identifier rules. The
+weekly live check declares the five routes for its grade checks, and
+`scripts/live_capture.py` allows them, so a guarded populated capture can
+qualify this section.

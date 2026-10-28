@@ -1328,6 +1328,211 @@ paths:
                       Id: {$ref: '#/components/schemas/NumericIdentifier'}
                       Name: {type: string, minLength: 1, maxLength: 1024}
         default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Auth/TokenInfo:
+    get:
+      operationId: descriptive_token_info
+      tags: [Grades]
+      summary: Read the session's gateway user identifier for new-schema descriptive grades
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      description: |
+        Requested only by an all-view grade read whose page has the new-schema
+        descriptive table (table.newSchemaGradesByStudentTable). Fixed GET with
+        no query or body under the same session, budget and parser pool as the
+        grade read. UserIdentifier must match the strict path identifier pattern;
+        anything else fails as a parse error. UserType is not used.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Gateway token information
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [UserIdentifier]
+                properties:
+                  UserIdentifier: {$ref: '#/components/schemas/GatewayIdentifier'}
+                  UserType: {type: integer, nullable: true}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Auth/UserInfo/{id}:
+    get:
+      operationId: descriptive_user_info
+      tags: [Grades]
+      summary: Resolve the student whose descriptive grades a login reads
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      description: |
+        The path identifier is the TokenInfo UserIdentifier, validated against the
+        strict pattern before dispatch. A parent login names its student in
+        IdentifierOfStudentAssignedWithUser; when it is absent, null or empty the
+        login is the student and its own identifier is used. A present value must
+        match the strict pattern, or the read fails as a parse error.
+      parameters: [{$ref: '#/components/parameters/GatewayId'}]
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Gateway user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  IdentifierOfStudentAssignedWithUser:
+                    allOf: [{$ref: '#/components/schemas/GatewayIdentifier'}]
+                    nullable: true
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Auth/DescriptiveGradingSystem/PartialGrades/Student/{id}:
+    post:
+      operationId: descriptive_partial_grades
+      tags: [Grades]
+      summary: Read a student's new-schema descriptive grades
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: false
+      x-evidence: source_informed
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      description: |
+        A read sent as POST with exactly the JSON body {} and Content-Type
+        application/json; callers supply no body. It is never replayed. Only the
+        all view requests it: the page script narrows other views by comparing
+        showGradesSinceDate with an addDate field whose semantics are unknown, so
+        week and last-login reads do not include these grades. At most 2048
+        records. subjectId must name a descriptive_subjects row; the grade is
+        scaleValue.value, else content, else the read fails (no invented symbol);
+        date is an ISO date or date-time whose first ten characters are the civil
+        date; semester is 1 or 2. Text fields are at most 8192 characters (longer
+        is a limit error). Pagination: no paginated response was observed, so a
+        member beside data that shows more items (a total above the items
+        received, more than one page, a next link or page, a true has-more flag,
+        or a full page of a stated size with no total) fails as unsupported rather
+        than returning the first page. An empty data array is an empty result and
+        ends the gateway reads.
+      parameters: [{$ref: '#/components/parameters/GatewayId'}]
+      security: [{SessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, maxProperties: 0}
+      responses:
+        '200':
+          description: Gateway descriptive grade collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 2048
+                    items:
+                      type: object
+                      required: [subjectId, date, semester]
+                      properties:
+                        subjectId: {type: string, minLength: 1, maxLength: 128}
+                        teacherId: {type: string, nullable: true, minLength: 1, maxLength: 128}
+                        addedBy: {type: string, nullable: true, minLength: 1, maxLength: 128}
+                        area:
+                          type: object
+                          nullable: true
+                          properties:
+                            name: {type: string, nullable: true, maxLength: 8192}
+                        scaleValue:
+                          type: object
+                          nullable: true
+                          properties:
+                            value: {type: string, nullable: true, maxLength: 8192}
+                        content: {type: string, nullable: true, maxLength: 8192}
+                        comments: {type: string, nullable: true, maxLength: 8192}
+                        date: {type: string, maxLength: 64}
+                        semester: {type: integer, enum: [1, 2]}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/3.0/Auth/Subjects:
+    get:
+      operationId: descriptive_subjects
+      tags: [Grades]
+      summary: Resolve descriptive-grade subject identifiers to names
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      description: |
+        Requested only when descriptive_partial_grades returned records. At most
+        1024 rows; identifier and numericIdentifier are each unique. A subject's
+        name is the grades page's name for the row whose data-subject_id equals
+        numericIdentifier, else this name; with neither, or with an unlisted
+        subjectId, the read fails as a parse error. The pagination rule of
+        descriptive_partial_grades applies.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Gateway subject collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 1024
+                    items:
+                      type: object
+                      required: [identifier]
+                      properties:
+                        identifier: {type: string, minLength: 1, maxLength: 128}
+                        numericIdentifier: {type: integer, nullable: true, minimum: 0}
+                        name: {type: string, nullable: true, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Users:
+    get:
+      operationId: descriptive_users
+      tags: [Grades]
+      summary: Resolve descriptive-grade teacher and author account IDs to names
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      description: |
+        Requested only when descriptive_partial_grades returned records. At most
+        8192 users. A name is "LastName FirstName" from the present parts; an
+        unlisted teacher stays unknown and an unlisted author is omitted. A
+        repeated AccountId with different names fails as a parse error.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Gateway user collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Users]
+                properties:
+                  Users:
+                    type: array
+                    maxItems: 8192
+                    items:
+                      type: object
+                      required: [AccountId]
+                      properties:
+                        AccountId: {type: string, minLength: 1, maxLength: 128}
+                        FirstName: {type: string, nullable: true, maxLength: 1024}
+                        LastName: {type: string, nullable: true, maxLength: 1024}
+        default: {$ref: '#/components/responses/Failure'}
   /przegladaj_plan_lekcji:
     post:
       operationId: timetable
@@ -1818,6 +2023,11 @@ components:
       name: id
       required: true
       schema: {type: string, minLength: 1, maxLength: 64, pattern: '^[0-9]+$'}
+    GatewayId:
+      in: path
+      name: id
+      required: true
+      schema: {$ref: '#/components/schemas/GatewayIdentifier'}
     ClientId:
       in: query
       name: client_id
@@ -1829,6 +2039,11 @@ components:
       required: [Id]
       properties:
         Id: {type: integer, minimum: 0}
+    GatewayIdentifier:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[A-Za-z0-9_-]+$'
     NumericIdentifier:
       oneOf:
         - {type: integer, minimum: 0}

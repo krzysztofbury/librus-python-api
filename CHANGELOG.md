@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased - Gateway descriptive grades
+
+Reads the grades of schools on the new descriptive grading schema, whose
+grades page renders a subject table with empty semester cells and loads the
+grades from gateway JSON routes. Routes and field names come from public client
+code and the official page script, not from an observed populated response;
+live qualification is pending (issue #73).
+
+- Grades: in the `ALL` view, a page with the new-schema table adds its gateway
+  grades to `GradeRecords.descriptive` as `DescriptiveGrade` records, which
+  grade windows filter by date. The read makes three more requests, or five
+  when there are grades, under the same session and budget. Public types and
+  signatures are unchanged and `DescriptiveGrade` has no new field.
+- Grades: `WEEK` and `LAST_LOGIN` make no gateway request and do not include
+  these grades, so notifications do not report them yet.
+- Grades: a gateway error, unknown subject, grade without a value, malformed
+  or oversized response, unknown table layout or a pagination member showing
+  more items fails the whole all-view read on such a page, instead of
+  returning it without these grades. Pages without the table are unchanged.
+- Upstream contract: five source-informed gateway operations; the two that
+  take an account identifier accept `[A-Za-z0-9_-]{1,128}`, every other
+  `{id}` route stays numeric.
+- Live check: the weekly grade checks and `scripts/live_capture.py` declare
+  the five gateway routes.
+
 ## 1.7.1 (2026-10-27) - Observed point-grade page and multi-line comments
 
 Fixes for layouts 1.7.0 rejected with `ParseError`, established from an

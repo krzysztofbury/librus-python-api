@@ -455,3 +455,27 @@ def test_mismatched_forms_are_rejected_before_dispatch(
                 await transport.aclose()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("form", [{"zmiany_logowanie_wszystkie": "1"}, {}, CREDENTIALS])
+def test_partial_grades_read_takes_no_caller_supplied_body(form: object) -> None:
+    # Its only body is the fixed JSON object the transport writes itself.
+    async def scenario() -> None:
+        async with RequestScheduler(("a",), limits=SchedulerLimits()) as scheduler:
+            transport = AiohttpTransport(
+                "a", scheduler, ConnectionSettings(), TransportLimits()
+            )
+            try:
+                with pytest.raises(LibrusError) as failure:
+                    await transport.request(
+                        "descriptive_partial_grades",
+                        RequestBudget(),
+                        form=form,  # type: ignore[arg-type]
+                        reference_id="FIX-AUTH-1",
+                    )
+                assert failure.value.kind == ErrorKind.INVALID_INPUT
+                assert scheduler.snapshot().requests_dispatched == 0
+            finally:
+                await transport.aclose()
+
+    asyncio.run(scenario())

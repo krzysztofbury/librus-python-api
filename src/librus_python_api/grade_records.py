@@ -501,7 +501,11 @@ def _read_publications(table: html.HtmlElement, collection: _Collection) -> None
 
 
 def parse_grade_records(body: bytes) -> GradeRecords:
-    document = parse_page(body)
+    return read_grade_records(parse_page(body))
+
+
+def read_grade_records(document: html.HtmlElement) -> GradeRecords:
+    """The grade collection of an already parsed grades page."""
     collection = _Collection()
     numeric_tables = []
     tables = list(document.iter("table"))
