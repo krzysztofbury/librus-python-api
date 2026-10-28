@@ -41,3 +41,21 @@ client. Follow any workspace-level agent rules as well as these project rules.
   an outlier (for example three times longer) at once instead of waiting.
 - Do not claim a package, API, test command, or release workflow exists until
   it has been implemented and exercised.
+
+## Diagnosing a reported failure
+
+- A failure report names a kind and, from a consumer such as librus-mcp, code
+  locations (`module:function:line`, the failure site last) and the library
+  version. Read them against the tag of that version.
+- Reproduce a parse failure offline with
+  `python -m librus_python_api.inspect_page PARSER FILE`; in code use
+  `diagnostics.failure_frames(error)` for locations and
+  `diagnostics.describe_failure(error)` for the masked structure (tags,
+  observed class tokens and ID shapes, known tooltip labels, lengths).
+- A page a user relays is private data: keep it in job scratch outside the
+  repository, never commit or quote it, delete it afterwards, and add original
+  fixtures that follow its structure. For an owner's own account, capture with
+  `scripts/live_capture.py` into scratch and print label structure only.
+- Diagnostics are allowlist-based (`describe_failure`, `config.TOOLTIP_LABELS`).
+  Extend the lists only with Librus-authored labels and markup, never values,
+  and keep the marker tests in `tests/test_failure_diagnostics.py` passing.

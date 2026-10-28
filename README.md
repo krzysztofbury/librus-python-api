@@ -231,6 +231,30 @@ unqualified; backend acceptance is not proof of delivery. Tests cover supported
 contracts, not every school or role. Detailed coverage is in the
 [verification log][verification]; open work is tracked in [issues][issues].
 
+## Diagnosing failures
+
+Errors carry only their kind. To see where a failure happened without any page
+data, use the helpers in `librus_python_api.diagnostics` (see
+[API.md](API.md#failure-diagnostics-180)):
+
+```python
+from librus_python_api.diagnostics import describe_failure, failure_frames
+from librus_python_api.exceptions import LibrusError
+
+try:
+    await client.grades()
+except LibrusError as error:
+    print(error.kind, failure_frames(error))  # ('grade_records:_numeric:100', 'markup:tooltip_fields:113')
+    print(describe_failure(error))  # masked HTML structure around the failure
+```
+
+To check a saved page offline (a page source saved with Ctrl+U, or a copied
+table), run `python -m librus_python_api.inspect_page grades page.html` (or
+`final-grades`). It prints counts, or the failure's code locations and masked
+structure, and makes no request. Pass a `diagnostic_sink` to `LibrusService`
+to receive one `DiagnosticEvent` per operation, with `frames` on failure.
+None of these print page text, values, logins or exception messages.
+
 ## Development and support
 
 Use a repository checkout for tests and development tools; they are deliberately
