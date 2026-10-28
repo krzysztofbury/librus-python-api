@@ -31,7 +31,13 @@ _DEPTH = 6
 _NODES = 120
 _ELEMENT_BYTES = 8 * 1024
 _REPORT_BYTES = 32 * 1024
-_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,39}")
+# Librus style classes are lowercase ASCII; anything else may be data.
+_TOKEN = re.compile(r"[a-z][a-z0-9_-]{0,29}")
+# Element IDs shown, with digit runs masked, only in these observed shapes.
+_ID_SHAPES = re.compile(
+    r"(?:przedmioty(?:_OP|_oo)?_(?:<digits [0-9]+>|all|zachowanie)(?:_node)?"
+    r"|tabSource|przedmioty(?:_OP)?_all)"
+)
 _ATTRIBUTE = re.compile(r"[a-z][a-z0-9_:-]{0,39}")
 _ONCLICK = re.compile(r"\s*([A-Za-z_][\w.]{0,63})\s*\(")
 _ONCLICK_NAMES = frozenset(
@@ -200,11 +206,10 @@ class _Redactor:
         return f"<other len {len(value)}>"
 
     def identifier(self, value: str) -> str:
-        for pattern, name in ((self.patterns[0], "GRADE_POINT_ROW_NODE"),):
-            if pattern.fullmatch(value):
-                return f"<{name}>"
+        if self.patterns[0].fullmatch(value):
+            return "<GRADE_POINT_ROW_NODE>"
         shaped = re.sub(r"[0-9]+", lambda m: f"<digits {len(m.group())}>", value)
-        if len(value) <= 64 and re.fullmatch(r"[A-Za-z_<>0-9 -]+", shaped):
+        if len(value) <= 64 and _ID_SHAPES.fullmatch(shaped):
             return shaped
         return f"<len {len(value)}>"
 
@@ -215,7 +220,7 @@ class _Redactor:
             tokens = [
                 token
                 if _TOKEN.fullmatch(token) and not re.search(r"[0-9]{3}", token)
-                else "?"
+                else f"?{len(token)}"
                 for token in value.split()
             ]
             return f"class={'.'.join(tokens)}"

@@ -37,7 +37,9 @@ def _sentinel_page() -> str:
         href=f"/przegladaj_oceny/szczegoly/123?q={SECRET}query",
     )
     return grades_html(first=box, subject=f"Subject {SECRET}subject").replace(
-        "<td></td><td>Subject", f'<td id="{SECRET}id"></td><td>Subject'
+        "<td></td><td>Subject",
+        f'<td id="Kowalski_{SECRET}" class="line0 Kowalski {SECRET.lower()}"></td>'
+        "<td>Subject",
     )
 
 
@@ -124,6 +126,20 @@ def test_failure_report_keeps_structure_and_masks_every_value() -> None:
     assert "span.grade-box[1] > a[1]" in report
     assert "[Komentarz], [Waga], NO-COLON(len=" in report
     assert "LABEL?(len=" in report
+    assert "Kowalski" not in report
+
+
+def test_only_observed_id_shapes_and_lowercase_classes_are_shown() -> None:
+    table = (
+        '<table class="decorated stretch"><tbody><tr class="line0 Kowalski">'
+        '<td id="przedmioty_OP_96760_node" class="center micro screen-only"></td>'
+        '<td id="Jan_Kowalski_7"><span class="grade-box"><a title="Waga: x">1</a>'
+        "</span></td></tr></tbody></table>"
+    )
+    page = grades_html(extra=table)
+    report = describe_failure(_failure(page))
+    assert report is not None
+    assert "Kowalski" not in report and "Jan" not in report
 
 
 def test_failure_report_is_bounded_and_never_raises() -> None:
