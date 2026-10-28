@@ -16,8 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.7.1` reads point grades ("Oceny punktowe") as an affected
-school's page shows them, and multi-line grade comments. It keeps the 1.6.4 linear-time message body
+**Status:** `1.8.0` reports where a failure happened (code locations and a
+redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180))
+and keeps the 1.7.1 point grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
 rendering and the 1.6.2 completed-lesson and grade layouts, including behaviour
 points, which are validated and not reported as grades.
 Class free days, typed capability outcomes and the live-check freshness watchdog
@@ -31,7 +32,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.7.1
+python -m pip install librus-python-api==1.8.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -47,7 +48,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.7.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.8.0-py3-none-any.whl
 ```
 
 No CLI or background process is installed: import the library in your own program.

@@ -88,6 +88,8 @@ class DiagnosticEvent:
     elapsed_seconds: float
     budget_requests_dispatched: int
     budget_response_bytes: int
+    # Code locations of a failure (see diagnostics.failure_frames), else empty.
+    frames: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

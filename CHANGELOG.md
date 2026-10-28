@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.8.0 (2026-10-28) - Failure diagnostics
+
+Errors still carry only their kind; new helpers say where a failure happened
+without page data. Parser behaviour is unchanged.
+
+- `diagnostics.failure_frames(error)` returns the failure's code locations
+  (`module:function:line`, the original site last) from its traceback, through
+  the parser thread, re-raises and a context suppressed with `from None`.
+- `diagnostics.describe_failure(error)` returns the page structure around the
+  failure: element path, tags, safe class tokens, known tooltip labels and
+  lengths, with every text and attribute value masked unless it equals a parser
+  constant. It names, for example, the unlabelled tooltip line that broke a
+  read.
+- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
+  saved page or copied table offline and prints counts or the failure report.
+- `DiagnosticEvent.frames` carries the code locations to diagnostic sinks, and
+  `logging_sink` logs them.
+- `config.TOOLTIP_LABELS` lists the tooltip labels diagnostics may show by name.
+
 ## 1.7.1 (2026-10-27) - Observed point-grade page and multi-line comments
 
 Fixes for layouts 1.7.0 rejected with `ParseError`, established from an

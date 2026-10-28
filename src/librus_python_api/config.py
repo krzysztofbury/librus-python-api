@@ -662,6 +662,35 @@ GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # Tooltip fields whose free text may continue on unlabelled lines. A teacher's
 # multi-line grade comment was observed on 2026-10-27.
 TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
+# Tooltip labels observed on grade, attendance and point pages. Diagnostics
+# show only these by name; any other label is masked as teacher-entered text.
+TOOLTIP_LABELS = frozenset(
+    {
+        "Czy wycieczka",
+        "Data",
+        "Data realizacji",
+        "Data wystawienia",
+        "Data zapowiedzi",
+        "Dodał",
+        "Godzina lekcyjna",
+        "Kategoria",
+        "Komentarz",
+        "Lekcja",
+        "Licz do puli",
+        "Licz do wyniku",
+        "Licz do średniej",
+        "Maksymalna ilość punktów",
+        "Nauczyciel",
+        "Obowiązek wyk. zadania",
+        "Ocena",
+        "Rodzaj",
+        "Suma punktów",
+        "Temat zajęć",
+        "Waga",
+        "Zakres do",
+        "Zakres od",
+    }
+)
 # A point-grade ("Oceny punktowe") table marks each subject row's expander image
 # with this ID; ordinary grade rows use `przedmioty_<id>_node`.
 GRADE_POINT_ROW_NODE = re.compile(r"przedmioty_OP_[0-9A-Za-z_]{1,64}_node")

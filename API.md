@@ -148,11 +148,37 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   allowlisted modern directory and mailbox selections only. Arbitrary query keys,
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
-  elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
-  `librus_python_api.diagnostics.logging_sink` emits allowlisted fields through
-  the standard `logging` logger named `librus_python_api`. The application owns
-  handlers and formatting; no logging dependency or global configuration is added. Sink errors
-  never affect results.
+  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames)`.
+  `frames` (1.8.0) holds the failure's code locations, as below, and is empty on
+  success. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
+  through the standard `logging` logger named `librus_python_api`. The
+  application owns handlers and formatting; no logging dependency or global
+  configuration is added. Sink errors never affect results.
+
+### Failure diagnostics (1.8.0)
+
+Errors carry only their kind, so these helpers read where a failure happened
+from the exception's own traceback. Neither raises.
+
+- `diagnostics.failure_frames(error, limit=6, packages=("librus_python_api",))`
+  returns code locations such as `("grade_records:_numeric:100",
+  "markup:tooltip_fields:113")`, the original failure site last. It follows an
+  explicit cause or a context suppressed with `from None`, and skips helpers
+  that only raise. The strings are opaque and change between releases; report
+  them with the library version.
+- `diagnostics.describe_failure(error)` returns the page structure around the
+  failure, or None: the HTML elements held by the innermost library frame that
+  holds any, with their path from the grade table, tags, safe class tokens,
+  known tooltip labels (`config.TOOLTIP_LABELS`), known detail-link families and
+  lengths. Text and attribute values are masked unless they equal a parser
+  constant, so a failing tooltip reads like `[[Data], [Waga], NO-COLON(len=17)]`.
+  Output is bounded. It is meant for a human to review before sharing, not for
+  automatic upload.
+- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
+  saved page offline (a whole page or a copied table) and prints counts, or the
+  failure kind, frames and structure. It makes no request and applies the
+  library's parse size limit. Exit status: 0 parsed, 1 failed, 2 unreadable
+  file.
 
 All upstream routes and forms are fixed in `config.py` and documented in
 [contracts/upstream.openapi.yaml](contracts/upstream.openapi.yaml). There is no

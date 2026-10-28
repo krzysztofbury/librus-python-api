@@ -67,7 +67,7 @@ from librus_python_api.config import (
     timetable_form,
 )
 from librus_python_api.detail_fields import normalize_detail_fields
-from librus_python_api.diagnostics import DiagnosticSink
+from librus_python_api.diagnostics import DiagnosticSink, failure_frames
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
@@ -1165,6 +1165,7 @@ class AccountClient:
     ) -> T:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
+        frames: tuple[str, ...] = ()
         try:
             if deadline is None:
                 deadline = asyncio.timeout(None)
@@ -1180,6 +1181,8 @@ class AccountClient:
                     return await fetch(budget, False)
         except LibrusError as error:
             outcome = error.kind
+            if self._service._diagnostic_sink is not None:
+                frames = failure_frames(error)
             if authenticate and error.kind in (
                 ErrorKind.ACCESS_DENIED,
                 ErrorKind.SESSION_EXPIRED,
@@ -1207,6 +1210,7 @@ class AccountClient:
                     time.monotonic() - started,
                     budget.requests_dispatched,
                     budget.response_bytes,
+                    frames,
                 )
             )
 
@@ -2015,6 +2019,7 @@ class AccountClient:
     ) -> T:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
+        frames: tuple[str, ...] = ()
         try:
             async with asyncio.timeout(budget.remaining_seconds()):
                 async with self._lock:
@@ -2023,6 +2028,8 @@ class AccountClient:
                     )
         except LibrusError as error:
             outcome = error.kind
+            if self._service._diagnostic_sink is not None:
+                frames = failure_frames(error)
             raise
         except asyncio.CancelledError:
             outcome = "cancelled"
@@ -2038,6 +2045,7 @@ class AccountClient:
                     time.monotonic() - started,
                     budget.requests_dispatched,
                     budget.response_bytes,
+                    frames,
                 )
             )
 
