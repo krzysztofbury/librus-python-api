@@ -8,7 +8,7 @@ import math
 import re
 import time
 from collections.abc import Awaitable, Callable, Hashable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from types import MappingProxyType, TracebackType
 from typing import Any, Literal, Self, cast
@@ -40,6 +40,7 @@ from librus_python_api.config import (
     ATTENDANCE_RESULT_CACHE_SIZE,
     CHECKPOINT_TIMEOUT_SECONDS,
     ENDPOINTS,
+    GRADE_MAX_RECORDS,
     GRADE_MAX_WINDOW_DAYS,
     MESSAGE_MAX_CURSOR_IDS,
     MODERN_RECIPIENT_OPERATIONS,
@@ -69,6 +70,16 @@ from librus_python_api.config import (
 from librus_python_api.detail_fields import normalize_detail_fields
 from librus_python_api.diagnostics import DiagnosticSink, failure_frames
 from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.gateway_grades import (
+    DescriptiveTable,
+    descriptive_grades,
+    parse_gateway_subjects,
+    parse_gateway_users,
+    parse_grade_page,
+    parse_partial_grades,
+    parse_token_info,
+    parse_user_info,
+)
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.homework_range import HomeworkAccumulator
@@ -94,6 +105,7 @@ from librus_python_api.models import (
     FinalGrades,
     GatewayAttendance,
     GatewayAttendanceRecord,
+    GradeRecords,
     Grades,
     GradeView,
     GradeWindow,
@@ -1268,12 +1280,24 @@ class AccountClient:
         """Select a grade view with one non-replayed view-changing POST.
 
         Changes the selected grade filter, not school records. A cache hit makes
-        no POST. Missing inline weight/count data remains unknown.
+        no POST. Missing inline weight/count data remains unknown. In the all
+        view, a page with the new-schema descriptive table adds that table's
+        grades from the gateway: three more reads, five when there are grades.
+        Other views do not request them.
         """
         form = grade_view_form(view)
 
         async def fetch(budget: RequestBudget, _: bool) -> Grades:
-            records = await self._page("grades", budget, parse_grade_records, form=form)
+            if view is not GradeView.ALL:
+                records = await self._page(
+                    "grades", budget, parse_grade_records, form=form
+                )
+            else:
+                records, table = await self._page(
+                    "grades", budget, parse_grade_page, form=form
+                )
+                if table is not None:
+                    records = await self._gateway_descriptive(records, table, budget)
             return Grades(
                 self._session_identity(), records, self._observation("grades"), view
             )
@@ -2359,6 +2383,51 @@ class AccountClient:
             next_cursor,
             self._observation("completed_lessons"),
         )
+
+    async def _gateway_descriptive(
+        self, records: GradeRecords, table: DescriptiveTable, budget: RequestBudget
+    ) -> GradeRecords:
+        """Add the gateway grades of a new-schema descriptive table.
+
+        The reads run under the caller's budget and session; any failure fails
+        the whole grade read rather than returning it without these grades.
+        """
+        user = await self._page(
+            "descriptive_token_info", budget, parse_token_info, content_type=JSON
+        )
+        assigned = await self._page(
+            "descriptive_user_info",
+            budget,
+            parse_user_info,
+            reference=user,
+            content_type=JSON,
+        )
+        items = await self._page(
+            "descriptive_partial_grades",
+            budget,
+            parse_partial_grades,
+            reference=assigned or user,
+            content_type=JSON,
+        )
+        if not items:
+            return records
+        subjects = await self._page(
+            "descriptive_subjects", budget, parse_gateway_subjects, content_type=JSON
+        )
+        users = await self._page(
+            "descriptive_users", budget, parse_gateway_users, content_type=JSON
+        )
+        added = descriptive_grades(items, subjects, users, table)
+        if (
+            len(records.numeric)
+            + len(records.descriptive)
+            + len(records.descriptive_summaries)
+            + len(records.formative)
+            + len(added)
+            > GRADE_MAX_RECORDS
+        ):
+            raise LibrusError(ErrorKind.LIMIT)
+        return replace(records, descriptive=records.descriptive + added)
 
     async def _metadata_value(
         self, endpoint: str, identifier: str, budget: RequestBudget

@@ -17,8 +17,10 @@ Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
 **Status:** `1.8.0` reports where a failure happened (code locations and a
-redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180))
-and keeps the 1.7.1 point grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
+redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180)),
+reads gateway descriptive grades for schools on the new descriptive schema
+(source-informed, live qualification pending) and keeps the 1.7.1 point
+grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
 rendering and the 1.6.2 completed-lesson and grade layouts, including behaviour
 points, which are validated and not reported as grades.
 Class free days, typed capability outcomes and the live-check freshness watchdog
@@ -244,7 +246,9 @@ from librus_python_api.exceptions import LibrusError
 try:
     await client.grades()
 except LibrusError as error:
-    print(error.kind, failure_frames(error))  # ('grade_records:_numeric:100', 'markup:tooltip_fields:113')
+    print(
+        error.kind, failure_frames(error)
+    )  # ('grade_records:_numeric:100', 'markup:tooltip_fields:113')
     print(describe_failure(error))  # masked HTML structure around the failure
 ```
 

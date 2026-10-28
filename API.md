@@ -276,6 +276,24 @@ such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
 into `averages`), and a point table with titled summary columns adds its
 subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
 
+Gateway descriptive grades (unreleased) belong to schools on the new
+descriptive grading schema, whose grades page shows a subject table with empty
+semester cells that the page script fills from the gateway. In the `ALL` view
+only, `grades()` then reads those grades from the gateway with the login's
+session and the call's budget: three more requests, five when there are
+grades. They are `DescriptiveGrade`s in `descriptive` (kind `CURRENT`, no
+`href`), with the page's subject name, the scale value or else the content as
+`raw`, the civil date, semester 1 or 2, the teacher's name when listed, the
+comment and metadata pairs for the present fields only (`Obszar`, `Treść`,
+`Dodał`, `Komentarz`, `Skala`). `grades_window()` filters them like other
+dated records. `WEEK` and `LAST_LOGIN` do not include them, because the page
+narrows those views by a field whose meaning is not established; notifications
+therefore do not report them. A gateway error, an unknown subject, a grade with
+no value, an unexpected shape or a pagination member that shows more items
+fails the whole read instead of returning it without these grades. The routes
+and field names are source-informed; live qualification of populated records
+is pending. See [gateway descriptive grades](contracts/grades.md#gateway-descriptive-grades-unreleased-issue-73).
+
 ## Attendance
 
 - `attendance(view=AttendanceView.ALL)` returns `Attendance` with

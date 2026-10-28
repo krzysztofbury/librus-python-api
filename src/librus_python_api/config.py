@@ -433,6 +433,51 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 False,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            # Gateway reads behind the grades page's new-schema descriptive
+            # table. Routes and field names come from public client code and the
+            # official page script, not from an observed populated response.
+            Endpoint(
+                "descriptive_token_info",
+                "GET",
+                "/gateway/api/2.0/Auth/TokenInfo",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "descriptive_user_info",
+                "GET",
+                "/gateway/api/2.0/Auth/UserInfo/{id}",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
+            # A read sent as POST with the fixed JSON body `{}`; it is never
+            # replayed, although it changes nothing that is known.
+            Endpoint(
+                "descriptive_partial_grades",
+                "POST",
+                "/gateway/api/2.0/Auth/DescriptiveGradingSystem/PartialGrades/Student/{id}",
+                SideEffect.NONE,
+                False,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "descriptive_subjects",
+                "GET",
+                "/gateway/api/3.0/Auth/Subjects",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
+            Endpoint(
+                "descriptive_users",
+                "GET",
+                "/gateway/api/2.0/Users",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
             Endpoint(
                 "attendance",
                 "POST",
@@ -722,6 +767,21 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
         "Ocena roczna": 0,
     }
 )
+# New-schema descriptive grading: the page renders this table with empty
+# semester cells and its script loads the grades from the gateway routes above.
+DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
+DESCRIPTIVE_ROW_CLASS = "studentRow"
+# Gateway account and student identifiers are opaque strings, unlike every
+# other `{id}` route, which takes a numeric ID.
+DESCRIPTIVE_IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}")
+DESCRIPTIVE_IDENTIFIER_OPERATIONS = frozenset(
+    {"descriptive_user_info", "descriptive_partial_grades"}
+)
+# The PartialGrades read is a POST whose only body is this fixed JSON object.
+DESCRIPTIVE_PARTIAL_GRADES_BODY = b"{}"
+DESCRIPTIVE_MAX_SUBJECTS = 1024
+DESCRIPTIVE_MAX_USERS = 8192
+DESCRIPTIVE_MAX_NAME_LENGTH = 1024
 GRADE_PREDICTED_ANNUAL_HEADER = "Przewidywana ocena roczna"
 GRADE_PREDICTED_PERIOD_HEADERS = MappingProxyType(
     {
