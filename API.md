@@ -149,8 +149,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
   elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames)`.
-  `frames` (1.8.0) holds the failure's code locations, as below, and is empty on
-  success. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
+  `frames` (1.8.0) holds the code locations of a `LibrusError` outcome, as below;
+  it is empty on success and for timeouts, cancellation and replaced
+  connection errors. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
   through the standard `logging` logger named `librus_python_api`. The
   application owns handlers and formatting; no logging dependency or global
   configuration is added. Sink errors never affect results.

@@ -54,6 +54,12 @@ PARSERS: dict[str, Callable[[bytes], dict[str, int]]] = {
 def inspect(parser: str, body: bytes) -> tuple[bool, list[str]]:
     """Parse `body` and return success and the report lines."""
     lines = [NOTICE, f"librus-python-api {__version__}, parser {parser}"]
+    try:
+        body.decode("utf-8")
+    except UnicodeDecodeError:
+        # Synergia serves UTF-8; another encoding is a saving problem, not a layout.
+        lines.append("FAILED input: the file is not UTF-8; save the page as UTF-8")
+        return False, lines
     if not re.search(rb"<html[\s>]", body[:4096], re.I):
         # A copied table (outerHTML) is a fragment; parsers expect a page.
         body = b"<!doctype html><html><body>" + body + b"</body></html>"

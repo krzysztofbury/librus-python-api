@@ -29,12 +29,25 @@ SECRET = "ZZSECRETZZ"
 
 
 def _sentinel_page() -> str:
-    """Private-looking values everywhere, and a tooltip line the parser rejects."""
-    box = grade_box(
-        SECRET + "grade",
-        extra=f"Komentarz: {SECRET}comment<br>Waga: 2<br>Uwaga {SECRET}line"
-        f"<br>{SECRET}label: {SECRET}value",
-        href=f"/przegladaj_oceny/szczegoly/123?q={SECRET}query",
+    """Private-looking values everywhere, and a tooltip line the parser rejects.
+
+    The failing anchor and the cell around it carry the marker in every place
+    a value could leak from: text, attributes, class, id, tag and attribute
+    names.
+    """
+    box = (
+        grade_box(
+            SECRET + "grade",
+            extra=f"Komentarz: {SECRET}comment<br>Waga: 2<br>Uwaga {SECRET}line"
+            f"<br>{SECRET}label: {SECRET}value",
+            href=f"/przegladaj_oceny/szczegoly/123?q={SECRET}query",
+        )
+        .replace(
+            "<a ",
+            f'<a id="przedmioty_OP_{SECRET}_node" class="line0 {SECRET.lower()}" '
+            f'data-{SECRET.lower()}="{SECRET}" onclick="{SECRET}()" ',
+        )
+        .replace("</a>", f"<{SECRET.lower()}>{SECRET}</{SECRET.lower()}></a>")
     )
     return grades_html(first=box, subject=f"Subject {SECRET}subject").replace(
         "<td></td><td>Subject",
@@ -84,6 +97,8 @@ def test_a_raise_helper_is_not_the_failure_site() -> None:
 
 
 def test_every_no_return_raiser_is_a_registered_helper() -> None:
+    """Module-level functions annotated `-> NoReturn` only; methods, nested
+    helpers and `-> Never` are not covered (none exist today)."""
     raisers = set()
     for module_info in pkgutil.iter_modules(librus_python_api.__path__):
         name = f"librus_python_api.{module_info.name}"
@@ -121,9 +136,9 @@ def test_a_suppressed_inner_failure_still_shows_where_it_happened() -> None:
 def test_failure_report_keeps_structure_and_masks_every_value() -> None:
     report = describe_failure(_failure(_sentinel_page()))
     assert report is not None
-    assert SECRET not in report
+    assert SECRET.casefold() not in report.casefold()
     assert "at markup:tooltip_fields:" in report
-    assert "span.grade-box[1] > a[1]" in report
+    assert "span.grade-box[1] > a.line0.?10[1]" in report
     assert "[Komentarz], [Waga], NO-COLON(len=" in report
     assert "LABEL?(len=" in report
     assert "Kowalski" not in report
@@ -139,7 +154,7 @@ def test_only_observed_id_shapes_and_lowercase_classes_are_shown() -> None:
     page = grades_html(extra=table)
     report = describe_failure(_failure(page))
     assert report is not None
-    assert "Kowalski" not in report and "Jan" not in report
+    assert "kowalski" not in report.casefold() and "jan" not in report.casefold()
 
 
 def test_failure_report_is_bounded_and_never_raises() -> None:
@@ -173,7 +188,7 @@ def test_inspect_page_reports_counts_or_the_failure(
     assert main(["grades", str(bad)]) == 1
     output = capsys.readouterr().out
     assert "FAILED parse" in output and "at markup:tooltip_fields:" in output
-    assert SECRET not in output
+    assert SECRET.casefold() not in output.casefold()
 
 
 def test_inspect_page_applies_the_parse_size_limit(
@@ -184,3 +199,12 @@ def test_inspect_page_applies_the_parse_size_limit(
     assert main(["final-grades", str(large)]) == 1
     assert "FAILED limit" in capsys.readouterr().out
     assert main(["grades", str(tmp_path / "missing.html")]) == 2
+
+
+def test_inspect_page_names_a_non_utf8_file_instead_of_a_layout_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    page = tmp_path / "page.html"
+    page.write_bytes(grades_html(subject="Język").encode("utf-16"))
+    assert main(["grades", str(page)]) == 1
+    assert "not UTF-8" in capsys.readouterr().out

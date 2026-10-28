@@ -31,14 +31,117 @@ _DEPTH = 6
 _NODES = 120
 _ELEMENT_BYTES = 8 * 1024
 _REPORT_BYTES = 32 * 1024
-# Librus style classes are lowercase ASCII; anything else may be data.
-_TOKEN = re.compile(r"[a-z][a-z0-9_-]{0,29}")
+# Markup observed on Synergia pages. Other class tokens, tags and attribute
+# names are shown only as lengths, since they could carry data.
+_CLASSES = frozenset(
+    {
+        "big",
+        "black",
+        "bolded",
+        "center",
+        "colspan",
+        "container-background",
+        "container-icon",
+        "decorated",
+        "detail-grades",
+        "double",
+        "gradesCell",
+        "grade-box",
+        "grade-box-mapping",
+        "helper-icon",
+        "left",
+        "legend",
+        "line0",
+        "line1",
+        "micro",
+        "newSchemaGradesByStudentTable",
+        "no-border-left",
+        "no-border-top",
+        "ocena",
+        "right",
+        "screen-only",
+        "sort_box",
+        "spacing",
+        "stretch",
+        "studentRow",
+        "tooltip",
+    }
+)
+_TAGS = frozenset(
+    {
+        "a",
+        "b",
+        "body",
+        "br",
+        "center",
+        "div",
+        "em",
+        "font",
+        "form",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "head",
+        "hr",
+        "html",
+        "i",
+        "img",
+        "input",
+        "label",
+        "li",
+        "nobr",
+        "ol",
+        "option",
+        "p",
+        "select",
+        "small",
+        "span",
+        "strong",
+        "sub",
+        "sup",
+        "table",
+        "tbody",
+        "td",
+        "tfoot",
+        "th",
+        "thead",
+        "tr",
+        "u",
+        "ul",
+    }
+)
+_ATTRIBUTES = frozenset(
+    {
+        "align",
+        "alt",
+        "border",
+        "class",
+        "colspan",
+        "data-semester",
+        "data-subject_id",
+        "data-user_id",
+        "height",
+        "href",
+        "id",
+        "name",
+        "onclick",
+        "rowspan",
+        "selected",
+        "src",
+        "style",
+        "title",
+        "type",
+        "valign",
+        "value",
+        "width",
+    }
+)
 # Element IDs shown, with digit runs masked, only in these observed shapes.
 _ID_SHAPES = re.compile(
     r"(?:przedmioty(?:_OP|_oo)?_(?:<digits [0-9]+>|all|zachowanie)(?:_node)?"
     r"|tabSource|przedmioty(?:_OP)?_all)"
 )
-_ATTRIBUTE = re.compile(r"[a-z][a-z0-9_:-]{0,39}")
 _ONCLICK = re.compile(r"\s*([A-Za-z_][\w.]{0,63})\s*\(")
 _ONCLICK_NAMES = frozenset(
     {"otworz_w_nowym_oknie", "showHideOP.ShowHide", "showHideOO.ShowHide"}
@@ -166,7 +269,7 @@ class _Redactor:
         if (
             normalized in self.texts
             or normalized.casefold() in self.texts
-            or any(pattern.fullmatch(normalized) for pattern in self.patterns)
+            or self.patterns[1].fullmatch(normalized)
         ):
             return repr(normalized)
         return f"TEXT(len={len(normalized)})"
@@ -214,13 +317,11 @@ class _Redactor:
         return f"<len {len(value)}>"
 
     def attribute(self, name: str, value: str) -> str | None:
-        if not _ATTRIBUTE.fullmatch(name):
-            return None
+        if name not in _ATTRIBUTES:
+            return f"attr?{len(name)}=<len {len(value)}>"
         if name == "class":
             tokens = [
-                token
-                if _TOKEN.fullmatch(token) and not re.search(r"[0-9]{3}", token)
-                else f"?{len(token)}"
+                token if token in _CLASSES else f"?{len(token)}"
                 for token in value.split()
             ]
             return f"class={'.'.join(tokens)}"
@@ -250,6 +351,7 @@ class _Redactor:
         tag = element.tag if isinstance(element.tag, str) else "#comment"
         if tag == "#comment" or tag in ("script", "style"):
             return f"<{tag} len={len(element.text or '')}>"
+        tag = _tag(tag)
         attributes = [
             shown
             for name, value in element.attrib.items()
@@ -269,6 +371,10 @@ class _Redactor:
         return f"<{opening}>{''.join(parts)}</{tag}>"
 
 
+def _tag(name: str) -> str:
+    return name if name in _TAGS else f"?tag{len(name)}"
+
+
 def _path(element: html.HtmlElement, redactor: _Redactor) -> str:
     steps: list[str] = []
     node: html.HtmlElement | None = element
@@ -280,7 +386,7 @@ def _path(element: html.HtmlElement, redactor: _Redactor) -> str:
             else 1
         )
         classes = node.get("class", "").split()
-        token = node.tag + (
+        token = _tag(node.tag) + (
             "." + str(redactor.attribute("class", " ".join(classes)))[6:]
             if classes
             else ""

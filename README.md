@@ -51,7 +51,9 @@ To install a locally built wheel instead:
 python -m pip install ./dist/librus_python_api-1.8.0-py3-none-any.whl
 ```
 
-No CLI or background process is installed: import the library in your own program.
+No console script or background process is installed: import the library in your
+own program. `python -m librus_python_api.inspect_page` only parses a saved page
+offline for a bug report.
 
 ## First request
 
