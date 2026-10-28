@@ -276,7 +276,7 @@ such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
 into `averages`), and a point table with titled summary columns adds its
 subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
 
-Gateway descriptive grades (unreleased) belong to schools on the new
+Gateway descriptive grades (1.8.0) belong to schools on the new
 descriptive grading schema, whose grades page shows a subject table with empty
 semester cells that the page script fills from the gateway. In the `ALL` view
 only, `grades()` then reads those grades from the gateway with the login's
@@ -290,9 +290,11 @@ dated records. `WEEK` and `LAST_LOGIN` do not include them, because the page
 narrows those views by a field whose meaning is not established; notifications
 therefore do not report them. A gateway error, an unknown subject, a grade with
 no value, an unexpected shape or a pagination member that shows more items
-fails the whole read instead of returning it without these grades. The routes
-and field names are source-informed; live qualification of populated records
-is pending. See [gateway descriptive grades](contracts/grades.md#gateway-descriptive-grades-unreleased-issue-73).
+fails the whole read instead of returning it without these grades; a refused
+gateway route (403) is `UNSUPPORTED_CAPABILITY`, so it does not put the other
+grade views into the access-denied cooldown. The routes and field names are
+source-informed; a first authorized live read parsed populated records on one
+school's login. See [gateway descriptive grades](contracts/grades.md#gateway-descriptive-grades-180-issue-73).
 
 ## Attendance
 

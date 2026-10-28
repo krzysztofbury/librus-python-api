@@ -42,6 +42,8 @@ layout below (issue #73).
   or oversized response, unknown table layout or a pagination member showing
   more items fails the whole all-view read on such a page, instead of
   returning it without these grades. Pages without the table are unchanged.
+  A refused gateway route (403) is `UnsupportedCapabilityError`, so it does
+  not put the week and last-login views into the access-denied cooldown.
 - Upstream contract: five source-informed gateway operations; the two that
   take an account identifier accept `[A-Za-z0-9_-]{1,128}`, every other
   `{id}` route stays numeric.

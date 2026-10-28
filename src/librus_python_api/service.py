@@ -2392,6 +2392,19 @@ class AccountClient:
         The reads run under the caller's budget and session; any failure fails
         the whole grade read rather than returning it without these grades.
         """
+        try:
+            return await self._gateway_reads(records, table, budget)
+        except LibrusError as error:
+            if error.kind is not ErrorKind.ACCESS_DENIED:
+                raise
+            # A refused gateway route is this school's gateway, not the login:
+            # it must not put every grade view, notifications included, into
+            # the access-denied cooldown.
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY) from None
+
+    async def _gateway_reads(
+        self, records: GradeRecords, table: DescriptiveTable, budget: RequestBudget
+    ) -> GradeRecords:
         user = await self._page(
             "descriptive_token_info", budget, parse_token_info, content_type=JSON
         )

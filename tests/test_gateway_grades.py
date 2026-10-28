@@ -10,7 +10,6 @@ import pytest
 from librus_python_api import GradeKind, GradeView, RequestBudget
 from librus_python_api.config import GRADE_MAX_METADATA_LENGTH, GRADE_MAX_RECORDS
 from librus_python_api.exceptions import (
-    AccessDeniedError,
     ConnectionError,
     LibrusError,
     LimitError,
@@ -469,7 +468,7 @@ def test_malformed_gateway_responses_fail_the_whole_grade_read(
         (400, ConnectionError),
         (404, ConnectionError),
         (500, ConnectionError),
-        (403, AccessDeniedError),
+        (403, UnsupportedCapabilityError),
         (401, SessionExpiredError),
     ],
 )
@@ -486,6 +485,22 @@ def test_gateway_errors_propagate_without_a_partial_result_or_replay(
     assert fixture.operations().count(operation) == 1
     assert fixture.logins == {"student": 1}
     assert len(fixture.view_posts) == 1
+
+
+def test_a_refused_gateway_leaves_the_other_grade_views_readable() -> None:
+    # The page-level access-denied cooldown covers every grade view, so a
+    # gateway refusal must not raise it; notifications read LAST_LOGIN.
+    fixture = GatewayGradesFixture()
+    fixture.raw["descriptive_users"] = (403, b"", "application/json")
+
+    async def scenario(service: LibrusService) -> None:
+        client = service.account("student")
+        with pytest.raises(UnsupportedCapabilityError):
+            await client.grades()
+        last = await client.grades(view=GradeView.LAST_LOGIN)
+        assert last.view is GradeView.LAST_LOGIN
+
+    run(fixture, scenario)
 
 
 @pytest.mark.parametrize(

@@ -19,7 +19,7 @@ See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 **Status:** `1.8.0` reports where a failure happened (code locations and a
 redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180)),
 reads gateway descriptive grades for schools on the new descriptive schema
-(source-informed, live qualification pending) and keeps the 1.7.1 point
+(source-informed, first populated read live on one school) and keeps the 1.7.1 point
 grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
 rendering and the 1.6.2 completed-lesson and grade layouts, including behaviour
 points, which are validated and not reported as grades.

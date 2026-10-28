@@ -417,18 +417,15 @@ Point entries other than percentages (`(0-100)`) are not observed.
 ## Gateway descriptive grades (1.8.0, issue #73)
 
 Evidence: source-informed. The routes and JSON field names come from public
-client code and the official grades page script, not from an observed
-populated response. A guarded structure-only observation on 2026-10-12 found
-the new-schema table (`table.newSchemaGradesByStudentTable`) with empty
-`gradesCell` elements, and explicitly authorized, budgeted probes of the
-PartialGrades read returned valid JSON with an empty `data` collection and a
-pagination member on all four available logins. No populated record has been
-observed, so live qualification of the mapping below is pending. No
-third-party code, test or fixture is incorporated; the fixtures in
-`tests/gateway_grades_support.py` are original and every value is invented.
-The owner decided to implement the read from these requirements before a
-populated capture; the first populated observation must be compared with
-this section.
+client code and the official grades page script. A guarded structure-only
+observation on 2026-10-12 found the new-schema table
+(`table.newSchemaGradesByStudentTable`) with empty `gradesCell` elements, and
+explicitly authorized, budgeted probes that called the PartialGrades read
+directly returned valid JSON with an empty `data` collection and a pagination
+member on all four available logins. The owner decided to implement the read
+from these requirements before a populated capture. No third-party code, test
+or fixture is incorporated; the fixtures in `tests/gateway_grades_support.py`
+are original and every value is invented.
 
 First populated observation (2026-10-28, authorized live read of the owner's
 logins, structure only, nothing retained in the repository): one school's
@@ -442,8 +439,20 @@ row-less `newSchemaGradesByStudentTable` precedes the real one, so HTML
 parsing nests the rest of the page in it, and the real table has a period
 header row (`tr.bolded`), a hidden `tr.studentGradesDetailsRow` after each
 subject row and an empty footer. Only a table with subject rows of its own
-counts now (`observed_descriptive_page` follows this structure). The other
-three logins have no new-schema table and make no gateway request.
+counts now (`observed_descriptive_page` follows this structure). On the grade
+page, the owner's other logins have no new-schema table and make no gateway
+request. The pagination member's key names were not recorded; record them
+structure-only at the next authorized read so the heuristic can be narrowed.
+
+A refused gateway route (403) fails the read as `UNSUPPORTED_CAPABILITY`, not
+`ACCESS_DENIED`: the access-denied cooldown is keyed by the grades operation,
+so it would also block the week and last-login views that notifications read.
+A gateway 401 stays `SESSION_EXPIRED` and clears the session like other reads.
+
+Practical bound: every gateway response goes through the parser pool's
+256 KiB limit, which is reached before the record caps; a school whose Users
+list or PartialGrades collection is larger fails the all-view read with
+`LIMIT`. The response sizes of a large school are not observed.
 
 Page table: rows `tr.studentRow` carry numeric `data-subject_id` and
 `data-user_id`, then an expander `td.micro.center.screen-only`, the subject

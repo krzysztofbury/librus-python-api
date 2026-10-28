@@ -1338,7 +1338,7 @@ paths:
       x-side-effect: none
       x-retry-safe: true
       x-evidence: source_informed
-      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         Requested only by an all-view grade read whose page has the new-schema
         descriptive table (table.newSchemaGradesByStudentTable). Fixed GET with
@@ -1368,7 +1368,7 @@ paths:
       x-side-effect: none
       x-retry-safe: true
       x-evidence: source_informed
-      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         The path identifier is the TokenInfo UserIdentifier, validated against the
         strict pattern before dispatch. A parent login names its student in
@@ -1386,8 +1386,10 @@ paths:
                 type: object
                 properties:
                   IdentifierOfStudentAssignedWithUser:
-                    allOf: [{$ref: '#/components/schemas/GatewayIdentifier'}]
                     nullable: true
+                    anyOf:
+                      - {$ref: '#/components/schemas/GatewayIdentifier'}
+                      - {type: string, maxLength: 0}
         default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Auth/DescriptiveGradingSystem/PartialGrades/Student/{id}:
     post:
@@ -1399,7 +1401,7 @@ paths:
       x-side-effect: none
       x-retry-safe: false
       x-evidence: source_informed
-      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         A read sent as POST with exactly the JSON body {} and Content-Type
         application/json; callers supply no body. It is never replayed. Only the
@@ -1467,7 +1469,7 @@ paths:
       x-side-effect: none
       x-retry-safe: true
       x-evidence: source_informed
-      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         Requested only when descriptive_partial_grades returned records. At most
         1024 rows; identifier and numericIdentifier are each unique. A subject's
@@ -1493,7 +1495,7 @@ paths:
                       required: [identifier]
                       properties:
                         identifier: {type: string, minLength: 1, maxLength: 128}
-                        numericIdentifier: {type: integer, nullable: true, minimum: 0}
+                        numericIdentifier: {type: integer, nullable: true, minimum: 0, maximum: 999999999999999999}
                         name: {type: string, nullable: true, maxLength: 1024}
         default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Users:
@@ -1506,7 +1508,7 @@ paths:
       x-side-effect: none
       x-retry-safe: true
       x-evidence: source_informed
-      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script, not from an observed populated response. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized probes of the PartialGrades read returned an empty data collection with a pagination member. Live qualification of populated records is pending. See contracts/grades.md.'
+      x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         Requested only when descriptive_partial_grades returned records. At most
         8192 users. A name is "LastName FirstName" from the present parts; an
