@@ -27,8 +27,9 @@ gateway grades.
 Reads the grades of schools on the new descriptive grading schema, whose
 grades page renders a subject table with empty semester cells and loads the
 grades from gateway JSON routes. Routes and field names come from public client
-code and the official page script, not from an observed populated response;
-live qualification is pending (issue #73).
+code and the official page script. A first authorized live read on 2026-10-28
+parsed four populated records on one school's login and showed the page
+layout below (issue #73).
 
 - Grades: in the `ALL` view, a page with the new-schema table adds its gateway
   grades to `GradeRecords.descriptive` as `DescriptiveGrade` records, which
@@ -46,6 +47,9 @@ live qualification is pending (issue #73).
   `{id}` route stays numeric.
 - Live check: the weekly grade checks and `scripts/live_capture.py` declare
   the five gateway routes.
+- The page may hold an unclosed, row-less table of the same class before the
+  real one, and the real table has a period header row, hidden details rows
+  and a footer; only a table with subject rows of its own is read.
 
 ## 1.7.1 (2026-10-27) - Observed point-grade page and multi-line comments
 

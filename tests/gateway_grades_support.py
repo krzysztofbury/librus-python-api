@@ -12,7 +12,7 @@ from typing import Any
 from aiohttp import web
 
 from librus_python_api.config import ENDPOINTS
-from tests.grade_records_support import GradeRecordsFixture
+from tests.grade_records_support import GradeRecordsFixture, grades_html
 
 GATEWAY_OPERATIONS = (
     "descriptive_token_info",
@@ -49,6 +49,37 @@ def descriptive_table(rows: str | None = None) -> str:
         '<table class="decorated stretch newSchemaGradesByStudentTable"><thead><tr>'
         "<td></td><td>Przedmiot</td><td>Okres 1</td><td>Okres 2</td></tr></thead>"
         f"<tbody>{rows}</tbody></table>"
+    )
+
+
+def observed_descriptive_page(rows: str | None = None) -> str:
+    """The layout of an owner's live page (2026-10-28), with original values.
+
+    An unclosed row-less table of the same class comes first, so parsing nests
+    the rest of the page in it. The real table has a period header row, a
+    hidden details row after each subject row (one with a stray quote
+    attribute, as served) and an empty footer.
+    """
+    if rows is None:
+        rows = descriptive_row() + descriptive_row("302", "Fixture Music")
+    details = "".join(
+        f'<tr class="line0 studentGradesDetailsRow" " data-subject_id="{subject}" '
+        f'data-user_id="77" id="details_{subject}" name="details" '
+        'style="display: none;"><td class="studentGradesDetailsCell" colspan="4">'
+        "</td></tr>"
+        for subject in ("301", "302")
+    )
+    return (
+        '<!doctype html><html><body><form><div class="container-background">'
+        '<table class="decorated stretch newSchemaGradesByStudentTable">'
+        "<script></script>"
+        '<table class="decorated stretch newSchemaGradesByStudentTable"><thead>'
+        '<tr class="bolded"><td class="micro center screen-only"></td><td class="">'
+        "Przedmiot</td><td>Okres 1</td><td>Okres 2</td></tr></thead>"
+        f'<tbody>{rows}{details}</tbody><tfoot><tr><td colspan="4"></td></tr>'
+        "</tfoot></table>"
+        f"{grades_html().split('<body>')[1].split('</body>')[0]}"
+        "</div></form></body></html>"
     )
 
 

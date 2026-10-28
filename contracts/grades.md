@@ -414,7 +414,7 @@ which the formative reader now accepts in every table. The fixture
 Limits: a point table with no subject rows is not recognised and still fails.
 Point entries other than percentages (`(0-100)`) are not observed.
 
-## Gateway descriptive grades (unreleased, issue #73)
+## Gateway descriptive grades (1.8.0, issue #73)
 
 Evidence: source-informed. The routes and JSON field names come from public
 client code and the official grades page script, not from an observed
@@ -429,6 +429,21 @@ third-party code, test or fixture is incorporated; the fixtures in
 The owner decided to implement the read from these requirements before a
 populated capture; the first populated observation must be compared with
 this section.
+
+First populated observation (2026-10-28, authorized live read of the owner's
+logins, structure only, nothing retained in the repository): one school's
+login returned four PartialGrades records. All four parsed and mapped: no
+`scaleValue` (the grade is the `content` text, 22 to 163 characters), an
+`area` name, an author and a teacher resolved through Users, no `comments`,
+semester 1, and every subject found in the page table. None duplicates a
+formative assessment (no shared subject and day, no shared text). The same
+page showed a layout the first implementation rejected: an unclosed,
+row-less `newSchemaGradesByStudentTable` precedes the real one, so HTML
+parsing nests the rest of the page in it, and the real table has a period
+header row (`tr.bolded`), a hidden `tr.studentGradesDetailsRow` after each
+subject row and an empty footer. Only a table with subject rows of its own
+counts now (`observed_descriptive_page` follows this structure). The other
+three logins have no new-schema table and make no gateway request.
 
 Page table: rows `tr.studentRow` carry numeric `data-subject_id` and
 `data-user_id`, then an expander `td.micro.center.screen-only`, the subject

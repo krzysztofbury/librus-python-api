@@ -39,6 +39,7 @@ from tests.gateway_grades_support import (
     encoded,
     gateway_subjects,
     gateway_users,
+    observed_descriptive_page,
     partial_grade,
     partial_grades,
 )
@@ -107,6 +108,18 @@ def test_new_schema_rows_stay_empty_descriptive_subjects_on_the_page(
 
 def test_a_page_without_the_new_schema_table_has_no_table() -> None:
     assert parse_grade_page(grades_html().encode())[1] is None
+
+
+def test_the_observed_live_layout_reads_the_populated_table_only() -> None:
+    # An owner's live page failed the first implementation, which counted the
+    # unclosed row-less table as a second table.
+    page = observed_descriptive_page().encode()
+    records, table = parse_grade_page(page)
+    assert records == parse_grade_records(page)
+    assert table is not None
+    assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
+    shell_only = observed_descriptive_page().replace("studentRow", "otherRow")
+    assert parse_grade_page(shell_only.encode())[1] is None
 
 
 @pytest.mark.parametrize(

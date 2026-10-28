@@ -353,8 +353,19 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
     ]
     if not tables:
         return None
-    if len(tables) > 1:
+    # Observed live (2026-10-28): an unclosed, row-less table of the same class
+    # precedes the real one, so HTML parsing nests the rest of the page in it.
+    # Only a table with subject rows of its own counts.
+    populated = [
+        table
+        for table in tables
+        if any(DESCRIPTIVE_ROW_CLASS in _classes(row) for row in markup.rows(table))
+    ]
+    if len(populated) > 1:
         raise LibrusError(ErrorKind.PARSE)
+    if not populated:
+        return None
+    tables = populated
     subjects: dict[int, str] = {}
     students: set[str | None] = set()
     for row in markup.rows(tables[0]):
