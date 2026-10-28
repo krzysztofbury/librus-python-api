@@ -449,6 +449,11 @@ NOT_RENDERED = frozenset(
         "attendance_lesson",
         "attendance_subject",
         "class_free_days",
+        "descriptive_token_info",
+        "descriptive_user_info",
+        "descriptive_partial_grades",
+        "descriptive_subjects",
+        "descriptive_users",
         "behaviour_notes_probe",
     }
 )

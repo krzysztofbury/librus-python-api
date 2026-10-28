@@ -148,11 +148,38 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   allowlisted modern directory and mailbox selections only. Arbitrary query keys,
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
-  elapsed_seconds, budget_requests_dispatched, budget_response_bytes)`.
-  `librus_python_api.diagnostics.logging_sink` emits allowlisted fields through
-  the standard `logging` logger named `librus_python_api`. The application owns
-  handlers and formatting; no logging dependency or global configuration is added. Sink errors
-  never affect results.
+  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames)`.
+  `frames` (1.8.0) holds the code locations of a `LibrusError` outcome, as below;
+  it is empty on success and for timeouts, cancellation and replaced
+  connection errors. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
+  through the standard `logging` logger named `librus_python_api`. The
+  application owns handlers and formatting; no logging dependency or global
+  configuration is added. Sink errors never affect results.
+
+### Failure diagnostics (1.8.0)
+
+Errors carry only their kind, so these helpers read where a failure happened
+from the exception's own traceback. Neither raises.
+
+- `diagnostics.failure_frames(error, limit=6, packages=("librus_python_api",))`
+  returns code locations such as `("grade_records:_numeric:100",
+  "markup:tooltip_fields:113")`, the original failure site last. It follows an
+  explicit cause or a context suppressed with `from None`, and skips helpers
+  that only raise. The strings are opaque and change between releases; report
+  them with the library version.
+- `diagnostics.describe_failure(error)` returns the page structure around the
+  failure, or None: the HTML elements held by the innermost library frame that
+  holds any, with their path from the grade table, tags, safe class tokens,
+  known tooltip labels (`config.TOOLTIP_LABELS`), known detail-link families and
+  lengths. Text and attribute values are masked unless they equal a parser
+  constant, so a failing tooltip reads like `[[Data], [Waga], NO-COLON(len=17)]`.
+  Output is bounded. It is meant for a human to review before sharing, not for
+  automatic upload.
+- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
+  saved page offline (a whole page or a copied table) and prints counts, or the
+  failure kind, frames and structure. It makes no request and applies the
+  library's parse size limit. Exit status: 0 parsed, 1 failed, 2 unreadable
+  file.
 
 All upstream routes and forms are fixed in `config.py` and documented in
 [contracts/upstream.openapi.yaml](contracts/upstream.openapi.yaml). There is no
@@ -248,6 +275,26 @@ such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
 `GradeRecords.point_results` (`SchoolAverage`s on the score scale, never mixed
 into `averages`), and a point table with titled summary columns adds its
 subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
+
+Gateway descriptive grades (1.8.0) belong to schools on the new
+descriptive grading schema, whose grades page shows a subject table with empty
+semester cells that the page script fills from the gateway. In the `ALL` view
+only, `grades()` then reads those grades from the gateway with the login's
+session and the call's budget: three more requests, five when there are
+grades. They are `DescriptiveGrade`s in `descriptive` (kind `CURRENT`, no
+`href`), with the page's subject name, the scale value or else the content as
+`raw`, the civil date, semester 1 or 2, the teacher's name when listed, the
+comment and metadata pairs for the present fields only (`Obszar`, `Treść`,
+`Dodał`, `Komentarz`, `Skala`). `grades_window()` filters them like other
+dated records. `WEEK` and `LAST_LOGIN` do not include them, because the page
+narrows those views by a field whose meaning is not established; notifications
+therefore do not report them. A gateway error, an unknown subject, a grade with
+no value, an unexpected shape or a pagination member that shows more items
+fails the whole read instead of returning it without these grades; a refused
+gateway route (403) is `UNSUPPORTED_CAPABILITY`, so it does not put the other
+grade views into the access-denied cooldown. The routes and field names are
+source-informed; a first authorized live read parsed populated records on one
+school's login. See [gateway descriptive grades](contracts/grades.md#gateway-descriptive-grades-180-issue-73).
 
 ## Attendance
 

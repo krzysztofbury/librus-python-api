@@ -286,6 +286,13 @@ def test_fixed_routes_reject_reference_ids_and_templates_require_numeric_ids() -
                 ("identity", "1"),
                 ("attendance_detail", None),
                 ("attendance_lesson", "../1"),
+                # Only the gateway account routes take string identifiers.
+                ("attendance_lesson", "FIX-1"),
+                ("descriptive_user_info", None),
+                ("descriptive_user_info", "FIX/1"),
+                ("descriptive_partial_grades", "FIX.1"),
+                ("descriptive_partial_grades", "F" * 129),
+                ("descriptive_token_info", "FIX-1"),
             ):
                 with pytest.raises(InvalidInputError):
                     await transport.request(

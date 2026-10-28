@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.8.0 (2026-10-28) - Failure diagnostics and gateway descriptive grades
+
+Errors still carry only their kind; new helpers say where a failure happened
+without page data. Schools on the new descriptive grading schema get their
+gateway grades.
+
+### Failure diagnostics
+
+- `diagnostics.failure_frames(error)` returns the failure's code locations
+  (`module:function:line`, the original site last) from its traceback, through
+  the parser thread, re-raises and a context suppressed with `from None`.
+- `diagnostics.describe_failure(error)` returns the page structure around the
+  failure: element path, tags, safe class tokens, known tooltip labels and
+  lengths, with every text and attribute value masked unless it equals a parser
+  constant. It names, for example, the unlabelled tooltip line that broke a
+  read.
+- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
+  saved page or copied table offline and prints counts or the failure report.
+- `DiagnosticEvent.frames` carries the code locations to diagnostic sinks, and
+  `logging_sink` logs them.
+- `config.TOOLTIP_LABELS` lists the tooltip labels diagnostics may show by name.
+
+### Gateway descriptive grades
+
+Reads the grades of schools on the new descriptive grading schema, whose
+grades page renders a subject table with empty semester cells and loads the
+grades from gateway JSON routes. Routes and field names come from public client
+code and the official page script. A first authorized live read on 2026-10-28
+parsed four populated records on one school's login and showed the page
+layout below (issue #73).
+
+- Grades: in the `ALL` view, a page with the new-schema table adds its gateway
+  grades to `GradeRecords.descriptive` as `DescriptiveGrade` records, which
+  grade windows filter by date. The read makes three more requests, or five
+  when there are grades, under the same session and budget. Public types and
+  signatures are unchanged and `DescriptiveGrade` has no new field.
+- Grades: `WEEK` and `LAST_LOGIN` make no gateway request and do not include
+  these grades, so notifications do not report them yet.
+- Grades: a gateway error, unknown subject, grade without a value, malformed
+  or oversized response, unknown table layout or a pagination member showing
+  more items fails the whole all-view read on such a page, instead of
+  returning it without these grades. Pages without the table are unchanged.
+  A refused gateway route (403) is `UnsupportedCapabilityError`, so it does
+  not put the week and last-login views into the access-denied cooldown.
+- Upstream contract: five source-informed gateway operations; the two that
+  take an account identifier accept `[A-Za-z0-9_-]{1,128}`, every other
+  `{id}` route stays numeric.
+- Live check: the weekly grade checks and `scripts/live_capture.py` declare
+  the five gateway routes.
+- The page may hold an unclosed, row-less table of the same class before the
+  real one, and the real table has a period header row, hidden details rows
+  and a footer; only a table with subject rows of its own is read.
+
 ## 1.7.1 (2026-10-27) - Observed point-grade page and multi-line comments
 
 Fixes for layouts 1.7.0 rejected with `ParseError`, established from an

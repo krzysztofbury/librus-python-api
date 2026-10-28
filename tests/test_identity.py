@@ -426,6 +426,7 @@ def test_logging_sink_emits_allowlisted_structured_fields(
         "elapsed_seconds": 0.25,
         "budget_requests_dispatched": 7,
         "budget_response_bytes": 100,
+        "frames": (),
     }
 
 

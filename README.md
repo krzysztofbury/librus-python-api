@@ -16,8 +16,11 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.7.1` reads point grades ("Oceny punktowe") as an affected
-school's page shows them, and multi-line grade comments. It keeps the 1.6.4 linear-time message body
+**Status:** `1.8.0` reports where a failure happened (code locations and a
+redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180)),
+reads gateway descriptive grades for schools on the new descriptive schema
+(source-informed, first populated read live on one school) and keeps the 1.7.1 point
+grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
 rendering and the 1.6.2 completed-lesson and grade layouts, including behaviour
 points, which are validated and not reported as grades.
 Class free days, typed capability outcomes and the live-check freshness watchdog
@@ -31,7 +34,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.7.1
+python -m pip install librus-python-api==1.8.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -47,10 +50,12 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.7.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.8.0-py3-none-any.whl
 ```
 
-No CLI or background process is installed: import the library in your own program.
+No console script or background process is installed: import the library in your
+own program. `python -m librus_python_api.inspect_page` only parses a saved page
+offline for a bug report.
 
 ## First request
 
@@ -227,6 +232,32 @@ implemented. Some recipient, archive and receipt layouts remain
 unqualified; backend acceptance is not proof of delivery. Tests cover supported
 contracts, not every school or role. Detailed coverage is in the
 [verification log][verification]; open work is tracked in [issues][issues].
+
+## Diagnosing failures
+
+Errors carry only their kind. To see where a failure happened without any page
+data, use the helpers in `librus_python_api.diagnostics` (see
+[API.md](API.md#failure-diagnostics-180)):
+
+```python
+from librus_python_api.diagnostics import describe_failure, failure_frames
+from librus_python_api.exceptions import LibrusError
+
+try:
+    await client.grades()
+except LibrusError as error:
+    print(
+        error.kind, failure_frames(error)
+    )  # ('grade_records:_numeric:100', 'markup:tooltip_fields:113')
+    print(describe_failure(error))  # masked HTML structure around the failure
+```
+
+To check a saved page offline (a page source saved with Ctrl+U, or a copied
+table), run `python -m librus_python_api.inspect_page grades page.html` (or
+`final-grades`). It prints counts, or the failure's code locations and masked
+structure, and makes no request. Pass a `diagnostic_sink` to `LibrusService`
+to receive one `DiagnosticEvent` per operation, with `frames` on failure.
+None of these print page text, values, logins or exception messages.
 
 ## Development and support
 

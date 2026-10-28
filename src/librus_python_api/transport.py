@@ -27,6 +27,9 @@ from librus_python_api.checkpoint import CheckpointState, handoff, validate_chec
 from librus_python_api.config import (
     ATTACHMENT_CHUNK_BYTES,
     AUTH_COOKIES,
+    DESCRIPTIVE_IDENTIFIER,
+    DESCRIPTIVE_IDENTIFIER_OPERATIONS,
+    DESCRIPTIVE_PARTIAL_GRADES_BODY,
     ENDPOINTS,
     FORM_FIELDS,
     FORM_MAX_VALUE_LENGTH,
@@ -60,6 +63,8 @@ from librus_python_api.models import (
     TransportResponse,
 )
 from librus_python_api.scheduler import RequestScheduler
+
+NUMERIC_REFERENCE = re.compile(r"[0-9]{1,64}")
 
 
 class AccountTransport(Protocol):
@@ -151,6 +156,9 @@ def _check_form(endpoint: Endpoint, form: RequestForm) -> None:
             1 <= len(form.login.get_secret_value()) <= 256
             and 1 <= len(form.password.get_secret_value()) <= 1024
         )
+    elif endpoint.operation_id == "descriptive_partial_grades":
+        # Its only body is the fixed JSON object; callers supply none.
+        valid = form is None
     elif endpoint.method == "POST":
         allowed = FORM_FIELDS.get(endpoint.operation_id, frozenset())
         valid = (
@@ -285,9 +293,13 @@ class AiohttpTransport:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         url = self._url(endpoint)
         if "{id}" in endpoint.path:
-            if type(reference_id) is not str or not re.fullmatch(
-                r"[0-9]{1,64}", reference_id
-            ):
+            # Only the gateway account routes take opaque string identifiers.
+            pattern = (
+                DESCRIPTIVE_IDENTIFIER
+                if endpoint_id in DESCRIPTIVE_IDENTIFIER_OPERATIONS
+                else NUMERIC_REFERENCE
+            )
+            if type(reference_id) is not str or not pattern.fullmatch(reference_id):
                 raise LibrusError(ErrorKind.INVALID_INPUT)
             url = url.replace("{id}", reference_id)
         elif reference_id is not None:
@@ -810,8 +822,11 @@ class AiohttpTransport:
                 "Referer": str(URL(self._url(endpoint)).with_query(OAUTH_QUERY)),
                 "X-Requested-With": "XMLHttpRequest",
             }
-        payload: dict[str, str] | None = None
-        if isinstance(form, LoginSubmission):
+        payload: dict[str, str] | bytes | None = None
+        if endpoint.operation_id == "descriptive_partial_grades":
+            payload = DESCRIPTIVE_PARTIAL_GRADES_BODY
+            headers = {"Content-Type": "application/json"}
+        elif isinstance(form, LoginSubmission):
             payload = {
                 "action": "login",
                 "login": form.login.get_secret_value(),
