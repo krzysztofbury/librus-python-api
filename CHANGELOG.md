@@ -6,14 +6,15 @@ Public types and signatures are unchanged.
 
 - Student information: the lucky number is read from the page header
   (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
-  page does not use, so `lucky_number` was always `UNAVAILABLE`. A "?" in the
-  marker, reported for schools without lucky numbers, stays `UNAVAILABLE`
-  instead of failing the read.
-- `describe_failure` summarizes a whole page held by the failing frame: body
-  text length, page notices, and each table row by row, instead of the start
-  of the page head. Profile labels and known page notices are shown by name.
-  A profile read that finds no unambiguous student table now shows which
-  labels the page has.
+  page does not use, so `lucky_number` was always `UNAVAILABLE`. An empty
+  marker or "?" (reported where no number is drawn; neither observed) stays
+  `UNAVAILABLE` instead of failing the read.
+- `describe_failure` summarizes a whole page held by the failing frame, after
+  the elements nearest the failure: body text length, Synergia menu and
+  header presence, title, headings, notices, forms and input types, and the
+  first tables row by row, instead of the start of the page head. Profile
+  labels, the login owner's row labels and known page notices are shown by
+  name, so a login or error page is told apart from a changed layout.
 - `inspect_page profile FILE` checks a saved information page. A page source
   saved as a macOS TextEdit document is named as such.
 

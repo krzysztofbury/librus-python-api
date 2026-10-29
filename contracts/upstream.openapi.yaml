@@ -1825,8 +1825,8 @@ paths:
         config.py. Arbitrary table positions are not a supported fallback.
         The header's span.luckyNumber (observed 2026-10-29, the number in a b
         element) can supply a number without an evidenced civil date; never
-        invent today's date. Missing markup, or "?" as reported for schools
-        without lucky numbers, is explicit unavailability. Up to 1.8.0 the
+        invent today's date. Missing markup, an empty marker, or "?" (reported
+        where no number is drawn, not observed) is explicit unavailability. Up to 1.8.0 the
         parser looked for an id the page does not use. The observed page labels the student's name "Imię i
         nazwisko ucznia" and also lists the login owner's own rows (name, login,
         masked password), which are never read as student fields.

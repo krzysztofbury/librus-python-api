@@ -223,7 +223,7 @@ def parse_profile(body: bytes) -> ProfileFields:
         lucky = LuckyNumber(Availability.UNAVAILABLE)
     elif len(markers) == 1:
         value = " ".join(markers[0].text_content().split())
-        if value == PROFILE_LUCKY_NUMBER_DISABLED:
+        if value in ("", PROFILE_LUCKY_NUMBER_DISABLED):
             lucky = LuckyNumber(Availability.UNAVAILABLE)
         elif re.fullmatch(r"[0-9]{1,4}", value):
             # No evidenced civil date in this marker. Never fabricate today's date.

@@ -17,6 +17,7 @@ from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.inspect_page import main
 from librus_python_api.models import DiagnosticEvent
+from librus_python_api.parsers import parse_profile
 from tests.grade_records_support import (
     GradeRecordsFixture,
     formative_table,
@@ -216,14 +217,20 @@ def test_inspect_page_summarizes_a_page_that_fails_as_a_whole(
     page = tmp_path / "page.html"
     page.write_text(profile_html(), encoding="utf-8")
     assert main(["profile", str(page)]) == 0
-    assert "OK fields=5, lucky_number=1" in capsys.readouterr().out
+    assert "OK lucky_number=1" in capsys.readouterr().out
     # No five-label table: an unknown tutor label, an unknown notice, and
-    # private values in every cell and in the head.
+    # private values in every cell, attribute and in the head.
     failing = (
         profile_html(school=f"{SECRET}school")
         .replace("Wychowawca", f"{SECRET}label")
         .replace("<body>", f'<body><div class="warning-content">{SECRET}</div>')
         .replace("<html>", f"<html><head><title>{SECRET}</title></head>")
+        .replace("<table>", f'<table class="decorated {SECRET.lower()}">')
+        .replace(
+            "</table>",
+            f'<tr><td colspan="{SECRET}">x</td></tr>'
+            f"<tr><th>Login</th><td>{SECRET}</td></tr></table>",
+        )
     )
     page.write_text(failing, encoding="utf-8")
     assert main(["profile", str(page)]) == 1
@@ -232,6 +239,7 @@ def test_inspect_page_summarizes_a_page_that_fails_as_a_whole(
     assert "document: page" in output and "notices: 1 TEXT(len=" in output
     assert "th['Klasa'] td[TEXT(len=6)]" in output
     assert f"th[TEXT(len={len(SECRET) + 5})]" in output
+    assert "th['Login'] td[TEXT(len=" in output and "table.decorated.?10" in output
     page.write_text(
         '<html><head><meta name="Generator" content="Cocoa HTML Writer"></head>'
         f"<body><p>&lt;html&gt;{SECRET}</p></body></html>",
@@ -239,3 +247,33 @@ def test_inspect_page_summarizes_a_page_that_fails_as_a_whole(
     )
     assert main(["profile", str(page)]) == 1
     assert "saved as a text document" in capsys.readouterr().out
+
+
+def test_a_page_summary_tells_a_login_page_apart_and_stays_bounded() -> None:
+    login = (
+        "<html><head><title>Login</title></head><body><h1>Login</h1>"
+        f'<form action="/OAuth/Authorization?q={SECRET}"><input name="login">'
+        f'<input type="password" value="{SECRET}"><input type="{SECRET}"></form>'
+        "</body></html>"
+    )
+    with pytest.raises(LibrusError) as caught:
+        parse_profile(login.encode())
+    report = describe_failure(caught.value)
+    assert report is not None and SECRET.casefold() not in report.casefold()
+    assert "graphic-menu=no user-section=no" in report
+    assert "forms: 1 <other len" in report and "inputs ?=1 password=1 text=1" in report
+    # Large tables before the student table: the summary is cut, the
+    # failing row still shown first.
+    cells = "".join(f"<td>{SECRET}</td>" for _ in range(8))
+    rows = "".join(f"<tr>{cells}</tr>" for _ in range(40))
+    page = (
+        profile_html()
+        .replace("Wychowawca", "X")
+        .replace("<table>", f"<table>{rows}</table>" * 6 + "<table>")
+    )
+    with pytest.raises(LibrusError) as caught:
+        parse_profile(page.encode())
+    report = describe_failure(caught.value)
+    assert report is not None and SECRET not in report
+    assert report.index("row: ") < report.index("document: page")
+    assert "...(truncated)" in report and len(report.encode()) <= 32 * 1024

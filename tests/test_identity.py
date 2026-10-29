@@ -370,11 +370,11 @@ def test_nonfinite_json_in_unknown_fields_is_not_trusted(number: str) -> None:
     assert caught.value.__context__ is None
 
 
-@pytest.mark.parametrize("lucky", ["", " ? "])
+@pytest.mark.parametrize("lucky", ["", " ? ", "<b></b>"])
 def test_profile_parser_uses_semantics_and_explicit_optional_availability(
     lucky: str,
 ) -> None:
-    # No marker, or the "?" a school without lucky numbers shows in it.
+    # No marker, the "?" reported where no number is drawn, or an empty one.
     fields = parse_profile(profile_html(lucky=lucky).encode())
     assert fields.register_number == 12
     assert fields.lucky_number.availability == Availability.UNAVAILABLE
@@ -594,6 +594,16 @@ def test_only_proven_session_expiry_can_trigger_credential_recovery(mode: str) -
                     assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("marker", "number"), [("x luckyNumber", 7), ("notluckyNumber", None)]
+)
+def test_lucky_number_marker_is_matched_by_whole_class_token(
+    marker: str, number: int | None
+) -> None:
+    page = profile_html().replace('class="luckyNumber"', f'class="{marker}"')
+    assert parse_profile(page.encode()).lucky_number.number == number
 
 
 def test_profile_reads_student_rows_and_ignores_login_owner_rows() -> None:

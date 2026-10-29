@@ -688,8 +688,13 @@ PROFILE_LABELS = MappingProxyType(
         "Szkoła": "school",
     }
 )
+# Rows the information page lists for the login's own user after the
+# student's rows (observed); never read, named by failure diagnostics.
+PROFILE_OWNER_LABELS = ("Imię i nazwisko użytkownika", "Login", "Hasło")
 # The page header shows the lucky number as `span.luckyNumber > b` (observed
-# 2026-10-29). A school without lucky numbers is reported to show "?" there.
+# 2026-10-29). "?" there is reported where no number is drawn, for a school
+# without lucky numbers and possibly on days without a draw; neither it nor
+# an empty marker has been observed.
 PROFILE_LUCKY_NUMBER_CLASS = "luckyNumber"
 PROFILE_LUCKY_NUMBER_DISABLED = "?"
 

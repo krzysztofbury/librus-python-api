@@ -50,7 +50,7 @@ def _final_grades(body: bytes) -> dict[str, int]:
 
 def _profile(body: bytes) -> dict[str, int]:
     lucky = parse_profile(body).lucky_number.availability
-    return {"fields": 5, "lucky_number": int(lucky == Availability.AVAILABLE)}
+    return {"lucky_number": int(lucky == Availability.AVAILABLE)}
 
 
 PARSERS: dict[str, Callable[[bytes], dict[str, int]]] = {
