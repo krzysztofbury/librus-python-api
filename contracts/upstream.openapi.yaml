@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.8.0
+  version: 1.8.1
   license:
     name: MIT
   description: |
@@ -1823,9 +1823,11 @@ paths:
         Requires an unambiguous table with semantic labels for student name,
         class, register number, tutor, and school. Labels are centralized in
         config.py. Arbitrary table positions are not a supported fallback.
-        A luckyNumber element can supply a number without an evidenced civil
-        date; never invent today's date. Missing lucky-number markup is explicit
-        unavailability. The observed page labels the student's name "Imię i
+        The header's span.luckyNumber (observed 2026-10-29, the number in a b
+        element) can supply a number without an evidenced civil date; never
+        invent today's date. Missing markup, or "?" as reported for schools
+        without lucky numbers, is explicit unavailability. Up to 1.8.0 the
+        parser looked for an id the page does not use. The observed page labels the student's name "Imię i
         nazwisko ucznia" and also lists the login owner's own rows (name, login,
         masked password), which are never read as student fields.
         notification_counts reads the same response's graphic menu

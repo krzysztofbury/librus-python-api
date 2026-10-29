@@ -688,6 +688,10 @@ PROFILE_LABELS = MappingProxyType(
         "Szkoła": "school",
     }
 )
+# The page header shows the lucky number as `span.luckyNumber > b` (observed
+# 2026-10-29). A school without lucky numbers is reported to show "?" there.
+PROFILE_LUCKY_NUMBER_CLASS = "luckyNumber"
+PROFILE_LUCKY_NUMBER_DISABLED = "?"
 
 # HTML summary headers omit the two leading body cells: expander and subject.
 # These labels/layout rules are source-informed requirements, not live evidence.

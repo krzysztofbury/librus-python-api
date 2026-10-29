@@ -173,11 +173,15 @@ from the exception's own traceback. Neither raises.
   known tooltip labels (`config.TOOLTIP_LABELS`), known detail-link families and
   lengths. Text and attribute values are masked unless they equal a parser
   constant, so a failing tooltip reads like `[[Data], [Waga], NO-COLON(len=17)]`.
-  Output is bounded. It is meant for a human to review before sharing, not for
+  A whole page held by the failing frame (1.8.1) is summarized instead: body
+  text length, page notices, then every table row by row, with known profile
+  labels and notices by name. Output is bounded. It is meant for a human to review before sharing, not for
   automatic upload.
-- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
-  saved page offline (a whole page or a copied table) and prints counts, or the
-  failure kind, frames and structure. It makes no request and applies the
+- `python -m librus_python_api.inspect_page {grades,final-grades,profile} FILE`
+  parses a saved page offline (a whole page or a copied table) and prints
+  counts, or the failure kind, frames and structure. `profile` (1.8.1) reads the
+  information page. A source view saved as a text document (macOS TextEdit) is
+  named as such instead of being parsed. It makes no request and applies the
   library's parse size limit. Exit status: 0 parsed, 1 failed, 2 unreadable
   file.
 
@@ -192,7 +196,8 @@ arbitrary-URL method.
   reads it, so the first call costs no extra request.
 - `student_information()` returns `StudentInformation` with name, class, register
   number, tutor, school and `lucky_number`. `LuckyNumber.availability` is
-  `UNAVAILABLE` when the page has none; no date is invented.
+  `UNAVAILABLE` when the page has no lucky number or shows "?" for it; no date
+  is invented. Up to 1.8.0 it was always `UNAVAILABLE`.
 
 Each result carries an `Observation(account, observed_at, session_generation,
 source)` with an aware UTC timestamp.

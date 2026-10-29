@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.8.1 (2026-10-29) - Lucky number and page-level failure diagnostics
+
+Public types and signatures are unchanged.
+
+- Student information: the lucky number is read from the page header
+  (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
+  page does not use, so `lucky_number` was always `UNAVAILABLE`. A "?" in the
+  marker, reported for schools without lucky numbers, stays `UNAVAILABLE`
+  instead of failing the read.
+- `describe_failure` summarizes a whole page held by the failing frame: body
+  text length, page notices, and each table row by row, instead of the start
+  of the page head. Profile labels and known page notices are shown by name.
+  A profile read that finds no unambiguous student table now shows which
+  labels the page has.
+- `inspect_page profile FILE` checks a saved information page. A page source
+  saved as a macOS TextEdit document is named as such.
+
 ## 1.8.0 (2026-10-28) - Failure diagnostics and gateway descriptive grades
 
 Errors still carry only their kind; new helpers say where a failure happened

@@ -23,7 +23,7 @@ from tests.grade_records_support import (
     grade_box,
     grades_html,
 )
-from tests.http_support import serve
+from tests.http_support import profile_html, serve
 
 SECRET = "ZZSECRETZZ"
 
@@ -208,3 +208,34 @@ def test_inspect_page_names_a_non_utf8_file_instead_of_a_layout_failure(
     page.write_bytes(grades_html(subject="Język").encode("utf-16"))
     assert main(["grades", str(page)]) == 1
     assert "not UTF-8" in capsys.readouterr().out
+
+
+def test_inspect_page_summarizes_a_page_that_fails_as_a_whole(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    page = tmp_path / "page.html"
+    page.write_text(profile_html(), encoding="utf-8")
+    assert main(["profile", str(page)]) == 0
+    assert "OK fields=5, lucky_number=1" in capsys.readouterr().out
+    # No five-label table: an unknown tutor label, an unknown notice, and
+    # private values in every cell and in the head.
+    failing = (
+        profile_html(school=f"{SECRET}school")
+        .replace("Wychowawca", f"{SECRET}label")
+        .replace("<body>", f'<body><div class="warning-content">{SECRET}</div>')
+        .replace("<html>", f"<html><head><title>{SECRET}</title></head>")
+    )
+    page.write_text(failing, encoding="utf-8")
+    assert main(["profile", str(page)]) == 1
+    output = capsys.readouterr().out
+    assert SECRET.casefold() not in output.casefold()
+    assert "document: page" in output and "notices: 1 TEXT(len=" in output
+    assert "th['Klasa'] td[TEXT(len=6)]" in output
+    assert f"th[TEXT(len={len(SECRET) + 5})]" in output
+    page.write_text(
+        '<html><head><meta name="Generator" content="Cocoa HTML Writer"></head>'
+        f"<body><p>&lt;html&gt;{SECRET}</p></body></html>",
+        encoding="utf-8",
+    )
+    assert main(["profile", str(page)]) == 1
+    assert "saved as a text document" in capsys.readouterr().out

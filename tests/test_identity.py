@@ -370,8 +370,12 @@ def test_nonfinite_json_in_unknown_fields_is_not_trusted(number: str) -> None:
     assert caught.value.__context__ is None
 
 
-def test_profile_parser_uses_semantics_and_explicit_optional_availability() -> None:
-    fields = parse_profile(profile_html(lucky="").encode())
+@pytest.mark.parametrize("lucky", ["", " ? "])
+def test_profile_parser_uses_semantics_and_explicit_optional_availability(
+    lucky: str,
+) -> None:
+    # No marker, or the "?" a school without lucky numbers shows in it.
+    fields = parse_profile(profile_html(lucky=lucky).encode())
     assert fields.register_number == 12
     assert fields.lucky_number.availability == Availability.UNAVAILABLE
     assert fields.lucky_number.number is None
@@ -386,7 +390,10 @@ def test_profile_parser_uses_semantics_and_explicit_optional_availability() -> N
         "<html>no data</html>",
         profile_html().replace("Klasa", "unknown"),
         profile_html().replace("<td>12</td>", "<td>invalid</td>"),
-        profile_html().replace("7</span>", "invalid</span>"),
+        profile_html(lucky="<b>invalid</b>"),
+        profile_html().replace(
+            "</table>", '</table><span class="luckyNumber">7</span>'
+        ),
         profile_html() + profile_html(),
     ],
 )

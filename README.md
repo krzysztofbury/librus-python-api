@@ -16,9 +16,10 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.0` reports where a failure happened (code locations and a
-redacted page structure, see [failure diagnostics](API.md#failure-diagnostics-180)),
-reads gateway descriptive grades for schools on the new descriptive schema
+**Status:** `1.8.1` reads the lucky number from the page header and summarizes
+a page that fails as a whole in diagnostics. `1.8.0` reports where a failure
+happened (code locations and a redacted page structure, see
+[failure diagnostics](API.md#failure-diagnostics-180)), reads gateway descriptive grades for schools on the new descriptive schema
 (source-informed, first populated read live on one school) and keeps the 1.7.1 point
 grades and multi-line grade comments. It keeps the 1.6.4 linear-time message body
 rendering and the 1.6.2 completed-lesson and grade layouts, including behaviour
@@ -34,7 +35,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.8.0
+python -m pip install librus-python-api==1.8.1
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -50,7 +51,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.8.0-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.8.1-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your
@@ -254,7 +255,10 @@ except LibrusError as error:
 
 To check a saved page offline (a page source saved with Ctrl+U, or a copied
 table), run `python -m librus_python_api.inspect_page grades page.html` (or
-`final-grades`). It prints counts, or the failure's code locations and masked
+`final-grades`, or `profile` for the information page `/informacja`). Save the
+page source itself: in Safari use File > Save As with format Page Source; in
+Chrome on macOS open it with Option+Cmd+U, then Cmd+S. A source view copied
+into TextEdit is a text document, which `inspect_page` rejects. It prints counts, or the failure's code locations and masked
 structure, and makes no request. Pass a `diagnostic_sink` to `LibrusService`
 to receive one `DiagnosticEvent` per operation, with `frames` on failure.
 None of these print page text, values, logins or exception messages.

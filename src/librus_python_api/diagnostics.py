@@ -30,6 +30,10 @@ _ELEMENT_LOCALS = 4
 _DEPTH = 6
 _NODES = 120
 _ELEMENT_BYTES = 8 * 1024
+_PAGE_TABLES = 12
+_PAGE_ROWS = 40
+_PAGE_CELLS = 8
+_PAGE_NOTICES = 4
 _REPORT_BYTES = 32 * 1024
 # Markup observed on Synergia pages. Other class tokens, tags and attribute
 # names are shown only as lengths, since they could carry data.
@@ -45,6 +49,7 @@ _CLASSES = frozenset(
         "decorated",
         "detail-grades",
         "double",
+        "form",
         "gradesCell",
         "grade-box",
         "grade-box-mapping",
@@ -53,6 +58,7 @@ _CLASSES = frozenset(
         "legend",
         "line0",
         "line1",
+        "luckyNumber",
         "micro",
         "newSchemaGradesByStudentTable",
         "no-border-left",
@@ -65,6 +71,7 @@ _CLASSES = frozenset(
         "stretch",
         "studentRow",
         "tooltip",
+        "warning-content",
     }
 )
 _TAGS = frozenset(
@@ -242,6 +249,10 @@ def _redaction_vocabulary() -> tuple[
         *config.GRADE_AVERAGE_HEADERS,
     }
     texts |= {label.casefold() for label in config.FORMATIVE_HEADERS}
+    texts |= set(config.PROFILE_LABELS) | {
+        f"{label}:" for label in config.PROFILE_LABELS
+    }
+    texts |= set(config.PAGE_NOTICES)
     prefixes = tuple(
         sorted(
             (
@@ -398,13 +409,59 @@ def _path(element: html.HtmlElement, redactor: _Redactor) -> str:
     return " > ".join(reversed(steps))
 
 
+def _cell(cell: html.HtmlElement, redactor: _Redactor) -> str:
+    spans = "".join(
+        f" {redactor.attribute(name, str(cell.get(name)))}"
+        for name in ("colspan", "rowspan")
+        if cell.get(name, "1") != "1"
+    )
+    text = redactor.text(cell.text_content()) or "EMPTY"
+    return f"{_tag(str(cell.tag))}{spans}[{text}]"
+
+
+def _page_summary(document: html.HtmlElement, redactor: _Redactor) -> list[str]:
+    """A whole page as its notices and tables, row by row; the head is skipped.
+
+    A page that fails as a whole (no expected table, an unknown notice, an
+    error page) is told apart by these, not by its first elements.
+    """
+    body = document.find("body")
+    text = " ".join((body if body is not None else document).text_content().split())
+    lines = [f"  body text len={len(text)}"]
+    notices = document.xpath(
+        '//div[contains(concat(" ",normalize-space(@class)," ")," warning-content ")]'
+    )
+    shown = [redactor.text(notice.text_content()) or "EMPTY" for notice in notices]
+    lines.append(f"  notices: {len(notices)} " + " ".join(shown[:_PAGE_NOTICES]))
+    tables = list(document.iter("table"))
+    lines.append(f"  tables: {len(tables)}")
+    for table in tables[:_PAGE_TABLES]:
+        rows = [
+            row
+            for row in table.iter("tr")
+            if next(row.iterancestors("table"), None) is table
+        ]
+        lines.append(f"  {_path(table, redactor)}: {len(rows)} rows")
+        for row in rows[:_PAGE_ROWS]:
+            cells = [cell for cell in row if cell.tag in ("td", "th")]
+            more = " ..." if len(cells) > _PAGE_CELLS else ""
+            rendered = " ".join(_cell(cell, redactor) for cell in cells[:_PAGE_CELLS])
+            lines.append(f"    {rendered}{more}")
+        if len(rows) > _PAGE_ROWS:
+            lines.append("    ...")
+    if len(tables) > _PAGE_TABLES:
+        lines.append("  ...")
+    return lines
+
+
 def describe_failure(error: BaseException) -> str | None:
     """The page structure around a failure, for a bug report.
 
     Shows the HTML elements held by the innermost library frame that holds
     any: tags, safe class tokens, known tooltip labels, known link families
-    and lengths. Text and attribute values are masked unless they equal a
-    parser constant. Returns None when there is nothing to show; never raises.
+    and lengths. A whole page is summarized as its notices and tables. Text
+    and attribute values are masked unless they equal a parser constant.
+    Returns None when there is nothing to show; never raises.
     """
     try:
         redactor = _Redactor()
@@ -427,6 +484,10 @@ def describe_failure(error: BaseException) -> str | None:
             lines = [f"at {_site(frame, line)}"]
             for name, value in elements:
                 redactor.nodes = 0
+                if value.getparent() is None and value.tag == "html":
+                    lines.append(f"{name}: page")
+                    lines.extend(_page_summary(value, redactor))
+                    continue
                 lines.append(f"{name}: {_path(value, redactor)}")
                 rendered = redactor.element(value)
                 if len(rendered) > _ELEMENT_BYTES:

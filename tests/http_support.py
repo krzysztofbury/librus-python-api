@@ -198,12 +198,14 @@ GRAPHIC_MENU = """<div id="graphic-menu"><ul>
     </ul></div>"""
 
 
-def profile_html(
-    school: str = "Synthetic School", lucky: str = '<span id="luckyNumber">7</span>'
-) -> str:
+def profile_html(school: str = "Synthetic School", lucky: str = "<b>7</b>") -> str:
+    """The information page; `lucky` fills the header's lucky-number marker,
+    which is left out entirely when empty."""
+    marker = f'<span class="luckyNumber">{lucky}</span>' if lucky else ""
     return f"""<!doctype html><html><body>{GRAPHIC_MENU}
+    <div id="user-section">Header text {marker}</div>
     <table><tr><th>Uczeń:</th><td>Fixture Student</td></tr>
     <tr><th>Klasa</th><td>1 TEST</td></tr>
     <tr><th>Numer w dzienniku</th><td>12</td></tr>
     <tr><th>Wychowawca</th><td>Fixture Tutor</td></tr>
-    <tr><th>Szkoła</th><td>{school}</td></tr></table>{lucky}</body></html>"""
+    <tr><th>Szkoła</th><td>{school}</td></tr></table></body></html>"""
