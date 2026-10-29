@@ -1,6 +1,7 @@
 """Public login-scoped account service under one shared traffic boundary."""
 
 import asyncio
+import contextvars
 import hashlib
 import hmac
 import json
@@ -381,6 +382,11 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+# The running operation's last checked read status, for its diagnostic event.
+# A holder per operation, so concurrent operations do not share one.
+_READ_STATUS: contextvars.ContextVar[list[int | None] | None] = contextvars.ContextVar(
+    "librus_read_status", default=None
+)
 _METADATA_MAP_FALLBACK = frozenset(
     {ErrorKind.ACCESS_DENIED, ErrorKind.CONNECTION, ErrorKind.LIMIT, ErrorKind.PARSE}
 )
@@ -1178,6 +1184,8 @@ class AccountClient:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         frames: tuple[str, ...] = ()
+        status: list[int | None] = [None]
+        status_token = _READ_STATUS.set(status)
         try:
             if deadline is None:
                 deadline = asyncio.timeout(None)
@@ -1215,6 +1223,7 @@ class AccountClient:
             # produce a misleading success diagnostic at this owner boundary.
             outcome = ErrorKind.CONNECTION
         finally:
+            _READ_STATUS.reset(status_token)
             self._emit(
                 DiagnosticEvent(
                     operation,
@@ -1223,6 +1232,7 @@ class AccountClient:
                     budget.requests_dispatched,
                     budget.response_bytes,
                     frames,
+                    status[0],
                 )
             )
 
@@ -2044,6 +2054,8 @@ class AccountClient:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         frames: tuple[str, ...] = ()
+        status: list[int | None] = [None]
+        status_token = _READ_STATUS.set(status)
         try:
             async with asyncio.timeout(budget.remaining_seconds()):
                 async with self._lock:
@@ -2062,6 +2074,7 @@ class AccountClient:
             outcome = ErrorKind.TIMEOUT
             raise LibrusError(ErrorKind.TIMEOUT) from None
         finally:
+            _READ_STATUS.reset(status_token)
             self._emit(
                 DiagnosticEvent(
                     operation,
@@ -2070,6 +2083,7 @@ class AccountClient:
                     budget.requests_dispatched,
                     budget.response_bytes,
                     frames,
+                    status[0],
                 )
             )
 
@@ -2548,6 +2562,9 @@ class AccountClient:
     def _validate_read_response(
         self, response: TransportResponse, content_type: str
     ) -> None:
+        holder = _READ_STATUS.get()
+        if holder is not None:
+            holder[0] = response.status
         if 300 <= response.status < 400:
             if self._is_module_unavailable_redirect(response):
                 raise LibrusError(ErrorKind.MODULE_UNAVAILABLE)

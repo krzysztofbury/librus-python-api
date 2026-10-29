@@ -24,7 +24,7 @@ from tests.grade_records_support import (
     grade_box,
     grades_html,
 )
-from tests.http_support import profile_html, serve
+from tests.http_support import SchoolFixture, profile_html, serve
 
 SECRET = "ZZSECRETZZ"
 
@@ -84,6 +84,29 @@ def test_frames_name_the_failure_site_after_the_service_boundary() -> None:
     assert all(SECRET not in frame for frame in frames)
     (event,) = [event for event in events if event.outcome is ErrorKind.PARSE]
     assert event.frames == frames
+
+
+def test_events_carry_the_http_status_a_read_failed_on() -> None:
+    # A 2xx other than 200 (4xx and 5xx fail in the transport) or a 200 of
+    # another media type fails as PARSE; the event says which status it was.
+    events: list[DiagnosticEvent] = []
+
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        fixture.profile_status["student"] = 204
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service(diagnostic_sink=events.append) as service:
+                with pytest.raises(ParseError):
+                    await service.account("student").student_information()
+                del fixture.profile_status["student"]
+                await service.account("student").student_information()
+
+    asyncio.run(scenario())
+    failed, succeeded = [e for e in events if e.operation == "student_information"]
+    assert (failed.outcome, failed.http_status) == (ErrorKind.PARSE, 204)
+    assert "_validate_read_response" in failed.frames[-1]
+    assert (succeeded.outcome, succeeded.http_status) == ("ok", 200)
 
 
 def test_a_raise_helper_is_not_the_failure_site() -> None:

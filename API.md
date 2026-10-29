@@ -148,8 +148,9 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   allowlisted modern directory and mailbox selections only. Arbitrary query keys,
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
-  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames)`.
-  `frames` (1.8.0) holds the code locations of a `LibrusError` outcome, as below;
+  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames,
+  http_status)`. `http_status` (1.8.1) is the HTTP status of the operation's
+  last checked read response, or None. `frames` (1.8.0) holds the code locations of a `LibrusError` outcome, as below;
   it is empty on success and for timeouts, cancellation and replaced
   connection errors. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
   through the standard `logging` logger named `librus_python_api`. The

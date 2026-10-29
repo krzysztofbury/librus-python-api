@@ -21,6 +21,10 @@ Signatures are unchanged; one error kind is added.
   caller can ask the user rather than treat the message as unreadable.
   `except InvalidInputError` still catches it; code comparing `kind` with
   `INVALID_INPUT` sees the new kind.
+- `DiagnosticEvent.http_status`: the HTTP status of the operation's last
+  checked read response, also logged by `logging_sink`. A read that fails as
+  `PARSE` at the response check now says whether it was a 2xx other than 200
+  or a 200 of another media type.
 - `inspect_page profile FILE` checks a saved information page. A page source
   saved as a macOS TextEdit document is named as such.
 

@@ -177,6 +177,7 @@ def logging_sink(event: DiagnosticEvent) -> None:
             "budget_requests_dispatched": event.budget_requests_dispatched,
             "budget_response_bytes": event.budget_response_bytes,
             "frames": event.frames,
+            "http_status": event.http_status,
         },
     )
 
