@@ -946,7 +946,8 @@ be a `MessageReference` for the same login with a numeric ID and typed folder.
 Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
 
 - Received opens require `allow_mark_read=True`, even for an already-read
-  selection or warm cache. Opening may mark read before any response or parse
+  selection or warm cache; without it they raise `ConsentRequiredError`
+  (`InvalidInputError` before 1.8.1) before any request. Opening may mark read before any response or parse
   failure. Consent does not assert that upstream actually changed a read flag.
 - `may_mark_read` describes the route, not delivery or mutation confirmation.
   Sent opens do not require the opt-in. Neither folder is automatically replayed,
@@ -1152,6 +1153,7 @@ text. `error_for(kind)` builds one.
 | Error | Meaning |
 | --- | --- |
 | `InvalidInputError` | Rejected before any request, or upstream rejected the selection |
+| `ConsentRequiredError` | A subclass of `InvalidInputError` (1.8.1): a call with an effect the user must agree to, such as opening a received message, was made without that consent; nothing was requested |
 | `CredentialsRejectedError` | Login and password refused |
 | `AccountActionRequiredError` | CAPTCHA, 2FA or another interactive step is required |
 | `SessionExpiredError` | Proven expiry that could not be recovered |

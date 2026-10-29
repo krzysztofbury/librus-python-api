@@ -894,10 +894,10 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> ModernMessageContent:
         validate_modern_message_reference(reference, self._alias)
-        if type(allow_mark_read) is not bool or (
-            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
-        ):
+        if type(allow_mark_read) is not bool:
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        if reference.folder is MessageFolder.RECEIVED and not allow_mark_read:
+            raise LibrusError(ErrorKind.CONSENT_REQUIRED)
         if reference.archived:
             # No archived content route or mark-read effect is established yet.
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
@@ -1761,10 +1761,10 @@ class AccountClient:
     ) -> MessageContent:
         """Open one message; received opens require explicit read-effect consent."""
         validate_reference(reference, self._alias)
-        if type(allow_mark_read) is not bool or (
-            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
-        ):
+        if type(allow_mark_read) is not bool:
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        if reference.folder is MessageFolder.RECEIVED and not allow_mark_read:
+            raise LibrusError(ErrorKind.CONSENT_REQUIRED)
         operation: Literal["message_content_received", "message_content_sent"] = (
             "message_content_received"
             if reference.folder is MessageFolder.RECEIVED

@@ -2,7 +2,7 @@
 
 ## 1.8.1 (2026-10-29) - Lucky number and page-level failure diagnostics
 
-Public types and signatures are unchanged.
+Signatures are unchanged; one error kind is added.
 
 - Student information: the lucky number is read from the page header
   (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
@@ -15,6 +15,12 @@ Public types and signatures are unchanged.
   first tables row by row, instead of the start of the page head. Profile
   labels, the login owner's row labels and known page notices are shown by
   name, so a login or error page is told apart from a changed layout.
+- `ErrorKind.CONSENT_REQUIRED` and `ConsentRequiredError`, a subclass of
+  `InvalidInputError`: opening a received message without
+  `allow_mark_read=True` raises it instead of a plain invalid input, so a
+  caller can ask the user rather than treat the message as unreadable.
+  `except InvalidInputError` still catches it; code comparing `kind` with
+  `INVALID_INPUT` sees the new kind.
 - `inspect_page profile FILE` checks a saved information page. A page source
   saved as a macOS TextEdit document is named as such.
 

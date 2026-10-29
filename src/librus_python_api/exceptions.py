@@ -7,6 +7,7 @@ __all__ = [
     "AccountActionRequiredError",
     "ClosedError",
     "CheckpointError",
+    "ConsentRequiredError",
     "ConnectionError",
     "CredentialsRejectedError",
     "ErrorKind",
@@ -31,6 +32,7 @@ __all__ = [
 class ErrorKind(StrEnum):
     CHECKPOINT = "checkpoint"
     INVALID_INPUT = "invalid_input"
+    CONSENT_REQUIRED = "consent_required"
     CREDENTIALS_REJECTED = "credentials_rejected"
     ACCOUNT_ACTION_REQUIRED = "account_action_required"
     SESSION_EXPIRED = "session_expired"
@@ -76,6 +78,13 @@ class LibrusError(Exception):
 
 class InvalidInputError(LibrusError):
     pass
+
+
+class ConsentRequiredError(InvalidInputError):
+    """A call with an effect the user must agree to was made without consent.
+
+    A subclass of InvalidInputError, which these calls raised before 1.8.1.
+    """
 
 
 class CredentialsRejectedError(LibrusError):
@@ -154,6 +163,7 @@ class StorageError(LibrusError):
 _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
     ErrorKind.CHECKPOINT: CheckpointError,
     ErrorKind.INVALID_INPUT: InvalidInputError,
+    ErrorKind.CONSENT_REQUIRED: ConsentRequiredError,
     ErrorKind.CREDENTIALS_REJECTED: CredentialsRejectedError,
     ErrorKind.ACCOUNT_ACTION_REQUIRED: AccountActionRequiredError,
     ErrorKind.SESSION_EXPIRED: SessionExpiredError,

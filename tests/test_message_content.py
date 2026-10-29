@@ -8,6 +8,8 @@ import pytest
 
 from librus_python_api import MessageFolder, MessageReference, RequestBudget
 from librus_python_api.exceptions import (
+    ConsentRequiredError,
+    ErrorKind,
     InvalidInputError,
     LimitError,
     ParseError,
@@ -283,7 +285,7 @@ def test_received_opt_in_and_foreign_or_injected_references_fail_before_login() 
         fixture.origin = "http://localhost:8080"
         async with fixture.service() as service:
             client = service.account("student")
-            with pytest.raises(InvalidInputError):
+            with pytest.raises(ConsentRequiredError):
                 await client.message_content(REFERENCE)
             for ref in (
                 replace(REFERENCE, account="parent"),
@@ -294,8 +296,9 @@ def test_received_opt_in_and_foreign_or_injected_references_fail_before_login() 
             ):
                 with pytest.raises(InvalidInputError):
                     await client.message_content(ref, allow_mark_read=True)  # type: ignore[arg-type]
-            with pytest.raises(InvalidInputError):
+            with pytest.raises(InvalidInputError) as error:
                 await client.message_content(REFERENCE, allow_mark_read=1)  # type: ignore[arg-type]
+            assert error.value.kind is ErrorKind.INVALID_INPUT
             assert fixture.calls == []
 
     asyncio.run(scenario())
