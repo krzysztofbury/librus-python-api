@@ -65,7 +65,7 @@ retrieval and produce a cursor; errors never return a partial-success cursor.
 The whole batch owns one account operation/lock, original deadline, request/body
 budget and diagnostic outcome. Every request passes through the existing global
 rate/concurrency/queue scheduler. Selections are POSTs with `select_view` effect
-and are never replayed, even for proven expiry on a later page. Authentication,
+and are never replayed, even for proven expiry on a later page. Synergia's logged-out page (1.8.1) is the exception: the read is repeated once after a fresh login. The whole read is repeated, earlier pages' selections included. Authentication,
 coalescing, bounded caching, invalidation and joined cancellation remain isolated
 per login. Cache keys distinguish page selections from batch/cursor/limit selections.
 

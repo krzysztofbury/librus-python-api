@@ -6,7 +6,7 @@ Two fixed selection operations discover named group types and the numeric
 recipients in one selected group. They use the existing account-isolated service,
 request/deadline/body budgets, lock, parser worker and cache/coalescing path.
 Both are selection-view operations and are never replayed after expiry or an
-ambiguous response. No send, message open, mark-read, attachment or read-once
+ambiguous response. Synergia's logged-out page (1.8.1) is the exception: the read is repeated once after a fresh login. No send, message open, mark-read, attachment or read-once
 operation is enabled.
 
 The recipient POST has exactly five fields: `typAdresata` is a bounded named

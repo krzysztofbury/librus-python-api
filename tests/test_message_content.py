@@ -13,10 +13,11 @@ from librus_python_api.exceptions import (
     InvalidInputError,
     LimitError,
     ParseError,
+    SessionExpiredError,
     UnsupportedCapabilityError,
 )
 from librus_python_api.message_content import parse_message_content
-from tests.http_support import serve
+from tests.http_support import LOGGED_OUT_PAGE, serve
 from tests.message_content_support import (
     attachment_html,
     content_html,
@@ -396,5 +397,30 @@ def test_received_open_invalidates_page_and_batch_even_if_parser_fails(
                 await client.messages(max_pages=1, max_age_seconds=60)
                 assert fixture.count("messages_received") == 4
                 assert fixture.count("message_content_received") == 1
+
+    asyncio.run(scenario())
+
+
+def test_a_logged_out_received_open_is_not_repeated() -> None:
+    # Opening marks a message read; the open is not repeated in a new session,
+    # it fails as an expiry and the next call signs in again.
+    async def scenario() -> None:
+        fixture = ReadsFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.messages_page()
+                fixture.bodies["message_content_received"] = (
+                    LOGGED_OUT_PAGE.encode(),
+                    "text/html",
+                )
+                with pytest.raises(SessionExpiredError):
+                    await client.message_content(REFERENCE, allow_mark_read=True)
+                assert fixture.count("message_content_received") == 1
+                assert fixture.logins == {"student": 1}
+                del fixture.bodies["message_content_received"]
+                await client.messages_page()
+                assert fixture.logins == {"student": 2}
 
     asyncio.run(scenario())

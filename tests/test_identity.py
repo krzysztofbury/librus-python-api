@@ -14,7 +14,7 @@ from librus_python_api.config import (
     AccountCredentials,
     ConnectionSettings,
 )
-from librus_python_api.diagnostics import logging_sink
+from librus_python_api.diagnostics import describe_failure, logging_sink
 from librus_python_api.exceptions import (
     AccessDeniedError,
     AccountActionRequiredError,
@@ -249,28 +249,45 @@ def test_logged_out_page_needs_its_heading_and_no_menu(
 
 @pytest.mark.parametrize("pages", [1, 2])
 def test_a_logged_out_page_is_read_again_once_in_a_fresh_session(pages: int) -> None:
-    # Synergia answers an unknown session with a 200 page without the menu.
+    # Synergia answers a session it no longer knows with a 200 page without
+    # the menu; an established session is signed in again and read once more.
     async def scenario() -> None:
         fixture = SchoolFixture()
-        fixture.logged_out["student"] = pages
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with fixture.service() as service:
                 client = service.account("student")
+                assert (await client.student_information()).register_number == 12
+                fixture.logged_out["student"] = pages
                 if pages == 1:
                     assert (await client.student_information()).register_number == 12
                 else:
-                    # A fresh session got the same page: a layout, not an expiry.
+                    # The fresh session got the same page: a layout, not an expiry.
                     with pytest.raises(ParseError) as caught:
                         await client.student_information()
                     assert isinstance(caught.value.__cause__, SessionExpiredError)
-                    assert (await client.student_information()).register_number == 12
+                    assert "'Brak dostępu'" in (describe_failure(caught.value) or "")
+                    # Signing in again at once cannot help: no request, no login.
+                    before = len(fixture.calls)
+                    with pytest.raises(ParseError):
+                        await client.student_information()
+                    assert len(fixture.calls) == before
                 assert fixture.logins == {"student": 2}
-                assert (
-                    sum(path == "/informacja" for path, _ in fixture.calls) == 3
-                    if pages == 2
-                    else 2
-                )
+                assert sum(path == "/informacja" for path, _ in fixture.calls) == 3
+
+    asyncio.run(scenario())
+
+
+def test_a_session_just_signed_in_that_gets_the_logged_out_page_fails_once() -> None:
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        fixture.logged_out["student"] = 1
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                with pytest.raises(ParseError):
+                    await service.account("student").student_information()
+                assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
 

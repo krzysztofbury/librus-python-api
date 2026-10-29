@@ -9,12 +9,15 @@ Signatures are unchanged; one error kind is added.
   redirect (observed 2026-10-29). Up to 1.8.0 every read then failed as
   `ParseError`, and kept failing until the client was recreated: the
   profile's `parse_profile` failure a tester reported. Such a page now counts
-  as expiry: the read signs in again and is repeated once, view-selection
-  POSTs included, since the page shows the request was not applied. A fresh
-  session getting the same page fails as `ParseError` without another
-  attempt. Verified live by invalidating the session cookies: student
-  information, notification counts, grades, timetable, attendance, homework
-  and messages each recovered with one login.
+  as expiry: a read without an account effect signs in again and is repeated
+  once, view-selection POSTs included, since the page shows the request was
+  not applied. Opening a received message (mark-read) is not repeated; it
+  fails as `SessionExpiredError` and the next call signs in. A session that
+  has just signed in and gets the page, or a repeat that gets it again, fails
+  as `ParseError` and cools down for 60 seconds, so a page that stays does
+  not sign in on every call. Verified live by invalidating the session
+  cookies: student information, notification counts, grades, timetable,
+  attendance, homework and legacy messages each recovered with one login.
 - Student information: the lucky number is read from the page header
   (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
   page does not use, so `lucky_number` was always `UNAVAILABLE`. An empty

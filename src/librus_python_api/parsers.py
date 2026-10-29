@@ -187,6 +187,8 @@ def parse_page(body: bytes, *, repeatable_id: str | None = None) -> html.HtmlEle
 
 def is_logged_out_page(body: bytes) -> bool:
     """Synergia's page for a session it no longer knows; never raises."""
+    if LOGGED_OUT_HEADING.encode() not in body:
+        return False
     try:
         parser = html.HTMLParser(no_network=True, recover=True, huge_tree=False)
         document = html.document_fromstring(body.decode("utf-8"), parser=parser)

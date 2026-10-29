@@ -30,7 +30,7 @@ There is no automatic cursor restart, retry or partial-success return.
 Bounds, continuation, deduplication, timestamp and status semantics are specified
 in [API.md](../API.md#message-lists). All reads share the existing account-lock,
 scheduler, cache/coalescing, parser-worker and operation-budget boundary. POSTs
-are not replayed. A later-page failure never exposes or caches partial output.
+are not replayed. Synergia's logged-out page (1.8.1) is the exception: the read is repeated once after a fresh login. The whole read is repeated, earlier pages' selections included. A later-page failure never exposes or caches partial output.
 
 ## Independent evidence and provenance
 

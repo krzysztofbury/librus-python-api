@@ -53,6 +53,7 @@ from librus_python_api.config import (
     ConnectionSettings,
     OperationLimits,
     SchedulerLimits,
+    SideEffect,
     TransportLimits,
     agenda_form,
     attendance_view_form,
@@ -390,6 +391,19 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
     if max_days is not None and start is not None and end is not None:
         if not 0 <= (end - start).days < max_days:
             raise LibrusError(ErrorKind.INVALID_INPUT)
+
+
+def _cooldown_due(error: LibrusError) -> bool:
+    """A denial, an unrecovered expiry, or a logged-out page that a session
+    just signed in also got: signing in again at once cannot help."""
+    if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
+        return True
+    cause = error.__cause__
+    return (
+        error.kind is ErrorKind.PARSE
+        and isinstance(cause, SessionExpiredError)
+        and cause._logged_out_page
+    )
 
 
 # The running operation's last checked read status, for its diagnostic event.
@@ -1213,10 +1227,7 @@ class AccountClient:
             outcome = error.kind
             if self._service._diagnostic_sink is not None:
                 frames = failure_frames(error)
-            if authenticate and error.kind in (
-                ErrorKind.ACCESS_DENIED,
-                ErrorKind.SESSION_EXPIRED,
-            ):
+            if authenticate and _cooldown_due(error):
                 self._cooldowns[operation] = (
                     time.monotonic() + self._service._transport_limits.cooldown_seconds,
                     error.kind,
@@ -2125,7 +2136,7 @@ class AccountClient:
         try:
             result = await self._authenticated(fetch, budget, retry_safe)
         except LibrusError as error:
-            if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
+            if _cooldown_due(error):
                 self._cooldowns[operation] = (
                     time.monotonic() + self._service._transport_limits.cooldown_seconds,
                     error.kind,
@@ -2145,8 +2156,8 @@ class AccountClient:
         be replayed. A view-changing POST is never replayed either; expiry only
         clears the session so a later explicit call can log in again. A
         logged-out page proves the request was not applied to the account, so
-        any read answered with one is repeated once in a fresh session; if that
-        session gets the same page, it is a layout and fails as PARSE.
+        a read without an account effect answered with one is repeated once in
+        a fresh session; a session just signed in that gets it fails as PARSE.
         """
         fresh_login = self._identity is None
         if fresh_login:
@@ -2154,6 +2165,8 @@ class AccountClient:
         try:
             return await fetch(budget, fresh_login)
         except SessionExpiredError as error:
+            if error._logged_out_page and fresh_login:
+                raise LibrusError(ErrorKind.PARSE) from error
             modern_expired = error._messages_origin
             if modern_expired:
                 self._invalidate_modern()
@@ -2207,9 +2220,14 @@ class AccountClient:
                     )
                 ):
                     raise
-                # Synergia's answer to a session it no longer knows.
+                # Synergia's answer to a session it no longer knows. A read
+                # with an account effect (mark-read) is not repeated: it fails
+                # as an unrecovered expiry and the next call signs in.
                 expired = SessionExpiredError(ErrorKind.SESSION_EXPIRED)
-                expired._logged_out_page = True
+                expired._logged_out_page = ENDPOINTS[endpoint].side_effect in (
+                    SideEffect.NONE,
+                    SideEffect.SELECT_VIEW,
+                )
                 raise expired from error
         except BaseException as error:
             if ENDPOINTS[endpoint].origin == "messages":

@@ -546,7 +546,7 @@ paths:
       x-side-effect: mark_read
       x-retry-safe: false
       x-evidence: independently_observed
-      x-evidence-note: Authorized already-read received content and 0.4.3 populated attachment metadata independently checked. Original HTTP proof prohibits replay; richer received layouts remain pending.
+      x-evidence-note: Authorized already-read received content and 0.4.3 populated attachment metadata independently checked. Original HTTP proof prohibits replay, also after Synergia's logged-out page (1.8.1); richer received layouts remain pending.
       parameters:
         - in: path
           name: id
@@ -902,7 +902,9 @@ paths:
       description: |
         Changes the selected grade view, not school records. Send only the fixed
         view field. Never replay this POST automatically, including after
-        session expiry, redirects, timeout, throttle, or ambiguous failure.
+        session expiry, redirects, timeout, throttle, or ambiguous failure,
+        except once after Synergia's logged-out "Brak dostępu" page (1.8.1),
+        which shows the POST was not applied.
         Offline wire fixtures validate the form and non-replay contract only.
         Numeric tables require the final-summary alignment contract and two
         current-grade headers (Oceny bieżące) for displayed semesters 1 and 2.
@@ -981,7 +983,8 @@ paths:
         second-semester qualification remain pending. See VERIFICATION.md.
       description: |
         Changes the upstream selected view, not attendance records. Never replay
-        this POST automatically, including after expiry or ambiguous failure.
+        this POST automatically, including after expiry or ambiguous failure,
+        except once after Synergia's logged-out page (1.8.1).
         All-view uses an empty field value; week/last-login values equal their
         field names. These differ from the grade-view forms.
         Requires one center/big/decorated grid with explicit semester headings.
@@ -1549,7 +1552,8 @@ paths:
       description: |
         Fixed week-selection form only. A plain civil date must be a Monday with
         a representable Sunday. Selecting the view is not replayed after errors,
-        expiry, cancellation or connection ambiguity. Account sessions, caches,
+        expiry, cancellation or connection ambiguity, except once after
+        Synergia's logged-out page (1.8.1). Account sessions, caches,
         coalescing keys and original shared request/deadline/body budgets apply.
         Raw HTML is not normalized domain JSON; unknown layouts must not silently
         become empty weeks. Timetable reads do not consume recent schedule events.
@@ -1666,7 +1670,7 @@ paths:
         cell holds the preview link, a mark-done button that is never invoked,
         and an optional "Zadanie oznaczono jako wykonane (date, time)" marker.
         No submissions, read-once agenda or attachments. Never replay the selection
-        POST. Empty success requires the explicit empty marker and no notice.
+        POST, except once after Synergia's logged-out page (1.8.1). Empty success requires the explicit empty marker and no notice.
         The optional client homework_range workflow makes up to 13 such disjoint
         selections for dates at most 370 days apart, under one total budget.
         It is an all-or-error aggregate, not a larger upstream selection or a
@@ -1934,7 +1938,7 @@ paths:
         fields and credentials are rejected by the list operation before dispatch.
         Sending is a distinct explicitly declared request variant with a dedicated
         single-use transport boundary. One zero-based sent-list page shares all global budgets and is
-        never replayed. No content opens, mark-read or attachment access occurs.
+        never replayed, except once after Synergia's logged-out page (1.8.1). No content opens, mark-read or attachment access occurs.
       security: [{SessionCookie: []}]
       requestBody:
         required: true

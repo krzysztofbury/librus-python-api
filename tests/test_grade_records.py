@@ -473,12 +473,13 @@ def test_a_logged_out_grade_page_is_posted_again_in_a_fresh_session() -> None:
     # account, so it is repeated once after signing in again.
     async def scenario() -> None:
         fixture = GradeRecordsFixture()
-        fixture.logged_out["student"] = 1
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with fixture.service() as service:
+                await service.account("student").grades()
+                fixture.logged_out["student"] = 1
                 grades = await service.account("student").grades()
         assert grades.records.numeric
-        assert len(fixture.view_posts) == 2 and fixture.logins == {"student": 2}
+        assert len(fixture.view_posts) == 3 and fixture.logins == {"student": 2}
 
     asyncio.run(scenario())
