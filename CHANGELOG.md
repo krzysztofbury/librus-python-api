@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.1 (2026-10-29) - Lucky number and page-level failure diagnostics
+## 1.8.1 (2026-10-29) - Lucky number, consent error and page-level failure diagnostics
 
 Signatures are unchanged; one error kind is added.
 
