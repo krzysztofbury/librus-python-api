@@ -7,7 +7,8 @@ last login" agenda, submit work, download attachments or mark anything as read.
 ## Agenda
 
 - Selection: the fixed POST form `rok`, `miesiac` (two digits), with year
-  2001..2100 and month 1..12. It is a view selection and is never replayed.
+  2001..2100 and month 1..12. It is a view selection and is never replayed,
+  except once after Synergia's logged-out page (1.8.1).
 - Every civil day of the month is returned, empty days included. A day is a
   `kalendarz-dzien` block with exactly one numbered marker; the count must match
   the month.

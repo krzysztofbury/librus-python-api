@@ -4,7 +4,7 @@ from html import escape
 
 from aiohttp import web
 
-from tests.http_support import SchoolFixture
+from tests.http_support import LOGGED_OUT_PAGE, SchoolFixture
 
 
 def grade_box(
@@ -348,6 +348,8 @@ class GradeRecordsFixture(SchoolFixture):
         )
         assert "X-Requested-With" not in request.headers
         self.view_posts.append((login, form))
+        if self.logged_out_page(login):
+            return web.Response(text=LOGGED_OUT_PAGE, content_type="text/html")
         return web.Response(
             text=self.grade_body
             if self.grade_body is not None

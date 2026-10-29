@@ -18,7 +18,7 @@ from librus_python_api import (
     RequestBudget,
 )
 from librus_python_api.config import SchedulerLimits
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, InvalidInputError, LibrusError
 from librus_python_api.modern_mailbox import (
     parse_correspondents,
     parse_page,
@@ -617,8 +617,12 @@ def test_modern_received_open_requires_consent_and_clears_summary_cache() -> Non
             reference = ModernMessageReference(
                 MessageFolder.RECEIVED, "19001", "student"
             )
-            with pytest.raises(LibrusError) as error:
+            with pytest.raises(InvalidInputError) as consent:
                 await client.modern_message_content(reference)
+            assert consent.value.kind is ErrorKind.CONSENT_REQUIRED
+            assert fixture.calls == []
+            with pytest.raises(LibrusError) as error:
+                await client.modern_message_content(reference, allow_mark_read=1)  # type: ignore[arg-type]
             assert error.value.kind is ErrorKind.INVALID_INPUT and fixture.calls == []
             page = await client.modern_messages_page(max_age_seconds=60)
             content = await client.modern_message_content(

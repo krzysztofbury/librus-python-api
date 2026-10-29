@@ -27,7 +27,7 @@ source-informed.
 | Capability | Baseline/consumer behavior | Native contract and deliberate differences |
 | --- | --- | --- |
 | Week | Consumer accepts a Monday string or infers current week in its school timezone | `timetable(monday: date)` requires an explicit plain Monday with representable Sunday. String parsing and default-week timezone policy stay consumer-owned |
-| Selection | One fixed week-selection POST | Central route and exact `tydzien=YYYY-MM-DD_YYYY-MM-DD` form; `select_view` side effect, never replayed automatically |
+| Selection | One fixed week-selection POST | Central route and exact `tydzien=YYYY-MM-DD_YYYY-MM-DD` form; `select_view` side effect, never replayed automatically, except once after Synergia's logged-out page (1.8.1) |
 | Days/slots | Seven nested day lists, including blank slots | Identity-bearing `Timetable` with seven explicit `TimetableDay` dates and immutable periods; no dropped weekend or empty slot |
 | Period/time | Number, raw date/from/to strings, locale weekday string | Explicit numeric period, `datetime.time` interval and owning civil day; no invented timezone/weekday text. Consumers render civil/time strings and weekday labels |
 | Lessons | Multiple subject/teacher blocks joined with slash delimiters | Ordered distinct `TimetableLesson` entries preserve grouping and subject hyphens; teacher/classroom remains combined rendered text with normalized whitespace, absent as None, not guessed identities/rooms. Same-response Chromium validation confirms native values: baseline differs in whitespace and one incorrect string per week. Do not reproduce that baseline string for exact parity |
@@ -35,7 +35,7 @@ source-informed.
 | Recess | Optional next-recess raw from/to values | Optional typed clock pair associated with its preceding period, preserving valid reported clocks including zero/inverted pairs. No inferred duration or constraint on lesson ordering. Absence remains None |
 | Attribute order | Baseline assumes date/from/to attribute insertion order | Native reads named attributes and checks explicit date coverage, independent of insertion order |
 | Unsupported layout | Baseline has positional assumptions and exceptions | Missing/ambiguous grids, dates outside requested week, repeated weekdays/periods, overlaps, malformed metadata, nested tables and unconsumed slot text fail without partial/empty fabrication |
-| Recovery/cache | Existing client session and mutable selection | Shared service budgets, isolated sessions, coalescing/cache keys include Monday. Explicit bounded reuse avoids POSTs. Expiry invalidates but does not replay a selection |
+| Recovery/cache | Existing client session and mutable selection | Shared service budgets, isolated sessions, coalescing/cache keys include Monday. Explicit bounded reuse avoids POSTs. Expiry invalidates but does not replay a selection, except once after Synergia's logged-out page (1.8.1) |
 
 ## Bounds and proof ownership
 

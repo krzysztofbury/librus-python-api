@@ -90,6 +90,8 @@ class DiagnosticEvent:
     budget_response_bytes: int
     # Code locations of a failure (see diagnostics.failure_frames), else empty.
     frames: tuple[str, ...] = ()
+    # HTTP status of the operation's last checked read response, if any.
+    http_status: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

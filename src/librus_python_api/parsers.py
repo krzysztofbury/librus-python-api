@@ -8,7 +8,14 @@ from typing import Any
 from lxml import etree, html
 from pydantic import ValidationError
 
-from librus_python_api.config import PAGE_NOTICES, PROFILE_LABELS
+from librus_python_api.config import (
+    LOGGED_IN_PAGE_MARKER,
+    LOGGED_OUT_HEADING,
+    PAGE_NOTICES,
+    PROFILE_LABELS,
+    PROFILE_LUCKY_NUMBER_CLASS,
+    PROFILE_LUCKY_NUMBER_DISABLED,
+)
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     Availability,
@@ -178,6 +185,23 @@ def parse_page(body: bytes, *, repeatable_id: str | None = None) -> html.HtmlEle
     return document
 
 
+def is_logged_out_page(body: bytes) -> bool:
+    """Synergia's page for a session it no longer knows; never raises."""
+    if LOGGED_OUT_HEADING.encode() not in body:
+        return False
+    try:
+        parser = html.HTMLParser(no_network=True, recover=True, huge_tree=False)
+        document = html.document_fromstring(body.decode("utf-8"), parser=parser)
+    except (UnicodeError, etree.LxmlError, ValueError):
+        return False
+    if document.get_element_by_id(LOGGED_IN_PAGE_MARKER, None) is not None:
+        return False
+    headings = [
+        " ".join(h.text_content().split()) for h in document.iter("h1", "h2", "h3")
+    ]
+    return headings == [LOGGED_OUT_HEADING]
+
+
 def parse_profile(body: bytes) -> ProfileFields:
     document = parse_page(body)
     required = {"name", "class_name", "register_number", "tutor", "school"}
@@ -210,15 +234,21 @@ def parse_profile(body: bytes) -> ProfileFields:
         raise LibrusError(ErrorKind.PARSE)
     if not re.fullmatch(r"[0-9]{1,4}", candidates[0]["register_number"]):
         raise LibrusError(ErrorKind.PARSE)
-    markers = document.xpath('//*[@id="luckyNumber"]')
+    markers = document.xpath(
+        '//span[contains(concat(" ",normalize-space(@class)," "),$token)]',
+        token=f" {PROFILE_LUCKY_NUMBER_CLASS} ",
+    )
     if not markers:
         lucky = LuckyNumber(Availability.UNAVAILABLE)
     elif len(markers) == 1:
         value = " ".join(markers[0].text_content().split())
-        if not re.fullmatch(r"[0-9]{1,4}", value):
+        if value in ("", PROFILE_LUCKY_NUMBER_DISABLED):
+            lucky = LuckyNumber(Availability.UNAVAILABLE)
+        elif re.fullmatch(r"[0-9]{1,4}", value):
+            # No evidenced civil date in this marker. Never fabricate today's date.
+            lucky = LuckyNumber(Availability.AVAILABLE, int(value))
+        else:
             raise LibrusError(ErrorKind.PARSE)
-        # No evidenced civil date in this marker. Never fabricate today's date.
-        lucky = LuckyNumber(Availability.AVAILABLE, int(value))
     else:
         raise LibrusError(ErrorKind.PARSE)
     fields = candidates[0]

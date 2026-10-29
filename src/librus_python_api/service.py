@@ -1,6 +1,7 @@
 """Public login-scoped account service under one shared traffic boundary."""
 
 import asyncio
+import contextvars
 import hashlib
 import hmac
 import json
@@ -52,6 +53,7 @@ from librus_python_api.config import (
     ConnectionSettings,
     OperationLimits,
     SchedulerLimits,
+    SideEffect,
     TransportLimits,
     agenda_form,
     attendance_view_form,
@@ -69,7 +71,12 @@ from librus_python_api.config import (
 )
 from librus_python_api.detail_fields import normalize_detail_fields
 from librus_python_api.diagnostics import DiagnosticSink, failure_frames
-from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.exceptions import (
+    ErrorKind,
+    LibrusError,
+    ParseError,
+    SessionExpiredError,
+)
 from librus_python_api.gateway_grades import (
     DescriptiveTable,
     descriptive_grades,
@@ -198,7 +205,12 @@ from librus_python_api.notifications import (
     parse_schedule_events,
     validate_response,
 )
-from librus_python_api.parsers import parse_identity, parse_login, parse_profile
+from librus_python_api.parsers import (
+    is_logged_out_page,
+    parse_identity,
+    parse_login,
+    parse_profile,
+)
 from librus_python_api.parsing import ParserPool
 from librus_python_api.recipients import (
     parse_recipient_group_choices,
@@ -381,6 +393,24 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+def _cooldown_due(error: LibrusError) -> bool:
+    """A denial, an unrecovered expiry, or a logged-out page that a session
+    just signed in also got: signing in again at once cannot help."""
+    if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
+        return True
+    cause = error.__cause__
+    return (
+        error.kind is ErrorKind.PARSE
+        and isinstance(cause, SessionExpiredError)
+        and cause._logged_out_page
+    )
+
+
+# The running operation's last checked read status, for its diagnostic event.
+# A holder per operation, so concurrent operations do not share one.
+_READ_STATUS: contextvars.ContextVar[list[int | None] | None] = contextvars.ContextVar(
+    "librus_read_status", default=None
+)
 _METADATA_MAP_FALLBACK = frozenset(
     {ErrorKind.ACCESS_DENIED, ErrorKind.CONNECTION, ErrorKind.LIMIT, ErrorKind.PARSE}
 )
@@ -894,10 +924,10 @@ class AccountClient:
         max_age_seconds: float = 0.0,
     ) -> ModernMessageContent:
         validate_modern_message_reference(reference, self._alias)
-        if type(allow_mark_read) is not bool or (
-            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
-        ):
+        if type(allow_mark_read) is not bool:
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        if reference.folder is MessageFolder.RECEIVED and not allow_mark_read:
+            raise LibrusError(ErrorKind.CONSENT_REQUIRED)
         if reference.archived:
             # No archived content route or mark-read effect is established yet.
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
@@ -1178,6 +1208,8 @@ class AccountClient:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         frames: tuple[str, ...] = ()
+        status: list[int | None] = [None]
+        status_token = _READ_STATUS.set(status)
         try:
             if deadline is None:
                 deadline = asyncio.timeout(None)
@@ -1195,10 +1227,7 @@ class AccountClient:
             outcome = error.kind
             if self._service._diagnostic_sink is not None:
                 frames = failure_frames(error)
-            if authenticate and error.kind in (
-                ErrorKind.ACCESS_DENIED,
-                ErrorKind.SESSION_EXPIRED,
-            ):
+            if authenticate and _cooldown_due(error):
                 self._cooldowns[operation] = (
                     time.monotonic() + self._service._transport_limits.cooldown_seconds,
                     error.kind,
@@ -1215,6 +1244,7 @@ class AccountClient:
             # produce a misleading success diagnostic at this owner boundary.
             outcome = ErrorKind.CONNECTION
         finally:
+            _READ_STATUS.reset(status_token)
             self._emit(
                 DiagnosticEvent(
                     operation,
@@ -1223,6 +1253,7 @@ class AccountClient:
                     budget.requests_dispatched,
                     budget.response_bytes,
                     frames,
+                    status[0],
                 )
             )
 
@@ -1761,10 +1792,10 @@ class AccountClient:
     ) -> MessageContent:
         """Open one message; received opens require explicit read-effect consent."""
         validate_reference(reference, self._alias)
-        if type(allow_mark_read) is not bool or (
-            reference.folder is MessageFolder.RECEIVED and not allow_mark_read
-        ):
+        if type(allow_mark_read) is not bool:
             raise LibrusError(ErrorKind.INVALID_INPUT)
+        if reference.folder is MessageFolder.RECEIVED and not allow_mark_read:
+            raise LibrusError(ErrorKind.CONSENT_REQUIRED)
         operation: Literal["message_content_received", "message_content_sent"] = (
             "message_content_received"
             if reference.folder is MessageFolder.RECEIVED
@@ -2044,6 +2075,8 @@ class AccountClient:
         started = time.monotonic()
         outcome: ErrorKind | Literal["ok", "cancelled"] = "ok"
         frames: tuple[str, ...] = ()
+        status: list[int | None] = [None]
+        status_token = _READ_STATUS.set(status)
         try:
             async with asyncio.timeout(budget.remaining_seconds()):
                 async with self._lock:
@@ -2062,6 +2095,7 @@ class AccountClient:
             outcome = ErrorKind.TIMEOUT
             raise LibrusError(ErrorKind.TIMEOUT) from None
         finally:
+            _READ_STATUS.reset(status_token)
             self._emit(
                 DiagnosticEvent(
                     operation,
@@ -2070,6 +2104,7 @@ class AccountClient:
                     budget.requests_dispatched,
                     budget.response_bytes,
                     frames,
+                    status[0],
                 )
             )
 
@@ -2101,7 +2136,7 @@ class AccountClient:
         try:
             result = await self._authenticated(fetch, budget, retry_safe)
         except LibrusError as error:
-            if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
+            if _cooldown_due(error):
                 self._cooldowns[operation] = (
                     time.monotonic() + self._service._transport_limits.cooldown_seconds,
                     error.kind,
@@ -2119,7 +2154,10 @@ class AccountClient:
 
         Initial login is never retried: a failed credential submission must not
         be replayed. A view-changing POST is never replayed either; expiry only
-        clears the session so a later explicit call can log in again.
+        clears the session so a later explicit call can log in again. A
+        logged-out page proves the request was not applied to the account, so
+        a read without an account effect answered with one is repeated once in
+        a fresh session; a session just signed in that gets it fails as PARSE.
         """
         fresh_login = self._identity is None
         if fresh_login:
@@ -2127,18 +2165,22 @@ class AccountClient:
         try:
             return await fetch(budget, fresh_login)
         except SessionExpiredError as error:
+            if error._logged_out_page and fresh_login:
+                raise LibrusError(ErrorKind.PARSE) from error
             modern_expired = error._messages_origin
             if modern_expired:
                 self._invalidate_modern()
             else:
                 self._invalidate()
-            if not retry_safe:
+            if not retry_safe and not error._logged_out_page:
                 raise
         if not modern_expired:
             await self._authenticate(budget)
         try:
             return await fetch(budget, not modern_expired)
         except SessionExpiredError as error:
+            if error._logged_out_page:
+                raise LibrusError(ErrorKind.PARSE) from error
             if error._messages_origin:
                 self._invalidate_modern()
             else:
@@ -2167,7 +2209,26 @@ class AccountClient:
                     endpoint, budget, form=form, reference_id=reference, query=query
                 )
             self._validate_read_response(response, content_type)
-            return await self._service._parsers.run(parse, response.body, budget)
+            try:
+                return await self._service._parsers.run(parse, response.body, budget)
+            except ParseError as error:
+                if (
+                    content_type != HTML
+                    or ENDPOINTS[endpoint].origin != "synergia"
+                    or not await self._service._parsers.run(
+                        is_logged_out_page, response.body, budget
+                    )
+                ):
+                    raise
+                # Synergia's answer to a session it no longer knows. A read
+                # with an account effect (mark-read) is not repeated: it fails
+                # as an unrecovered expiry and the next call signs in.
+                expired = SessionExpiredError(ErrorKind.SESSION_EXPIRED)
+                expired._logged_out_page = ENDPOINTS[endpoint].side_effect in (
+                    SideEffect.NONE,
+                    SideEffect.SELECT_VIEW,
+                )
+                raise expired from error
         except BaseException as error:
             if ENDPOINTS[endpoint].origin == "messages":
                 self._invalidate_modern()
@@ -2548,6 +2609,9 @@ class AccountClient:
     def _validate_read_response(
         self, response: TransportResponse, content_type: str
     ) -> None:
+        holder = _READ_STATUS.get()
+        if holder is not None:
+            holder[0] = response.status
         if 300 <= response.status < 400:
             if self._is_module_unavailable_redirect(response):
                 raise LibrusError(ErrorKind.MODULE_UNAVAILABLE)

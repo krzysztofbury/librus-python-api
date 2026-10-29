@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.8.1 (2026-10-29) - Session recovery, lucky number, consent error and diagnostics
+
+Signatures are unchanged; one error kind is added.
+
+- Session recovery: for a session it no longer knows, Synergia answers every
+  page read with status 200 and a "Brak dostępu" page instead of a login
+  redirect (observed 2026-10-29). Up to 1.8.0 every read then failed as
+  `ParseError`, and kept failing until the client was recreated: the
+  profile's `parse_profile` failure a tester reported. Such a page now counts
+  as expiry: a read without an account effect signs in again and is repeated
+  once, view-selection POSTs included, since the page shows the request was
+  not applied. Opening a received message (mark-read) is not repeated; it
+  fails as `SessionExpiredError` and the next call signs in. A session that
+  has just signed in and gets the page, or a repeat that gets it again, fails
+  as `ParseError` and cools down for 60 seconds, so a page that stays does
+  not sign in on every call. Verified live by invalidating the session
+  cookies: student information, notification counts, grades, timetable,
+  attendance, homework and legacy messages each recovered with one login.
+- Student information: the lucky number is read from the page header
+  (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
+  page does not use, so `lucky_number` was always `UNAVAILABLE`. An empty
+  marker or "?" (reported where no number is drawn; neither observed) stays
+  `UNAVAILABLE` instead of failing the read.
+- `describe_failure` summarizes a whole page held by the failing frame, after
+  the elements nearest the failure: body text length, Synergia menu and
+  header presence, title, headings, notices, forms and input types, and the
+  first tables row by row, instead of the start of the page head. Profile
+  labels, the login owner's row labels and known page notices are shown by
+  name, so a login or error page is told apart from a changed layout.
+- `ErrorKind.CONSENT_REQUIRED` and `ConsentRequiredError`, a subclass of
+  `InvalidInputError`: opening a received message without
+  `allow_mark_read=True` raises it instead of a plain invalid input, so a
+  caller can ask the user rather than treat the message as unreadable.
+  `except InvalidInputError` still catches it; code comparing `kind` with
+  `INVALID_INPUT` sees the new kind.
+- `DiagnosticEvent.http_status`: the HTTP status of the operation's last
+  checked read response, also logged by `logging_sink`. A read that fails as
+  `PARSE` at the response check now says whether it was a 2xx other than 200
+  or a 200 of another media type.
+- `inspect_page profile FILE` checks a saved information page. A page source
+  saved as a macOS TextEdit document is named as such.
+
 ## 1.8.0 (2026-10-28) - Failure diagnostics and gateway descriptive grades
 
 Errors still carry only their kind; new helpers say where a failure happened

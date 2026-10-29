@@ -148,7 +148,10 @@ refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError
   allowlisted modern directory and mailbox selections only. Arbitrary query keys,
   routes and modern-to-legacy reference reuse are rejected before dispatch.
 - `diagnostic_sink`: receives `DiagnosticEvent(operation, outcome,
-  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames)`.
+  elapsed_seconds, budget_requests_dispatched, budget_response_bytes, frames,
+  http_status)`. `http_status` (1.8.1) is the HTTP status of the operation's
+  last checked read response, or None; statuses the transport turns into
+  errors (4xx, 5xx) are not checked reads, and attachment streams carry none.
   `frames` (1.8.0) holds the code locations of a `LibrusError` outcome, as below;
   it is empty on success and for timeouts, cancellation and replaced
   connection errors. `librus_python_api.diagnostics.logging_sink` emits allowlisted fields
@@ -173,11 +176,17 @@ from the exception's own traceback. Neither raises.
   known tooltip labels (`config.TOOLTIP_LABELS`), known detail-link families and
   lengths. Text and attribute values are masked unless they equal a parser
   constant, so a failing tooltip reads like `[[Data], [Waga], NO-COLON(len=17)]`.
-  Output is bounded. It is meant for a human to review before sharing, not for
+  A whole page held by the failing frame (1.8.1) is summarized after the other
+  elements: body text length, whether the Synergia menu and header are
+  present, title, headings, notices, forms and input types, then the first
+  tables row by row, with known profile labels and notices by name. Output is
+  bounded. It is meant for a human to review before sharing, not for
   automatic upload.
-- `python -m librus_python_api.inspect_page {grades,final-grades} FILE` parses a
-  saved page offline (a whole page or a copied table) and prints counts, or the
-  failure kind, frames and structure. It makes no request and applies the
+- `python -m librus_python_api.inspect_page {grades,final-grades,profile} FILE`
+  parses a saved page offline (a whole page or a copied table) and prints
+  counts, or the failure kind, frames and structure. `profile` (1.8.1) reads the
+  information page. A source view saved as a text document (macOS TextEdit) is
+  named as such instead of being parsed. It makes no request and applies the
   library's parse size limit. Exit status: 0 parsed, 1 failed, 2 unreadable
   file.
 
@@ -192,7 +201,8 @@ arbitrary-URL method.
   reads it, so the first call costs no extra request.
 - `student_information()` returns `StudentInformation` with name, class, register
   number, tutor, school and `lucky_number`. `LuckyNumber.availability` is
-  `UNAVAILABLE` when the page has none; no date is invented.
+  `UNAVAILABLE` when the page has no lucky number, an empty marker or "?" in
+  it; no date is invented. Up to 1.8.0 it was always `UNAVAILABLE`.
 
 Each result carries an `Observation(account, observed_at, session_generation,
 source)` with an aware UTC timestamp.
@@ -205,7 +215,8 @@ source)` with an aware UTC timestamp.
   `UNAVAILABLE` means the column is absent.
 - `grades(view=GradeView.ALL)` returns `Grades(identity, records, observation,
   view)`. Selecting a view (`ALL`, `WEEK`, `LAST_LOGIN`) is one POST that changes
-  the filter shown in that login's session; it is never replayed. `records` has:
+  the filter shown in that login's session; it is never replayed
+  (except once after Synergia's logged-out page, see [Errors](#errors)). `records` has:
   - `numeric`: `NumericGrade` with subject, raw symbol, civil `day`, semester,
     `kind` (`GradeKind`), and the optional count flag, weight, category, teacher,
     comment and tooltip `metadata`. Unknown weight or count is `None`, not zero.
@@ -301,7 +312,7 @@ school's login. See [gateway descriptive grades](contracts/grades.md#gateway-des
 - `attendance(view=AttendanceView.ALL)` returns `Attendance` with
   `AttendanceRecord`s (symbol, day, semester, type, teacher, period, excursion
   flag, topic, subject, numeric `detail_id`, tooltip metadata) and the semesters
-  shown. The view POST is never replayed.
+  shown. The view POST is never replayed (except once after Synergia's logged-out page, see [Errors](#errors)).
 - `attendance_window(start=None, end=None, view=AttendanceView.ALL)` filters the
   selected collection, with the same optional-date/370-day-difference rules.
   `AttendanceWindow.view` records the selection.
@@ -334,7 +345,8 @@ seven `TimetableDay`s. Each `TimetablePeriod` has a number, a local-time
 `changes` and the reported `next_recess`. A `TimetableChange` keeps the notice
 label (for example "zastępstwo") and its tooltip fields in order. The tooltip
 anchor may wrap the notice or sit inside it. No status is inferred from the
-label. The week selection is a POST that is never replayed.
+label. The week selection is a POST that is never replayed
+(except once after Synergia's logged-out page, see [Errors](#errors)).
 
 ## Announcements
 
@@ -442,7 +454,8 @@ Each `MessageSummary` carries:
 Each text field is bounded to 4,096 characters, total page text to 256 KiB,
 in addition to shared body/parser/request limits. No body or attachment fetch,
 mark-read, delete, send or read-once operation occurs. Pagination changes the
-selected mailbox view, so its POST is never replayed, including after expiry.
+selected mailbox view, so its POST is never replayed, including after expiry
+(except once after Synergia's logged-out page, see [Errors](#errors)).
 Page and batch caches are separate and fresh by default.
 
 In 0.4.11 a full 50-row page without pagination metadata is unsupported, not
@@ -939,7 +952,8 @@ be a `MessageReference` for the same login with a numeric ID and typed folder.
 Foreign accounts, arbitrary URLs and injected IDs fail before authentication.
 
 - Received opens require `allow_mark_read=True`, even for an already-read
-  selection or warm cache. Opening may mark read before any response or parse
+  selection or warm cache; without it they raise `ConsentRequiredError`
+  (`InvalidInputError` before 1.8.1) before any request. Opening may mark read before any response or parse
   failure. Consent does not assert that upstream actually changed a read flag.
 - `may_mark_read` describes the route, not delivery or mutation confirmation.
   Sent opens do not require the opt-in. Neither folder is automatically replayed,
@@ -1072,7 +1086,7 @@ Limits: 32 group selectors, 2,048 recipients, 1,024 characters per label and
 128 KiB total recipient text, plus shared transport/parser/body limits. Each
 lookup has its own account/type/selection cache key and accepts the common budget and
 freshness parameters. Fresh reads are default. Both selection operations are
-never replayed, even though group discovery uses GET. No send route, message
+never replayed (except once after Synergia's logged-out page, see [Errors](#errors)), even though group discovery uses GET. No send route, message
    content, mark-read, attachment or read-once access occurs in recipient discovery.
 
 The empty group-option selector is observed. Populated choices, nonzero dispatch,
@@ -1088,7 +1102,8 @@ grades, attendance, messages, announcements, agenda and homework. A shown catego
 without a counter has zero; missing categories are not fabricated. Invalid or
 duplicate counters fail. The menu may be a token-scoped snapshot, not a fresh poll
 or the input for seen-state updates. This ordinary read accepts the common
-budget/freshness arguments and conservatively does not replay on expiry.
+budget/freshness arguments and conservatively does not replay on expiry
+(except once after Synergia's logged-out page, see [Errors](#errors)).
 
 ```python
 batch = await client.consume_schedule_events(
@@ -1145,6 +1160,7 @@ text. `error_for(kind)` builds one.
 | Error | Meaning |
 | --- | --- |
 | `InvalidInputError` | Rejected before any request, or upstream rejected the selection |
+| `ConsentRequiredError` | A subclass of `InvalidInputError` (1.8.1): a call with an effect the user must agree to, such as opening a received message, was made without that consent; nothing was requested |
 | `CredentialsRejectedError` | Login and password refused |
 | `AccountActionRequiredError` | CAPTCHA, 2FA or another interactive step is required |
 | `SessionExpiredError` | Proven expiry that could not be recovered |
@@ -1162,9 +1178,24 @@ text. `error_for(kind)` builds one.
 
 Recovery policy:
 
-- Only a 401, or a redirect to an approved login route, proves expiry.
+- A 401 or a redirect to an approved login route proves expiry. So does
+  (1.8.1) a Synergia page that fails to parse, has no signed-in menu and
+  whose only heading is "Brak dostępu", unless a session that has just signed
+  in gets it. Synergia answers every page read of a session
+  it no longer knows that way, with status 200 (observed 2026-10-29); up to
+  1.8.0 this failed as `ParseError` on every call until the client was
+  recreated.
 - Safe GET reads then log in once more and retry once, within the same budget.
-- View-selection POSTs are never replayed.
+- View-selection POSTs are never replayed after a 401 or login redirect. A
+  read without an account effect answered with the logged-out page, POST
+  included, is repeated once in a fresh session: that page shows the request
+  was not applied to the account. The whole read is repeated, so a
+  multi-page read posts its earlier view selections again (the same views,
+  within the same budget). Opening a received message, which marks it read,
+  is not repeated: it fails as `SessionExpiredError` and the next call signs
+  in. If the fresh session gets the same page, or a session that has just
+  signed in gets it, the read fails as `ParseError` and that operation cools
+  down for 60 seconds, so a page that stays does not sign in on every call.
 - A denial or unrecovered expiry starts a 60-second cooldown for that operation
   on that login; a failed login starts one for the whole login.
 - 429 and 503 pause the whole scheduler, honouring `Retry-After` up to 24 hours.

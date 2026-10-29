@@ -52,6 +52,12 @@ client. Follow any workspace-level agent rules as well as these project rules.
   `diagnostics.failure_frames(error)` for locations and
   `diagnostics.describe_failure(error)` for the masked structure (tags,
   observed class tokens and ID shapes, known tooltip labels, lengths).
+- When the user's saved page parses cleanly but their reads fail, the library
+  received a different document (a notice, an error page, another login). Ask
+  for the failure's page summary (`describe_failure` on a whole page shows body
+  text length, notices and table rows), not for another page.
+- A source view saved by macOS TextEdit (`Cocoa HTML Writer`) holds the source
+  as text in a table; `inspect_page` rejects it. Ask for Page Source instead.
 - A page a user relays is private data: keep it in job scratch outside the
   repository, never commit or quote it, delete it afterwards, and add original
   fixtures that follow its structure. For an owner's own account, capture with

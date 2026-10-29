@@ -30,6 +30,16 @@ _ELEMENT_LOCALS = 4
 _DEPTH = 6
 _NODES = 120
 _ELEMENT_BYTES = 8 * 1024
+_PAGE_TABLES = 12
+_PAGE_ROWS = 40
+_PAGE_CELLS = 8
+_PAGE_NOTICES = 4
+# Input types a login, search or settings form uses; others are shown as "?".
+_INPUT_TYPES = frozenset(
+    {"button", "checkbox", "hidden", "password", "radio", "submit", "text"}
+)
+# Element IDs whose presence tells a Synergia page from a login or error page.
+_PAGE_MARKERS = ("graphic-menu", "user-section")
 _REPORT_BYTES = 32 * 1024
 # Markup observed on Synergia pages. Other class tokens, tags and attribute
 # names are shown only as lengths, since they could carry data.
@@ -45,6 +55,7 @@ _CLASSES = frozenset(
         "decorated",
         "detail-grades",
         "double",
+        "form",
         "gradesCell",
         "grade-box",
         "grade-box-mapping",
@@ -53,6 +64,7 @@ _CLASSES = frozenset(
         "legend",
         "line0",
         "line1",
+        "luckyNumber",
         "micro",
         "newSchemaGradesByStudentTable",
         "no-border-left",
@@ -65,6 +77,7 @@ _CLASSES = frozenset(
         "stretch",
         "studentRow",
         "tooltip",
+        "warning-content",
     }
 )
 _TAGS = frozenset(
@@ -164,6 +177,7 @@ def logging_sink(event: DiagnosticEvent) -> None:
             "budget_requests_dispatched": event.budget_requests_dispatched,
             "budget_response_bytes": event.budget_response_bytes,
             "frames": event.frames,
+            "http_status": event.http_status,
         },
     )
 
@@ -242,6 +256,9 @@ def _redaction_vocabulary() -> tuple[
         *config.GRADE_AVERAGE_HEADERS,
     }
     texts |= {label.casefold() for label in config.FORMATIVE_HEADERS}
+    profile = (*config.PROFILE_LABELS, *config.PROFILE_OWNER_LABELS)
+    texts |= set(profile) | {f"{label}:" for label in profile}
+    texts |= set(config.PAGE_NOTICES) | {config.LOGGED_OUT_HEADING}
     prefixes = tuple(
         sorted(
             (
@@ -398,13 +415,91 @@ def _path(element: html.HtmlElement, redactor: _Redactor) -> str:
     return " > ".join(reversed(steps))
 
 
+def _cell(cell: html.HtmlElement, redactor: _Redactor) -> str:
+    spans = "".join(
+        f" {redactor.attribute(name, str(cell.get(name)))}"
+        for name in ("colspan", "rowspan")
+        if cell.get(name, "1") != "1"
+    )
+    text = redactor.text(cell.text_content()) or "EMPTY"
+    return f"{_tag(str(cell.tag))}{spans}[{text}]"
+
+
+def _shown(label: str, texts: list[str]) -> str:
+    return " ".join([f"  {label}: {len(texts)}", *texts[:_PAGE_NOTICES]])
+
+
+def _page_summary(document: html.HtmlElement, redactor: _Redactor) -> list[str]:
+    """A whole page as its markers, forms, notices and tables, row by row.
+
+    A page that fails as a whole (no expected table, an unknown notice, a
+    login or error page) is told apart by these, not by its first elements.
+    Only the first tables, rows and cells are shown.
+    """
+    body = document.find("body")
+    text = " ".join((body if body is not None else document).text_content().split())
+    present = {
+        marker: document.get_element_by_id(marker, None) is not None
+        for marker in _PAGE_MARKERS
+    }
+    markers = " ".join(
+        f"{marker}={'yes' if found else 'no'}" for marker, found in present.items()
+    )
+    lines = [f"  body text len={len(text)} {markers}"]
+    title = document.find(".//title")
+    titles = [] if title is None else [redactor.text(title.text_content()) or "EMPTY"]
+    lines.append(_shown("title", titles))
+    headings = [
+        redactor.text(heading.text_content()) or "EMPTY"
+        for heading in document.iter("h1", "h2", "h3")
+    ]
+    lines.append(_shown("headings", headings))
+    notices = document.xpath(
+        '//div[contains(concat(" ",normalize-space(@class)," ")," warning-content ")]'
+    )
+    shown = [redactor.text(notice.text_content()) or "EMPTY" for notice in notices]
+    lines.append(_shown("notices", shown))
+    forms = [redactor.href(form.get("action", "")) for form in document.iter("form")]
+    inputs: dict[str, int] = {}
+    for field in document.iter("input"):
+        kind = field.get("type", "text").casefold()
+        kind = kind if kind in _INPUT_TYPES else "?"
+        inputs[kind] = inputs.get(kind, 0) + 1
+    counted = " ".join(f"{kind}={count}" for kind, count in sorted(inputs.items()))
+    lines.append(_shown("forms", forms) + (f"; inputs {counted}" if counted else ""))
+    tables = list(document.iter("table"))
+    lines.append(f"  tables: {len(tables)}")
+    for table in tables[:_PAGE_TABLES]:
+        rows = [
+            row
+            for row in table.iter("tr")
+            if next(row.iterancestors("table"), None) is table
+        ]
+        lines.append(f"  {_path(table, redactor)}: {len(rows)} rows")
+        for row in rows[:_PAGE_ROWS]:
+            cells = [cell for cell in row if cell.tag in ("td", "th")]
+            more = " ..." if len(cells) > _PAGE_CELLS else ""
+            rendered = " ".join(_cell(cell, redactor) for cell in cells[:_PAGE_CELLS])
+            lines.append(f"    {rendered}{more}")
+        if len(rows) > _PAGE_ROWS:
+            lines.append("    ...")
+    if len(tables) > _PAGE_TABLES:
+        lines.append("  ...")
+    return lines
+
+
+def _is_page(element: html.HtmlElement) -> bool:
+    return element.getparent() is None and element.tag == "html"
+
+
 def describe_failure(error: BaseException) -> str | None:
     """The page structure around a failure, for a bug report.
 
     Shows the HTML elements held by the innermost library frame that holds
     any: tags, safe class tokens, known tooltip labels, known link families
-    and lengths. Text and attribute values are masked unless they equal a
-    parser constant. Returns None when there is nothing to show; never raises.
+    and lengths. A whole page is summarized last (see _page_summary). Text
+    and attribute values are masked unless they equal a parser constant.
+    Returns None when there is nothing to show; never raises.
     """
     try:
         redactor = _Redactor()
@@ -425,8 +520,15 @@ def describe_failure(error: BaseException) -> str | None:
             if not elements and not sequences:
                 continue
             lines = [f"at {_site(frame, line)}"]
-            for name, value in elements:
+            # The elements nearest the failure first; a page summary last.
+            for name, value in sorted(elements, key=lambda item: _is_page(item[1])):
                 redactor.nodes = 0
+                if _is_page(value):
+                    summary = "\n".join(_page_summary(value, redactor))
+                    if len(summary) > _ELEMENT_BYTES:
+                        summary = summary[:_ELEMENT_BYTES] + "...(truncated)"
+                    lines += [f"{name}: page", summary]
+                    continue
                 lines.append(f"{name}: {_path(value, redactor)}")
                 rendered = redactor.element(value)
                 if len(rendered) > _ELEMENT_BYTES:

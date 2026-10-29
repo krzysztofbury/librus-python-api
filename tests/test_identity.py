@@ -14,7 +14,7 @@ from librus_python_api.config import (
     AccountCredentials,
     ConnectionSettings,
 )
-from librus_python_api.diagnostics import logging_sink
+from librus_python_api.diagnostics import describe_failure, logging_sink
 from librus_python_api.exceptions import (
     AccessDeniedError,
     AccountActionRequiredError,
@@ -28,9 +28,15 @@ from librus_python_api.exceptions import (
     error_for,
 )
 from librus_python_api.models import DiagnosticEvent
-from librus_python_api.parsers import parse_identity, parse_profile
+from librus_python_api.parsers import is_logged_out_page, parse_identity, parse_profile
 from librus_python_api.service import LibrusService
-from tests.http_support import FIXTURE_SECRET, SchoolFixture, profile_html, serve
+from tests.http_support import (
+    FIXTURE_SECRET,
+    LOGGED_OUT_PAGE,
+    SchoolFixture,
+    profile_html,
+    serve,
+)
 
 
 @pytest.mark.parametrize(
@@ -219,6 +225,73 @@ def test_safe_recovery_is_one_reauthentication_with_original_budget(
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize(
+    ("body", "logged_out"),
+    [
+        (LOGGED_OUT_PAGE, True),
+        # A signed-in timetable has no menu, but its own heading.
+        ('<html><body><h2 class="inside">Plan lekcji</h2></body></html>', False),
+        # The heading on a signed-in page is a denial, not a lost session.
+        (
+            '<html><body><div id="graphic-menu"></div>'
+            '<h2 class="inside">Brak dostępu</h2></body></html>',
+            False,
+        ),
+        ("<html></html>", False),
+        ("\udcff", False),
+    ],
+)
+def test_logged_out_page_needs_its_heading_and_no_menu(
+    body: str, logged_out: bool
+) -> None:
+    assert is_logged_out_page(body.encode("utf-8", "surrogateescape")) is logged_out
+
+
+@pytest.mark.parametrize("pages", [1, 2])
+def test_a_logged_out_page_is_read_again_once_in_a_fresh_session(pages: int) -> None:
+    # Synergia answers a session it no longer knows with a 200 page without
+    # the menu; an established session is signed in again and read once more.
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                assert (await client.student_information()).register_number == 12
+                fixture.logged_out["student"] = pages
+                if pages == 1:
+                    assert (await client.student_information()).register_number == 12
+                else:
+                    # The fresh session got the same page: a layout, not an expiry.
+                    with pytest.raises(ParseError) as caught:
+                        await client.student_information()
+                    assert isinstance(caught.value.__cause__, SessionExpiredError)
+                    assert "'Brak dostępu'" in (describe_failure(caught.value) or "")
+                    # Signing in again at once cannot help: no request, no login.
+                    before = len(fixture.calls)
+                    with pytest.raises(ParseError):
+                        await client.student_information()
+                    assert len(fixture.calls) == before
+                assert fixture.logins == {"student": 2}
+                assert sum(path == "/informacja" for path, _ in fixture.calls) == 3
+
+    asyncio.run(scenario())
+
+
+def test_a_session_just_signed_in_that_gets_the_logged_out_page_fails_once() -> None:
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        fixture.logged_out["student"] = 1
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                with pytest.raises(ParseError):
+                    await service.account("student").student_information()
+                assert fixture.logins == {"student": 1}
+
+    asyncio.run(scenario())
+
+
 def test_budget_exhaustion_stops_before_reauthentication_dispatch() -> None:
     async def scenario() -> None:
         fixture = SchoolFixture()
@@ -370,8 +443,12 @@ def test_nonfinite_json_in_unknown_fields_is_not_trusted(number: str) -> None:
     assert caught.value.__context__ is None
 
 
-def test_profile_parser_uses_semantics_and_explicit_optional_availability() -> None:
-    fields = parse_profile(profile_html(lucky="").encode())
+@pytest.mark.parametrize("lucky", ["", " ? ", "<b></b>"])
+def test_profile_parser_uses_semantics_and_explicit_optional_availability(
+    lucky: str,
+) -> None:
+    # No marker, the "?" reported where no number is drawn, or an empty one.
+    fields = parse_profile(profile_html(lucky=lucky).encode())
     assert fields.register_number == 12
     assert fields.lucky_number.availability == Availability.UNAVAILABLE
     assert fields.lucky_number.number is None
@@ -386,7 +463,10 @@ def test_profile_parser_uses_semantics_and_explicit_optional_availability() -> N
         "<html>no data</html>",
         profile_html().replace("Klasa", "unknown"),
         profile_html().replace("<td>12</td>", "<td>invalid</td>"),
-        profile_html().replace("7</span>", "invalid</span>"),
+        profile_html(lucky="<b>invalid</b>"),
+        profile_html().replace(
+            "</table>", '</table><span class="luckyNumber">7</span>'
+        ),
         profile_html() + profile_html(),
     ],
 )
@@ -427,6 +507,7 @@ def test_logging_sink_emits_allowlisted_structured_fields(
         "budget_requests_dispatched": 7,
         "budget_response_bytes": 100,
         "frames": (),
+        "http_status": None,
     }
 
 
@@ -587,6 +668,16 @@ def test_only_proven_session_expiry_can_trigger_credential_recovery(mode: str) -
                     assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("marker", "number"), [("x luckyNumber", 7), ("notluckyNumber", None)]
+)
+def test_lucky_number_marker_is_matched_by_whole_class_token(
+    marker: str, number: int | None
+) -> None:
+    page = profile_html().replace('class="luckyNumber"', f'class="{marker}"')
+    assert parse_profile(page.encode()).lucky_number.number == number
 
 
 def test_profile_reads_student_rows_and_ignores_login_owner_rows() -> None:

@@ -1,6 +1,7 @@
 """Run one parser on a saved Synergia page and report the outcome offline.
 
     python -m librus_python_api.inspect_page grades page.html
+    python -m librus_python_api.inspect_page profile informacja.html
 
 The report holds counts, code locations and page structure built from
 allowlists (see diagnostics.describe_failure), never page text or values.
@@ -20,6 +21,8 @@ from librus_python_api.diagnostics import describe_failure, failure_frames
 from librus_python_api.exceptions import LibrusError
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
+from librus_python_api.models import Availability
+from librus_python_api.parsers import parse_profile
 
 NOTICE = (
     "This report holds counts, code locations and page structure only, no page "
@@ -45,10 +48,19 @@ def _final_grades(body: bytes) -> dict[str, int]:
     return {"subjects": len(parse_final_grades(body))}
 
 
+def _profile(body: bytes) -> dict[str, int]:
+    lucky = parse_profile(body).lucky_number.availability
+    return {"lucky_number": int(lucky == Availability.AVAILABLE)}
+
+
 PARSERS: dict[str, Callable[[bytes], dict[str, int]]] = {
     "grades": _grades,
     "final-grades": _final_grades,
+    "profile": _profile,
 }
+# macOS TextEdit saves a viewed page source as a new document holding the
+# source as text, not the page itself.
+_TEXT_EXPORT = re.compile(rb'<meta name="Generator" content="Cocoa HTML Writer"', re.I)
 
 
 def inspect(parser: str, body: bytes) -> tuple[bool, list[str]]:
@@ -59,6 +71,12 @@ def inspect(parser: str, body: bytes) -> tuple[bool, list[str]]:
     except UnicodeDecodeError:
         # Synergia serves UTF-8; another encoding is a saving problem, not a layout.
         lines.append("FAILED input: the file is not UTF-8; save the page as UTF-8")
+        return False, lines
+    if _TEXT_EXPORT.search(body[:4096]):
+        lines.append(
+            "FAILED input: the file is page source saved as a text document; "
+            "save the page itself (Safari: File > Save As, format Page Source)"
+        )
         return False, lines
     if not re.search(rb"<html[\s>]", body[:4096], re.I):
         # A copied table (outerHTML) is a fragment; parsers expect a page.

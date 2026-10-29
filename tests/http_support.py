@@ -41,6 +41,8 @@ class SchoolFixture:
         self.logins: dict[str, int] = {}
         self.profile_status: dict[str, int] = {}
         self.expire_profile: dict[str, int] = {}
+        # Pages to answer with LOGGED_OUT_PAGE before the real one.
+        self.logged_out: dict[str, int] = {}
         self.challenge = False
         self.malformed_identity = False
         self.identity_mode = "json"
@@ -152,12 +154,20 @@ class SchoolFixture:
         if self.expire_profile.get(login, 0):
             self.expire_profile[login] -= 1
             return web.Response(status=401)
+        if self.logged_out_page(login):
+            return web.Response(text=LOGGED_OUT_PAGE, content_type="text/html")
         if login in self.profile_status:
             return web.Response(status=self.profile_status[login])
         return web.Response(
             text=profile_html(school=f"Fixture School {login}"),
             content_type="text/html",
         )
+
+    def logged_out_page(self, login: str) -> bool:
+        if not self.logged_out.get(login, 0):
+            return False
+        self.logged_out[login] -= 1
+        return True
 
     def service(
         self,
@@ -198,12 +208,23 @@ GRAPHIC_MENU = """<div id="graphic-menu"><ul>
     </ul></div>"""
 
 
-def profile_html(
-    school: str = "Synthetic School", lucky: str = '<span id="luckyNumber">7</span>'
-) -> str:
+# Synergia's 200 answer to a session it no longer knows: no menu, no data.
+LOGGED_OUT_PAGE = (
+    "<!doctype html><html><head><title>LIBRUS Synergia</title></head>"
+    '<body><div id="page"><div class="container static">'
+    '<h2 class="inside">Brak dostępu</h2><input type="button" value="Fixture">'
+    "</div></div></body></html>"
+)
+
+
+def profile_html(school: str = "Synthetic School", lucky: str = "<b>7</b>") -> str:
+    """The information page; `lucky` fills the header's lucky-number marker,
+    which is left out entirely when empty."""
+    marker = f'<span class="luckyNumber">{lucky}</span>' if lucky else ""
     return f"""<!doctype html><html><body>{GRAPHIC_MENU}
+    <div id="user-section">Header text {marker}</div>
     <table><tr><th>Uczeń:</th><td>Fixture Student</td></tr>
     <tr><th>Klasa</th><td>1 TEST</td></tr>
     <tr><th>Numer w dzienniku</th><td>12</td></tr>
     <tr><th>Wychowawca</th><td>Fixture Tutor</td></tr>
-    <tr><th>Szkoła</th><td>{school}</td></tr></table>{lucky}</body></html>"""
+    <tr><th>Szkoła</th><td>{school}</td></tr></table></body></html>"""

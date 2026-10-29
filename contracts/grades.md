@@ -131,7 +131,9 @@ fields, plus shared subject/column/text/tree/byte/deadline limits.
 
 The service uses one fixed-form all/week/last-login POST per fresh collection. The operation is
 classified `select_view`, not retry-safe; 401/login redirect and every ambiguous
-failure must not replay it or credentials. Date windows validate before login,
+failure must not replay it or credentials. The one exception (1.8.1) is
+Synergia's logged-out page ("Brak dostępu", no signed-in menu), which shows the
+POST was not applied: it is posted once more after a fresh login. Date windows validate before login,
 filter inclusive civil dates over the same collection/cache, and exclude averages.
 No last-login time, timezone-based week, grade arithmetic, or publication date is
 inferred. View-specific caches and coalescing keys never substitute one selection
