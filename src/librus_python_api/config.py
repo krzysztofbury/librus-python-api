@@ -696,6 +696,12 @@ PROFILE_OWNER_LABELS = ("Imię i nazwisko użytkownika", "Login", "Hasło")
 # without lucky numbers and possibly on days without a draw; neither it nor
 # an empty marker has been observed.
 PROFILE_LUCKY_NUMBER_CLASS = "luckyNumber"
+# For a session it no longer knows, Synergia answers every page read with 200
+# and a page whose only heading is "Brak dostępu" (`h2.inside`), without the
+# signed-in menu, not with a login redirect (observed 2026-10-29). A signed-in
+# user's timetable page has no menu either, so the heading is required too.
+LOGGED_IN_PAGE_MARKER = "graphic-menu"
+LOGGED_OUT_HEADING = "Brak dostępu"
 PROFILE_LUCKY_NUMBER_DISABLED = "?"
 
 # HTML summary headers omit the two leading body cells: expander and subject.

@@ -1,9 +1,20 @@
 # Changelog
 
-## 1.8.1 (2026-10-29) - Lucky number, consent error and page-level failure diagnostics
+## 1.8.1 (2026-10-29) - Session recovery, lucky number, consent error and diagnostics
 
 Signatures are unchanged; one error kind is added.
 
+- Session recovery: for a session it no longer knows, Synergia answers every
+  page read with status 200 and a "Brak dostępu" page instead of a login
+  redirect (observed 2026-10-29). Up to 1.8.0 every read then failed as
+  `ParseError`, and kept failing until the client was recreated: the
+  profile's `parse_profile` failure a tester reported. Such a page now counts
+  as expiry: the read signs in again and is repeated once, view-selection
+  POSTs included, since the page shows the request was not applied. A fresh
+  session getting the same page fails as `ParseError` without another
+  attempt. Verified live by invalidating the session cookies: student
+  information, notification counts, grades, timetable, attendance, homework
+  and messages each recovered with one login.
 - Student information: the lucky number is read from the page header
   (`span.luckyNumber`). Up to 1.8.0 the parser looked for an element ID the
   page does not use, so `lucky_number` was always `UNAVAILABLE`. An empty

@@ -98,6 +98,9 @@ class AccountActionRequiredError(LibrusError):
 class SessionExpiredError(LibrusError):
     # Library-private provenance only; never attach a URL, body or credentials.
     _messages_origin = False
+    # Inferred from a page without the logged-in menu, not from a 401 or a
+    # login redirect; a fresh session getting the same page is a layout.
+    _logged_out_page = False
 
 
 class AccessDeniedError(LibrusError):

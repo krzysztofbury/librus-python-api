@@ -258,7 +258,7 @@ def _redaction_vocabulary() -> tuple[
     texts |= {label.casefold() for label in config.FORMATIVE_HEADERS}
     profile = (*config.PROFILE_LABELS, *config.PROFILE_OWNER_LABELS)
     texts |= set(profile) | {f"{label}:" for label in profile}
-    texts |= set(config.PAGE_NOTICES)
+    texts |= set(config.PAGE_NOTICES) | {config.LOGGED_OUT_HEADING}
     prefixes = tuple(
         sorted(
             (

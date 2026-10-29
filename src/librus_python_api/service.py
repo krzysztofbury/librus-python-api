@@ -70,7 +70,12 @@ from librus_python_api.config import (
 )
 from librus_python_api.detail_fields import normalize_detail_fields
 from librus_python_api.diagnostics import DiagnosticSink, failure_frames
-from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.exceptions import (
+    ErrorKind,
+    LibrusError,
+    ParseError,
+    SessionExpiredError,
+)
 from librus_python_api.gateway_grades import (
     DescriptiveTable,
     descriptive_grades,
@@ -199,7 +204,12 @@ from librus_python_api.notifications import (
     parse_schedule_events,
     validate_response,
 )
-from librus_python_api.parsers import parse_identity, parse_login, parse_profile
+from librus_python_api.parsers import (
+    is_logged_out_page,
+    parse_identity,
+    parse_login,
+    parse_profile,
+)
 from librus_python_api.parsing import ParserPool
 from librus_python_api.recipients import (
     parse_recipient_group_choices,
@@ -2133,7 +2143,10 @@ class AccountClient:
 
         Initial login is never retried: a failed credential submission must not
         be replayed. A view-changing POST is never replayed either; expiry only
-        clears the session so a later explicit call can log in again.
+        clears the session so a later explicit call can log in again. A
+        logged-out page proves the request was not applied to the account, so
+        any read answered with one is repeated once in a fresh session; if that
+        session gets the same page, it is a layout and fails as PARSE.
         """
         fresh_login = self._identity is None
         if fresh_login:
@@ -2146,13 +2159,15 @@ class AccountClient:
                 self._invalidate_modern()
             else:
                 self._invalidate()
-            if not retry_safe:
+            if not retry_safe and not error._logged_out_page:
                 raise
         if not modern_expired:
             await self._authenticate(budget)
         try:
             return await fetch(budget, not modern_expired)
         except SessionExpiredError as error:
+            if error._logged_out_page:
+                raise LibrusError(ErrorKind.PARSE) from error
             if error._messages_origin:
                 self._invalidate_modern()
             else:
@@ -2181,7 +2196,21 @@ class AccountClient:
                     endpoint, budget, form=form, reference_id=reference, query=query
                 )
             self._validate_read_response(response, content_type)
-            return await self._service._parsers.run(parse, response.body, budget)
+            try:
+                return await self._service._parsers.run(parse, response.body, budget)
+            except ParseError as error:
+                if (
+                    content_type != HTML
+                    or ENDPOINTS[endpoint].origin != "synergia"
+                    or not await self._service._parsers.run(
+                        is_logged_out_page, response.body, budget
+                    )
+                ):
+                    raise
+                # Synergia's answer to a session it no longer knows.
+                expired = SessionExpiredError(ErrorKind.SESSION_EXPIRED)
+                expired._logged_out_page = True
+                raise expired from error
         except BaseException as error:
             if ENDPOINTS[endpoint].origin == "messages":
                 self._invalidate_modern()

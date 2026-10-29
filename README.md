@@ -16,8 +16,10 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.1` reads the lucky number from the page header and summarizes
-a page that fails as a whole in diagnostics. `1.8.0` reports where a failure
+**Status:** `1.8.1` recovers a session Synergia no longer knows (it answers
+with a "Brak dostępu" page, not a login redirect), reads the lucky number
+from the page header and summarizes a page that fails as a whole in
+diagnostics. `1.8.0` reports where a failure
 happened (code locations and a redacted page structure, see
 [failure diagnostics](API.md#failure-diagnostics-180)), reads gateway descriptive grades for schools on the new descriptive schema
 (source-informed, first populated read live on one school) and keeps the 1.7.1 point

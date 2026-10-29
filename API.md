@@ -1172,9 +1172,18 @@ text. `error_for(kind)` builds one.
 
 Recovery policy:
 
-- Only a 401, or a redirect to an approved login route, proves expiry.
+- A 401, a redirect to an approved login route, or (1.8.1) a Synergia page
+  that fails to parse, has no signed-in menu and whose only heading is
+  "Brak dostępu" proves expiry. Synergia answers every page read of a session
+  it no longer knows that way, with status 200 (observed 2026-10-29); up to
+  1.8.0 this failed as `ParseError` on every call until the client was
+  recreated.
 - Safe GET reads then log in once more and retry once, within the same budget.
-- View-selection POSTs are never replayed.
+- View-selection POSTs are never replayed after a 401 or login redirect. A
+  read answered with the logged-out page, POST included, is repeated once in
+  a fresh session: that page shows the request was not applied to the
+  account. If the fresh session gets the same page, the read fails as
+  `ParseError` and is not repeated again.
 - A denial or unrecovered expiry starts a 60-second cooldown for that operation
   on that login; a failed login starts one for the whole login.
 - 429 and 503 pause the whole scheduler, honouring `Retry-After` up to 24 hours.
