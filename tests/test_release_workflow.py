@@ -1,22 +1,29 @@
 """Publication authority and artifact reuse are workflow-level security contracts."""
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 
-def test_publisher_is_manual_main_only_and_waits_for_exact_artifact_matrix() -> None:
+def script(job: dict[str, Any]) -> str:
+    return "\n".join(step.get("run", "") for step in job["steps"])
+
+
+def test_only_a_release_publishes_and_it_waits_for_exact_artifact_matrix() -> None:
     root = Path(__file__).resolve().parents[1]
     workflow = yaml.load(
         (root / ".github/workflows/workflow.yaml").read_text(), Loader=yaml.BaseLoader
     )
-    assert set(workflow["on"]) == {"workflow_dispatch"}
-    assert workflow["on"]["workflow_dispatch"]["inputs"]["target"]["options"] == [
-        "verify",
-        "pypi",
-    ]
+    assert set(workflow["on"]) == {"release", "workflow_dispatch"}
+    assert workflow["on"]["release"]["types"] == ["published"]
+    assert set(workflow["on"]["workflow_dispatch"]["inputs"]) == {"tag"}
+    assert workflow["permissions"] == {"contents": "read"}
     jobs = workflow["jobs"]
-    assert jobs["build"]["if"] == "github.ref == 'refs/heads/main'"
+    assert (
+        jobs["build"]["if"]
+        == "github.event_name == 'release' || github.ref == 'refs/heads/main'"
+    )
     assert jobs["qualify"]["needs"] == "build"
     assert set(jobs["publish"]["needs"]) == {"build", "qualify", "qualify-windows-disk"}
     windows = jobs["qualify-windows-disk"]
@@ -25,13 +32,28 @@ def test_publisher_is_manual_main_only_and_waits_for_exact_artifact_matrix() -> 
         "python": ["3.13", "3.14"],
         "dependencies": ["locked", "latest"],
     }
-    assert jobs["publish"]["if"] == "inputs.target != 'verify'"
+    assert jobs["publish"]["if"] == "github.event_name == 'release'"
     assert jobs["publish"]["environment"]["name"] == "pypi"
     assert jobs["publish"]["permissions"]["id-token"] == "write"
     for name, job in jobs.items():
         if name != "publish":
             assert job.get("permissions", {}).get("id-token") != "write"
-    for name in ("qualify", "qualify-windows-disk", "publish", "confirm"):
+    assert jobs["attach"]["permissions"] == {"contents": "write", "actions": "read"}
+    assert "if" not in jobs["confirm"] and "if" not in jobs["attach"]
+    for name, job in jobs.items():
+        if name != "attach":
+            assert job.get("permissions", {}).get("contents") != "write"
+        # Release values reach shell only through the environment.
+        assert "${{" not in script(job)
+        for step in job["steps"]:
+            if step.get("uses", "").startswith("actions/checkout@"):
+                assert step["with"]["persist-credentials"] == "false"
+    assert '== "$GITHUB_SHA"' in script(jobs["build"])
+    assert "release_gate.py identity" in script(jobs["build"])
+    assert "release_gate.py identity" in script(jobs["publish"])
+    for name in ("publish", "confirm", "attach"):
+        assert "release_gate.py verify" in script(jobs[name])
+    for name in ("qualify", "qualify-windows-disk", "publish", "confirm", "attach"):
         downloads = [
             step
             for step in jobs[name]["steps"]
@@ -43,3 +65,4 @@ def test_publisher_is_manual_main_only_and_waits_for_exact_artifact_matrix() -> 
             == "${{ needs.build.outputs.artifact }}"
         )
     assert set(jobs["confirm"]["needs"]) == {"build", "publish"}
+    assert set(jobs["attach"]["needs"]) == {"build", "confirm"}

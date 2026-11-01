@@ -36,7 +36,9 @@ client. Follow any workspace-level agent rules as well as these project rules.
 - Reuse established concepts and flows from existing clients as design
   references, with original implementation and fixtures. Source-informed
   requirements are not independently observed live behavior.
-- Releases follow [RELEASE.md](RELEASE.md). While watching CI or a release run,
+- Releases follow the steps in [RELEASE.md](RELEASE.md), the same ones as
+  `DISTRIBUTION.md` in `librus-mcp`: a passing live check comes before the GitHub
+  Release, which starts publication. While watching CI or a release run,
   compare each running job's elapsed time with its finished siblings and report
   an outlier (for example three times longer) at once instead of waiting.
 - Do not claim a package, API, test command, or release workflow exists until
