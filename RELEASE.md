@@ -24,9 +24,10 @@ The first real PyPI OIDC upload succeeded for 1.0.0rc1 in
 TestPyPI is intentionally not used.
 
 The GitHub `pypi` environment requires owner review, disallows administrator
-bypass and permits deployments only from branch `main`. Self-review is allowed
-for this single-owner repository: the owner can start a run and then explicitly
-approve its publication job. Add an independent reviewer and disallow self-review
+bypass and permits deployments only from branch `main` and tags `v*`; a release
+run deploys from its tag. Self-review is allowed for this single-owner
+repository: the owner can publish a release and then explicitly approve its
+publication job. Add an independent reviewer and disallow self-review
 if a two-person approval policy is needed. No environment secrets are needed.
 
 This environment is separate from branch protection. The existing `protect-main`
@@ -48,7 +49,7 @@ policy is in [API.md](API.md#compatibility-policy); general live-school guarante
 production migration and MCP acceptance are not inferred from its classifier.
 
 The pipeline supports `v1.0.0rc1`, `v1.0.0` and later version tags. It refuses
-publishing 0.x; `verify` mode can exercise a 0.x development tag without upload.
+publishing 0.x; a qualification run can exercise a 0.x development tag without upload.
 It does not decide product readiness or imply completed consumer migration.
 
 Required release decisions:
@@ -75,13 +76,19 @@ weekly live check below never publishes and is not a release gate.
 
 ## Procedure
 
-1. Merge the release preparation PR after CI passes on its exact head. Release
-   scripts and `workflow.yaml` must be present in both `main` and the tagged source.
+`librus-mcp` follows the same steps in its `DISTRIBUTION.md`, without step 3.
+When a release of both is needed, publish this library first, then pin it in
+`librus-mcp`.
+
+1. Merge the release preparation PR after CI passes on its exact head and on
+   `main`. Release scripts and `workflow.yaml` must be present in both `main` and
+   the tagged source.
 2. Create an annotated immutable tag at the intended merged commit. Push it and
    confirm the remote tag points to that commit. Never replace an uploaded tag.
-3. Run **Qualify and publish library** from **main**, with the intended version
-   and `target=verify`. All checks must pass, including macOS and Windows disk gates.
-4. Run the read-only live check with the owner's authorization. Build the
+3. Run **Qualify and publish library** from **main** for that tag. It never
+   publishes. All checks must pass, including macOS and Windows disk gates.
+4. Run the read-only live check, which a release request from the owner covers.
+   Nothing is published until it passes. Build the
    tagged source's wheel, install it into a fresh environment outside the
    checkout, and from the checkout root run
    `ENV/bin/python -m scripts.live_check run --profile release --secrets FILE`
@@ -90,25 +97,26 @@ weekly live check below never publishes and is not a release gate.
    statuses and counts only. Publish only if it passes, and record the summary
    in the release notes. A failed step blocks publication; fix it in a new
    version rather than publishing a version that failed.
-   Then run again from **main** with the same tag and `target=pypi`. This run builds its
-   own sealed pair once, qualifies it, then waits for `pypi` environment approval.
-   Inspect that run's tag, commit and results before approving. Bytes from an
-   earlier verification run are not silently substituted into a later run.
-5. Approve the publish job. Trusted Publishing uploads only that run's verified
-   wheel/sdist with attestations. PyPI hashes and a fresh installed runtime smoke
-   are checked afterward. A publication job is never run from a PR.
-6. Create a GitHub Release for every published version, once PyPI serves it:
+5. Publish the GitHub Release, which starts publication:
    `gh release create vX.Y.Z --verify-tag --title "X.Y.Z - Summary" --notes-file FILE`.
-   The notes hold the versioned changelog entry, the live check summary, the source
-   commit and both distribution hashes. A GitHub Release is not the trigger for
-   publication; the manual workflow is the explicit deployment boundary.
+   The summary is a few words from the changelog entry; the notes are that entry
+   and the live check summary. Add `--prerelease` for a release candidate. The run
+   builds its own sealed pair once, qualifies
+   it, then waits for `pypi` environment approval. Bytes from an earlier
+   verification run are not silently substituted into a later run.
+6. Inspect that run's tag, commit and results, then approve the publish job.
+   Trusted Publishing uploads only that run's verified wheel/sdist with
+   attestations. PyPI hashes and a fresh installed runtime smoke are checked
+   afterward, and the run attaches the wheel, sdist and `SHA256SUMS` to the
+   release. A publication job is never run from a PR.
+7. Check what users get: a fresh install from PyPI and the attached files.
 
-CLI equivalent after workflow deployment:
+CLI equivalent:
 
 ```sh
-gh workflow run workflow.yaml --ref main -f tag=v1.0.0 -f target=verify
-# After qualification and an explicit release decision:
-gh workflow run workflow.yaml --ref main -f tag=v1.0.0 -f target=pypi
+gh workflow run workflow.yaml --ref main -f tag=v1.0.0
+# After qualification, the live check and an explicit release decision:
+gh release create v1.0.0 --verify-tag --title "1.0.0 - Summary" --notes-file FILE
 ```
 
 ## What the pipeline proves
@@ -138,8 +146,17 @@ dependencies weekly and on demand. It has no upload authority or Librus secrets.
 
 ## Failures and recovery
 
-Before upload, fix the failing gate and repeat verification. Do not waive a
-failed platform matrix or remove an invariant just to get a release out.
+A job that failed on a flake reruns with `gh run rerun ID --failed`, which keeps
+that run's sealed artifact for 14 days. Before upload, fix a real failure and
+repeat verification. Do not waive a failed platform matrix or remove an invariant
+just to get a release out. To stop a release, reject the waiting approval first,
+since a later approval would publish with no release to attach to, then
+`gh release delete` it; the tag stays. A fault in the tag's own source or workflow
+needs a new version, because a release run uses the files at the tag.
+
+Once anything reached PyPI, never delete and republish the release: a new run
+builds again and cannot upload over an existing version. If `confirm` or `attach`
+fails, rerun that job with `gh run rerun ID --failed`.
 
 If upload fails, check PyPI before rerunning. One of the two files may already
 exist. PyPI versions/files cannot be overwritten; do not rebuild different bytes
