@@ -97,9 +97,11 @@ weekly live check below never publishes and is not a release gate.
 5. Approve the publish job. Trusted Publishing uploads only that run's verified
    wheel/sdist with attestations. PyPI hashes and a fresh installed runtime smoke
    are checked afterward. A publication job is never run from a PR.
-6. Record the public version, source commit and distribution hashes; create
-   release notes from the versioned changelog. A GitHub Release is not the trigger
-   for publication; the manual workflow is the explicit deployment boundary.
+6. Create a GitHub Release for every published version, once PyPI serves it:
+   `gh release create vX.Y.Z --verify-tag --title "X.Y.Z - Summary" --notes-file FILE`.
+   The notes hold the versioned changelog entry, the live check summary, the source
+   commit and both distribution hashes. A GitHub Release is not the trigger for
+   publication; the manual workflow is the explicit deployment boundary.
 
 CLI equivalent after workflow deployment:
 
