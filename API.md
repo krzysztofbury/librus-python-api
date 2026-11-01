@@ -470,7 +470,9 @@ The initial handoff already includes that GET; subsequent sends cost one GET plu
 one POST. Expiry before dispatch raises `SessionExpiredError` and leaves
 NOT_DISPATCHED. An exact launch-to-native-login redirect is expiry, not denial.
 Messages-origin failures clear only modern binding/cookies/cache; valid legacy
-sessions stay usable. A later explicit modern call can rebind, but no modern
+sessions stay usable. A cancelled mailbox read, or one stopped by a reached limit,
+keeps them, so the next call needs no new launch; a limit that emptied the cookie
+jar does not, and neither does a transport timeout. A later explicit modern call can rebind, but no modern
 read/send is automatically retried. A race after preflight can still yield UNKNOWN.
 
 - `modern_identity(*, budget=None, max_age_seconds=0)` returns `ModernIdentity`:

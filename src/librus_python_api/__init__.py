@@ -1,5 +1,8 @@
 """Independent bounded async client. General live compatibility is unqualified."""
 
+# Before the imports: config reads it for the User-Agent.
+__version__ = "1.8.1"
+
 from librus_python_api.attachments import AttachmentStream, ModernAttachmentStream
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import (
@@ -137,8 +140,6 @@ from librus_python_api.models import (
 )
 from librus_python_api.sending import SendAttempt
 from librus_python_api.service import AccountClient, LibrusService
-
-__version__ = "1.8.1"
 
 __all__ = [
     "ArchiveAbsences",

@@ -21,7 +21,12 @@ Every modern send freshly verifies the existing side-effect-free modern identity
 GET before dispatch. Cold binding already includes this GET; a warm binding adds
 one GET to the caller's shared budget. Failure leaves NOT_DISPATCHED. Modern
 401/403 and transport/validation errors clear modern binding/cookies/cache without
-discarding a valid legacy session. A proven native launch expiry still expires
+discarding a valid legacy session. Since 1.8.2 a cancelled mailbox read or a
+reached limit keeps them, as native reads do, unless the limit was the cookie
+count, which empties the jar; a body that does not parse still clears them, since
+a session the upstream no longer knows may be answered with one. Recipient reads
+and the attachment resolver follow the same rule. Identity binding and sends keep
+the stricter rule. A proven native launch expiry still expires
 native state. Existing retry-safe flags are unchanged: a later explicit call may
 rebind modern state, but this slice never automatically retries a modern read or
 write. Revalidation cannot prevent expiry between GET and POST; potential dispatch

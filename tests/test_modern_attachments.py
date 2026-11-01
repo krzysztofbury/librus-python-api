@@ -57,6 +57,7 @@ class DownloadFixture(CommunicationFixture):
 
     async def resolve(self, request: web.Request) -> web.Response:
         self.record_modern(request, request.path)
+        await self.held_stage("resolve")
         assert request.match_info["file_id"] == "401"
         assert request.match_info["message_id"] == "19001"
         assert not request.query and await request.read() == b""
@@ -253,6 +254,43 @@ def test_modern_download_limits_and_cancel_release_resources_without_retry(
                 assert service.snapshot().active == service.snapshot().queued == 0
             finally:
                 fixture.download_release.set()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("failure,launches", [("cancel", 1), ("malformed", 2)])
+def test_a_resolver_failure_follows_the_mailbox_session_rule(
+    failure: str, launches: int
+) -> None:
+    async def scenario() -> None:
+        fixture = DownloadFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.modern_identity()
+
+            async def resolve() -> None:
+                async with client.stream_modern_attachment(reference()):
+                    pass
+
+            if failure == "cancel":
+                fixture.block_stage = "resolve"
+                task = asyncio.create_task(resolve())
+                try:
+                    async with asyncio.timeout(2):
+                        await fixture.started.wait()
+                    task.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await task
+                finally:
+                    fixture.release.set()
+            else:
+                fixture.responses["resolve"] = (200, b"{", "application/json", {})
+                with pytest.raises(LibrusError) as error:
+                    await resolve()
+                assert error.value.kind is ErrorKind.PARSE
+            assert not fixture.downloads
+            await client.modern_messages(page_size=10)
+            assert sum(path == "/wiadomosci3" for path, _ in fixture.calls) == launches
 
     asyncio.run(scenario())
 

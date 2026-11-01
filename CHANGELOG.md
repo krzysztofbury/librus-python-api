@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.2 (unreleased)
+
+- A cancelled modern mailbox read or a reached limit no longer drops the modern
+  session, so the next call needs no new launch. Other failures still drop it,
+  an unrecognized body and a cookie limit, which empties the jar, included.
+- The `User-Agent` carries the package version; it said 0.4 since that release.
+- `config.ATTENDANCE_RESULT_CACHE_SIZE` is renamed `ACCOUNT_RESULT_CACHE_SIZE`:
+  it caps every cached read of an account.
+
 ## 1.8.1 (2026-10-29) - Session recovery, lucky number, consent error and diagnostics
 
 Signatures are unchanged; one error kind is added.

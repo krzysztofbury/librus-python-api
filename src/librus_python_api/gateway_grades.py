@@ -3,8 +3,9 @@
 The grades page of a school on the new descriptive grading schema renders a
 subject table whose semester cells are empty; the page script then loads the
 grades from gateway JSON routes. Routes and field names come from public client
-code and the official page script, not from an observed populated response,
-so every unexpected shape fails instead of producing a partial collection.
+code and the official page script. One authorized read on 2026-10-28 parsed four
+PartialGrades records on one school; pagination keys are still unknown, so every
+unexpected shape fails instead of producing a partial collection.
 """
 
 import re

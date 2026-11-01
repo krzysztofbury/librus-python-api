@@ -31,6 +31,7 @@ from pydantic import (
     model_validator,
 )
 
+from librus_python_api import __version__
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import (
     AttendanceView,
@@ -113,7 +114,7 @@ UPSTREAM_ORIGINS = MappingProxyType(
 OAUTH_QUERY = (("client_id", "46"),)
 SESSION_COOKIE = "oauth_token"
 AUTH_COOKIES = frozenset({SESSION_COOKIE, "DZIENNIKSID", "SDZIENNIKSID"})
-USER_AGENT = "librus-python-api/0.4 (independent client)"
+USER_AGENT = f"librus-python-api/{__version__} (independent client)"
 ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
     {
         item.operation_id: item
@@ -435,7 +436,7 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
             ),
             # Gateway reads behind the grades page's new-schema descriptive
             # table. Routes and field names come from public client code and the
-            # official page script, not from an observed populated response.
+            # official page script; one authorized read parsed four records.
             Endpoint(
                 "descriptive_token_info",
                 "GET",
@@ -862,8 +863,10 @@ FORMATIVE_TEMPLATE_ID = "000000"
 FORMATIVE_MAX_TEXT_LENGTH = 65536
 ATTENDANCE_DETAIL_MAX_FIELDS = 32
 ATTENDANCE_METADATA_CACHE_SIZE = 256
-ATTENDANCE_RESULT_CACHE_SIZE = 64
 ATTENDANCE_METADATA_TTL_SECONDS = 3600
+
+# Entries of every cached read of one account, oldest first out.
+ACCOUNT_RESULT_CACHE_SIZE = 64
 
 ANNOUNCEMENT_MAX_ITEMS = 256
 ANNOUNCEMENT_MAX_FIELD_LENGTH = 1024

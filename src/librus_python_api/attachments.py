@@ -15,7 +15,10 @@ from librus_python_api.attachment_routes import (
 )
 from librus_python_api.budget import RequestBudget
 from librus_python_api.config import ATTACHMENT_MAX_BYTES
-from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.exceptions import (
+    ErrorKind,
+    LibrusError,
+)
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.models import (
     AttachmentHeaders,
@@ -283,9 +286,7 @@ class ModernAttachmentStream(AttachmentStream):
                 budget,
             )
         except BaseException as error:
-            client._invalidate_modern()
-            if isinstance(error, SessionExpiredError):
-                error._messages_origin = True
+            client._modern_read_failed(error)
             raise
         await client._transport.stream_download(
             key,

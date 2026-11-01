@@ -38,6 +38,7 @@ class SchoolFixture:
     def __init__(self) -> None:
         self.origin = ""
         self.calls: list[tuple[str, str]] = []
+        self.agents: set[str] = set()
         self.logins: dict[str, int] = {}
         self.profile_status: dict[str, int] = {}
         self.expire_profile: dict[str, int] = {}
@@ -65,6 +66,7 @@ class SchoolFixture:
     def record(self, request: web.Request) -> str:
         login = request.cookies.get("oauth_token", "")
         self.calls.append((request.path, login))
+        self.agents.add(request.headers.get("User-Agent", ""))
         self.connections.add(id(request.transport))
         return login
 

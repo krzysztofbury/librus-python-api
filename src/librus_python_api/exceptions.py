@@ -136,7 +136,9 @@ class OperationTimeoutError(LibrusError):
 
 
 class LimitError(LibrusError):
-    pass
+    # Library-private: the bound was the cookie count and the jar was emptied,
+    # so the session behind it is gone.
+    _cookies_cleared = False
 
 
 class ParseError(LibrusError):

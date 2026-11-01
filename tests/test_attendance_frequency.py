@@ -244,7 +244,7 @@ def test_metadata_caches_are_login_scoped_and_invalidated_with_session() -> None
 def test_metadata_ttl_and_result_cache_capacity_are_bounded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("librus_python_api.service.ATTENDANCE_RESULT_CACHE_SIZE", 2)
+    monkeypatch.setattr("librus_python_api.service.ACCOUNT_RESULT_CACHE_SIZE", 2)
     monkeypatch.setattr("librus_python_api.service.ATTENDANCE_METADATA_CACHE_SIZE", 1)
 
     async def scenario() -> None:

@@ -19,7 +19,7 @@ from scripts.live_check.credentials import (
     from_file,
 )
 from tests.http_support import serve
-from tests.live_check_support import WeeklyFixture
+from tests.live_check_support import TODAY, WeeklyFixture
 
 CANARY = "canary-password-value-7f3a"
 
@@ -169,6 +169,9 @@ def loopback(fixture: WeeklyFixture, logins: tuple[str, ...]) -> object:
                 messages_origin=modern,
                 download_origin=fixture.download_origin,
             )
+            # The fixture's lessons are dated; the CLI passes the real today.
+            assert "today" in kwargs
+            kwargs["today"] = TODAY
             return await runner.run_profile(*args, **kwargs)
 
     return run

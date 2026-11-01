@@ -9,6 +9,7 @@ from librus_python_api import (
     RequestBudget,
     SchedulerLimits,
     TransportLimits,
+    __version__,
 )
 from librus_python_api.config import (
     AccountCredentials,
@@ -288,6 +289,20 @@ def test_a_session_just_signed_in_that_gets_the_logged_out_page_fails_once() -> 
                 with pytest.raises(ParseError):
                     await service.account("student").student_information()
                 assert fixture.logins == {"student": 1}
+
+    asyncio.run(scenario())
+
+
+def test_requests_identify_the_installed_version() -> None:
+    async def scenario() -> None:
+        fixture = SchoolFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                await service.account("student").student_information()
+        assert fixture.agents == {
+            f"librus-python-api/{__version__} (independent client)"
+        }
 
     asyncio.run(scenario())
 

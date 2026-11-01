@@ -17,7 +17,7 @@ from librus_python_api import (
     ModernRecipientTypeReference,
     RequestBudget,
 )
-from librus_python_api.config import SchedulerLimits
+from librus_python_api.config import SchedulerLimits, TransportLimits
 from librus_python_api.exceptions import ErrorKind, InvalidInputError, LibrusError
 from librus_python_api.modern_mailbox import (
     parse_correspondents,
@@ -302,6 +302,81 @@ def test_modern_mailbox_cancel_deadline_and_budget_release_slots(mode: str) -> N
                 assert not fixture.sends
             finally:
                 fixture.release.set()
+            # None of these says the session is gone: no second launch.
+            fixture.block_stage = None
+            await client.modern_messages(page_size=10)
+            assert sum(path == "/wiadomosci3" for path, _ in fixture.calls) == 1
+
+    asyncio.run(scenario())
+
+
+class CookieFloodFixture(CommunicationFixture):
+    flooding = False
+
+    async def communication(self, request: web.Request) -> web.Response:
+        response = await super().communication(request)
+        for index in range(8 if self.flooding else 0):
+            response.set_cookie(f"fixture{index}", "flood")
+        return response
+
+
+def test_a_cookie_limit_empties_the_jar_and_drops_the_modern_session() -> None:
+    async def scenario() -> None:
+        fixture = CookieFloodFixture()
+        limits = TransportLimits(max_cookies=8)
+        async with fixture.running(transport_limits=limits) as service:
+            client = service.account("student")
+            await client.modern_identity()
+            fixture.flooding = True
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(page_size=10)
+            assert error.value.kind is ErrorKind.LIMIT
+            fixture.flooding = False
+            await client.modern_messages(page_size=10)
+            assert sum(path == "/wiadomosci3" for path, _ in fixture.calls) == 2
+
+    asyncio.run(scenario())
+
+
+def test_a_cancelled_identity_binding_drops_the_modern_session() -> None:
+    # Unlike a mailbox read: the binding is what was being verified.
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.modern_identity()
+            fixture.block_stage = "identity"
+            task = asyncio.create_task(client.modern_identity())
+            try:
+                async with asyncio.timeout(2):
+                    await fixture.started.wait()
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            finally:
+                fixture.release.set()
+            fixture.block_stage = None
+            await client.modern_messages(page_size=10)
+            assert sum(path == "/wiadomosci3" for path, _ in fixture.calls) == 2
+
+    asyncio.run(scenario())
+
+
+def test_an_unrecognized_mailbox_body_drops_the_modern_session() -> None:
+    # A session the upstream no longer knows may be answered with such a body;
+    # keeping the session would fail every later read.
+    async def scenario() -> None:
+        fixture = CommunicationFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.modern_identity()
+            fixture.malformed_page = 1
+            with pytest.raises(LibrusError) as error:
+                await client.modern_messages(page_size=10)
+            assert error.value.kind is ErrorKind.PARSE
+            fixture.malformed_page = None
+            await client.modern_messages(page_size=10)
+            assert sum(path == "/wiadomosci3" for path, _ in fixture.calls) == 2
 
     asyncio.run(scenario())
 

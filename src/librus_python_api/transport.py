@@ -50,7 +50,12 @@ from librus_python_api.config import (
     recipient_form,
     validate_modern_query,
 )
-from librus_python_api.exceptions import ErrorKind, LibrusError, SessionExpiredError
+from librus_python_api.exceptions import (
+    ErrorKind,
+    LibrusError,
+    LimitError,
+    SessionExpiredError,
+)
 from librus_python_api.models import (
     AttachmentHeaders,
     LoginSubmission,
@@ -451,9 +456,7 @@ class AiohttpTransport:
                 proxy=proxy.get_secret_value() if proxy is not None else None,
             ) as response:
                 self._check_headers(response)
-                if len(session.cookie_jar) > self._limits.max_cookies:
-                    session.cookie_jar.clear()
-                    raise LibrusError(ErrorKind.LIMIT)
+                self._check_cookies(session)
                 if not modern or response.status not in (400, 422):
                     self._check_status(response)
                 body = await self._read_body(response, budget)
@@ -542,9 +545,7 @@ class AiohttpTransport:
             proxy=proxy.get_secret_value() if proxy is not None else None,
         ) as response:
             self._check_headers(response)
-            if len(session.cookie_jar) > self._limits.max_cookies:
-                session.cookie_jar.clear()
-                raise LibrusError(ErrorKind.LIMIT)
+            self._check_cookies(session)
             self._check_status(response)
             body = await self._read_payload(response, budget)
             if response.status == 200:
@@ -843,9 +844,7 @@ class AiohttpTransport:
             proxy=proxy.get_secret_value() if proxy is not None else None,
         ) as response:
             self._check_headers(response)
-            if len(session.cookie_jar) > self._limits.max_cookies:
-                session.cookie_jar.clear()
-                raise LibrusError(ErrorKind.LIMIT)
+            self._check_cookies(session)
             self._check_status(response)
             body = await self._read_body(response, budget)
             return TransportResponse(
@@ -862,6 +861,13 @@ class AiohttpTransport:
             or len(response.headers.getall("Location", [])) > 1
         ):
             raise LibrusError(ErrorKind.LIMIT)
+
+    def _check_cookies(self, session: aiohttp.ClientSession) -> None:
+        if len(session.cookie_jar) > self._limits.max_cookies:
+            session.cookie_jar.clear()
+            error = LimitError(ErrorKind.LIMIT)
+            error._cookies_cleared = True
+            raise error
 
     def _check_status(self, response: aiohttp.ClientResponse) -> None:
         if response.status in (429, 503):
