@@ -120,3 +120,11 @@ def test_release_identity_uses_real_remote_tag_and_main(
     )
     with pytest.raises(ValueError):
         identity("v1.0.0rc1", "pypi")
+    # A tag named like the remote branch must not stand in for main.
+    subprocess.run(["git", "tag", "origin/main"], check=True)
+    subprocess.run(["git", "tag", "v1.0.0rc2"], check=True)
+    subprocess.run(
+        ["git", "push", "origin", "v1.0.0rc2"], check=True, capture_output=True
+    )
+    with pytest.raises(ValueError, match="fetched remote main"):
+        identity("v1.0.0rc2", "pypi")

@@ -57,7 +57,8 @@ def identity(tag: str, target: str) -> str:
         raise ValueError("Package version must be a string literal")
     on_main = (
         subprocess.run(
-            ["git", "merge-base", "--is-ancestor", head, "origin/main"], check=False
+            ["git", "merge-base", "--is-ancestor", head, "refs/remotes/origin/main"],
+            check=False,
         ).returncode
         == 0
     )
