@@ -16,7 +16,8 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.1` recovers a session Synergia no longer knows (it answers
+**Status:** `1.8.2` keeps the modern mailbox session across a cancelled read
+or a reached limit and sends its own version in the `User-Agent`. `1.8.1` recovers a session Synergia no longer knows (it answers
 with a "Brak dostępu" page, not a login redirect), reads the lucky number
 from the page header and summarizes a page that fails as a whole in
 diagnostics. `1.8.0` reports where a failure
@@ -37,7 +38,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.8.1
+python -m pip install librus-python-api==1.8.2
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -53,7 +54,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.8.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.8.2-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your
