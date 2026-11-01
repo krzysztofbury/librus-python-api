@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.2 (unreleased)
+## 1.8.2 (2026-11-01) - Modern session kept across cancels, honest User-Agent
 
 - A cancelled modern mailbox read or a reached limit no longer drops the modern
   session, so the next call needs no new launch. Other failures still drop it,
