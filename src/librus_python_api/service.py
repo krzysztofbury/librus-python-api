@@ -34,11 +34,11 @@ from librus_python_api.completed_lessons import (
     validate_selection,
 )
 from librus_python_api.config import (
+    ACCOUNT_RESULT_CACHE_SIZE,
     ATTACHMENT_MAX_BYTES,
     ATTENDANCE_MAX_WINDOW_DAYS,
     ATTENDANCE_METADATA_CACHE_SIZE,
     ATTENDANCE_METADATA_TTL_SECONDS,
-    ATTENDANCE_RESULT_CACHE_SIZE,
     CHECKPOINT_TIMEOUT_SECONDS,
     ENDPOINTS,
     GRADE_MAX_RECORDS,
@@ -74,6 +74,7 @@ from librus_python_api.diagnostics import DiagnosticSink, failure_frames
 from librus_python_api.exceptions import (
     ErrorKind,
     LibrusError,
+    LimitError,
     ParseError,
     SessionExpiredError,
 )
@@ -1308,7 +1309,7 @@ class AccountClient:
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> Grades:
-        """Select a grade view with one non-replayed view-changing POST.
+        """Select a grade view with one view-changing POST.
 
         Changes the selected grade filter, not school records. A cache hit makes
         no POST. Missing inline weight/count data remains unknown. In the all
@@ -1401,7 +1402,7 @@ class AccountClient:
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> Attendance:
-        """Read a fixed upstream attendance view without replaying its POST."""
+        """Read a fixed upstream attendance view with one view-changing POST."""
         form = attendance_view_form(view)
 
         async def fetch(budget: RequestBudget, _: bool) -> Attendance:
@@ -1540,7 +1541,7 @@ class AccountClient:
         budget: RequestBudget | None = None,
         max_age_seconds: float = 0.0,
     ) -> Timetable:
-        """Select an explicit school civil week; never replay its selection POST."""
+        """Select an explicit school civil week with one view-changing POST."""
         form = timetable_form(monday)
 
         async def fetch(budget: RequestBudget, _: bool) -> Timetable:
@@ -2143,21 +2144,22 @@ class AccountClient:
                 )
             raise
         self._cache[key] = (time.monotonic(), result)
-        if len(self._cache) > ATTENDANCE_RESULT_CACHE_SIZE:
+        if len(self._cache) > ACCOUNT_RESULT_CACHE_SIZE:
             del self._cache[next(iter(self._cache))]
         return result
 
     async def _authenticated[T](
         self, fetch: Fetch[T], budget: RequestBudget, retry_safe: bool
     ) -> T:
-        """Run a read in a session; recover proven expiry once for safe reads.
+        """Run a read in a session; recover expiry once where a repeat is safe.
 
         Initial login is never retried: a failed credential submission must not
-        be replayed. A view-changing POST is never replayed either; expiry only
-        clears the session so a later explicit call can log in again. A
-        logged-out page proves the request was not applied to the account, so
-        a read without an account effect answered with one is repeated once in
-        a fresh session; a session just signed in that gets it fails as PARSE.
+        be replayed. A retry-safe read is repeated once after a new login, and
+        so is a read without an account effect (`NONE` or `SELECT_VIEW`, never
+        mark-read) answered with a logged-out page, which proves the request
+        was not applied. Other expiry only clears the session so a later
+        explicit call can log in again. A session just signed in that gets the
+        logged-out page fails as PARSE.
         """
         fresh_login = self._identity is None
         if fresh_login:
@@ -2231,9 +2233,7 @@ class AccountClient:
                 raise expired from error
         except BaseException as error:
             if ENDPOINTS[endpoint].origin == "messages":
-                self._invalidate_modern()
-                if isinstance(error, SessionExpiredError):
-                    error._messages_origin = True
+                self._modern_read_failed(error)
             raise
 
     def _check_cooldown(self, key: str) -> None:
@@ -2248,6 +2248,22 @@ class AccountClient:
         self._metadata.clear()
         self._metadata_maps.clear()
         self._transport.clear_auth()
+
+    def _modern_read_failed(self, error: BaseException) -> None:
+        """Drop the modern session unless the failure says nothing about it.
+
+        A cancel or a local bound keeps it. Every other failure drops it, an
+        unrecognized body included: a session the upstream no longer knows may
+        be answered with one, and keeping it would fail every later read, while
+        dropping it costs one launch.
+        """
+        if isinstance(error, asyncio.CancelledError) or (
+            isinstance(error, LimitError) and not error._cookies_cleared
+        ):
+            return
+        self._invalidate_modern()
+        if isinstance(error, SessionExpiredError):
+            error._messages_origin = True
 
     def _invalidate_modern(self) -> None:
         self._modern_account = None

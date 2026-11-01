@@ -1074,6 +1074,7 @@ paths:
       description: |
         A page notice that the school disabled this view is ViewDisabledError.
         Selection POST is never automatically replayed, including proven expiry.
+        Synergia's logged-out page (1.8.1) is the exception: the read is repeated once after a fresh login.
         Rows and pagination are parsed together from one response, without a
         separate page-count request. Raw HTML is not a normalized JSON schema.
         Exactly one decorated table or explicit msgEmptyTable marker is required.

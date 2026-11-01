@@ -88,6 +88,7 @@ with `ParseError`. Rows without references are retained, since display equality
 does not establish identity. Aggregate items and rendered text (262144 characters)
 are bounded. A later failure discards the complete aggregate and publishes no
 partial result cache entry. Monthly POSTs are never automatically replayed.
+Synergia's logged-out page (1.8.1) is the exception: the read is repeated once after a fresh login.
 The method preserves upstream date-selection semantics and makes no snapshot or
 due-date-filter guarantee. Multi-month orchestration is offline-qualified only;
 the individual route and one-month constraint retain the earlier live evidence.
