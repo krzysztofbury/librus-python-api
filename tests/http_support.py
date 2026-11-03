@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from html import escape
 
 from aiohttp import web
 
@@ -161,7 +162,8 @@ class SchoolFixture:
         if login in self.profile_status:
             return web.Response(status=self.profile_status[login])
         return web.Response(
-            text=profile_html(school=f"Fixture School {login}"),
+            # The login comes from a request cookie; never reflect it as markup.
+            text=profile_html(school=f"Fixture School {escape(login)}"),
             content_type="text/html",
         )
 
