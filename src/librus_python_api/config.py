@@ -916,7 +916,10 @@ ANNOUNCEMENT_LABELS = MappingProxyType(
 ANNOUNCEMENT_EMPTY_CLASSES = frozenset(
     {"container", "border-red", "resizeable", "center"}
 )
-ANNOUNCEMENT_EMPTY_MARKERS = frozenset({"brak ogłoszeń", "nie ma ogłoszeń"})
+# "Aktualnie brak ogłoszeń" reported in #120 on two accounts.
+ANNOUNCEMENT_EMPTY_MARKERS = frozenset(
+    {"brak ogłoszeń", "nie ma ogłoszeń", "aktualnie brak ogłoszeń"}
+)
 TIMETABLE_MAX_PERIODS = 32
 TIMETABLE_MAX_LESSONS_PER_SLOT = 16
 TIMETABLE_MAX_CHANGES_PER_SLOT = 16

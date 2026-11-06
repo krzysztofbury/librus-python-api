@@ -394,6 +394,18 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+def _check_record_count(records: GradeRecords, added: int) -> None:
+    if (
+        len(records.numeric)
+        + len(records.descriptive)
+        + len(records.descriptive_summaries)
+        + len(records.formative)
+        + added
+        > GRADE_MAX_RECORDS
+    ):
+        raise LibrusError(ErrorKind.LIMIT)
+
+
 def _cooldown_due(error: LibrusError) -> bool:
     """A denial, an unrecovered expiry, or a logged-out page that a session
     just signed in also got: signing in again at once cannot help."""
@@ -1328,7 +1340,7 @@ class AccountClient:
                 records, table = await self._page(
                     "grades", budget, parse_grade_page, form=form
                 )
-                if table is not None:
+                if table is not None and not table.filled:
                     records = await self._gateway_descriptive(records, table, budget)
             return Grades(
                 self._session_identity(), records, self._observation("grades"), view
@@ -2508,15 +2520,7 @@ class AccountClient:
             "descriptive_users", budget, parse_gateway_users, content_type=JSON
         )
         added = descriptive_grades(items, subjects, users, table)
-        if (
-            len(records.numeric)
-            + len(records.descriptive)
-            + len(records.descriptive_summaries)
-            + len(records.formative)
-            + len(added)
-            > GRADE_MAX_RECORDS
-        ):
-            raise LibrusError(ErrorKind.LIMIT)
+        _check_record_count(records, len(added))
         return replace(records, descriptive=records.descriptive + added)
 
     async def _metadata_value(

@@ -26,7 +26,7 @@ from librus_python_api.gateway_grades import (
     parse_user_info,
 )
 from librus_python_api.grade_records import parse_grade_records
-from librus_python_api.models import Grades
+from librus_python_api.models import DescriptiveGradeSummary, Grades
 from librus_python_api.service import LibrusService
 from tests.gateway_grades_support import (
     PARENT,
@@ -36,6 +36,7 @@ from tests.gateway_grades_support import (
     descriptive_row,
     descriptive_table,
     encoded,
+    filled_row,
     gateway_subjects,
     gateway_users,
     observed_descriptive_page,
@@ -386,6 +387,67 @@ def test_student_read_uses_its_own_identifier_and_empty_data_is_empty() -> None:
     assert fixture.gateway[2]["reference"] == STUDENT
     assert result.records == parse_grade_records(descriptive_page().encode())
     assert len(fixture.calls) == LOGIN_REQUESTS + 1 + 3
+
+
+def test_a_filled_table_is_read_by_the_record_parser_without_the_gateway() -> None:
+    # Reported in #115 from a synthetic example: plain cells with values and no
+    # script hooks made the whole grades read fail.
+    rows = filled_row(first="5") + filled_row("302", "Fixture Music", second="4 + 5")
+    page = descriptive_page(descriptive_table(rows))
+    records, table = parse_grade_page(page.encode())
+    assert table is not None and table.filled
+    assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
+    assert records.descriptive_summaries == (
+        DescriptiveGradeSummary("Fixture Nature", 1, "5"),
+        DescriptiveGradeSummary("Fixture Music", 2, "4 + 5"),
+    )
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
+    result = read_grades(fixture)
+    assert fixture.gateway == []
+    assert result.records == records
+    empty = parse_grade_page(descriptive_page(descriptive_table(filled_row())).encode())
+    assert empty[0].descriptive_summaries == ()
+    assert empty[1] is not None and empty[1].filled
+
+
+@pytest.mark.parametrize(
+    "rows,expected",
+    [
+        (
+            filled_row() + descriptive_row("302", "Fixture Music"),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(
+                "<td>Brak ocen</td>", '<td data-semester="1">5</td>', 1
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(
+                "<td>Brak ocen</td>", '<td class="gradesCell">5</td>', 1
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (filled_row(first="<b>5</b>"), ParseError),
+        (filled_row(first='<span class="grade-box">5</span>'), ParseError),
+        (filled_row().replace("</tr>", "<td>5</td></tr>"), LibrusError),
+    ],
+    ids=[
+        "mixed-layouts",
+        "semester-hook",
+        "grades-cell",
+        "markup",
+        "grade-box",
+        "extra-cell",
+    ],
+)
+def test_unseen_filled_table_layouts_fail_closed(
+    rows: str, expected: type[Exception]
+) -> None:
+    with pytest.raises(expected):
+        parse_grade_page(descriptive_page(descriptive_table(rows)).encode())
 
 
 def test_pages_without_the_table_and_other_views_make_no_gateway_request() -> None:

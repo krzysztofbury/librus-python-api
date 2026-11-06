@@ -19,7 +19,7 @@ alongside `datetime.date`. No timezone or publication time is invented.
 | Field mapping | Three positional row values | One THEAD title and semantic TH/TD fields, independent of row order; duplicate, missing, unknown and unparsed nonempty rows fail |
 | Civil date | Raw string | Both original ISO date text and typed civil date. Invalid dates fail; unqualified alternate formats report unsupported capability |
 | References | No upstream ID returned | Explicit account-alias-scoped content fingerprint, not a fabricated upstream resource ID |
-| Empty | Broad warning-container shape means empty | Specific configured no-announcement phrase and container structure. Missing markup or unrelated warnings do not become empty success |
+| Empty | Broad warning-container shape means empty | Specific configured no-announcement phrases (`Brak ogłoszeń`, `Nie ma ogłoszeń`, and since 1.8.3 `Aktualnie brak ogłoszeń`, issue #120 by @Witoso) and container structure. Missing markup or unrelated warnings do not become empty success |
 | Recovery/cache | Existing client session | Shared service budgets, isolated login/session cache/coalescing, explicit freshness and at most one proven-expiry safe-read recovery |
 | Serialization | MCP title/author/description/date strings | Consumer-owned mapping from content/date_text; no MCP response-model dependency or notification persistence |
 

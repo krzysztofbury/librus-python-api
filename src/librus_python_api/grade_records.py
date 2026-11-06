@@ -126,6 +126,43 @@ def _numeric(
     )
 
 
+def _behaviour_grade(
+    element: html.HtmlElement,
+    subject: str,
+    semester: Literal[0, 1, 2],
+    kind: GradeKind = GradeKind.CURRENT,
+) -> NumericGrade:
+    """A behaviour entry with a grade symbol, such as `wz`, instead of points.
+
+    Its tooltip has the point entries' layout: an unlabelled first line, then
+    `Data wystawienia` and `Dodał`. The first line names the entry, as the
+    point category does, so it is the category. `Dodał` stays in metadata. An
+    integer label is a point entry outside a points cell and fails.
+    """
+    heading: list[str] = []
+    metadata = markup.tooltip_fields(element, heading)
+    raw = markup.text(element)
+    if not heading or not raw or re.fullmatch(r"[+-]?[0-9]{1,4}", raw):
+        raise LibrusError(ErrorKind.PARSE)
+    href = element.get("href")
+    if href is not None and len(href) > GRADE_MAX_METADATA_LENGTH:
+        raise LibrusError(ErrorKind.LIMIT)
+    return NumericGrade(
+        subject,
+        raw,
+        markup.civil_date(metadata.get("Data wystawienia")),
+        semester,
+        None,
+        None,
+        heading[0],
+        None,
+        metadata.get("Komentarz"),
+        href,
+        tuple(metadata.items()),
+        kind,
+    )
+
+
 def _descriptive(
     box: html.HtmlElement,
     element: html.HtmlElement,
@@ -284,7 +321,15 @@ def _entries(
         if len(anchors) + len(descriptions) != 1:
             raise LibrusError(ErrorKind.PARSE)
         if anchors:
-            record = _numeric(anchors[0], subject, period, kind)
+            record = (
+                _behaviour_grade(anchors[0], subject, period, kind)
+                if subject in GRADE_MERGED_SUBJECTS
+                and markup.detail_id(
+                    anchors[0].get("href"), BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX
+                )
+                is not None
+                else _numeric(anchors[0], subject, period, kind)
+            )
             if descriptive:
                 href = record.href
                 if href is not None and re.sub(
