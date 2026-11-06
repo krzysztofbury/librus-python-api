@@ -116,6 +116,13 @@ def test_the_observed_live_layout_reads_the_populated_table_only() -> None:
     page = observed_descriptive_page().encode()
     records, table = parse_grade_page(page)
     assert records == parse_grade_records(page)
+    # Its header row is column labels, not a subject named "Przedmiot".
+    assert {a.subject for a in records.averages} == {
+        "Fixture Language",
+        "Fixture Nature",
+        "Fixture Music",
+    }
+    assert records.descriptive_summaries == ()
     assert table is not None
     assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
     shell_only = observed_descriptive_page().replace("studentRow", "otherRow")
@@ -411,6 +418,9 @@ def test_a_filled_table_is_read_by_the_record_parser_without_the_gateway() -> No
     assert empty[1] is not None and empty[1].filled
 
 
+HOOKLESS = "<td>Brak ocen</td>"
+
+
 @pytest.mark.parametrize(
     "rows,expected",
     [
@@ -419,27 +429,45 @@ def test_a_filled_table_is_read_by_the_record_parser_without_the_gateway() -> No
             UnsupportedCapabilityError,
         ),
         (
+            filled_row().replace(HOOKLESS, '<td data-semester="1">5</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(HOOKLESS, '<td class="gradesCell">5</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        # Renamed, moved or missing hooks must not pass as a filled table.
+        (filled_row(first="", second=""), UnsupportedCapabilityError),
+        (
             filled_row().replace(
-                "<td>Brak ocen</td>", '<td data-semester="1">5</td>', 1
+                HOOKLESS, '<td class="gradesCellV2" data-sem="1"></td>'
             ),
             UnsupportedCapabilityError,
         ),
         (
-            filled_row().replace(
-                "<td>Brak ocen</td>", '<td class="gradesCell">5</td>', 1
+            filled_row(first="", second="").replace(
+                "<tr ", '<tr data-semester="1" ', 1
             ),
             UnsupportedCapabilityError,
         ),
+        (
+            filled_row().replace(HOOKLESS, '<td class="fixture">Brak ocen</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        (filled_row(first=grade_box(descriptive=True)), UnsupportedCapabilityError),
         (filled_row(first="<b>5</b>"), ParseError),
-        (filled_row(first='<span class="grade-box">5</span>'), ParseError),
-        (filled_row().replace("</tr>", "<td>5</td></tr>"), LibrusError),
+        (filled_row().replace("</tr>", "<td>5</td></tr>"), ParseError),
     ],
     ids=[
         "mixed-layouts",
         "semester-hook",
         "grades-cell",
-        "markup",
+        "blank",
+        "renamed-hooks",
+        "hooks-on-row",
+        "classed-cell",
         "grade-box",
+        "markup",
         "extra-cell",
     ],
 )
@@ -448,6 +476,13 @@ def test_unseen_filled_table_layouts_fail_closed(
 ) -> None:
     with pytest.raises(expected):
         parse_grade_page(descriptive_page(descriptive_table(rows)).encode())
+
+
+def test_a_filled_table_with_gateway_detail_rows_is_unsupported() -> None:
+    # The detail rows are what the page script fills from the gateway.
+    page = observed_descriptive_page(filled_row(first="5"))
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_grade_page(page.encode())
 
 
 def test_pages_without_the_table_and_other_views_make_no_gateway_request() -> None:

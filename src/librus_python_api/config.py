@@ -787,6 +787,7 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
 # semester cells and its script loads the grades from the gateway routes above.
 DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
+DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"
 # Gateway account and student identifiers are opaque strings, unlike every
 # other `{id}` route, which takes a numeric ID.
 DESCRIPTIVE_IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}")
@@ -849,6 +850,8 @@ ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
 # Recognition only: behaviour-point detail links are classified, never requested.
 BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
+# Tooltip labels of a behaviour grade symbol entry (#114, synthetic example).
+BEHAVIOUR_GRADE_LABELS = frozenset({"Data wystawienia", "Dodał", "Komentarz"})
 # Recognition only: point-grade detail links are classified, never requested.
 POINT_GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny_punktowe/szczegoly/"
 FORMATIVE_HEADERS = (

@@ -205,7 +205,7 @@ def test_inspect_page_reports_counts_or_the_failure(
     good.write_text(body.split("<body>")[1] if fragment else body, encoding="utf-8")
     assert main(["grades", str(good)]) == 0
     output = capsys.readouterr().out
-    assert "OK numeric=1" in output
+    assert "OK numeric=1" in output and "descriptive_table=0" in output
     assert ("fragment" in output) is fragment
     bad = tmp_path / "bad.html"
     bad.write_text(_sentinel_page(), encoding="utf-8")

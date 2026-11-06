@@ -135,10 +135,20 @@ def test_behaviour_grade_symbol_entries_are_grades_with_their_category() -> None
     [
         behaviour_grade_box("3"),
         behaviour_grade_box("+2"),
+        behaviour_grade_box("1.5"),
+        behaviour_grade_box("+ 3"),
         behaviour_grade_box(""),
         behaviour_grade_box().replace("Data wystawienia", "Data"),
-        behaviour_grade_box().replace("wzorowe&lt;br /&gt;", ""),
         behaviour_grade_box().replace("Dodał:", "Dodał"),
+        # A labelled first line means the heading is missing.
+        behaviour_grade_box(heading="Dodał: Teacher Fixture").replace(
+            "&lt;br /&gt;Dodał: Teacher Fixture", ""
+        ),
+        behaviour_grade_box(heading="Komentarz: Fixture remark"),
+        behaviour_grade_box(heading="Data wystawienia: 2026-10-01"),
+        behaviour_grade_box().replace('title="', 'data-x="'),
+        # A point entry's tooltip with a symbol label.
+        behaviour_box("wz"),
         behaviour_points(boxes=behaviour_grade_box()),
     ],
 )
@@ -154,6 +164,15 @@ def test_an_unlabelled_tooltip_line_still_fails_outside_behaviour_entries() -> N
     ordinary = entry.replace("zachowanie_szczegoly", "szczegoly")
     with pytest.raises(ParseError):
         parse_grade_records(grades_html(first=ordinary, subject="Zachowanie").encode())
+    # A descriptive row has no category to keep the first line in.
+    row = (
+        '<tr><td class="micro center screen-only"></td><td>Zachowanie</td>'
+        f"<td>{entry}</td><td></td></tr>"
+    )
+    with pytest.raises(ParseError):
+        parse_grade_records(
+            f'<html><body><table class="decorated">{row}</table></body></html>'.encode()
+        )
 
 
 @pytest.mark.parametrize(

@@ -8,6 +8,7 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    BEHAVIOUR_GRADE_LABELS,
     BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX,
     FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
@@ -26,6 +27,7 @@ from librus_python_api.config import (
     GRADE_PUBLICATION_DATE_LABEL,
     GRADE_PUBLICATION_PERIOD_LABELS,
     GRADE_PUBLICATION_TEACHER_LABEL,
+    TOOLTIP_LABELS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.formative_grades import is_formative_table, read_formative_table
@@ -136,13 +138,21 @@ def _behaviour_grade(
 
     Its tooltip has the point entries' layout: an unlabelled first line, then
     `Data wystawienia` and `Dodał`. The first line names the entry, as the
-    point category does, so it is the category. `Dodał` stays in metadata. An
-    integer label is a point entry outside a points cell and fails.
+    point category does, so it is the category. `Dodał` stays in metadata. A
+    label with digits, a point entry's range labels or any other label fails.
     """
     heading: list[str] = []
     metadata = markup.tooltip_fields(element, heading)
     raw = markup.text(element)
-    if not heading or not raw or re.fullmatch(r"[+-]?[0-9]{1,4}", raw):
+    if (
+        not heading
+        # A labelled first line means the heading is missing.
+        or heading[0].partition(":")[0].strip() in TOOLTIP_LABELS
+        # Symbols carry no digits; points or a range are a point entry.
+        or not raw
+        or re.search(r"[0-9]", raw)
+        or not BEHAVIOUR_GRADE_LABELS >= metadata.keys()
+    ):
         raise LibrusError(ErrorKind.PARSE)
     href = element.get("href")
     if href is not None and len(href) > GRADE_MAX_METADATA_LENGTH:
@@ -321,13 +331,19 @@ def _entries(
         if len(anchors) + len(descriptions) != 1:
             raise LibrusError(ErrorKind.PARSE)
         if anchors:
-            record = (
-                _behaviour_grade(anchors[0], subject, period, kind)
-                if subject in GRADE_MERGED_SUBJECTS
+            behaviour = (
+                subject in GRADE_MERGED_SUBJECTS
                 and markup.detail_id(
                     anchors[0].get("href"), BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX
                 )
                 is not None
+            )
+            if behaviour and descriptive:
+                # A descriptive record has no category for the first line.
+                raise LibrusError(ErrorKind.PARSE)
+            record = (
+                _behaviour_grade(anchors[0], subject, period, kind)
+                if behaviour
                 else _numeric(anchors[0], subject, period, kind)
             )
             if descriptive:
@@ -585,6 +601,9 @@ def read_grade_records(document: html.HtmlElement) -> GradeRecords:
             _read_numeric_table(table, collection, points=True)
         else:
             for row in markup.rows(table):
+                if markup.in_header(row):
+                    # The new-schema table's column labels, not a subject.
+                    continue
                 cells = markup.cells(row)
                 if _descriptive_row(cells):
                     _read_descriptive_row(cells, collection)

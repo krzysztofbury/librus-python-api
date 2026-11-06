@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    DESCRIPTIVE_DETAILS_ROW_CLASS,
     DESCRIPTIVE_IDENTIFIER,
     DESCRIPTIVE_MAX_NAME_LENGTH,
     DESCRIPTIVE_MAX_SUBJECTS,
@@ -390,8 +391,12 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         semesters = cells[2:]
+        # A filled cell is bare text: no attributes and no markup, so a renamed
+        # or moved script hook never passes as a filled table.
         filled = all(
-            cell.get("data-semester") is None and "gradesCell" not in _classes(cell)
+            not cell.attrib
+            and markup.text(cell)
+            and not any(isinstance(node.tag, str) for node in cell)
             for cell in semesters
         )
         if not filled and (
@@ -419,6 +424,12 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
         # One page shows one student; rows of several students are unknown.
         raise LibrusError(ErrorKind.PARSE)
     if len(layouts) > 1:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    if layouts == {True} and any(
+        DESCRIPTIVE_DETAILS_ROW_CLASS in _classes(row) for row in markup.rows(tables[0])
+    ):
+        # Detail rows are what the page script fills from the gateway; a filled
+        # table that still has them may also have gateway grades.
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     return DescriptiveTable(MappingProxyType(subjects), layouts == {True})
 
