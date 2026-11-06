@@ -81,11 +81,14 @@ def colspan(cell: html.HtmlElement) -> int:
     return span
 
 
-def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
+def tooltip_fields(
+    element: html.HtmlElement, heading: list[str] | None = None
+) -> dict[str, str]:
     """Parse a 'Label: value<br>' title attribute into unique labelled fields.
 
     A free-text field may span lines; an unlabelled line after it continues
-    its value. Any other unlabelled line is an unknown layout.
+    its value. Any other unlabelled line is an unknown layout. With `heading`,
+    the first line is taken whole, colon included, and appended to it.
     """
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
@@ -98,12 +101,10 @@ def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
     for chunk in chunks:
         if not chunk.strip():
             continue
-        # Tooltips are HTML inside an attribute; parse markup only where present.
-        rendered = (
-            text(parse_html_document(chunk.encode()))
-            if "<" in chunk
-            else " ".join(chunk.split())
-        )
+        rendered = tooltip_line(chunk)
+        if heading is not None and not heading:
+            heading.append(rendered)
+            continue
         key, separator, value = rendered.partition(":")
         key, value = key.strip(), value.strip()
         if not separator and last in TOOLTIP_MULTILINE_LABELS:
@@ -114,6 +115,14 @@ def tooltip_fields(element: html.HtmlElement) -> dict[str, str]:
         result[key] = value
         last = key
     return result
+
+
+def tooltip_line(chunk: str) -> str:
+    """One tooltip line's text, whitespace normalized."""
+    # Tooltips are HTML inside an attribute; parse markup only where present.
+    if "<" in chunk:
+        return text(parse_html_document(chunk.encode()))
+    return " ".join(chunk.split())
 
 
 def civil_date(value: str | None) -> date:

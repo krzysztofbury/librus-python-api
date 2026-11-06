@@ -26,7 +26,7 @@ from librus_python_api.gateway_grades import (
     parse_user_info,
 )
 from librus_python_api.grade_records import parse_grade_records
-from librus_python_api.models import Grades
+from librus_python_api.models import DescriptiveGradeSummary, Grades
 from librus_python_api.service import LibrusService
 from tests.gateway_grades_support import (
     PARENT,
@@ -36,6 +36,7 @@ from tests.gateway_grades_support import (
     descriptive_row,
     descriptive_table,
     encoded,
+    filled_row,
     gateway_subjects,
     gateway_users,
     observed_descriptive_page,
@@ -115,6 +116,13 @@ def test_the_observed_live_layout_reads_the_populated_table_only() -> None:
     page = observed_descriptive_page().encode()
     records, table = parse_grade_page(page)
     assert records == parse_grade_records(page)
+    # Its header row is column labels, not a subject named "Przedmiot".
+    assert {a.subject for a in records.averages} == {
+        "Fixture Language",
+        "Fixture Nature",
+        "Fixture Music",
+    }
+    assert records.descriptive_summaries == ()
     assert table is not None
     assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
     shell_only = observed_descriptive_page().replace("studentRow", "otherRow")
@@ -386,6 +394,95 @@ def test_student_read_uses_its_own_identifier_and_empty_data_is_empty() -> None:
     assert fixture.gateway[2]["reference"] == STUDENT
     assert result.records == parse_grade_records(descriptive_page().encode())
     assert len(fixture.calls) == LOGIN_REQUESTS + 1 + 3
+
+
+def test_a_filled_table_is_read_by_the_record_parser_without_the_gateway() -> None:
+    # Reported in #115 from a synthetic example: plain cells with values and no
+    # script hooks made the whole grades read fail.
+    rows = filled_row(first="5") + filled_row("302", "Fixture Music", second="4 + 5")
+    page = descriptive_page(descriptive_table(rows))
+    records, table = parse_grade_page(page.encode())
+    assert table is not None and table.filled
+    assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
+    assert records.descriptive_summaries == (
+        DescriptiveGradeSummary("Fixture Nature", 1, "5"),
+        DescriptiveGradeSummary("Fixture Music", 2, "4 + 5"),
+    )
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
+    result = read_grades(fixture)
+    assert fixture.gateway == []
+    assert result.records == records
+    empty = parse_grade_page(descriptive_page(descriptive_table(filled_row())).encode())
+    assert empty[0].descriptive_summaries == ()
+    assert empty[1] is not None and empty[1].filled
+
+
+HOOKLESS = "<td>Brak ocen</td>"
+
+
+@pytest.mark.parametrize(
+    "rows,expected",
+    [
+        (
+            filled_row() + descriptive_row("302", "Fixture Music"),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(HOOKLESS, '<td data-semester="1">5</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(HOOKLESS, '<td class="gradesCell">5</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        # Renamed, moved or missing hooks must not pass as a filled table.
+        (filled_row(first="", second=""), UnsupportedCapabilityError),
+        (
+            filled_row().replace(
+                HOOKLESS, '<td class="gradesCellV2" data-sem="1"></td>'
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row(first="", second="").replace(
+                "<tr ", '<tr data-semester="1" ', 1
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            filled_row().replace(HOOKLESS, '<td class="fixture">Brak ocen</td>', 1),
+            UnsupportedCapabilityError,
+        ),
+        (filled_row(first=grade_box(descriptive=True)), UnsupportedCapabilityError),
+        (filled_row(first="<b>5</b>"), ParseError),
+        (filled_row().replace("</tr>", "<td>5</td></tr>"), ParseError),
+    ],
+    ids=[
+        "mixed-layouts",
+        "semester-hook",
+        "grades-cell",
+        "blank",
+        "renamed-hooks",
+        "hooks-on-row",
+        "classed-cell",
+        "grade-box",
+        "markup",
+        "extra-cell",
+    ],
+)
+def test_unseen_filled_table_layouts_fail_closed(
+    rows: str, expected: type[Exception]
+) -> None:
+    with pytest.raises(expected):
+        parse_grade_page(descriptive_page(descriptive_table(rows)).encode())
+
+
+def test_a_filled_table_with_gateway_detail_rows_is_unsupported() -> None:
+    # The detail rows are what the page script fills from the gateway.
+    page = observed_descriptive_page(filled_row(first="5"))
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_grade_page(page.encode())
 
 
 def test_pages_without_the_table_and_other_views_make_no_gateway_request() -> None:

@@ -6,6 +6,11 @@ grades from gateway JSON routes. Routes and field names come from public client
 code and the official page script. One authorized read on 2026-10-28 parsed four
 PartialGrades records on one school; pagination keys are still unknown, so every
 unexpected shape fails instead of producing a partial collection.
+
+Another school renders the same table with plain text in its semester cells and
+no script hooks (#115, from a reporter's synthetic example). The grade record
+parser reads those cells like any descriptive row, so that table needs no
+gateway read.
 """
 
 import re
@@ -20,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    DESCRIPTIVE_DETAILS_ROW_CLASS,
     DESCRIPTIVE_IDENTIFIER,
     DESCRIPTIVE_MAX_NAME_LENGTH,
     DESCRIPTIVE_MAX_SUBJECTS,
@@ -331,9 +337,13 @@ def parse_gateway_users(body: bytes) -> Mapping[str, str]:
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveTable:
-    """Numeric subject ID to the subject name the grades page shows."""
+    """Numeric subject ID to the subject name the grades page shows.
+
+    A filled table already holds its grades and has no gateway grades.
+    """
 
     subjects: Mapping[int, str] = field(repr=False)
+    filled: bool = False
 
 
 def _classes(element: html.HtmlElement) -> set[str]:
@@ -343,9 +353,11 @@ def _classes(element: html.HtmlElement) -> set[str]:
 def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | None:
     """The new-schema subject table, or None when the page has none.
 
-    Its rows hold an expander, the subject and two empty semester cells that
-    the page script fills from the gateway. A cell the page already filled
-    would duplicate the gateway records, so it is an unsupported layout.
+    Its rows hold an expander, the subject and two semester cells. Either
+    every row has empty `gradesCell` cells that the page script fills from
+    the gateway, or every row has plain cells the page filled itself, which
+    `read_grade_records` reads and validates. A script cell the page already
+    filled would duplicate the gateway records, so it is unsupported.
     """
     tables = [
         table
@@ -369,20 +381,33 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
     tables = populated
     subjects: dict[int, str] = {}
     students: set[str | None] = set()
+    layouts: set[bool] = set()
     for row in markup.rows(tables[0]):
         if DESCRIPTIVE_ROW_CLASS not in _classes(row):
             continue
         cells = markup.cells(row)
-        if (
-            len(cells) != 4
-            or not {"micro", "center", "screen-only"} <= _classes(cells[0])
-            or [cell.get("data-semester") for cell in cells[2:]] != ["1", "2"]
-            or not all("gradesCell" in _classes(cell) for cell in cells[2:])
+        if len(cells) != 4 or not {"micro", "center", "screen-only"} <= _classes(
+            cells[0]
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        if any(
+        semesters = cells[2:]
+        # A filled cell is bare text: no attributes and no markup, so a renamed
+        # or moved script hook never passes as a filled table.
+        filled = all(
+            not cell.attrib
+            and markup.text(cell)
+            and not any(isinstance(node.tag, str) for node in cell)
+            for cell in semesters
+        )
+        if not filled and (
+            [cell.get("data-semester") for cell in semesters] != ["1", "2"]
+            or not all("gradesCell" in _classes(cell) for cell in semesters)
+        ):
+            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        layouts.add(filled)
+        if not filled and any(
             markup.text(cell) or any(isinstance(node.tag, str) for node in cell)
-            for cell in cells[2:]
+            for cell in semesters
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         identifier = row.get("data-subject_id", "")
@@ -398,7 +423,15 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
     if len(students) > 1:
         # One page shows one student; rows of several students are unknown.
         raise LibrusError(ErrorKind.PARSE)
-    return DescriptiveTable(MappingProxyType(subjects))
+    if len(layouts) > 1:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    if layouts == {True} and any(
+        DESCRIPTIVE_DETAILS_ROW_CLASS in _classes(row) for row in markup.rows(tables[0])
+    ):
+        # Detail rows are what the page script fills from the gateway; a filled
+        # table that still has them may also have gateway grades.
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    return DescriptiveTable(MappingProxyType(subjects), layouts == {True})
 
 
 def parse_grade_page(body: bytes) -> tuple[GradeRecords, DescriptiveTable | None]:

@@ -787,6 +787,7 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
 # semester cells and its script loads the grades from the gateway routes above.
 DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
+DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"
 # Gateway account and student identifiers are opaque strings, unlike every
 # other `{id}` route, which takes a numeric ID.
 DESCRIPTIVE_IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}")
@@ -838,6 +839,17 @@ ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
     }
 )
 ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
+# Fixed unlabelled tooltip lines Librus appends to an attendance entry, and the
+# metadata pair each becomes. Observed live on 2026-11-06 on two logins: an
+# absence excused through the e-Usprawiedliwienia module.
+ATTENDANCE_TOOLTIP_NOTICES = MappingProxyType(
+    {
+        "Usprawiedliwienie dodane za pomocą modułu e-Usprawiedliwienia": (
+            "Usprawiedliwienie",
+            "dodane za pomocą modułu e-Usprawiedliwienia",
+        )
+    }
+)
 ATTENDANCE_MAX_RECORDS = 2048
 ATTENDANCE_MAX_WINDOW_DAYS = 371
 # Whole-school gateway collections resolve attendance metadata in two requests.
@@ -849,6 +861,8 @@ ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
 # Recognition only: behaviour-point detail links are classified, never requested.
 BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
+# Tooltip labels of a behaviour grade symbol entry (#114, synthetic example).
+BEHAVIOUR_GRADE_LABELS = frozenset({"Data wystawienia", "Dodał", "Komentarz"})
 # Recognition only: point-grade detail links are classified, never requested.
 POINT_GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny_punktowe/szczegoly/"
 FORMATIVE_HEADERS = (
@@ -916,7 +930,10 @@ ANNOUNCEMENT_LABELS = MappingProxyType(
 ANNOUNCEMENT_EMPTY_CLASSES = frozenset(
     {"container", "border-red", "resizeable", "center"}
 )
-ANNOUNCEMENT_EMPTY_MARKERS = frozenset({"brak ogłoszeń", "nie ma ogłoszeń"})
+# "Aktualnie brak ogłoszeń" reported in #120 on two accounts.
+ANNOUNCEMENT_EMPTY_MARKERS = frozenset(
+    {"brak ogłoszeń", "nie ma ogłoszeń", "aktualnie brak ogłoszeń"}
+)
 TIMETABLE_MAX_PERIODS = 32
 TIMETABLE_MAX_LESSONS_PER_SLOT = 16
 TIMETABLE_MAX_CHANGES_PER_SLOT = 16

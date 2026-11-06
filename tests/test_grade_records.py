@@ -18,6 +18,7 @@ from librus_python_api.grade_records import parse_grade_records
 from tests.grade_records_support import (
     GradeRecordsFixture,
     behaviour_box,
+    behaviour_grade_box,
     behaviour_points,
     behaviour_row,
     grade_box,
@@ -96,6 +97,82 @@ def test_behaviour_point_entries_are_recognized_but_never_reported_as_grades() -
     records = parse_grade_records(_with_behaviour(behaviour_points(boxes=boxes), "-"))
     assert [g.subject for g in records.numeric] == ["Fixture Language"]
     assert records.descriptive == ()
+
+
+def test_behaviour_grade_symbol_entries_are_grades_with_their_category() -> None:
+    # Reported in #114 from a synthetic example: the point-entry layout with a
+    # grade symbol and no points cell made the whole grades read fail.
+    records = parse_grade_records(
+        _with_behaviour(
+            behaviour_grade_box(), behaviour_grade_box("bdb", "bardzo dobre", "904")
+        )
+    )
+    behaviour = [g for g in records.numeric if g.subject == "Zachowanie"]
+    assert [(g.raw, g.semester, g.category, g.day) for g in behaviour] == [
+        ("wz", 1, "wzorowe", date(2026, 10, 16)),
+        ("bdb", 2, "bardzo dobre", date(2026, 10, 16)),
+    ]
+    assert behaviour[0].teacher is None
+    assert behaviour[0].counts_toward_average is None
+    assert behaviour[0].weight is None
+    assert behaviour[0].href == "/przegladaj_oceny/zachowanie_szczegoly/903"
+    assert behaviour[0].metadata == (
+        ("Data wystawienia", "2026-10-16"),
+        ("Dodał", "Teacher Fixture"),
+    )
+    assert [g.subject for g in records.numeric if g.subject != "Zachowanie"] == [
+        "Fixture Language"
+    ]
+    # The reporter's reproduction: the entry in an ordinary-width row.
+    alone = parse_grade_records(
+        grades_html(first=behaviour_grade_box(), subject="Zachowanie").encode()
+    )
+    assert [(g.raw, g.category) for g in alone.numeric] == [("wz", "wzorowe")]
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        behaviour_grade_box("3"),
+        behaviour_grade_box("+2"),
+        behaviour_grade_box("1.5"),
+        behaviour_grade_box("+ 3"),
+        behaviour_grade_box(""),
+        behaviour_grade_box().replace("Data wystawienia", "Data"),
+        behaviour_grade_box().replace("Dodał:", "Dodał"),
+        # A labelled first line means the heading is missing.
+        behaviour_grade_box(heading="Dodał: Teacher Fixture").replace(
+            "&lt;br /&gt;Dodał: Teacher Fixture", ""
+        ),
+        behaviour_grade_box(heading="Komentarz: Fixture remark"),
+        behaviour_grade_box(heading="Data wystawienia: 2026-10-01"),
+        behaviour_grade_box().replace('title="', 'data-x="'),
+        # A point entry's tooltip with a symbol label.
+        behaviour_box("wz"),
+        behaviour_points(boxes=behaviour_grade_box()),
+    ],
+)
+def test_behaviour_grade_entry_layout_fails_closed(first: str) -> None:
+    with pytest.raises(ParseError):
+        parse_grade_records(_with_behaviour(first, "-"))
+
+
+def test_an_unlabelled_tooltip_line_still_fails_outside_behaviour_entries() -> None:
+    entry = behaviour_grade_box()
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(first=entry).encode())
+    ordinary = entry.replace("zachowanie_szczegoly", "szczegoly")
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(first=ordinary, subject="Zachowanie").encode())
+    # A descriptive row has no category to keep the first line in.
+    row = (
+        '<tr><td class="micro center screen-only"></td><td>Zachowanie</td>'
+        f"<td>{entry}</td><td></td></tr>"
+    )
+    with pytest.raises(ParseError):
+        parse_grade_records(
+            f'<html><body><table class="decorated">{row}</table></body></html>'.encode()
+        )
 
 
 @pytest.mark.parametrize(

@@ -42,6 +42,20 @@ def descriptive_row(
     )
 
 
+def filled_row(
+    subject_id: str = "301",
+    subject: str = "Fixture Nature",
+    first: str = "Brak ocen",
+    second: str = "Brak ocen",
+) -> str:
+    """A subject row the page renders with its semester text (#115, synthetic)."""
+    return (
+        f'<tr class="studentRow line0" data-user_id="77" '
+        f'data-subject_id="{subject_id}"><td class="micro center screen-only"></td>'
+        f"<td>{subject}</td><td>{first}</td><td>{second}</td></tr>"
+    )
+
+
 def descriptive_table(rows: str | None = None) -> str:
     if rows is None:
         rows = descriptive_row() + descriptive_row("302", "Fixture Music", user="77")

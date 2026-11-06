@@ -19,8 +19,8 @@ from librus_python_api import __version__
 from librus_python_api.config import TransportLimits
 from librus_python_api.diagnostics import describe_failure, failure_frames
 from librus_python_api.exceptions import LibrusError
+from librus_python_api.gateway_grades import parse_grade_page
 from librus_python_api.grade_parsers import parse_final_grades
-from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.models import Availability
 from librus_python_api.parsers import parse_profile
 
@@ -31,7 +31,8 @@ NOTICE = (
 
 
 def _grades(body: bytes) -> dict[str, int]:
-    records = parse_grade_records(body)
+    # The all view also checks the new-schema table, as `grades()` does.
+    records, table = parse_grade_page(body)
     return {
         "numeric": sum(1 for g in records.numeric if g.point_grade_id is None),
         "point": sum(1 for g in records.numeric if g.point_grade_id is not None),
@@ -41,6 +42,8 @@ def _grades(body: bytes) -> dict[str, int]:
         "averages": len(records.averages),
         "point_results": len(records.point_results),
         "formative": len(records.formative),
+        "descriptive_table": int(table is not None),
+        "descriptive_table_filled": int(table is not None and table.filled),
     }
 
 

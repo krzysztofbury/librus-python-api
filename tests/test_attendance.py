@@ -85,6 +85,40 @@ def test_missing_optional_metadata_stays_unknown_and_custom_types_are_raw() -> N
     assert row.topic is None
 
 
+E_EXCUSE = (
+    "<span class='blue'>Usprawiedliwienie dodane za pomocą modułu "
+    "<nobr>e-Usprawiedliwienia</nobr></span>"
+)
+
+
+def test_an_e_excuse_notice_is_kept_as_metadata() -> None:
+    # Observed live on 2026-11-06: an absence excused through the module gets
+    # this fixed line after Dodał, and every attendance read failed.
+    extra = "Lekcja: Fixture Biology<br>Dodał: Fixture Parent<br>" + E_EXCUSE
+    (row,) = parse_attendance(
+        attendance_html(first=attendance_box(extra=extra)).encode()
+    ).items
+    assert row.subject == "Fixture Biology"
+    assert row.metadata[-2:] == (
+        ("Dodał", "Fixture Parent"),
+        ("Usprawiedliwienie", "dodane za pomocą modułu e-Usprawiedliwienia"),
+    )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        E_EXCUSE.replace("e-Usprawiedliwienia", "fixture module"),
+        E_EXCUSE + "<br>" + E_EXCUSE,
+        "Fixture unlabelled line",
+    ],
+    ids=["other-text", "twice", "unlabelled"],
+)
+def test_other_unlabelled_attendance_lines_still_fail(extra: str) -> None:
+    with pytest.raises(ParseError):
+        parse_attendance(attendance_html(first=attendance_box(extra=extra)).encode())
+
+
 def test_bold_tooltip_blocks_and_colons_in_topics_are_preserved() -> None:
     from html import escape
 

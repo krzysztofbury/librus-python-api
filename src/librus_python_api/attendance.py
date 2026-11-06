@@ -11,6 +11,7 @@ from librus_python_api.config import (
     ATTENDANCE_EMPTY_MARKERS,
     ATTENDANCE_MAX_RECORDS,
     ATTENDANCE_SEMESTER_LABELS,
+    ATTENDANCE_TOOLTIP_NOTICES,
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_VALUE_LENGTH,
 )
@@ -29,6 +30,17 @@ def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceReco
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
         raise LibrusError(ErrorKind.LIMIT)
+    # A known Librus notice is a whole line of its own; other unlabelled lines
+    # still fail in tooltip_fields.
+    notices: list[tuple[str, str]] = []
+    lines = []
+    for line in re.split(r"<br\s*/?>|\n", title, flags=re.I):
+        notice = ATTENDANCE_TOOLTIP_NOTICES.get(markup.tooltip_line(line))
+        if notice is None or notice in notices:
+            lines.append(line)
+        else:
+            notices.append(notice)
+    title = "<br>".join(lines)
     holder = html.Element("span")
     holder.set("title", re.sub(r"</b>\s*(?=<b[ >])", "</b>\n", title, flags=re.I))
     fields = markup.tooltip_fields(holder)
@@ -57,7 +69,7 @@ def _entry(element: html.HtmlElement, semester: Literal[1, 2]) -> AttendanceReco
         fields.get("Temat zajęć"),
         fields.get("Lekcja"),
         markup.attendance_detail_id(element),
-        tuple(fields.items()),
+        (*fields.items(), *notices),
     )
 
 

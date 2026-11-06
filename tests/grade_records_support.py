@@ -67,6 +67,21 @@ def behaviour_box(points: str = "3", detail: str = "901", **attributes: str) -> 
     )
 
 
+def behaviour_grade_box(
+    symbol: str = "wz", heading: str = "wzorowe", detail: str = "903"
+) -> str:
+    """A behaviour entry with a grade symbol: point-entry layout, symbol label."""
+    title = escape(
+        f"{heading}<br />Data wystawienia: 2026-10-16<br />Dodał: Teacher Fixture",
+        quote=True,
+    )
+    return (
+        '<span class="grade-box">'
+        f'<a title="{title}" href="{BEHAVIOUR_DETAIL.format(detail)}">{symbol}</a>'
+        "</span>"
+    )
+
+
 def behaviour_points(start: str = "50", boxes: str = "") -> str:
     """A behaviour-row cell: starting points, then any point entries."""
     return (

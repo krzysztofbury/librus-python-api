@@ -80,6 +80,13 @@ def test_semantic_field_order_and_source_whitespace_do_not_change_references() -
 
 def test_empty_collection_and_empty_content_are_distinct_from_missing_markup() -> None:
     assert parse_announcements(empty_page().encode(), "fixture") == ()
+    for status in (
+        "Nie ma ogłoszeń",
+        "Aktualnie brak ogłoszeń",
+        " AKTUALNIE  brak ogłoszeń. ",
+    ):
+        body = empty_page().replace("Brak ogłoszeń.", status)
+        assert parse_announcements(body.encode(), "fixture") == ()
     assert (
         parse_announcements(page(announcement_table(content="")).encode(), "fixture")[
             0
@@ -90,6 +97,8 @@ def test_empty_collection_and_empty_content_are_distinct_from_missing_markup() -
         page(),
         page("<p>Brak ogłoszeń.</p>"),
         empty_page().replace("Brak ogłoszeń.", "Fixture unrelated warning"),
+        empty_page().replace("Brak ogłoszeń.", "Aktualnie brak ogłoszeń, fixture"),
+        empty_page().replace("<p>Brak ogłoszeń.</p>", "<p>Brak ogłoszeń.</p>" * 2),
         empty_page().replace("border-red", "unknown"),
     ):
         with pytest.raises(ParseError):

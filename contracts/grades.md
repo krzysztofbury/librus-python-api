@@ -120,6 +120,20 @@ rules. Observed offline on 2026-10-18 in two schools' pages, one with starting
 points and entries and one with a running total alone; the guarded live gate is
 pending.
 
+A behaviour-row grade box that links to a behaviour detail with a grade symbol
+instead of an integer, such as `wz`, is a behaviour grade (1.8.3, issue #114 by
+@wiktorw). Its tooltip has the point entries' layout: an unlabelled first line
+(`wzorowe`), then `Data wystawienia` and `Dodał`. It becomes a `NumericGrade`
+whose `category` is that first line, as the first line of a point entry names
+its category, and whose day is `Data wystawienia`. `teacher` stays `None` and
+`Dodał` stays in `metadata`; count and weight are unknown. Only
+`Data wystawienia`, `Dodał` and `Komentarz` may follow the first line. A first
+line that is a known label, a missing date, a label with digits, a point
+entry's range labels, such a box in a descriptive row (which has no category)
+or anywhere but the behaviour row fails. An unlabelled first line in any other
+tooltip still fails.
+The layout comes from the reporter's synthetic example, not an observed page.
+
 Missing metadata remains `None`. Raw school averages have explicit column
 availability; empty/unassigned values do not become zero. Numeric weights require
 explicit bounded nonnegative integers. Unknown metadata fields are preserved,
@@ -465,8 +479,23 @@ was not described; the fixture's header has no "Oceny bieżące" label, which
 would make the table an ordinary grade table. In the all view the table must
 be unique, have exactly that row geometry (otherwise `UNSUPPORTED_CAPABILITY`),
 unique numeric subject IDs, nonblank names, at most 128 rows and one
-`data-user_id` (otherwise `PARSE`). A semester cell the page already filled
+`data-user_id` (otherwise `PARSE`). A `gradesCell` the page already filled
 would duplicate the gateway records, so it is `UNSUPPORTED_CAPABILITY`.
+
+Filled table (1.8.3, issue #115 by @wiktorw): another school renders the same
+rows with semester cells that are bare text, with no attributes and no markup,
+holding values such as `5` or `Brak ocen`. The existing parser reads them like
+any descriptive row: text becomes a `DescriptiveGradeSummary` and `Brak ocen`
+is empty. Such a table makes no gateway request. A blank cell, a cell with any
+attribute or markup (a renamed or moved script hook included), a table mixing
+both row layouts, or a filled table that still has `studentGradesDetailsRow`
+rows, which the page script fills from the gateway, is
+`UNSUPPORTED_CAPABILITY`. The shape comes from the reporter's synthetic
+example, not an observed page; the owner's logins have no such table.
+
+The table's header row (`Przedmiot`, `Okres 1`, `Okres 2`) is skipped. Before
+1.8.3 the observed layout's header, whose first cell has the expander classes,
+was read as a subject named `Przedmiot` with those labels as summaries.
 
 Reads: only `grades(view=GradeView.ALL)` on a page with the table requests,
 after the grades POST, under the same session, budget, scheduler, parser pool

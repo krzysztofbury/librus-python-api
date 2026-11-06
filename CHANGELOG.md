@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.8.3 (2026-11-06) - Reported grade, attendance and announcement layouts
+
+Thank you, @wiktorw and @Witoso, for the reports and the careful synthetic
+reproductions. Signatures are unchanged.
+
+- Announcements: "Aktualnie brak ogłoszeń" is an empty page; it used to fail
+  as `ParseError` and stop notification polls (#120, reported by @Witoso).
+- Grades: a behaviour-row entry with a grade symbol such as `wz`, linking to
+  a behaviour detail, is a `NumericGrade`. Its tooltip's unlabelled first
+  line, such as `wzorowe`, is the `category`, as a point entry's first line
+  names its category; the day is `Data wystawienia` and `Dodał` stays in
+  `metadata`. The whole grades read used to fail (#114, reported by @wiktorw).
+- Grades: a new-schema descriptive table whose semester cells already hold
+  plain text, such as `5` or `Brak ocen`, is read as undated semester
+  summaries and makes no gateway request. The all view used to fail with
+  `UnsupportedCapabilityError` (#115, reported by @wiktorw). Blank cells,
+  cells with attributes or markup, mixed layouts and filled tables with
+  gateway detail rows still fail.
+- Grades: the new-schema table's header row is no longer read as a subject
+  named "Przedmiot" with "Okres 1" and "Okres 2" summaries.
+- Attendance: an absence excused through the e-Usprawiedliwienia module
+  carries a fixed notice line in its tooltip, which failed every attendance
+  read with `ParseError` (observed live on 2026-11-06 on two logins). The
+  notice is now the metadata pair `("Usprawiedliwienie", "dodane za pomocą
+  modułu e-Usprawiedliwienia")`; other unlabelled lines still fail.
+- `inspect_page grades` also runs the new-schema table check that `grades()`
+  runs in the all view, so a saved page reproduces such a failure offline.
+
+The #114 and #115 layouts come from the reporters' synthetic examples, not an
+observed page: the owner's logins have neither. Live checks show they cause no
+regression, not that the fix matches every school's page.
+
 ## 1.8.2 (2026-11-01) - Modern session kept across cancels, honest User-Agent
 
 - A cancelled modern mailbox read or a reached limit no longer drops the modern
