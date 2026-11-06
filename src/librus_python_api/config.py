@@ -839,6 +839,17 @@ ATTENDANCE_SEMESTER_LABELS = MappingProxyType(
     }
 )
 ATTENDANCE_EMPTY_MARKERS = frozenset({"", "-", "Brak nieobecności"})
+# Fixed unlabelled tooltip lines Librus appends to an attendance entry, and the
+# metadata pair each becomes. Observed live on 2026-11-06 on two logins: an
+# absence excused through the e-Usprawiedliwienia module.
+ATTENDANCE_TOOLTIP_NOTICES = MappingProxyType(
+    {
+        "Usprawiedliwienie dodane za pomocą modułu e-Usprawiedliwienia": (
+            "Usprawiedliwienie",
+            "dodane za pomocą modułu e-Usprawiedliwienia",
+        )
+    }
+)
 ATTENDANCE_MAX_RECORDS = 2048
 ATTENDANCE_MAX_WINDOW_DAYS = 371
 # Whole-school gateway collections resolve attendance metadata in two requests.

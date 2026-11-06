@@ -101,12 +101,7 @@ def tooltip_fields(
     for chunk in chunks:
         if not chunk.strip():
             continue
-        # Tooltips are HTML inside an attribute; parse markup only where present.
-        rendered = (
-            text(parse_html_document(chunk.encode()))
-            if "<" in chunk
-            else " ".join(chunk.split())
-        )
+        rendered = tooltip_line(chunk)
         if heading is not None and not heading:
             heading.append(rendered)
             continue
@@ -120,6 +115,14 @@ def tooltip_fields(
         result[key] = value
         last = key
     return result
+
+
+def tooltip_line(chunk: str) -> str:
+    """One tooltip line's text, whitespace normalized."""
+    # Tooltips are HTML inside an attribute; parse markup only where present.
+    if "<" in chunk:
+        return text(parse_html_document(chunk.encode()))
+    return " ".join(chunk.split())
 
 
 def civil_date(value: str | None) -> date:
