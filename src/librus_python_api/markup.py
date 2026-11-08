@@ -97,9 +97,11 @@ def tooltip_fields(
     the first line is taken whole, colon included, and appended to it.
     `multiline` names the free-text labels (default `Komentarz`); with
     `unknown_multiline`, a field whose label is not a known one (teacher text
-    holding a colon) is free text too. A known label such as `Data` never
-    continues. A repeatable label
-    (`Poprawa oceny`) adds its value as one more line of the same field.
+    holding a colon) is free text too, and inside such free text a line
+    starting with a known label is text unless the tooltip's closing run of
+    known-label lines begins there. Otherwise a known label such as `Data`
+    never continues. A repeatable label (`Poprawa oceny`) adds its value as
+    one more line of the same field.
     """
     if multiline is None:
         multiline = TOOLTIP_MULTILINE_LABELS
@@ -111,20 +113,25 @@ def tooltip_fields(
     chunks = re.split(r"<br\s*/?>|\n", title, flags=re.I)
     if len(chunks) > GRADE_MAX_METADATA_FIELDS:
         raise LibrusError(ErrorKind.LIMIT)
-    for chunk in chunks:
-        if not chunk.strip():
-            continue
-        rendered = tooltip_line(chunk)
+    lines = [tooltip_line(chunk) for chunk in chunks if chunk.strip()]
+    # Start of the closing run of known-label lines, such as Kategoria, Data.
+    closing = len(lines)
+    while closing and _known_label(lines[closing - 1]):
+        closing -= 1
+    for index, rendered in enumerate(lines):
         if heading is not None and not heading:
             heading.append(rendered)
             continue
         key, separator, value = rendered.partition(":")
         key, value = key.strip(), value.strip()
         if (
-            not separator
-            and last is not None
+            last is not None
             and (
                 last in multiline or (unknown_multiline and last not in TOOLTIP_LABELS)
+            )
+            and (
+                not separator
+                or (unknown_multiline and index < closing and key in TOOLTIP_LABELS)
             )
         ):
             result[last] = f"{result[last]}\n{rendered}".strip()
@@ -139,6 +146,11 @@ def tooltip_fields(
         result[key] = value
         last = key
     return result
+
+
+def _known_label(line: str) -> bool:
+    key, separator, _ = line.partition(":")
+    return bool(separator) and key.strip() in TOOLTIP_LABELS
 
 
 def tooltip_line(chunk: str) -> str:

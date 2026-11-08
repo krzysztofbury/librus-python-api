@@ -603,6 +603,28 @@ def test_a_formative_grid_entry_keeps_its_multiline_assessment_text() -> None:
     )
 
 
+def test_known_labels_inside_formative_assessment_text_stay_text() -> None:
+    lines = (
+        "<br/>Fixture line one<br/>Komentarz: fixture remark<br/>Data: next week"
+        "<br/>Waga: fixture<br/>Fixture last line<br/>"
+    )
+    (grade,) = parse_grade_records(
+        grades_html(first=_formative_mirror(lines)).encode()
+    ).numeric
+    assert grade.comment is None and grade.weight is None
+    assert grade.day == date(2026, 11, 7)
+    assert dict(grade.metadata)["Ocena"] == (
+        "+\nFixture line one\nKomentarz: fixture remark\nData: next week"
+        "\nWaga: fixture\nFixture last line"
+    )
+    assert list(dict(grade.metadata))[1:] == [
+        "Kategoria",
+        "Data",
+        "Nauczyciel",
+        "Dodał",
+    ]
+
+
 @pytest.mark.parametrize(
     "first",
     [
