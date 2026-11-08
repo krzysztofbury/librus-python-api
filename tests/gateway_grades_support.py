@@ -2,7 +2,8 @@
 
 The table follows a structure-only observation (2026-10-12) of the grades page;
 the JSON shapes follow the source-informed field names in contracts/grades.md.
-Every value is invented; no populated gateway response has been observed.
+One authorized read on 2026-10-28 parsed four populated PartialGrades records,
+but no response was copied: every value here is invented.
 """
 
 import json

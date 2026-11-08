@@ -12,11 +12,17 @@ from typing import Any
 import pytest
 
 from librus_python_api import NotificationCategory
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ConsentRequiredError, ErrorKind, LibrusError
 from librus_python_api.persistence import (
     NotificationLimits,
     NotificationStore,
     NotificationWorkflow,
+)
+from tests.gateway_grades_support import (
+    descriptive_page,
+    descriptive_row,
+    descriptive_table,
+    filled_row,
 )
 from tests.http_support import serve
 from tests.notification_persistence_support import NotificationWorkflowFixture
@@ -351,6 +357,83 @@ def test_invalid_categories_fail_before_transport(tmp_path: Path, invalid: Any) 
                 assert (
                     error.value.kind is ErrorKind.INVALID_INPUT and fixture.calls == []
                 )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("categories", [AGENDA, (NotificationCategory.GRADES, *AGENDA)])
+@pytest.mark.parametrize("consent", [None, False])
+def test_fresh_agenda_without_consent_is_consent_required_before_any_read(
+    tmp_path: Path, categories: tuple[NotificationCategory, ...], consent: bool | None
+) -> None:
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                async with NotificationStore(tmp_path / "state") as store:
+                    workflow = NotificationWorkflow(service.account("student"), store)
+                    with pytest.raises(ConsentRequiredError) as error:
+                        if consent is None:
+                            await workflow.poll(categories=categories)
+                        else:
+                            await workflow.poll(
+                                categories=categories, allow_consume_events=consent
+                            )
+                    assert error.value.kind is ErrorKind.CONSENT_REQUIRED
+                    assert fixture.calls == []
+                    archive = json.loads(
+                        (
+                            await store.export_archive(context=workflow.client.context)
+                        ).payload
+                    )
+                    assert archive["raw"] is None and archive["delivery"] is None
+                    # The same request with consent is the one that consumes.
+                    batch = await workflow.poll(
+                        categories=categories, allow_consume_events=True
+                    )
+                    assert any(
+                        item.category is NotificationCategory.AGENDA
+                        for item in batch.items
+                    )
+
+    asyncio.run(scenario())
+
+
+def test_a_rejected_grade_table_fails_the_poll_without_staging(tmp_path: Path) -> None:
+    # #123: notifications read the last-login view, which once returned
+    # nothing for a table layout the all view rejects.
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        # Mixed layouts in a well-formed page: the observed page's malformed
+        # nesting parses differently across lxml releases.
+        page = descriptive_page(
+            descriptive_table(
+                filled_row(first="5") + descriptive_row("302", "Fixture Music")
+            )
+        )
+        fixture.bodies["grades"] = (page.encode(), "text/html")
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                async with NotificationStore(tmp_path / "state") as store:
+                    workflow = NotificationWorkflow(service.account("student"), store)
+                    with pytest.raises(LibrusError) as error:
+                        await workflow.poll(
+                            categories=(NotificationCategory.GRADES, *AGENDA),
+                            allow_consume_events=True,
+                        )
+                    assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+                    record = json.loads(
+                        (
+                            await store.export_archive(context=workflow.client.context)
+                        ).payload
+                    )
+                    assert record["raw"] is record["delivery"] is None
+                    assert not record["state"]["initialized"]
+                    assert not any(
+                        "dodane_od_ostatniego" in path for path, _ in fixture.calls
+                    )
 
     asyncio.run(scenario())
 

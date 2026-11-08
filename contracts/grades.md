@@ -345,6 +345,29 @@ same items as ordinary records (same IDs); they are unchanged. Their computed
 field: grade notification identities hash the record's fields, and a new field
 would change every stored identity.
 
+Repeated corrections (1.8.4, observed live 2026-11-08, structure only): in
+the week view, the latest grade of a correction chain lists one
+`Poprawa oceny` line per grade it corrects. That label may repeat; its values
+stay in page order in one metadata pair, joined by a newline. Any other
+repeated tooltip label is still `PARSE`. The all view showed that grade with
+only the grade it directly corrects, so one grade's `metadata`, and with it
+its record and notification identity, can differ between views.
+
+Grid mirror tooltips (1.8.4, observed live 2026-11-08, structure only): a
+mirror's tooltip opens with `Ocena`, followed by the assessment text and then
+`Kategoria`, `Data`, `Nauczyciel` and `Dodał`. The text may span lines
+separated by blank ones, and a line may hold a colon. In a formative mirror
+only, an unlabelled line continues `Ocena` or the preceding teacher-written
+field (a label that is not a known tooltip label), joined by a newline. It
+never continues a known label such as `Data`, and the same lines in an
+ordinary grade's tooltip still fail with `PARSE`. A line of the assessment
+text that starts with a known label, such as `Komentarz:` or `Data:`, stays
+text: only the tooltip's closing run of known-label lines (`Kategoria`,
+`Data`, `Nauczyciel`, `Dodał`) are fields. A line holding a colon
+starts a field named by the text before it, as before, so tooltips that
+already parsed keep the same metadata and notification identity. Before
+1.8.4 the first unlabelled line failed every grade read of the login.
+
 Rules: exact header labels; a subject TH may span its group with `rowspan`
 (only rowspan 1 was observed; grouping is synthetic coverage); exactly the
 observed cell vocabulary; a hidden template row with ID `000000` is skipped.
@@ -476,7 +499,8 @@ name and two empty `td.gradesCell` cells with `data-semester` 1 and 2. The
 existing parser already reads these rows as descriptive subjects with no
 grades and unavailable averages; that result is unchanged. The table's header
 was not described; the fixture's header has no "Oceny bieżące" label, which
-would make the table an ordinary grade table. In the all view the table must
+would make the table an ordinary grade table. In every view (all view only
+before 1.8.4, issue #123) the table must
 be unique, have exactly that row geometry (otherwise `UNSUPPORTED_CAPABILITY`),
 unique numeric subject IDs, nonblank names, at most 128 rows and one
 `data-user_id` (otherwise `PARSE`). A `gradesCell` the page already filled
@@ -492,13 +516,20 @@ both row layouts, or a filled table that still has `studentGradesDetailsRow`
 rows, which the page script fills from the gateway, is
 `UNSUPPORTED_CAPABILITY`. The shape comes from the reporter's synthetic
 example, not an observed page; the owner's logins have no such table.
+Summaries are undated, so notifications, which publish only dated numeric and
+descriptive grades, do not report them in any view.
+
+Every view runs these table checks (1.8.4, issue #123). Up to 1.8.3 only the
+all view did; the week and last-login views, which notification polls read,
+returned summaries or nothing for a layout the all view rejected. A rejected
+table now fails the whole notification poll, as other grade parse failures do.
 
 The table's header row (`Przedmiot`, `Okres 1`, `Okres 2`) is skipped. Before
 1.8.3 the observed layout's header, whose first cell has the expander classes,
 was read as a subject named `Przedmiot` with those labels as summaries.
 
-Reads: only `grades(view=GradeView.ALL)` on a page with the table requests,
-after the grades POST, under the same session, budget, scheduler, parser pool
+Reads: only `grades(view=GradeView.ALL)` on a page whose table has the empty
+`gradesCell` layout requests, after the grades POST, under the same session, budget, scheduler, parser pool
 and deadline:
 
 1. GET `/gateway/api/2.0/Auth/TokenInfo`: `UserIdentifier`.
@@ -513,7 +544,7 @@ and deadline:
    only when step 3 returned records.
 
 A fresh all-view read on such a page therefore makes three more requests, or
-five when there are grades. Both identifiers must match `[A-Za-z0-9_-]{1,128}`
+five when there are grades. A bare-text table makes none in any view. Both identifiers must match `[A-Za-z0-9_-]{1,128}`
 (the transport enforces it for these two routes only; every other `{id}` route
 stays numeric); an upstream value outside it is a `PARSE` failure. Nothing is
 cached beyond the grade collection itself.

@@ -89,7 +89,6 @@ from librus_python_api.gateway_grades import (
     parse_user_info,
 )
 from librus_python_api.grade_parsers import parse_final_grades
-from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.homework_range import HomeworkAccumulator
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.message_content import parse_message_content, validate_reference
@@ -1084,11 +1083,11 @@ class AccountClient:
         Callback success acknowledges consumer-owned durable storage. Callback
         failure/timeout means acknowledgement unknown, never automatic replay.
         """
-        if (
-            type(allow_consume_events) is not bool
-            or not allow_consume_events
-            or self._consuming_schedule
-        ):
+        if type(allow_consume_events) is not bool:
+            raise LibrusError(ErrorKind.INVALID_INPUT)
+        if not allow_consume_events:
+            raise LibrusError(ErrorKind.CONSENT_REQUIRED)
+        if self._consuming_schedule:
             raise LibrusError(ErrorKind.INVALID_INPUT)
         validate_checkpoint(checkpoint, checkpoint_timeout_seconds)
         self._consuming_schedule = True
@@ -1324,24 +1323,22 @@ class AccountClient:
         """Select a grade view with one view-changing POST.
 
         Changes the selected grade filter, not school records. A cache hit makes
-        no POST. Missing inline weight/count data remains unknown. In the all
-        view, a page with the new-schema descriptive table adds that table's
+        no POST. Missing inline weight/count data remains unknown.
+
+        Every view checks a new-schema descriptive table the same way. Its
+        semester cells either are empty script hooks or hold bare text, which
+        becomes undated summaries with no extra request; any other layout
+        fails the read. Only the all view with empty hooks adds that table's
         grades from the gateway: three more reads, five when there are grades.
-        Other views do not request them.
         """
         form = grade_view_form(view)
 
         async def fetch(budget: RequestBudget, _: bool) -> Grades:
-            if view is not GradeView.ALL:
-                records = await self._page(
-                    "grades", budget, parse_grade_records, form=form
-                )
-            else:
-                records, table = await self._page(
-                    "grades", budget, parse_grade_page, form=form
-                )
-                if table is not None and not table.filled:
-                    records = await self._gateway_descriptive(records, table, budget)
+            records, table = await self._page(
+                "grades", budget, parse_grade_page, form=form
+            )
+            if view is GradeView.ALL and table is not None and not table.filled:
+                records = await self._gateway_descriptive(records, table, budget)
             return Grades(
                 self._session_identity(), records, self._observation("grades"), view
             )

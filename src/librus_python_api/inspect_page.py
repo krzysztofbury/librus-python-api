@@ -31,7 +31,7 @@ NOTICE = (
 
 
 def _grades(body: bytes) -> dict[str, int]:
-    # The all view also checks the new-schema table, as `grades()` does.
+    # Every grade view also checks the new-schema table, as `grades()` does.
     records, table = parse_grade_page(body)
     return {
         "numeric": sum(1 for g in records.numeric if g.point_grade_id is None),

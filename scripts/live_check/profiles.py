@@ -3,7 +3,7 @@
 import hmac
 from datetime import date, timedelta
 
-from librus_python_api import MessageFolder
+from librus_python_api import GradeView, MessageFolder
 from scripts.live_check.checks import (
     Check,
     CheckFailed,
@@ -213,8 +213,9 @@ async def student_information(ctx: Context) -> Observed:
     return POPULATED
 
 
-# An all-view grade read on a page with the new-schema descriptive table also
-# reads these gateway routes; two of them take the login's identifier.
+# An all-view grade read on a page whose new-schema descriptive table has empty
+# `gradesCell` hooks also reads these gateway routes; two of them take the
+# login's identifier. A bare-text table and the other views read none.
 GRADE_READS = frozenset(
     {
         "grades",
@@ -242,6 +243,17 @@ async def grades(ctx: Context) -> Observed:
             if getattr(grade, "formative_id", None) is not None
         )
     return coverage_of(numeric + descriptive, **facts)
+
+
+def grade_view(view: GradeView) -> Check:
+    # The week and last-login views (notifications read the latter) run the
+    # same new-schema table checks as the all view, without gateway reads.
+    @check(f"grades_{view.name.lower()}", reads={"grades"})
+    async def probe(ctx: Context) -> Observed:
+        records = (await ctx.client.grades(view=view, budget=ctx.budget)).records
+        return coverage_of(len(records.numeric) + len(records.descriptive))
+
+    return probe
 
 
 @check("grades_window", reads=GRADE_READS, references=GRADE_REFERENCES)
@@ -495,6 +507,9 @@ async def class_free_days(ctx: Context) -> Observed:
 WEEKLY_READS: tuple[Check, ...] = (
     class_free_days,
     student_information,
+    # The narrower views first, so the login ends on the all view as before.
+    grade_view(GradeView.WEEK),
+    grade_view(GradeView.LAST_LOGIN),
     grades,
     grades_window,
     final_grades,
@@ -520,10 +535,10 @@ WEEKLY_READS: tuple[Check, ...] = (
     modern_recipients,
     modern_sent_content,
 )
-# Measured fixture requests per login: 48. The budget leaves live headroom for
+# Measured fixture requests per login: 50. The budget leaves live headroom for
 # more attendance rows to resolve, as the design targets about 70. A login whose
-# grades page has the new-schema descriptive table adds three to five gateway
-# reads to each of the two all-view grade checks.
+# grades page has the new-schema table with empty `gradesCell` hooks adds three
+# to five gateway reads to each of the two all-view grade checks.
 WEEKLY = Profile(
     "weekly",
     (*RELEASE_READS, *WEEKLY_READS, session_alive),
