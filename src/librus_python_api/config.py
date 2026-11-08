@@ -724,8 +724,10 @@ GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # multi-line grade comment was observed on 2026-10-27. A formative mirror's
 # assessment text after `Ocena` also spans lines (2026-11-08, markup.py).
 TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
-# Labels a tooltip may repeat. A grade correcting two earlier grades lists one
-# `Poprawa oceny` line per corrected grade in the week view (2026-11-08).
+# Labels a tooltip may repeat. In the week view a correction listed
+# `Poprawa oceny` twice, both naming the same original grade, the first ending
+# in a comma; the all view showed it once (2026-11-08). The tooltip is no
+# record of which grades were corrected: correction brackets are.
 TOOLTIP_REPEATABLE_LABELS = frozenset({"Poprawa oceny"})
 # Tooltip labels observed on grade, attendance and point pages. Diagnostics
 # show only these by name; any other label is masked as teacher-entered text.
@@ -769,6 +771,12 @@ GRADE_VIEW_FIELDS = MappingProxyType(
 )
 GRADE_CURRENT_HEADER = "Oceny bieżące"
 GRADE_EMPTY_MARKERS = frozenset({"", "-", "Brak ocen"})
+# The all view wraps a corrected grade and its correction in a bare <span>
+# directly in the grade cell: its text is "[", its children are the grade
+# boxes in page order (original first) and the last box's tail is "]" (owner
+# logins, structure-only, 2026-11-08). The week view showed no brackets, even
+# with the original in the same cell. Groups of more than two are accepted.
+GRADE_CORRECTION_BRACKETS = ("[", "]")
 GRADE_AVERAGE_HEADERS = MappingProxyType(
     {"Średnia ocen": 1, "Średnia ocen z drugiego okresu": 2, "Średnia roczna": 0}
 )
@@ -871,6 +879,10 @@ BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
 BEHAVIOUR_GRADE_LABELS = frozenset({"Data wystawienia", "Dodał", "Komentarz"})
 # Recognition only: point-grade detail links are classified, never requested.
 POINT_GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny_punktowe/szczegoly/"
+# Recognition only: an ordinary grade's own detail link gives its stable grade
+# ID (librus-mcp#88); the page is never requested. Formative links share this
+# prefix but have no digits-only rest, so they never yield a grade ID.
+GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/"
 FORMATIVE_HEADERS = (
     "przedmiot",
     "ocena kształtująca",

@@ -196,6 +196,27 @@ def test_failure_report_is_bounded_and_never_raises() -> None:
     assert failure_frames(ValueError(SECRET)) == ()
 
 
+def test_a_correction_bracket_is_shown_and_its_grades_stay_masked() -> None:
+    group = (
+        "<span>["
+        + grade_box(f"{SECRET}1", href="/przegladaj_oceny/szczegoly/11")
+        + grade_box(f"{SECRET}5", href="/przegladaj_oceny/szczegoly/12")
+        + "]</span>"
+    )
+    # A missing second current-grade header fails with the whole table local.
+    page = grades_html(first=group).replace(
+        '<th>Oceny bieżące</th><th title="Średnia ocen z drugiego',
+        '<th>X</th><th title="Średnia ocen z drugiego',
+    )
+    report = describe_failure(_failure(page))
+    assert report is not None
+    assert (
+        "<td><span>'['<span class=grade-box>...</span>"
+        "<span class=grade-box>...</span>']'</span></td>"
+    ) in report
+    assert SECRET not in report
+
+
 @pytest.mark.parametrize("fragment", [False, True])
 def test_inspect_page_reports_counts_or_the_failure(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], fragment: bool

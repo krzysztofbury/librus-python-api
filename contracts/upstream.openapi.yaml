@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.8.4
+  version: 1.9.0
   license:
     name: MIT
   description: |
@@ -940,7 +940,15 @@ paths:
         periods or dates and nonempty footers fail. Formative detail links are
         recognised, never requested. Grid records keep their fields; the
         formative ID is computed, so stored record identities do not change.
-      security: [{SessionCookie: []}]
+        Grade IDs and correction brackets (1.9.0, librus-mcp#88): an ordinary
+        grade anchor's /przegladaj_oceny/szczegoly/<digits> link is the
+        grade's own ID, recognised, never requested (no operation here). The
+        all view wraps a corrected grade and its corrections in a bare span
+        directly in the grade cell: text "[", two or more grade boxes in page
+        order (original first), "]" as the last box's tail. Each bracket is
+        one correction link by grade ID; the Poprawa oceny tooltip line never
+        creates one. The week view showed no brackets, so it has no links.
+        Any other bracket layout outside grade boxes fails the read.
       requestBody:
         required: true
         content:

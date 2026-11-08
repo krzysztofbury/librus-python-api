@@ -1070,6 +1070,20 @@ class NumericGrade:
 
         return detail_id(self.href, POINT_GRADE_DETAIL_PATH_PREFIX)
 
+    @property
+    def grade_id(self) -> str | None:
+        """The grade's own Librus ID when `href` is an ordinary grade detail link.
+
+        Stable across reads and views, so it identifies one grade even when
+        two share value, category and day. None for formative, point and
+        behaviour links, and for entries without a link. Computed for the same
+        identity reason as `formative_id`.
+        """
+        from librus_python_api.config import GRADE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, GRADE_DETAIL_PATH_PREFIX)
+
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveGrade:
@@ -1095,6 +1109,17 @@ class DescriptiveGrade:
         from librus_python_api.markup import detail_id
 
         return detail_id(self.href, FORMATIVE_DETAIL_PATH_PREFIX)
+
+    @property
+    def grade_id(self) -> str | None:
+        """The grade's own Librus ID when `href` is an ordinary grade detail link.
+
+        Computed, like `NumericGrade.grade_id`, so identities stay unchanged.
+        """
+        from librus_python_api.config import GRADE_DETAIL_PATH_PREFIX
+        from librus_python_api.markup import detail_id
+
+        return detail_id(self.href, GRADE_DETAIL_PATH_PREFIX)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1132,6 +1157,21 @@ class FormativeGrade:
 
 
 @dataclass(frozen=True, slots=True)
+class GradeCorrection:
+    """Grades the all view shows in one correction bracket, in page order.
+
+    `grade_ids` holds at least two `grade_id`s: the first is the corrected
+    original and each later grade corrects the ones before it, so the last is
+    the latest correction. Read from the bracket markup alone, never inferred
+    from `Poprawa oceny` tooltip lines, which name no grade ID.
+    """
+
+    subject: str = field(repr=False)
+    semester: Literal[0, 1, 2]
+    grade_ids: tuple[str, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class GradeRecords:
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
@@ -1143,6 +1183,8 @@ class GradeRecords:
     # A point table's period results, on its score scale; never merged into
     # `averages`, whose values are the ordinary grade-scale means.
     point_results: tuple[SchoolAverage, ...] = field(default=(), repr=False)
+    # The page's correction brackets; only the all view was seen to show them.
+    corrections: tuple[GradeCorrection, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1163,6 +1205,8 @@ class GradeWindow:
     observation: Observation
     view: GradeView = GradeView.ALL
     formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
+    # Each correction with at least one of its grades in the window, whole.
+    corrections: tuple[GradeCorrection, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

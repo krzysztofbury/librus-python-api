@@ -42,6 +42,7 @@ def _grades(body: bytes) -> dict[str, int]:
         "averages": len(records.averages),
         "point_results": len(records.point_results),
         "formative": len(records.formative),
+        "corrections": len(records.corrections),
         "descriptive_table": int(table is not None),
         "descriptive_table_filled": int(table is not None and table.filled),
     }

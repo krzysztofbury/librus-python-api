@@ -346,12 +346,79 @@ field: grade notification identities hash the record's fields, and a new field
 would change every stored identity.
 
 Repeated corrections (1.8.4, observed live 2026-11-08, structure only): in
-the week view, the latest grade of a correction chain lists one
-`Poprawa oceny` line per grade it corrects. That label may repeat; its values
-stay in page order in one metadata pair, joined by a newline. Any other
-repeated tooltip label is still `PARSE`. The all view showed that grade with
-only the grade it directly corrects, so one grade's `metadata`, and with it
-its record and notification identity, can differ between views.
+the week view, a correction's tooltip listed `Poprawa oceny` twice. That label
+may repeat; its values stay in page order in one metadata pair, joined by a
+newline. Any other repeated tooltip label is still `PARSE`. The all view
+showed that grade with one line, so one grade's `metadata`, and with it its
+record and notification identity, can differ between views. Correction
+(1.9.0): 1.8.4 read the two lines as two corrected grades. Compared with the
+all view by grade ID, both name the same original (value and category), and
+the first ends in a comma; the line is not a list of corrected grades. Links
+come from correction brackets only (next section).
+
+## Grade IDs and correction brackets (1.9.0, librus-mcp#88)
+
+Requested by an external user in krzysztofbury/librus-mcp#88; confirmed by
+structure-only observation of one student login and its parent login on
+2026-11-08 (all and week views; masked tags, attributes, label names and
+booleans, never values).
+
+Grade IDs: every ordinary grade anchor links to
+`/przegladaj_oceny/szczegoly/<digits>` (`config.GRADE_DETAIL_PATH_PREFIX`),
+the grade's own detail ID. All observed IDs on a page were unique.
+`NumericGrade.grade_id` and `DescriptiveGrade.grade_id` hold it; they are
+computed properties for the same identity reason as `formative_id`. The
+formative prefix is a sub-path of this one, but a formative link has a
+non-digit rest and never yields a `grade_id`. The detail page is never
+requested; it was observed earlier to add nothing beyond the tooltip.
+
+All view, observed layout (five groups on each login, all the same shape):
+
+```html
+<td>
+  <span>
+    [
+    <span class="grade-box" id="Ocena…"><a class="ocena" href="/przegladaj_oceny/szczegoly/…" title="…">1</a></span>
+    <span class="grade-box" id="Ocena…"><a class="ocena" href="/przegladaj_oceny/szczegoly/…" title="…Poprawa oceny: 1 (…)…">5</a></span>
+    ]
+  </span>
+</td>
+```
+
+- The wrapper is a bare `<span>` (no attributes) directly in the grade cell.
+  Its text is `[`, its children are the grade boxes, and the last box's tail
+  is `]`.
+- The original comes first; only the later box's tooltip has a
+  `Poprawa oceny` line, whose value is the original's symbol and category.
+  The correction's own category began with the original's. Its date was later
+  or the same day, and its ID was higher; neither is used for linking.
+- Every correction on the page was inside a bracket; ungrouped grades share
+  the cell.
+
+`GradeRecords.corrections` holds one `GradeCorrection(subject, semester,
+grade_ids)` per bracket, `grade_ids` in page order. Only groups of two were
+observed; a longer group is accepted as a chain in which each grade corrects
+the ones before it. `GradeWindow.corrections` keeps a group, whole, when at
+least one of its grades is in the window.
+
+Week view: no brackets at all. One correction shared its cell with its
+original, unbracketed; another's original was not in the view. Pairing them
+would be a guess, so nothing links them and `corrections` came back `()`.
+The parser reads brackets in any view; an empty `corrections` outside the all
+view is "not shown", not "not corrected". Last-login was not observed.
+
+Failures: any `[` or `]` outside grade boxes that is not exactly the observed
+layout is `PARSE`: an unbalanced or nested bracket, a bracket around one
+grade, a wrapper with attributes or not directly in the cell, a grade in two
+different groups (the same bracket shown again for a period grade in both the
+ordinary and the point table is one link, like the record), or a member without an ordinary grade link (point, formative,
+behaviour or unlinked entries; brackets were not observed in the point
+table). Brackets inside a grade's own symbol or tooltip are not markup and
+are ignored, as are comments inside a bracket. In the point table, where no
+bracket was observed, the only bracket accepted is a period grade's bracket
+that the ordinary table already showed; any other is `PARSE`. Failure
+diagnostics print the brackets (`'['`, `']'`), and `inspect_page grades`
+reports a `corrections` count.
 
 Grid mirror tooltips (1.8.4, observed live 2026-11-08, structure only): a
 mirror's tooltip opens with `Ocena`, followed by the assessment text and then

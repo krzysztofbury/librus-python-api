@@ -245,7 +245,8 @@ def _redaction_vocabulary() -> tuple[
     # Lazy: config imports models, which this module also imports.
     from librus_python_api import config
 
-    texts = set(config.GRADE_EMPTY_MARKERS) | {
+    texts = set(config.GRADE_EMPTY_MARKERS) | set(config.GRADE_CORRECTION_BRACKETS)
+    texts |= {
         config.GRADE_CURRENT_HEADER,
         config.GRADE_INLINE_DETAIL_LABEL,
         config.GRADE_PREDICTED_ANNUAL_HEADER,

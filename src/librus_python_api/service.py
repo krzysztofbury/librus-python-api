@@ -1330,6 +1330,12 @@ class AccountClient:
         becomes undated summaries with no extra request; any other layout
         fails the read. Only the all view with empty hooks adds that table's
         grades from the gateway: three more reads, five when there are grades.
+
+        `records.corrections` links a corrected grade to its corrections by
+        `grade_id`, read from the page's correction brackets. Only the all view
+        was seen to show them; in the week view it came back empty, which does
+        not mean nothing was corrected. A bracket in a layout not seen live
+        fails the read instead of dropping the link.
         """
         form = grade_view_form(view)
 
@@ -1363,26 +1369,26 @@ class AccountClient:
         result = await self.grades(
             view=view, budget=budget, max_age_seconds=max_age_seconds
         )
+
+        def within(day: date) -> bool:
+            return (start is None or start <= day) and (end is None or day <= end)
+
+        numeric = tuple(g for g in result.records.numeric if within(g.day))
+        descriptive = tuple(g for g in result.records.descriptive if within(g.day))
+        visible = {g.grade_id for g in numeric} | {g.grade_id for g in descriptive}
         return GradeWindow(
             result.identity,
             start,
             end,
-            tuple(
-                g
-                for g in result.records.numeric
-                if (start is None or start <= g.day) and (end is None or g.day <= end)
-            ),
-            tuple(
-                g
-                for g in result.records.descriptive
-                if (start is None or start <= g.day) and (end is None or g.day <= end)
-            ),
+            numeric,
+            descriptive,
             result.observation,
             result.view,
+            tuple(g for g in result.records.formative if within(g.day)),
             tuple(
-                g
-                for g in result.records.formative
-                if (start is None or start <= g.day) and (end is None or g.day <= end)
+                group
+                for group in result.records.corrections
+                if not visible.isdisjoint(group.grade_ids)
             ),
         )
 
