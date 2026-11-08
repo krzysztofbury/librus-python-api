@@ -15,6 +15,7 @@ from librus_python_api.config import (
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_CURRENT_HEADER,
     GRADE_EMPTY_MARKERS,
+    GRADE_INLINE_DETAIL_LABEL,
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_RECORDS,
     GRADE_MAX_SUBJECTS,
@@ -28,6 +29,7 @@ from librus_python_api.config import (
     GRADE_PUBLICATION_PERIOD_LABELS,
     GRADE_PUBLICATION_TEACHER_LABEL,
     TOOLTIP_LABELS,
+    TOOLTIP_MULTILINE_LABELS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.formative_grades import is_formative_table, read_formative_table
@@ -99,10 +101,16 @@ def _numeric(
     semester: Literal[0, 1, 2],
     kind: GradeKind = GradeKind.CURRENT,
 ) -> NumericGrade:
-    formative = (
-        markup.detail_id(element.get("href"), FORMATIVE_DETAIL_PATH_PREFIX) is not None
-    )
-    metadata = markup.tooltip_fields(element, formative=formative)
+    if markup.detail_id(element.get("href"), FORMATIVE_DETAIL_PATH_PREFIX) is None:
+        metadata = markup.tooltip_fields(element)
+    else:
+        # A formative mirror's assessment text after `Ocena` is free text that
+        # may span lines and hold colons (observed live 2026-11-08).
+        metadata = markup.tooltip_fields(
+            element,
+            multiline=TOOLTIP_MULTILINE_LABELS | {GRADE_INLINE_DETAIL_LABEL},
+            unknown_multiline=True,
+        )
     counts = metadata.get("Licz do średniej")
     if counts is not None and counts.casefold() not in ("tak", "nie"):
         raise LibrusError(ErrorKind.PARSE)

@@ -10,7 +10,6 @@ from lxml import etree, html
 from librus_python_api.config import (
     ATTENDANCE_DETAIL_PATH_PREFIX,
     CIVIL_DATE_WEEKDAY_LABELS,
-    GRADE_INLINE_DETAIL_LABEL,
     GRADE_MAX_COLUMNS,
     GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
@@ -88,18 +87,21 @@ def tooltip_fields(
     element: html.HtmlElement,
     heading: list[str] | None = None,
     *,
-    formative: bool = False,
+    multiline: frozenset[str] | None = None,
+    unknown_multiline: bool = False,
 ) -> dict[str, str]:
     """Parse a 'Label: value<br>' title attribute into unique labelled fields.
 
     A free-text field may span lines; an unlabelled line after it continues
     its value. Any other unlabelled line is an unknown layout. With `heading`,
-    the first line is taken whole, colon included, and appended to it. In a
-    formative entry's tooltip, the assessment text after `Ocena` is free text
-    too: an unlabelled line continues `Ocena` or a field whose label is not a
-    known one, never a known label such as `Data`. A repeatable label
+    the first line is taken whole, colon included, and appended to it.
+    `multiline` names the free-text labels (default `Komentarz`); with `unknown_multiline`, a field
+    whose label is not a known one (teacher text holding a colon) is free text
+    too. A known label such as `Data` never continues. A repeatable label
     (`Poprawa oceny`) adds its value as one more line of the same field.
     """
+    if multiline is None:
+        multiline = TOOLTIP_MULTILINE_LABELS
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
         raise LibrusError(ErrorKind.LIMIT)
@@ -117,12 +119,11 @@ def tooltip_fields(
             continue
         key, separator, value = rendered.partition(":")
         key, value = key.strip(), value.strip()
-        if not separator and (
-            last in TOOLTIP_MULTILINE_LABELS
-            or (
-                formative
-                and last is not None
-                and (last == GRADE_INLINE_DETAIL_LABEL or last not in TOOLTIP_LABELS)
+        if (
+            not separator
+            and last is not None
+            and (
+                last in multiline or (unknown_multiline and last not in TOOLTIP_LABELS)
             )
         ):
             result[last] = f"{result[last]}\n{rendered}".strip()

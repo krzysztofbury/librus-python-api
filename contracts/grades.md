@@ -349,7 +349,9 @@ Repeated corrections (1.8.4, observed live 2026-11-08, structure only): in
 the week view, the latest grade of a correction chain lists one
 `Poprawa oceny` line per grade it corrects. That label may repeat; its values
 stay in page order in one metadata pair, joined by a newline. Any other
-repeated tooltip label is still `PARSE`.
+repeated tooltip label is still `PARSE`. The all view showed that grade with
+only the grade it directly corrects, so one grade's `metadata`, and with it
+its record and notification identity, can differ between views.
 
 Grid mirror tooltips (1.8.4, observed live 2026-11-08, structure only): a
 mirror's tooltip opens with `Ocena`, followed by the assessment text and then
@@ -358,7 +360,10 @@ separated by blank ones, and a line may hold a colon. In a formative mirror
 only, an unlabelled line continues `Ocena` or the preceding teacher-written
 field (a label that is not a known tooltip label), joined by a newline. It
 never continues a known label such as `Data`, and the same lines in an
-ordinary grade's tooltip still fail with `PARSE`. A line holding a colon
+ordinary grade's tooltip still fail with `PARSE`. Limit: a line of the
+assessment text that starts with a known label, such as `Komentarz:`, is read
+as that field; with a label that comes again later, such as `Data:`, the read
+fails as a duplicate. A line holding a colon
 starts a field named by the text before it, as before, so tooltips that
 already parsed keep the same metadata and notification identity. Before
 1.8.4 the first unlabelled line failed every grade read of the login.
