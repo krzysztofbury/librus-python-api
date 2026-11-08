@@ -16,6 +16,7 @@ from librus_python_api.config import (
     GRADE_MAX_METADATA_LENGTH,
     TOOLTIP_LABELS,
     TOOLTIP_MULTILINE_LABELS,
+    TOOLTIP_REPEATABLE_LABELS,
     UPSTREAM_ORIGINS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -96,7 +97,8 @@ def tooltip_fields(
     the first line is taken whole, colon included, and appended to it. In a
     formative entry's tooltip, the assessment text after `Ocena` is free text
     too: an unlabelled line continues `Ocena` or a field whose label is not a
-    known one, never a known label such as `Data`.
+    known one, never a known label such as `Data`. A repeatable label
+    (`Poprawa oceny`) adds its value as one more line of the same field.
     """
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
@@ -124,6 +126,11 @@ def tooltip_fields(
             )
         ):
             result[last] = f"{result[last]}\n{rendered}".strip()
+            continue
+        if separator and key in result and key in TOOLTIP_REPEATABLE_LABELS:
+            # Each repeat keeps its value, in order, as one more line.
+            result[key] = f"{result[key]}\n{value}"
+            last = key
             continue
         if not separator or not key or key in result:
             raise LibrusError(ErrorKind.PARSE)

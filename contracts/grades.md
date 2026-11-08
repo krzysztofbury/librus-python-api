@@ -345,6 +345,12 @@ same items as ordinary records (same IDs); they are unchanged. Their computed
 field: grade notification identities hash the record's fields, and a new field
 would change every stored identity.
 
+Repeated corrections (1.8.4, observed live 2026-11-08, structure only): in
+the week view, the latest grade of a correction chain lists one
+`Poprawa oceny` line per grade it corrects. That label may repeat; its values
+stay in page order in one metadata pair, joined by a newline. Any other
+repeated tooltip label is still `PARSE`.
+
 Grid mirror tooltips (1.8.4, observed live 2026-11-08, structure only): a
 mirror's tooltip opens with `Ocena`, followed by the assessment text and then
 `Kategoria`, `Data`, `Nauczyciel` and `Dodał`. The text may span lines

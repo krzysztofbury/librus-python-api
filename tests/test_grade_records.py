@@ -619,3 +619,28 @@ def test_a_formative_grid_entry_keeps_its_multiline_assessment_text() -> None:
 def test_other_unlabelled_tooltip_lines_still_fail(first: str) -> None:
     with pytest.raises(ParseError):
         parse_grade_records(grades_html(first=first).encode())
+
+
+def test_a_grade_correcting_two_grades_keeps_both_correction_lines() -> None:
+    # The week view of an owner's live page (2026-11-08, structure only): the
+    # latest grade of a correction chain lists each grade it corrects.
+    extra = (
+        "Licz do średniej: tak<br/>Dodał: Fixture Teacher<br/><br/>"
+        "Poprawa oceny: 1 (Fixture quiz)<br/>Poprawa oceny: 2 (Fixture quiz)"
+    )
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box("4", extra=extra)).encode()
+    ).numeric
+    assert dict(grade.metadata)["Poprawa oceny"] == "1 (Fixture quiz)\n2 (Fixture quiz)"
+    single = extra.replace("<br/>Poprawa oceny: 2 (Fixture quiz)", "")
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box("4", extra=single)).encode()
+    ).numeric
+    assert dict(grade.metadata)["Poprawa oceny"] == "1 (Fixture quiz)"
+    # Other labels still may not repeat.
+    with pytest.raises(ParseError):
+        parse_grade_records(
+            grades_html(
+                first=grade_box("4", extra="Dodał: Fixture A<br/>Dodał: Fixture B")
+            ).encode()
+        )

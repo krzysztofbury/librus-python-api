@@ -18,6 +18,11 @@ Signatures are unchanged.
   lines continue `Ocena`, or a teacher-written field, with newlines. Tooltips
   that already parsed keep the same metadata, so notification identities do
   not change; the same lines in an ordinary grade's tooltip still fail.
+- Grades: a grade that corrects two earlier grades no longer fails the week
+  view with `ParseError`. Its tooltip lists one `Poprawa oceny` line per
+  corrected grade (seen live on 2026-11-08 in the week view of two owner
+  logins); the values are kept in order in one metadata pair, joined by a
+  newline. Other repeated labels still fail.
 - Notifications (krzysztofbury/librus-mcp#91): polling `AGENDA` without
   `allow_consume_events=True` when no stored raw batch can be replayed, and
   `consume_schedule_events()` with

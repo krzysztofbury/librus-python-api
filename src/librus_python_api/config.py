@@ -724,6 +724,9 @@ GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # multi-line grade comment was observed on 2026-10-27. A formative mirror's
 # assessment text after `Ocena` also spans lines (2026-11-08, markup.py).
 TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
+# Labels a tooltip may repeat. A grade correcting two earlier grades lists one
+# `Poprawa oceny` line per corrected grade in the week view (2026-11-08).
+TOOLTIP_REPEATABLE_LABELS = frozenset({"Poprawa oceny"})
 # Tooltip labels observed on grade, attendance and point pages. Diagnostics
 # show only these by name; any other label is masked as teacher-entered text.
 TOOLTIP_LABELS = frozenset(
@@ -745,6 +748,7 @@ TOOLTIP_LABELS = frozenset(
         "Nauczyciel",
         "Obowiązek wyk. zadania",
         "Ocena",
+        "Poprawa oceny",
         "Rodzaj",
         "Suma punktów",
         "Temat zajęć",
