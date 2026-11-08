@@ -61,8 +61,9 @@ client. Follow any workspace-level agent rules as well as these project rules.
 - A source view saved by macOS TextEdit (`Cocoa HTML Writer`) holds the source
   as text in a table; `inspect_page` rejects it. Ask for Page Source instead.
 - A page a user relays is private data: keep it in job scratch outside the
-  repository, never commit or quote it, delete it afterwards, and add original
-  fixtures that follow its structure. For an owner's own account, capture with
+  repository, never commit or quote it, and add original fixtures that follow
+  its structure. Delete it once the fix has been checked against it, not
+  before: a capture deleted early costs another live read. For an owner's own account, capture with
   `scripts/live_capture.py` into scratch and print label structure only.
 - Diagnostics are allowlist-based (`describe_failure`, `config.TOOLTIP_LABELS`).
   Extend the lists only with Librus-authored labels and markup, never values,

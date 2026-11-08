@@ -82,7 +82,13 @@ When a release of both is needed, publish this library first, then pin it in
 
 1. Merge the release preparation PR after CI passes on its exact head and on
    `main`. Release scripts and `workflow.yaml` must be present in both `main` and
-   the tagged source.
+   the tagged source. `main` requires signed commits: commit with GPG
+   (`commit.gpgsign`) and check the PR head before replacing anything,
+   `gh api repos/OWNER/REPO/commits/SHA --jq .commit.verification.verified`.
+   Only if it is `false`, recreate the same tree as one signed commit with the
+   GraphQL `createCommitOnBranch` mutation on a `release-X.Y.Z` branch (GitHub
+   signs it; a REST `git/commits` call is not signed), confirm the trees match
+   and close the unsigned PR in its favour.
 2. Create an annotated immutable tag at the intended merged commit. Push it and
    confirm the remote tag points to that commit. Never replace an uploaded tag.
 3. Run **Qualify and publish library** from **main** for that tag. It never
@@ -94,7 +100,11 @@ When a release of both is needed, publish this library first, then pin it in
    `ENV/bin/python -m scripts.live_check run --profile release --secrets FILE`
    with that environment's interpreter. It logs in once per configured account, uses only
    allowlisted reads (no message opens, sends or read-once routes) and reports
-   statuses and counts only. Publish only if it passes, and record the summary
+   statuses and counts only. The `release` profile covers messaging and
+   session reads, not grades or other school reads: when the release changes
+   such a read, also run `--profile weekly --record` on the same wheel. It
+   allows two logins per run, so split the accounts into `0600` pair files in
+   scratch and delete them afterwards. Publish only if it passes, and record the summary
    in the release notes. A failed step blocks publication; fix it in a new
    version rather than publishing a version that failed.
 5. Publish the GitHub Release, which starts publication:
@@ -153,6 +163,11 @@ just to get a release out. To stop a release, reject the waiting approval first,
 since a later approval would publish with no release to attach to, then
 `gh release delete` it; the tag stays. A fault in the tag's own source or workflow
 needs a new version, because a release run uses the files at the tag.
+
+For a few minutes after an upload, uv may report that the new version does
+not exist although PyPI's JSON API lists it: the simple index is still
+catching up. A consumer's CI job or a `uvx` check failing that way is not a
+packaging fault; retry or rerun it a few minutes later.
 
 Once anything reached PyPI, never delete and republish the release: a new run
 builds again and cannot upload over an existing version. If `confirm` or `attach`
