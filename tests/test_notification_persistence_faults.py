@@ -18,7 +18,12 @@ from librus_python_api.persistence import (
     NotificationStore,
     NotificationWorkflow,
 )
-from tests.gateway_grades_support import filled_row, observed_descriptive_page
+from tests.gateway_grades_support import (
+    descriptive_page,
+    descriptive_row,
+    descriptive_table,
+    filled_row,
+)
 from tests.http_support import serve
 from tests.notification_persistence_support import NotificationWorkflowFixture
 from tests.notifications_support import event_row, events_html
@@ -400,7 +405,13 @@ def test_a_rejected_grade_table_fails_the_poll_without_staging(tmp_path: Path) -
     # nothing for a table layout the all view rejects.
     async def scenario() -> None:
         fixture = NotificationWorkflowFixture()
-        page = observed_descriptive_page(filled_row(first="5"))
+        # Mixed layouts in a well-formed page: the observed page's malformed
+        # nesting parses differently across lxml releases.
+        page = descriptive_page(
+            descriptive_table(
+                filled_row(first="5") + descriptive_row("302", "Fixture Music")
+            )
+        )
         fixture.bodies["grades"] = (page.encode(), "text/html")
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
