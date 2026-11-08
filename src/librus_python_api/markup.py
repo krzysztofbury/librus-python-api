@@ -95,9 +95,10 @@ def tooltip_fields(
     A free-text field may span lines; an unlabelled line after it continues
     its value. Any other unlabelled line is an unknown layout. With `heading`,
     the first line is taken whole, colon included, and appended to it.
-    `multiline` names the free-text labels (default `Komentarz`); with `unknown_multiline`, a field
-    whose label is not a known one (teacher text holding a colon) is free text
-    too. A known label such as `Data` never continues. A repeatable label
+    `multiline` names the free-text labels (default `Komentarz`); with
+    `unknown_multiline`, a field whose label is not a known one (teacher text
+    holding a colon) is free text too. A known label such as `Data` never
+    continues. A repeatable label
     (`Poprawa oceny`) adds its value as one more line of the same field.
     """
     if multiline is None:
