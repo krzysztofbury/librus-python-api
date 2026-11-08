@@ -721,7 +721,8 @@ GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # Tooltip fields whose free text may continue on unlabelled lines. A teacher's
-# multi-line grade comment was observed on 2026-10-27.
+# multi-line grade comment was observed on 2026-10-27. A formative mirror's
+# assessment text after `Ocena` also spans lines (2026-11-08, markup.py).
 TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
 # Tooltip labels observed on grade, attendance and point pages. Diagnostics
 # show only these by name; any other label is masked as teacher-entered text.

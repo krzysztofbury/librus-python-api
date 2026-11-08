@@ -16,8 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.4` checks the new-schema grade table in every grade view
-and reports missing calendar-consumption consent as `ConsentRequiredError`.
+**Status:** `1.8.4` reads multi-line formative assessment text in grade
+tooltips, checks the new-schema grade table in every grade view and reports
+missing calendar-consumption consent as `ConsentRequiredError`.
 `1.8.3` reads behaviour grade symbols, filled descriptive
 grade tables, the "Aktualnie brak ogłoszeń" page and absences excused
 through e-Usprawiedliwienia. `1.8.2` keeps the modern mailbox session across a cancelled read

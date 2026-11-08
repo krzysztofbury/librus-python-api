@@ -99,7 +99,10 @@ def _numeric(
     semester: Literal[0, 1, 2],
     kind: GradeKind = GradeKind.CURRENT,
 ) -> NumericGrade:
-    metadata = markup.tooltip_fields(element)
+    formative = (
+        markup.detail_id(element.get("href"), FORMATIVE_DETAIL_PATH_PREFIX) is not None
+    )
+    metadata = markup.tooltip_fields(element, formative=formative)
     counts = metadata.get("Licz do średniej")
     if counts is not None and counts.casefold() not in ("tak", "nie"):
         raise LibrusError(ErrorKind.PARSE)

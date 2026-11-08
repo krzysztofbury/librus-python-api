@@ -22,10 +22,10 @@ CANARY_LOGINS = ("canary-login-a", "canary-login-b")
 WEEKLY_ONLY = [
     "class_free_days",
     "student_information",
-    "grades",
-    "grades_window",
     "grades_week",
     "grades_last_login",
+    "grades",
+    "grades_window",
     "final_grades",
     "school_year_archive",
     "attendance",

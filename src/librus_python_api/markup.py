@@ -10,9 +10,11 @@ from lxml import etree, html
 from librus_python_api.config import (
     ATTENDANCE_DETAIL_PATH_PREFIX,
     CIVIL_DATE_WEEKDAY_LABELS,
+    GRADE_INLINE_DETAIL_LABEL,
     GRADE_MAX_COLUMNS,
     GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
+    TOOLTIP_LABELS,
     TOOLTIP_MULTILINE_LABELS,
     UPSTREAM_ORIGINS,
 )
@@ -82,13 +84,19 @@ def colspan(cell: html.HtmlElement) -> int:
 
 
 def tooltip_fields(
-    element: html.HtmlElement, heading: list[str] | None = None
+    element: html.HtmlElement,
+    heading: list[str] | None = None,
+    *,
+    formative: bool = False,
 ) -> dict[str, str]:
     """Parse a 'Label: value<br>' title attribute into unique labelled fields.
 
     A free-text field may span lines; an unlabelled line after it continues
     its value. Any other unlabelled line is an unknown layout. With `heading`,
-    the first line is taken whole, colon included, and appended to it.
+    the first line is taken whole, colon included, and appended to it. In a
+    formative entry's tooltip, the assessment text after `Ocena` is free text
+    too: an unlabelled line continues `Ocena` or a field whose label is not a
+    known one, never a known label such as `Data`.
     """
     title = element.get("title", "")
     if len(title) > GRADE_MAX_METADATA_LENGTH:
@@ -107,7 +115,14 @@ def tooltip_fields(
             continue
         key, separator, value = rendered.partition(":")
         key, value = key.strip(), value.strip()
-        if not separator and last in TOOLTIP_MULTILINE_LABELS:
+        if not separator and (
+            last in TOOLTIP_MULTILINE_LABELS
+            or (
+                formative
+                and last is not None
+                and (last == GRADE_INLINE_DETAIL_LABEL or last not in TOOLTIP_LABELS)
+            )
+        ):
             result[last] = f"{result[last]}\n{rendered}".strip()
             continue
         if not separator or not key or key in result:

@@ -507,10 +507,11 @@ async def class_free_days(ctx: Context) -> Observed:
 WEEKLY_READS: tuple[Check, ...] = (
     class_free_days,
     student_information,
-    grades,
-    grades_window,
+    # The narrower views first, so the login ends on the all view as before.
     grade_view(GradeView.WEEK),
     grade_view(GradeView.LAST_LOGIN),
+    grades,
+    grades_window,
     final_grades,
     school_year_archive,
     attendance,

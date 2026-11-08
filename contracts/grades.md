@@ -345,6 +345,18 @@ same items as ordinary records (same IDs); they are unchanged. Their computed
 field: grade notification identities hash the record's fields, and a new field
 would change every stored identity.
 
+Grid mirror tooltips (1.8.4, observed live 2026-11-08, structure only): a
+mirror's tooltip opens with `Ocena`, followed by the assessment text and then
+`Kategoria`, `Data`, `Nauczyciel` and `Dodał`. The text may span lines
+separated by blank ones, and a line may hold a colon. In a formative mirror
+only, an unlabelled line continues `Ocena` or the preceding teacher-written
+field (a label that is not a known tooltip label), joined by a newline. It
+never continues a known label such as `Data`, and the same lines in an
+ordinary grade's tooltip still fail with `PARSE`. A line holding a colon
+starts a field named by the text before it, as before, so tooltips that
+already parsed keep the same metadata and notification identity. Before
+1.8.4 the first unlabelled line failed every grade read of the login.
+
 Rules: exact header labels; a subject TH may span its group with `rowspan`
 (only rowspan 1 was observed; grouping is synthetic coverage); exactly the
 observed cell vocabulary; a hidden template row with ID `000000` is skipped.

@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.4 (2026-11-08) - Grade table checks in every view, calendar consent error
+## 1.8.4 (2026-11-08) - Multi-line formative tooltips, grade checks in every view, calendar consent
 
 Signatures are unchanged.
 
@@ -11,8 +11,16 @@ Signatures are unchanged.
   one student. Notification polls read the last-login view, so such a page
   now fails the poll instead of passing silently. Only the all view with
   empty `gradesCell` hooks reads the gateway, as before.
-- Notifications: polling `AGENDA` without `allow_consume_events=True` when
-  no stored raw batch can be replayed, and `consume_schedule_events()` with
+- Grades: a formative entry in the grade grid whose tooltip carries a
+  multi-line assessment text after `Ocena` no longer fails every grade read of
+  the login with `ParseError`. Found on two of the owner's logins by the live
+  check for this release (2026-11-08); 1.8.3 fails the same way. Unlabelled
+  lines continue `Ocena`, or a teacher-written field, with newlines. Tooltips
+  that already parsed keep the same metadata, so notification identities do
+  not change; the same lines in an ordinary grade's tooltip still fail.
+- Notifications (krzysztofbury/librus-mcp#91): polling `AGENDA` without
+  `allow_consume_events=True` when no stored raw batch can be replayed, and
+  `consume_schedule_events()` with
   `allow_consume_events=False`, raise `ConsentRequiredError` instead of a
   plain invalid input, so a caller can ask the user. Nothing is requested
   either way. `except InvalidInputError` still catches it; code comparing
