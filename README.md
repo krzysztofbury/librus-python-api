@@ -16,8 +16,11 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.4` reads multi-line formative assessment text and repeated
-corrections in grade tooltips, checks the new-schema grade table in every grade view and reports
+**Status:** `1.9.0` gives every ordinary grade its stable Librus ID (`grade_id`)
+and links a corrected grade to its corrections, as the all view brackets them
+(`GradeRecords.corrections`, [grade corrections](API.md#grade-ids-and-corrections-190)).
+`1.8.4` reads multi-line formative assessment text and repeated
+correction lines in grade tooltips, checks the new-schema grade table in every grade view and reports
 missing calendar-consumption consent as `ConsentRequiredError`.
 `1.8.3` reads behaviour grade symbols, filled descriptive
 grade tables, the "Aktualnie brak ogłoszeń" page and absences excused
@@ -43,7 +46,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.8.4
+python -m pip install librus-python-api==1.9.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -59,7 +62,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.8.4-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.9.0-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your

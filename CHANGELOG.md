@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.9.0 (2026-11-08) - Grade IDs and correction links
+
+Thank you, @nawa, for raising krzysztofbury/librus-mcp#88 with a clear
+description of the markup and the use case. Existing signatures are
+unchanged; the additions are listed below.
+
+- Grades: `NumericGrade.grade_id` and `DescriptiveGrade.grade_id` give each
+  ordinary grade its stable Librus ID from its detail link. They are computed
+  properties, like `formative_id`, so stored notification identities do not
+  change. The new `config.GRADE_DETAIL_PATH_PREFIX` is recognised, never
+  requested.
+- Grades: `GradeRecords.corrections` and `GradeWindow.corrections` link a
+  corrected grade to its corrections. Each `GradeCorrection(subject,
+  semester, grade_ids)` lists, original first, the grades the all view shows
+  in one correction bracket (seen live on 2026-11-08 on a student and a parent
+  login, structure only). The week view showed no brackets, so its
+  `corrections` came back empty: there it means "not shown", not "not
+  corrected". Chains of more than two grades are accepted.
+- `inspect_page grades` reports the number of `corrections`.
+- Grades: a bracket in a layout not seen live (unbalanced, nested, around a
+  single grade, with attributes, outside the grade cell, or around a point,
+  formative or unlinked entry) now raises `ParseError`. Before, the brackets
+  were ignored and such a page parsed.
+- Grades: failure diagnostics show correction brackets as `'['` and `']'`
+  instead of masked text.
+- Docs: 1.8.4 described a week-view grade with two `Poprawa oceny` lines as
+  correcting two grades. A structure-only comparison with the all view shows
+  both lines name the same original, the first ending in a comma, so the
+  repeated line is not a record of several corrected grades. Parsing is
+  unchanged; `contracts/grades.md` and the config comment are corrected.
+
 ## 1.8.4 (2026-11-08) - Multi-line formative tooltips, grade checks in every view, calendar consent
 
 Signatures are unchanged.

@@ -223,11 +223,49 @@ source)` with an aware UTC timestamp.
   - `descriptive`: `DescriptiveGrade`, including publications (`PUBLICATION`).
   - `descriptive_summaries`: undated semester text, never in date windows.
   - `averages`: `SchoolAverage` as school-provided text. Nothing is computed.
+  - `corrections` (1.9.0): `GradeCorrection`s, see
+    [grade IDs and corrections](#grade-ids-and-corrections-190).
 - `grades_window(start=None, end=None, view=GradeView.ALL)` filters the selected
   collection to inclusive civil dates. Either boundary may be omitted; two
   supplied dates may be at most 370 days apart. `GradeWindow.view` records the
   selection. It reuses only that view's cache; averages and undated summaries
-  remain outside the window.
+  remain outside the window. `GradeWindow.corrections` keeps every correction
+  with at least one of its grades in the window, whole.
+
+### Grade IDs and corrections (1.9.0)
+
+Requested in krzysztofbury/librus-mcp#88.
+
+- `NumericGrade.grade_id` and `DescriptiveGrade.grade_id` hold the grade's own
+  Librus ID from its detail link (`/przegladaj_oceny/szczegoly/<digits>`). It
+  stays the same across reads and views, so it tells apart two grades with the
+  same value, category and day. It is `None` for formative, point and
+  behaviour links and for entries without a link; at most one of `grade_id`,
+  `formative_id` and `point_grade_id` is set. Like those, it is a computed
+  property, not a field, so stored notification identities do not change.
+  The detail link is recognised, never requested.
+- `GradeRecords.corrections` holds one `GradeCorrection(subject, semester,
+  grade_ids)` per correction bracket. In the all view Librus shows a corrected
+  grade and its correction together as `[1 5]`; `grade_ids` lists them in page
+  order, at least two: the first is the corrected original and each later
+  grade corrects the ones before it, so the last is the latest correction.
+  The grades themselves stay ordinary records in `numeric` (or `descriptive`).
+- `corrections` holds what the page brackets, in any view. Only the all view
+  was seen to bracket corrections: the week view showed a correction without
+  its bracket, often without its original (2026-11-08), so its `corrections`
+  came back `()`, and last-login is expected to behave the same. An empty
+  `corrections` in those views therefore does not mean nothing was
+  corrected. The correction's tooltip still has its `Poprawa oceny` line (the
+  original's value and category, no ID), which never creates a link.
+- The bracket is the only source of a link. A bracket in a layout not seen
+  live (unbalanced, nested, around a single grade, with attributes, not
+  directly in the grade cell, or around an entry without an ordinary grade
+  link, such as a point or formative entry) raises `ParseError` instead of
+  returning the grades without it. In the point table, where no bracket was
+  seen, only a period grade's bracket repeated from the ordinary table is
+  accepted. Comments inside a bracket are ignored. Failure diagnostics and
+  `inspect_page grades` (its `corrections` count) show the brackets.
+  See [correction brackets](contracts/grades.md#grade-ids-and-correction-brackets-190-librus-mcp88).
 
 ### School-year archive (1.3.0)
 

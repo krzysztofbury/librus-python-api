@@ -13,6 +13,7 @@ from librus_python_api.config import (
     FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
     GRADE_BODY_PREFIX_COLUMNS,
+    GRADE_CORRECTION_BRACKETS,
     GRADE_CURRENT_HEADER,
     GRADE_EMPTY_MARKERS,
     GRADE_INLINE_DETAIL_LABEL,
@@ -47,6 +48,7 @@ from librus_python_api.models import (
     DescriptiveGrade,
     DescriptiveGradeSummary,
     FormativeGrade,
+    GradeCorrection,
     GradeKind,
     GradeRecords,
     GradeSummaryValue,
@@ -216,6 +218,8 @@ class _Collection:
     )
     averages: list[SchoolAverage] = field(default_factory=list, repr=False)
     point_results: list[SchoolAverage] = field(default_factory=list, repr=False)
+    corrections: list[GradeCorrection] = field(default_factory=list, repr=False)
+    corrected: set[str] = field(default_factory=set, repr=False)
     subjects: set[tuple[bool, str]] = field(default_factory=set, repr=False)
     point_subjects: set[str] = field(default_factory=set, repr=False)
     consumed: set[html.HtmlElement] = field(default_factory=set, repr=False)
@@ -254,11 +258,89 @@ class _Collection:
 
 
 def _boxes(cell: html.HtmlElement) -> list[html.HtmlElement]:
-    return [
-        node
-        for node in cell.iter("span")
-        if "grade-box" in node.get("class", "").split()
-    ]
+    return [node for node in cell.iter("span") if _is_box(node)]
+
+
+def _is_box(node: html.HtmlElement) -> bool:
+    return isinstance(node.tag, str) and "grade-box" in node.get("class", "").split()
+
+
+def _brackets(
+    cell: html.HtmlElement, boxes: list[html.HtmlElement]
+) -> list[list[html.HtmlElement]]:
+    """The correction brackets of a grade cell, each its grade boxes in order.
+
+    A bracket is a bare <span> directly in the cell whose text is "[", whose
+    element children are two or more grade boxes, and whose last child's tail
+    is "]" (config.GRADE_CORRECTION_BRACKETS); comments are ignored. Any other
+    bracket text outside grade boxes, such as an unbalanced or nested bracket,
+    fails the read instead of dropping a correction link.
+    """
+    opening, closing = GRADE_CORRECTION_BRACKETS
+    inside = set(boxes)
+    outside = [cell.text or ""]
+    pending = list(cell)
+    while pending:
+        node = pending.pop()
+        outside.append(node.tail or "")
+        if node not in inside and isinstance(node.tag, str):
+            outside.append(node.text or "")
+            pending.extend(node)
+    marks = sum(text.count(opening) + text.count(closing) for text in outside)
+    if not marks:
+        return []
+    groups = []
+    for wrapper in cell:
+        if wrapper.tag != "span" or wrapper.attrib:
+            continue
+        if (wrapper.text or "").strip() != opening:
+            continue
+        children = list(wrapper)
+        members = [child for child in children if isinstance(child.tag, str)]
+        if (
+            len(members) < 2
+            or not all(member in inside for member in members)
+            or any((child.tail or "").strip() for child in children[:-1])
+            or (children[-1].tail or "").strip() != closing
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        groups.append(members)
+    if marks != 2 * len(groups):
+        raise LibrusError(ErrorKind.PARSE)
+    return groups
+
+
+def _read_corrections(
+    groups: list[list[html.HtmlElement]],
+    ids: dict[html.HtmlElement, str | None],
+    subject: str,
+    period: Literal[0, 1, 2],
+    collection: _Collection,
+    *,
+    points: bool,
+) -> None:
+    for boxes in groups:
+        members = [ids.get(box) for box in boxes]
+        if any(member is None for member in members):
+            # Only ordinary grades with their own detail link were observed.
+            raise LibrusError(ErrorKind.PARSE)
+        correction = GradeCorrection(
+            subject, period, tuple(cast(str, member) for member in members)
+        )
+        if points:
+            # Brackets were not observed in the point table. Only a period
+            # grade it shows again, already read from the ordinary table, is
+            # accepted, as one link like its record.
+            if correction not in collection.corrections:
+                raise LibrusError(ErrorKind.PARSE)
+            continue
+        grade_ids = correction.grade_ids
+        if len(set(grade_ids)) != len(grade_ids) or not collection.corrected.isdisjoint(
+            grade_ids
+        ):
+            raise LibrusError(ErrorKind.PARSE)
+        collection.corrected.update(grade_ids)
+        collection.corrections.append(correction)
 
 
 def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
@@ -314,8 +396,11 @@ def _entries(
     kind: GradeKind = GradeKind.CURRENT,
     descriptive: bool = False,
     require_empty_marker: bool = True,
+    points: bool = False,
 ) -> None:
     boxes = _boxes(cell)
+    groups = _brackets(cell, boxes) if boxes else []
+    ids: dict[html.HtmlElement, str | None] = {}
     if (
         not boxes
         and require_empty_marker
@@ -376,14 +461,17 @@ def _entries(
                         href,
                     )
                 )
+                ids[box] = collection.descriptive[-1].grade_id
             else:
                 collection.numeric.append(record)
+                ids[box] = record.grade_id
         else:
             collection.descriptive.append(
                 _descriptive(box, descriptions[0], subject, period, kind)
             )
         collection.consumed.add(box)
         collection.check_size()
+    _read_corrections(groups, ids, subject, period, collection, points=points)
 
 
 def _descriptive_row(cells: list[html.HtmlElement]) -> bool:
@@ -486,7 +574,11 @@ def _read_numeric_table(
                 ):
                     start = len(collection.numeric)
                     _entries(
-                        columns[index], subject, cast(Literal[1, 2], period), collection
+                        columns[index],
+                        subject,
+                        cast(Literal[1, 2], period),
+                        collection,
+                        points=points,
                     )
                     # A point entry without its detail link would pass as a
                     # grade symbol; an unseen link layout fails instead. The
@@ -509,6 +601,7 @@ def _read_numeric_table(
                 collection,
                 kind=kind,
                 require_empty_marker=False,
+                points=points,
             )
             collection.numeric[start:] = [
                 record for record in collection.numeric[start:] if record not in prior
@@ -674,4 +767,5 @@ def read_grade_records(document: html.HtmlElement) -> GradeRecords:
         tuple(collection.descriptive_summaries),
         formative,
         tuple(collection.point_results),
+        tuple(collection.corrections),
     )
