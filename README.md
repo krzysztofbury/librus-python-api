@@ -16,7 +16,9 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.8.3` reads behaviour grade symbols, filled descriptive
+**Status:** `1.8.4` checks the new-schema grade table in every grade view
+and reports missing calendar-consumption consent as `ConsentRequiredError`.
+`1.8.3` reads behaviour grade symbols, filled descriptive
 grade tables, the "Aktualnie brak ogłoszeń" page and absences excused
 through e-Usprawiedliwienia. `1.8.2` keeps the modern mailbox session across a cancelled read
 or a reached limit and sends its own version in the `User-Agent`. `1.8.1` recovers a session Synergia no longer knows (it answers
@@ -40,7 +42,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.8.3
+python -m pip install librus-python-api==1.8.4
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -56,7 +58,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.8.3-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.8.4-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your

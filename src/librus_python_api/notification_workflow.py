@@ -130,7 +130,8 @@ class NotificationWorkflow:
             if uncertain:
                 raise LibrusError(ErrorKind.CHECKPOINT)
             if not consume:
-                raise LibrusError(ErrorKind.INVALID_INPUT)
+                # Nothing is read before the caller agrees to consume new events.
+                raise LibrusError(ErrorKind.CONSENT_REQUIRED)
         state = await store._io(lambda: store._read_state(context.identifier))
         ordinary = await self._ordinary(categories, window, budget)
         # Validate whole ordinary results and state capacity before consuming.

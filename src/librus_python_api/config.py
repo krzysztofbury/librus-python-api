@@ -783,8 +783,9 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
         "Ocena roczna": 0,
     }
 )
-# New-schema descriptive grading: the page renders this table with empty
-# semester cells and its script loads the grades from the gateway routes above.
+# New-schema descriptive grading: the page renders this table either with empty
+# `gradesCell` semester cells, which its script fills from the gateway routes
+# above, or with bare semester text, which needs no gateway read.
 DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
 DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"

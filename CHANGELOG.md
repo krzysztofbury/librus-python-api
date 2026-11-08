@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.8.4 (2026-11-08) - Grade table checks in every view, calendar consent error
+
+Signatures are unchanged.
+
+- Grades: the week and last-login views run the same new-schema descriptive
+  table checks as the all view (#123). They used to return summaries or
+  nothing for a table the all view rejects: blank or classed semester cells,
+  a filled table with gateway detail rows, mixed layouts or rows of more than
+  one student. Notification polls read the last-login view, so such a page
+  now fails the poll instead of passing silently. Only the all view with
+  empty `gradesCell` hooks reads the gateway, as before.
+- Notifications: polling `AGENDA` without `allow_consume_events=True` when
+  no stored raw batch can be replayed, and `consume_schedule_events()` with
+  `allow_consume_events=False`, raise `ConsentRequiredError` instead of a
+  plain invalid input, so a caller can ask the user. Nothing is requested
+  either way. `except InvalidInputError` still catches it; code comparing
+  `kind` with `INVALID_INPUT` sees the new kind. Repeated categories and a
+  non-boolean flag stay `InvalidInputError`.
+- Docs: `API.md`, the `grades()` docstring and `contracts/grades.md` describe
+  both new-schema table layouts, which views read the gateway, and behaviour
+  grade symbols (#124).
+- The weekly live check also reads the week and last-login grade views.
+
 ## 1.8.3 (2026-11-06) - Reported grade, attendance and announcement layouts
 
 Thank you, @wiktorw and @Witoso, for the reports and the careful synthetic

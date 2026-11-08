@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from librus_python_api import NotificationCategory
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ConsentRequiredError, ErrorKind, LibrusError
 from librus_python_api.persistence import (
     NotificationLimits,
     NotificationStore,
@@ -351,6 +351,45 @@ def test_invalid_categories_fail_before_transport(tmp_path: Path, invalid: Any) 
                 assert (
                     error.value.kind is ErrorKind.INVALID_INPUT and fixture.calls == []
                 )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("categories", [AGENDA, (NotificationCategory.GRADES, *AGENDA)])
+@pytest.mark.parametrize("consent", [None, False])
+def test_fresh_agenda_without_consent_is_consent_required_before_any_read(
+    tmp_path: Path, categories: tuple[NotificationCategory, ...], consent: bool | None
+) -> None:
+    async def scenario() -> None:
+        fixture = NotificationWorkflowFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                async with NotificationStore(tmp_path / "state") as store:
+                    workflow = NotificationWorkflow(service.account("student"), store)
+                    with pytest.raises(ConsentRequiredError) as error:
+                        if consent is None:
+                            await workflow.poll(categories=categories)
+                        else:
+                            await workflow.poll(
+                                categories=categories, allow_consume_events=consent
+                            )
+                    assert error.value.kind is ErrorKind.CONSENT_REQUIRED
+                    assert fixture.calls == []
+                    archive = json.loads(
+                        (
+                            await store.export_archive(context=workflow.client.context)
+                        ).payload
+                    )
+                    assert archive["raw"] is None and archive["delivery"] is None
+                    # The same request with consent is the one that consumes.
+                    batch = await workflow.poll(
+                        categories=categories, allow_consume_events=True
+                    )
+                    assert any(
+                        item.category is NotificationCategory.AGENDA
+                        for item in batch.items
+                    )
 
     asyncio.run(scenario())
 

@@ -24,6 +24,8 @@ WEEKLY_ONLY = [
     "student_information",
     "grades",
     "grades_window",
+    "grades_week",
+    "grades_last_login",
     "final_grades",
     "school_year_archive",
     "attendance",
