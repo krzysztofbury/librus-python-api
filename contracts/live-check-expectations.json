@@ -15,6 +15,8 @@
         "filtered_page sent": "populated",
         "final_grades": "any",
         "grades": "any",
+        "grades_last_login": "any",
+        "grades_week": "any",
         "grades_window": "any",
         "homework": "any",
         "homework_detail": "any",

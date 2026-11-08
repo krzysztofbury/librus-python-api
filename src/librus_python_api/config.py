@@ -721,8 +721,12 @@ GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # Tooltip fields whose free text may continue on unlabelled lines. A teacher's
-# multi-line grade comment was observed on 2026-10-27.
+# multi-line grade comment was observed on 2026-10-27. A formative mirror's
+# assessment text after `Ocena` also spans lines (2026-11-08, markup.py).
 TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
+# Labels a tooltip may repeat. A grade correcting two earlier grades lists one
+# `Poprawa oceny` line per corrected grade in the week view (2026-11-08).
+TOOLTIP_REPEATABLE_LABELS = frozenset({"Poprawa oceny"})
 # Tooltip labels observed on grade, attendance and point pages. Diagnostics
 # show only these by name; any other label is masked as teacher-entered text.
 TOOLTIP_LABELS = frozenset(
@@ -744,6 +748,7 @@ TOOLTIP_LABELS = frozenset(
         "Nauczyciel",
         "Obowiązek wyk. zadania",
         "Ocena",
+        "Poprawa oceny",
         "Rodzaj",
         "Suma punktów",
         "Temat zajęć",
@@ -783,8 +788,9 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
         "Ocena roczna": 0,
     }
 )
-# New-schema descriptive grading: the page renders this table with empty
-# semester cells and its script loads the grades from the gateway routes above.
+# New-schema descriptive grading: the page renders this table either with empty
+# `gradesCell` semester cells, which its script fills from the gateway routes
+# above, or with bare semester text, which needs no gateway read.
 DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
 DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"

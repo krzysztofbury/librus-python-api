@@ -1,5 +1,6 @@
 import asyncio
 from datetime import date
+from html import escape
 
 import pytest
 
@@ -16,6 +17,7 @@ from librus_python_api.exceptions import (
 )
 from librus_python_api.grade_records import parse_grade_records
 from tests.grade_records_support import (
+    FORMATIVE_LINK,
     GradeRecordsFixture,
     behaviour_box,
     behaviour_grade_box,
@@ -560,3 +562,107 @@ def test_a_logged_out_grade_page_is_posted_again_in_a_fresh_session() -> None:
         assert len(fixture.view_posts) == 3 and fixture.logins == {"student": 2}
 
     asyncio.run(scenario())
+
+
+def _formative_mirror(lines: str, href: str = FORMATIVE_LINK.format(961)) -> str:
+    title = escape(
+        f"Ocena: +<br/>{lines}Kategoria: Fixture task<br/>Data: 2026-11-07"
+        "<br/>Nauczyciel: Fixture Teacher<br/>Dodał: Fixture Teacher<br/>",
+        quote=True,
+    )
+    return f'<span class="grade-box"><a href="{href}" title="{title}">T</a></span>'
+
+
+# The layout of an owner's live page (2026-11-08, structure only): the
+# assessment text of a formative grid entry spans lines between blank ones,
+# one of them holding a colon, before the labelled fields.
+MULTILINE_ASSESSMENT = (
+    "<br/>Fixture line one<br/><br/>Fixture line two<br/><br/>Fixture line three"
+    "<br/><br/>Fixture aspect: what went well<br/><br/>Short<br/><br/>Fixture line six"
+    "<br/><br/><br/><br/>Fixture closing line<br/>"
+)
+
+
+def test_a_formative_grid_entry_keeps_its_multiline_assessment_text() -> None:
+    (grade,) = parse_grade_records(
+        grades_html(first=_formative_mirror(MULTILINE_ASSESSMENT)).encode()
+    ).numeric
+    assert grade.formative_id == "961"
+    assert grade.raw == "T" and grade.day == date(2026, 11, 7)
+    assert grade.category == "Fixture task"
+    assert grade.metadata == (
+        ("Ocena", "+\nFixture line one\nFixture line two\nFixture line three"),
+        (
+            "Fixture aspect",
+            "what went well\nShort\nFixture line six\nFixture closing line",
+        ),
+        ("Kategoria", "Fixture task"),
+        ("Data", "2026-11-07"),
+        ("Nauczyciel", "Fixture Teacher"),
+        ("Dodał", "Fixture Teacher"),
+    )
+
+
+def test_known_labels_inside_formative_assessment_text_stay_text() -> None:
+    lines = (
+        "<br/>Fixture line one<br/>Komentarz: fixture remark<br/>Data: next week"
+        "<br/>Waga: fixture<br/>Fixture last line<br/>"
+    )
+    (grade,) = parse_grade_records(
+        grades_html(first=_formative_mirror(lines)).encode()
+    ).numeric
+    assert grade.comment is None and grade.weight is None
+    assert grade.day == date(2026, 11, 7)
+    assert dict(grade.metadata)["Ocena"] == (
+        "+\nFixture line one\nKomentarz: fixture remark\nData: next week"
+        "\nWaga: fixture\nFixture last line"
+    )
+    assert list(dict(grade.metadata))[1:] == [
+        "Kategoria",
+        "Data",
+        "Nauczyciel",
+        "Dodał",
+    ]
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        # Only a formative entry's assessment text may span lines.
+        _formative_mirror(MULTILINE_ASSESSMENT, href="/przegladaj_oceny/szczegoly/971"),
+        # A known label never takes a continuation line.
+        _formative_mirror("<br/>").replace(
+            escape("Data: 2026-11-07<br/>"),
+            escape("Data: 2026-11-07<br/>Fixture stray<br/>"),
+        ),
+    ],
+    ids=["ordinary-entry", "after-known-label"],
+)
+def test_other_unlabelled_tooltip_lines_still_fail(first: str) -> None:
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(first=first).encode())
+
+
+def test_a_grade_correcting_two_grades_keeps_both_correction_lines() -> None:
+    # The week view of an owner's live page (2026-11-08, structure only): the
+    # latest grade of a correction chain lists each grade it corrects.
+    extra = (
+        "Licz do średniej: tak<br/>Dodał: Fixture Teacher<br/><br/>"
+        "Poprawa oceny: 1 (Fixture quiz)<br/>Poprawa oceny: 2 (Fixture quiz)"
+    )
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box("4", extra=extra)).encode()
+    ).numeric
+    assert dict(grade.metadata)["Poprawa oceny"] == "1 (Fixture quiz)\n2 (Fixture quiz)"
+    single = extra.replace("<br/>Poprawa oceny: 2 (Fixture quiz)", "")
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box("4", extra=single)).encode()
+    ).numeric
+    assert dict(grade.metadata)["Poprawa oceny"] == "1 (Fixture quiz)"
+    # Other labels still may not repeat.
+    with pytest.raises(ParseError):
+        parse_grade_records(
+            grades_html(
+                first=grade_box("4", extra="Dodał: Fixture A<br/>Dodał: Fixture B")
+            ).encode()
+        )

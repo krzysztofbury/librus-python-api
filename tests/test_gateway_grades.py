@@ -485,6 +485,77 @@ def test_a_filled_table_with_gateway_detail_rows_is_unsupported() -> None:
         parse_grade_page(page.encode())
 
 
+REJECTED_TABLES = {
+    "detail-rows": (
+        observed_descriptive_page(filled_row(first="5")),
+        UnsupportedCapabilityError,
+    ),
+    "mixed-layouts": (
+        descriptive_page(
+            descriptive_table(
+                filled_row(first="5") + descriptive_row("302", "Fixture Music")
+            )
+        ),
+        UnsupportedCapabilityError,
+    ),
+    "grades-cell": (
+        descriptive_page(
+            descriptive_table(
+                filled_row().replace(HOOKLESS, '<td class="gradesCell">5</td>', 1)
+            )
+        ),
+        UnsupportedCapabilityError,
+    ),
+    "blank": (
+        descriptive_page(descriptive_table(filled_row(first="", second=""))),
+        UnsupportedCapabilityError,
+    ),
+    "two-students": (
+        descriptive_page(
+            descriptive_table(
+                descriptive_row() + descriptive_row("302", "Fixture Music", user="78")
+            )
+        ),
+        ParseError,
+    ),
+}
+
+
+@pytest.mark.parametrize("view", list(GradeView))
+@pytest.mark.parametrize("case", list(REJECTED_TABLES))
+def test_every_view_rejects_the_same_table_layouts(view: GradeView, case: str) -> None:
+    # #123: week and last-login (which notifications read) once returned
+    # summaries or nothing for a table the all view rejected.
+    page, expected = REJECTED_TABLES[case]
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
+
+    async def scenario(service: LibrusService) -> None:
+        await service.account("student").grades(view=view)
+
+    with pytest.raises(expected):
+        run(fixture, scenario)
+    assert fixture.gateway == []
+    assert len(fixture.view_posts) == 1
+
+
+@pytest.mark.parametrize("view", [GradeView.WEEK, GradeView.LAST_LOGIN])
+def test_other_views_read_both_supported_tables_without_the_gateway(
+    view: GradeView,
+) -> None:
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = observed_descriptive_page()
+    assert read_grades(fixture, view).records.descriptive == ()
+    assert fixture.gateway == []
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = descriptive_page(descriptive_table(filled_row(first="5")))
+    result = read_grades(fixture, view)
+    assert result.records.descriptive_summaries == (
+        DescriptiveGradeSummary("Fixture Nature", 1, "5"),
+    )
+    assert fixture.gateway == []
+
+
 def test_pages_without_the_table_and_other_views_make_no_gateway_request() -> None:
     fixture = GatewayGradesFixture()
     fixture.grade_body = grades_html(first=grade_box(day="2026-10-01"))

@@ -287,12 +287,31 @@ such as `(0-100)`, not a grade symbol. The table's "Wyn." period results are
 into `averages`), and a point table with titled summary columns adds its
 subjects to `final_grades()`. See [point grades](contracts/grades.md#point-grades-170).
 
-Gateway descriptive grades (1.8.0) belong to schools on the new
-descriptive grading schema, whose grades page shows a subject table with empty
-semester cells that the page script fills from the gateway. In the `ALL` view
-only, `grades()` then reads those grades from the gateway with the login's
-session and the call's budget: three more requests, five when there are
-grades. They are `DescriptiveGrade`s in `descriptive` (kind `CURRENT`, no
+Behaviour grade symbols (1.8.3): an entry in the behaviour row with a grade
+symbol such as `wz`, linking to a behaviour detail, is a `NumericGrade` in
+`numeric`. As for point grades, `category` is the tooltip's unlabelled first
+line (such as `wzorowe`), `day` is `Data wystawienia`, `teacher` stays `None`
+and `Dodał` is kept only in `metadata`. See [grades](contracts/grades.md).
+
+Schools on the new descriptive grading schema show a subject table
+(`newSchemaGradesByStudentTable`) in one of two layouts. Every view checks it
+the same way (from 1.8.4; before, only the `ALL` view did):
+
+- Empty semester cells (`gradesCell` hooks) that the page script fills from
+  the gateway. In the `ALL` view `grades()` reads those grades from the
+  gateway, as described below. `WEEK` and `LAST_LOGIN` contain none of them.
+- Semester cells holding bare text, such as `5` or `Brak ocen` (1.8.3). The
+  text becomes undated `descriptive_summaries` (`Brak ocen` is empty) and no
+  view makes a gateway request. Undated summaries are not notified.
+- Anything else fails the read: blank cells without hooks, a cell with an
+  attribute or markup, both layouts in one table, a bare-text table that still
+  has `studentGradesDetailsRow` rows (`UnsupportedCapabilityError`), or rows
+  of more than one student (`ParseError`).
+
+Gateway descriptive grades (1.8.0): with the empty layout, the `ALL` view
+reads the grades from the gateway with the login's session and the call's
+budget: three more requests, five when there are grades. They are
+`DescriptiveGrade`s in `descriptive` (kind `CURRENT`, no
 `href`), with the page's subject name, the scale value or else the content as
 `raw`, the civil date, semester 1 or 2, the teacher's name when listed, the
 comment and metadata pairs for the present fields only (`Obszar`, `Treść`,
@@ -804,7 +823,11 @@ async with NotificationStore(Path("/absolute/private/notification-state")) as st
   announcements use the ordinary collection. No menu counts, message content,
   detail calls, modern fallback or arbitrary historical catch-up is performed.
 - New `AGENDA` consumption requires explicit `allow_consume_events=True` each
-  time. Complete encoded raw bytes and original metadata commit before parsing.
+  time. Without it, and with no stored raw batch to replay, `poll()` and
+  `consume_schedule_events()` raise `ConsentRequiredError` before any request
+  (from 1.8.4; before, a plain `InvalidInputError`). Other invalid inputs,
+  such as repeated categories, stay `InvalidInputError`.
+  Complete encoded raw bytes and original metadata commit before parsing.
   Existing raw checkpoints replay locally before another consume. Malformed raw
   data remains stored and blocks another consume, even with fresh consent.
 - `NotificationBatch(receipt, context, first_run, categories, items,
@@ -1162,7 +1185,7 @@ text. `error_for(kind)` builds one.
 | Error | Meaning |
 | --- | --- |
 | `InvalidInputError` | Rejected before any request, or upstream rejected the selection |
-| `ConsentRequiredError` | A subclass of `InvalidInputError` (1.8.1): a call with an effect the user must agree to, such as opening a received message, was made without that consent; nothing was requested |
+| `ConsentRequiredError` | A subclass of `InvalidInputError` (1.8.1): a call with an effect the user must agree to, such as opening a received message, was made without that consent; nothing was requested. Since 1.8.4 also consuming new calendar events without `allow_consume_events=True` |
 | `CredentialsRejectedError` | Login and password refused |
 | `AccountActionRequiredError` | CAPTCHA, 2FA or another interactive step is required |
 | `SessionExpiredError` | Proven expiry that could not be recovered |

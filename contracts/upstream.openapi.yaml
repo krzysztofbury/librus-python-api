@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.8.3
+  version: 1.8.4
   license:
     name: MIT
   description: |
@@ -1345,7 +1345,8 @@ paths:
       x-evidence-note: 'Source-informed: the route and JSON field names come from public client code and the official grades page script. A guarded structure-only observation on 2026-10-12 found the new-schema table with empty grade cells, and authorized direct probes of the PartialGrades read returned an empty data collection with a pagination member. An authorized live grade read on 2026-10-28 parsed four populated records through all five routes on one school login. See contracts/grades.md.'
       description: |
         Requested only by an all-view grade read whose page has the new-schema
-        descriptive table (table.newSchemaGradesByStudentTable). Fixed GET with
+        descriptive table (table.newSchemaGradesByStudentTable) with empty
+        gradesCell hooks; a bare-text table needs no gateway read. Fixed GET with
         no query or body under the same session, budget and parser pool as the
         grade read. UserIdentifier must match the strict path identifier pattern;
         anything else fails as a parse error. UserType is not used.

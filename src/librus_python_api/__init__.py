@@ -1,7 +1,7 @@
 """Independent bounded async client. General live compatibility is unqualified."""
 
 # Before the imports: config reads it for the User-Agent.
-__version__ = "1.8.3"
+__version__ = "1.8.4"
 
 from librus_python_api.attachments import AttachmentStream, ModernAttachmentStream
 from librus_python_api.budget import RequestBudget
