@@ -3,6 +3,30 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## Weekly student slot and runner timeouts (2026-11-09)
+
+The [scheduled run](https://github.com/krzysztofbury/librus-python-api/actions/runs/42630350448)
+and a [manual rerun](https://github.com/krzysztofbury/librus-python-api/actions/runs/42636581519)
+on main (1.9.0) both stopped at slot 0 `identity` with `timeout` after one
+request and 10.6 seconds, the connect timeout. Every other step reported
+`not_run`, with no guard violations. 1.9.0 changed no network or session code.
+The same day, owner-authorized local runs of the weekly profile on the same
+code completed for all four owner logins in pairs (52 to 63 requests, under
+7 seconds each, only the known `view_disabled` for `completed_lessons`), so
+the upstream answered locally but not from the GitHub-hosted runner. The rerun
+from GitHub is still pending.
+
+The local runs also matched the committed slot 0 parent expectations exactly
+for one parent login; the other parent login differed only in
+`school_year_archive` (`populated`). Slot 1 now expects a student login,
+recorded locally with `--record` in one login (52 requests, no problems)
+because the hosted runner could not reach the upstream. It adds coverage the
+parent slot lacks: a populated `school_year_archive`. The student's sent-folder
+checks are `any`, since a student may send a message; the parent slot keeps
+them `populated`. The slot is used once the owner adds the
+`LIBRUS_LIVE_*_1` environment secrets; until then a run fails with
+`not_executed` for slot 1.
+
 ## Weekly agenda baseline (2026-10-12)
 
 The [scheduled run](https://github.com/krzysztofbury/librus-python-api/actions/runs/38254376106)
