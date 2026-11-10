@@ -142,7 +142,8 @@ gh release create v1.0.0 --verify-tag --title "1.0.0 - Summary" --notes-file FIL
   fail; the publisher does not rebuild or upload the manifest.
 - Both archives run the full offline suite and installed loopback smoke on Linux
   and macOS, Python 3.13/3.14, with locked and newest permitted runtime dependencies.
-  Test tooling stays locked. Latest-runtime resolution is deliberately fresh.
+  Test tooling stays locked. Latest-runtime resolution takes the newest releases
+  outside the 7-day supply-chain window (`exclude-newer` in `pyproject.toml`).
 - Both archives separately run Windows x64 NTFS disk/persistence acceptance and
   installed runtime smokes on Python 3.13/3.14, with locked/latest dependencies.
   Every Windows job verifies the same manifest; publishing requires all of them.

@@ -52,13 +52,14 @@ def qualify(
         )
         if dependencies == "latest":
             # Keep test tooling locked; replace only declared runtime requirements.
+            # The install runs outside the project, so pass its supply-chain window.
             import tomllib
 
-            runtime = tomllib.loads((repo / "pyproject.toml").read_text())["project"][
-                "dependencies"
-            ]
+            project = tomllib.loads((repo / "pyproject.toml").read_text())
+            runtime = project["project"]["dependencies"]
+            window = ["--exclude-newer", project["tool"]["uv"]["exclude-newer"]]
         else:
-            runtime = []
+            runtime, window = [], []
         for artifact in wheels + sdists:
             venv = root / ("wheel" if artifact.suffix == ".whl" else "sdist")
             run("uv", "venv", str(venv), "--python", python, cwd=root, env=environment)
@@ -97,6 +98,7 @@ def qualify(
                     executable,
                     "--upgrade",
                     "--refresh",
+                    *window,
                     *runtime,
                     cwd=root,
                     env=environment,

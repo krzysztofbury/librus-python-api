@@ -44,6 +44,12 @@ dev = [
   "pytest-timeout>=2.3,<3",
 ]
 
+[tool.uv]
+# Supply-chain window: resolution ignores files uploaded in the last 7 days,
+# so a freshly published (possibly compromised) release never reaches the lock.
+# The lock stores only the window, so it does not change from day to day.
+exclude-newer = "7 days"
+
 [tool.hatch.version]
 path = "src/librus_python_api/__init__.py"
 
