@@ -44,6 +44,14 @@ client. Follow any workspace-level agent rules as well as these project rules.
 - Do not claim a package, API, test command, or release workflow exists until
   it has been implemented and exercised.
 
+## Agent workflow
+
+Queued work runs through the role skills on the Librus project board, whose
+config lives in `librus-mcp` (`.agents/cos.json` there covers both
+repositories). The approver escalates by this repository's
+`.agents/escalation.md`; retro appends to `.agents/retro.jsonl` and proposes
+rule changes as pull requests.
+
 ## Diagnosing a reported failure
 
 - A failure report names a kind and, from a consumer such as librus-mcp, code
