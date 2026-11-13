@@ -96,8 +96,8 @@ Instead, when the list request gets that page:
 
 This applies equally to a parent login that gets the page, for example where
 a school has switched the module off. `UNSUPPORTED_CAPABILITY` was chosen over
-`ACCESS_DENIED` because the latter starts the account cooldown and is used for
-identity mismatches.
+`ACCESS_DENIED` because the latter starts this account's cooldown for the
+operation (`justifications`) and is used for identity mismatches.
 
 ## Diagnostics
 

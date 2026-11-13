@@ -119,6 +119,15 @@ def test_filled_attachment_cell_is_only_flagged() -> None:
         justifications_html(start="2026-11-14"),
         justifications_html(start=""),
         '<html><body><div id="graphic-menu"></div></body></html>',
+        # A second list table: which one holds the entries is unknown.
+        justifications_html().replace(
+            "</body>", '<table class="decorated stretch center"></table></body>'
+        ),
+        justifications_html(entry().replace("<td></td>", '<td colspan="2"></td>', 1)),
+        justifications_html(entry().replace("<td></td>", '<td rowspan="2"></td>', 1)),
+        justifications_html().replace(
+            '<td colspan="7"></td>', '<td colspan="7">Fixture footer</td>'
+        ),
     ],
 )
 def test_unknown_layouts_fail_as_parse(html: str) -> None:
@@ -138,6 +147,13 @@ def test_entries_and_text_are_bounded() -> None:
         )
     with pytest.raises(LimitError):
         parse_justifications(justifications_html(entry(content="x" * 8193)).encode())
+    teachers = ", ".join(f"T{number}" for number in range(65))
+    with pytest.raises(LimitError):
+        parse_justifications(justifications_html(entry(teachers=teachers)).encode())
+    # Each entry stays under its own limit; together they pass the total.
+    rows = (entry(content="x" * 8000) for _ in range(33))
+    with pytest.raises(LimitError):
+        parse_justifications(justifications_html(*rows).encode())
 
 
 def test_the_denied_page_is_returned_as_none() -> None:
@@ -196,6 +212,24 @@ def test_a_denied_login_keeps_its_session_and_is_not_asked_again(
         # The session was never cleared: other reads still use it.
         await client.student_information()
         assert fixture.logins == {"student": 1}
+
+    run(scenario)
+
+
+def test_a_denial_is_remembered_only_for_its_session() -> None:
+    async def scenario(fixture: JustificationsFixture, service: Any) -> None:
+        client = service.account("student")
+        fixture.denied.add("student")
+        with pytest.raises(UnsupportedCapabilityError):
+            await client.justifications()
+        # Another read finds the session gone and signs in again.
+        fixture.logged_out["student"] = 1
+        await client.student_information()
+        assert fixture.logins == {"student": 2}
+        fixture.denied.clear()
+        result = await client.justifications()
+        assert len(result.items) == 2
+        assert fixture.count(LIST) == 2
 
     run(scenario)
 
