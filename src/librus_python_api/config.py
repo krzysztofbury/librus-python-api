@@ -877,6 +877,11 @@ FORMATIVE_DETAIL_PATH_PREFIX = "/przegladaj_oceny/szczegoly/ksztaltujace/"
 BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX = "/przegladaj_oceny/zachowanie_szczegoly/"
 # Tooltip labels of a behaviour grade symbol entry (#114, synthetic example).
 BEHAVIOUR_GRADE_LABELS = frozenset({"Data wystawienia", "Dodał", "Komentarz"})
+# Tooltip labels after a behaviour-point entry's unlabelled first line, as the
+# 1.6.2 synthetic entry has them; any other label fails the read (#138).
+BEHAVIOUR_POINT_LABELS = frozenset(
+    {"Zakres od", "Zakres do", "Data wystawienia", "Dodał", "Komentarz"}
+)
 # Recognition only: point-grade detail links are classified, never requested.
 POINT_GRADE_DETAIL_PATH_PREFIX = "/przegladaj_oceny_punktowe/szczegoly/"
 # Recognition only: an ordinary grade's own detail link gives its stable grade

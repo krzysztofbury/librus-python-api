@@ -52,14 +52,21 @@ def grades_html(
 BEHAVIOUR_DETAIL = "/przegladaj_oceny/zachowanie_szczegoly/{}"
 
 
-def behaviour_box(points: str = "3", detail: str = "901", **attributes: str) -> str:
+BEHAVIOUR_TOOLTIP = (
+    "fixture points category({points})<br/>Zakres od: 1<br/>Zakres do: 5"
+    "<br />Data wystawienia: 2026-09-21<br />Dodał: Teacher Fixture"
+    "<br>Komentarz: Fixture remark"
+)
+
+
+def behaviour_box(
+    points: str = "3",
+    detail: str = "901",
+    tooltip: str = BEHAVIOUR_TOOLTIP,
+    **attributes: str,
+) -> str:
     """A behaviour-points entry; its tooltip opens with an unlabelled line."""
-    title = escape(
-        f"fixture points category({points})<br/>Zakres od: 1<br/>Zakres do: 5"
-        "<br />Data wystawienia: 2026-09-21<br />Dodał: Teacher Fixture"
-        "<br>Komentarz: Fixture remark",
-        quote=True,
-    )
+    title = escape(tooltip.format(points=points), quote=True)
     href = attributes.get("href", BEHAVIOUR_DETAIL.format(detail))
     return (
         '<span class="grade-box positive-behaviour">'
@@ -83,7 +90,7 @@ def behaviour_grade_box(
 
 
 def behaviour_points(start: str = "50", boxes: str = "") -> str:
-    """A behaviour-row cell: starting points, then any point entries."""
+    """A behaviour-row cell: the integer it shows, then any point entries."""
     return (
         '<span class="tooltip" style="cursor: pointer;" title="Punkty startowe">'
         f"\n    {start}    </span>\n{boxes}  &#160;\n"
