@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.10.0 (2026-11-13) - Behaviour points and e-Justifications
 
 Thank you, @sanyok-ua, for reporting #76 and asking for behaviour points as a
 value. Existing signatures are unchanged; the additions are listed below.
