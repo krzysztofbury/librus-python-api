@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.10.0 (unreleased) - Behaviour points
+
+Thank you, @sanyok-ua, for reporting #76 and asking for behaviour points as a
+value. Existing signatures are unchanged; the additions are listed below.
+
+- Grades: `GradeRecords.behaviour_points` and `GradeWindow.behaviour_points`
+  hold the `Zachowanie` row's points (#138), apart from grades, as
+  `BehaviourPoints(semester, tally, entries)` with `BehaviourPointEntry(points,
+  detail_id, category, day, metadata)`. The tally is the integer the cell
+  shows; it is not interpreted as starting points or a running total, and
+  entries are never summed. A window keeps an item with an entry inside it,
+  with only those entries. Pages without points give `()`; grades, averages and
+  notification identities do not change.
+- Grades: a point entry's tooltip is now read. A label other than `Zakres od`,
+  `Zakres do`, `Data wystawienia`, `Dodał` and `Komentarz`
+  (`config.BEHAVIOUR_POINT_LABELS`), a missing first line or a missing date
+  raises `ParseError`; before, the tooltip was not read and such a page
+  parsed. So does a tally in a cell spanning both periods, whose period would
+  be a guess, and a point table showing different points for the same period.
+- Point entries count toward `GRADE_MAX_RECORDS` with the grades.
+- `inspect_page grades` reports `behaviour_points` and
+  `behaviour_point_entries` counts.
+- The layout follows two schools' pages seen offline on 2026-10-18 with
+  original synthetic fixtures; no live login with points was available.
+
 ## 1.9.0 (2026-11-08) - Grade IDs and correction links
 
 Thank you, @nawa, for raising krzysztofbury/librus-mcp#88 with a clear

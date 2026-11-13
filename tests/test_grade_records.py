@@ -6,6 +6,8 @@ import pytest
 
 from librus_python_api import (
     Availability,
+    BehaviourPointEntry,
+    BehaviourPoints,
     GradeKind,
     GradeView,
 )
@@ -17,6 +19,7 @@ from librus_python_api.exceptions import (
 )
 from librus_python_api.grade_records import parse_grade_records
 from tests.grade_records_support import (
+    BEHAVIOUR_TOOLTIP,
     FORMATIVE_LINK,
     GradeRecordsFixture,
     behaviour_box,
@@ -69,9 +72,12 @@ def test_behaviour_starting_points_are_not_a_malformed_grade_cell() -> None:
     records = parse_grade_records(
         _with_behaviour(behaviour_points(), behaviour_points())
     )
-    assert records == parse_grade_records(
+    other = parse_grade_records(
         _with_behaviour(behaviour_points("45"), behaviour_points("0"))
     )
+    # Only the tallies differ; grades and averages do not depend on them.
+    assert (records.numeric, records.averages) == (other.numeric, other.averages)
+    assert [(p.semester, p.tally) for p in other.behaviour_points] == [(1, 45), (2, 0)]
     assert [g.subject for g in records.numeric] == ["Fixture Language"]
     assert [
         (a.semester, a.value.availability)
@@ -99,6 +105,132 @@ def test_behaviour_point_entries_are_recognized_but_never_reported_as_grades() -
     records = parse_grade_records(_with_behaviour(behaviour_points(boxes=boxes), "-"))
     assert [g.subject for g in records.numeric] == ["Fixture Language"]
     assert records.descriptive == ()
+
+
+def test_behaviour_points_are_a_typed_value_beside_the_grades() -> None:
+    boxes = behaviour_box("+5", "11") + behaviour_box("-3", "12")
+    records = parse_grade_records(
+        _with_behaviour(behaviour_points("50", boxes), behaviour_points("-7"))
+    )
+    remark = (
+        ("Zakres od", "1"),
+        ("Zakres do", "5"),
+        ("Data wystawienia", "2026-09-21"),
+        ("Dodał", "Teacher Fixture"),
+        ("Komentarz", "Fixture remark"),
+    )
+    assert records.behaviour_points == (
+        BehaviourPoints(
+            1,
+            50,
+            (
+                BehaviourPointEntry(
+                    5, "11", "fixture points category(+5)", date(2026, 9, 21), remark
+                ),
+                BehaviourPointEntry(
+                    -3, "12", "fixture points category(-3)", date(2026, 9, 21), remark
+                ),
+            ),
+        ),
+        BehaviourPoints(2, -7, ()),
+    )
+    # The page's grades are the same as with plain behaviour cells, so the
+    # notification identities built from them do not change either.
+    plain = parse_grade_records(_with_behaviour("-", "-"))
+    assert plain.behaviour_points == ()
+    assert (records.numeric, records.descriptive, records.averages) == (
+        plain.numeric,
+        plain.descriptive,
+        plain.averages,
+    )
+    assert parse_grade_records(grades_html().encode()).behaviour_points == ()
+
+
+def test_behaviour_points_keep_school_text_out_of_reprs() -> None:
+    (item,) = parse_grade_records(
+        _with_behaviour(behaviour_points(boxes=behaviour_box()), "-")
+    ).behaviour_points
+    assert "Teacher Fixture" not in repr(item)
+    assert "fixture points category" not in repr(item)
+
+
+def test_a_tally_alone_is_an_item_without_entries() -> None:
+    total = '<span class="tooltip" title="Fixture points history"> {} </span>'
+    records = parse_grade_records(_with_behaviour(total.format("120"), "-"))
+    assert records.behaviour_points == (BehaviourPoints(1, 120, ()),)
+
+
+def test_a_tally_in_a_cell_spanning_both_periods_fails() -> None:
+    # Its period would be a guess; no page was seen with it.
+    row = (
+        '<tr><td class="center micro screen-only"></td><td>Zachowanie</td>'
+        f'<td colspan="5">{behaviour_points()}</td><td>-</td><td>-</td><td>-</td></tr>'
+    )
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(rows=row).encode())
+
+
+@pytest.mark.parametrize(
+    "tooltip",
+    [
+        # A label outside the observed set.
+        BEHAVIOUR_TOOLTIP + "<br/>Kategoria: Fixture",
+        BEHAVIOUR_TOOLTIP.replace("Zakres od", "Zakres"),
+        # A missing first line: the tooltip opens with a label.
+        BEHAVIOUR_TOOLTIP.partition("<br/>")[2],
+        "Dodał: Teacher Fixture<br/>" + BEHAVIOUR_TOOLTIP.partition("<br/>")[2],
+        # A missing or malformed date.
+        BEHAVIOUR_TOOLTIP.replace("<br />Data wystawienia: 2026-09-21", ""),
+        BEHAVIOUR_TOOLTIP.replace("2026-09-21", "2026-02-30"),
+        BEHAVIOUR_TOOLTIP.replace("Data wystawienia", "Data"),
+        # No tooltip at all.
+        "",
+    ],
+)
+def test_behaviour_point_entry_tooltip_fails_closed(tooltip: str) -> None:
+    cell = behaviour_points(boxes=behaviour_box(tooltip=tooltip))
+    with pytest.raises(ParseError):
+        parse_grade_records(_with_behaviour(cell, "-"))
+
+
+@pytest.mark.parametrize("count", [GRADE_MAX_RECORDS, GRADE_MAX_RECORDS + 1])
+def test_behaviour_point_entries_share_the_grade_record_bound(count: int) -> None:
+    # Ordinary grades and point entries together are bounded, as one page.
+    grades = grade_box(extra="") * (count - 2)
+    cell = behaviour_points(boxes=behaviour_box() + behaviour_box("-1", "902"))
+    body = grades_html(first=grades, rows=behaviour_row(cell, "-")).encode()
+    if count == GRADE_MAX_RECORDS:
+        records = parse_grade_records(body)
+        assert len(records.numeric) + len(records.behaviour_points[0].entries) == count
+    else:
+        with pytest.raises(LimitError):
+            parse_grade_records(body)
+
+
+def _point_behaviour_row(cell: str) -> str:
+    return (
+        '<tr class="line0"><td class="center micro screen-only"><img '
+        'id="przedmioty_OP_zachowanie_node"></td><td>Zachowanie</td>'
+        f'<td colspan="2">{cell}</td><td class="center"> - </td>'
+        f'<td colspan="2">-</td><td class="center"> - </td>'
+        '<td class="center"> - </td></tr>'
+    )
+
+
+def test_behaviour_points_shown_by_both_tables_are_one_item() -> None:
+    cell = behaviour_points("50", behaviour_box("+5", "11"))
+    extra = point_table(point_row() + _point_behaviour_row(cell))
+    body = grades_html(rows=behaviour_row(cell, "-"), extra=extra)
+    (item,) = parse_grade_records(body.encode()).behaviour_points
+    assert (item.semester, item.tally, len(item.entries)) == (1, 50, 1)
+    # Only the point table shows them.
+    alone = grades_html(rows=behaviour_row("-", "-"), extra=extra)
+    assert parse_grade_records(alone.encode()).behaviour_points == (item,)
+    other = point_table(point_row() + _point_behaviour_row(behaviour_points("49")))
+    with pytest.raises(ParseError):
+        parse_grade_records(
+            grades_html(rows=behaviour_row(cell, "-"), extra=other).encode()
+        )
 
 
 def test_behaviour_grade_symbol_entries_are_grades_with_their_category() -> None:
@@ -543,6 +675,42 @@ def test_public_grade_read_and_windows_share_one_account_scoped_collection() -> 
                 )
                 assert len(wide.numeric) == 2 and len(wide.descriptive) == 1
                 assert len(fixture.view_posts) == 3
+
+    asyncio.run(scenario())
+
+
+def test_a_window_keeps_behaviour_points_with_an_entry_inside_it() -> None:
+    later = BEHAVIOUR_TOOLTIP.replace("2026-09-21", "2026-10-05")
+    boxes = behaviour_box("+5", "11") + behaviour_box("-3", "12", tooltip=later)
+    total = '<span class="tooltip" title="Fixture points history"> 80 </span>'
+
+    async def scenario() -> None:
+        fixture = GradeRecordsFixture()
+        fixture.grade_body = grades_html(
+            rows=behaviour_row(behaviour_points("50", boxes), total)
+        )
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                result = await client.grades()
+                whole = await client.grades_window(max_age_seconds=60)
+                late = await client.grades_window(
+                    date(2026, 10, 1), date(2026, 10, 31), max_age_seconds=60
+                )
+                none = await client.grades_window(
+                    date(2026, 11, 1), date(2026, 11, 30), max_age_seconds=60
+                )
+        assert [(p.semester, p.tally) for p in result.records.behaviour_points] == [
+            (1, 50),
+            (2, 80),
+        ]
+        # The undated tally alone stays outside every window, like averages.
+        assert whole.behaviour_points == result.records.behaviour_points[:1]
+        (item,) = late.behaviour_points
+        assert (item.semester, item.tally) == (1, 50)
+        assert [(e.points, e.detail_id) for e in item.entries] == [(-3, "12")]
+        assert none.behaviour_points == ()
 
     asyncio.run(scenario())
 

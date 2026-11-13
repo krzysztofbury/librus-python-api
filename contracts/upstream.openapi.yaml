@@ -949,6 +949,10 @@ paths:
         one correction link by grade ID; the Poprawa oceny tooltip line never
         creates one. The week view showed no brackets, so it has no links.
         Any other bracket layout outside grade boxes fails the read.
+        Behaviour points (1.10.0, #138): the behaviour row's tally span and
+        point entries linking to /przegladaj_oceny/zachowanie_szczegoly/<id>
+        are read into a separate typed value, never grades; the detail pages
+        are recognised, never requested (no operation here).
       requestBody:
         required: true
         content:
