@@ -1425,11 +1425,12 @@ paths:
         scaleValue.value, else content, else the read fails (no invented symbol);
         date is an ISO date or date-time whose first ten characters are the civil
         date; semester is 1 or 2. Text fields are at most 8192 characters (longer
-        is a limit error). Pagination: no paginated response was observed, so a
-        member beside data that shows more items (a total above the items
-        received, more than one page, a next link or page, a true has-more flag,
-        or a full page of a stated size with no total) fails as unsupported rather
-        than returning the first page. An empty data array is an empty result and
+        is a limit error). Pagination (recorded 2026-11-13): the member
+        `pagination` = {limit, page, total} (integers) beside data is required;
+        page other than 1 or a total above the items received fails as
+        unsupported rather than returning the first page, other malformed or
+        inconsistent values (total below the items) fail as a parse error, and
+        no other key decides anything. An empty data array is an empty result and
         ends the gateway reads.
       parameters: [{$ref: '#/components/parameters/GatewayId'}]
       security: [{SessionCookie: []}]
@@ -1488,8 +1489,9 @@ paths:
         1024 rows; identifier and numericIdentifier are each unique. A subject's
         name is the grades page's name for the row whose data-subject_id equals
         numericIdentifier, else this name; with neither, or with an unlisted
-        subjectId, the read fails as a parse error. The pagination rule of
-        descriptive_partial_grades applies.
+        subjectId, the read fails as a parse error. A pagination member is
+        validated like descriptive_partial_grades when present (2026-11-13: none
+        observed on this route), and its absence is accepted.
       security: [{SessionCookie: []}]
       responses:
         '200':
