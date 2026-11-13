@@ -4,8 +4,10 @@ The grades page of a school on the new descriptive grading schema renders a
 subject table whose semester cells are empty; the page script then loads the
 grades from gateway JSON routes. Routes and field names come from public client
 code and the official page script. One authorized read on 2026-10-28 parsed four
-PartialGrades records on one school; pagination keys are still unknown, so every
-unexpected shape fails instead of producing a partial collection.
+PartialGrades records on one school. A structure-only read on 2026-11-13 recorded
+the pagination member, `{"limit", "page", "total"}` integers beside `data` or
+`Users` (Subjects has none), and only that member is checked; every unexpected
+shape fails instead of producing a partial collection.
 
 Another school renders the same table with plain text in its semester cells and
 no script hooks (#115, from a reporter's synthetic example). The grade record
@@ -54,29 +56,6 @@ _DATE = re.compile(
     r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
     r"(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,9})?)?"
     r"(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?"
-)
-# Keys (lower case, without separators) that, in any object beside `data`,
-# show that the collection continues on another page.
-_TOTAL_KEYS = frozenset(
-    {
-        "total",
-        "totalcount",
-        "totalitems",
-        "totalrecords",
-        "totalresults",
-        "count",
-        "itemcount",
-        "itemscount",
-        "recordcount",
-    }
-)
-_PAGE_COUNT_KEYS = frozenset(
-    {"pages", "totalpages", "pagecount", "pagescount", "lastpage", "numberofpages"}
-)
-_NEXT_KEYS = frozenset({"next", "nextpage", "nexturl", "nextpageurl", "nextlink"})
-_MORE_KEYS = frozenset({"hasmore", "hasnext", "hasnextpage", "more"})
-_PAGE_SIZE_KEYS = frozenset(
-    {"limit", "perpage", "pagesize", "itemsperpage", "pagelimit"}
 )
 
 
@@ -199,52 +178,33 @@ def _decode_collection(body: bytes, key: str, maximum: int) -> dict[str, Any]:
     return data
 
 
-def _count(value: Any) -> int | None:
-    if type(value) is int:
-        return value
-    if type(value) is str and re.fullmatch(r"[0-9]{1,18}", value):
-        return int(value)
-    return None
+def _check_pagination(
+    envelope: dict[str, Any], received: int, *, required: bool
+) -> None:
+    """Read the recorded `pagination` member; anything else decides nothing.
 
-
-def _continues(envelope: dict[str, Any], received: int) -> bool:
-    """Whether a pagination member shows more items than this response holds.
-
-    No paginated response was observed, so its field names are unknown. Every
-    object beside `data`, to depth three, is checked for obvious signals: a
-    total above the items received, more than one page, a next link or page,
-    a true has-more flag, or a full page of a stated size with no total.
+    Observed 2026-11-13: `{"limit": int, "page": int, "total": int}` beside
+    `data` (PartialGrades) or `Users`. Subjects carries no member. Only the
+    first page is ever read, so the member must show page 1 and a total equal
+    to the items received (the limit is not a fixed page size and is only
+    checked to be an integer). Anything else fails instead of returning a
+    possibly partial collection.
     """
-    totals: list[int] = []
-    sizes: list[int] = []
-    more = False
-    pending: list[tuple[dict[str, Any], int]] = [
-        ({k: v for k, v in envelope.items() if k != "data"}, 0)
-    ]
-    while pending:
-        item, depth = pending.pop()
-        for key, value in item.items():
-            name = re.sub(r"[^a-z]", "", str(key).lower())
-            if name in _NEXT_KEYS:
-                more = more or value not in (None, "", False, {}, [])
-                continue
-            if isinstance(value, dict):
-                if depth < 3:
-                    pending.append((value, depth + 1))
-                continue
-            number = _count(value)
-            if name in _TOTAL_KEYS and number is not None:
-                totals.append(number)
-            elif name in _PAGE_COUNT_KEYS and number is not None:
-                more = more or number > 1
-            elif name in _MORE_KEYS:
-                more = more or value is True
-            elif name in _PAGE_SIZE_KEYS and number is not None:
-                sizes.append(number)
-    if any(total > received for total in totals):
-        return True
-    full_page = any(0 < size <= received for size in sizes)
-    return more or (full_page and not totals)
+    if "pagination" not in envelope:
+        if required:
+            raise LibrusError(ErrorKind.PARSE)
+        return
+    member = envelope["pagination"]
+    if not isinstance(member, dict):
+        raise LibrusError(ErrorKind.PARSE)
+    limit, page, total = member.get("limit"), member.get("page"), member.get("total")
+    # `type(...) is int` rejects booleans, strings and floats.
+    if type(limit) is not int or type(page) is not int or type(total) is not int:
+        raise LibrusError(ErrorKind.PARSE)
+    if limit < 1 or total < received:
+        raise LibrusError(ErrorKind.PARSE)
+    if page != 1 or total > received:
+        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
 
 
 def parse_token_info(body: bytes) -> str:
@@ -281,9 +241,8 @@ def _day(value: str) -> date:
 def parse_partial_grades(body: bytes) -> tuple[PartialGrade, ...]:
     data = _decode_collection(body, "data", GRADE_MAX_RECORDS)
     wire = _validate(_PartialGradesWire, data)
-    if _continues(data, len(wire.data)):
-        # Returning the first page alone would be a silently partial result.
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    # Returning the first page alone would be a silently partial result.
+    _check_pagination(data, len(wire.data), required=True)
     return tuple(
         PartialGrade(
             item.subjectId,
@@ -303,8 +262,7 @@ def parse_partial_grades(body: bytes) -> tuple[PartialGrade, ...]:
 def parse_gateway_subjects(body: bytes) -> Mapping[str, GatewaySubject]:
     data = _decode_collection(body, "data", DESCRIPTIVE_MAX_SUBJECTS)
     wire = _validate(_SubjectsWire, data)
-    if _continues(data, len(wire.data)):
-        raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    _check_pagination(data, len(wire.data), required=False)
     result: dict[str, GatewaySubject] = {}
     numeric: set[int] = set()
     for item in wire.data:
@@ -323,6 +281,7 @@ def parse_gateway_users(body: bytes) -> Mapping[str, str]:
     """Account IDs to "LastName FirstName"; a user with neither is omitted."""
     data = _decode_collection(body, "Users", DESCRIPTIVE_MAX_USERS)
     wire = _validate(_UsersWire, data)
+    _check_pagination(data, len(wire.Users), required=False)
     result: dict[str, str] = {}
     seen: dict[str, tuple[str | None, str | None]] = {}
     for user in wire.Users:

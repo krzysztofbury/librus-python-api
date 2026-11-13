@@ -255,7 +255,8 @@ def test_oversized_gateway_json_fails_as_a_limit(
 
 
 def test_an_empty_or_identical_repetition_is_valid() -> None:
-    assert parse_partial_grades(encoded({"data": [], "pagination": {}})) == ()
+    empty = {"data": [], "pagination": {"limit": 800, "page": 1, "total": 0}}
+    assert parse_partial_grades(encoded(empty)) == ()
     assert parse_user_info(encoded({})) is None
     assert parse_user_info(encoded({"IdentifierOfStudentAssignedWithUser": ""})) is None
     same = {"AccountId": "T-1", "FirstName": "Ada", "LastName": "Fixture"}
@@ -264,41 +265,92 @@ def test_an_empty_or_identical_repetition_is_valid() -> None:
     }
 
 
+def page(**member: Any) -> dict[str, Any]:
+    return {"pagination": {"limit": 800, "page": 1, "total": 2, **member}}
+
+
+def test_the_recorded_pagination_member_of_a_complete_page_is_accepted() -> None:
+    # Observed 2026-11-13: limit, page and total integers beside data.
+    assert len(parse_partial_grades(encoded(partial_grades()))) == 2
+    full = page(limit=2)  # a full page with an equal total is complete
+    assert len(parse_partial_grades(encoded(partial_grades(**full)))) == 2
+
+
+def test_an_empty_page_with_the_member_is_an_empty_result() -> None:
+    body = {"data": [], "pagination": {"limit": 800, "page": 1, "total": 0}}
+    assert parse_partial_grades(encoded(body)) == ()
+
+
+def test_a_total_above_the_items_received_is_unsupported() -> None:
+    # A first page is never returned as everything.
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_partial_grades(encoded(partial_grades(**page(total=3))))
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_gateway_users(encoded(gateway_users(**page(total=63))))
+
+
+@pytest.mark.parametrize("number", [0, 2, -1])
+def test_a_page_other_than_the_first_is_unsupported(number: int) -> None:
+    with pytest.raises(UnsupportedCapabilityError):
+        parse_partial_grades(encoded(partial_grades(**page(page=number))))
+
+
 @pytest.mark.parametrize(
-    "envelope",
+    "member",
     [
-        {"pagination": {"total": 9}},
-        {"meta": {"pagination": {"totalCount": "9"}}},
-        {"pagination": {"page": 1, "pages": 2}},
-        {"pagination": {"lastPage": 4}},
-        {"links": {"next": "/fixture?page=2"}},
-        {"pagination": {"nextPage": 2}},
-        {"pagination": {"has_more": True}},
-        {"pagination": {"perPage": 2}},
+        {"total": 1},  # below the items received
+        {"total": "2"},
+        {"total": True},
+        {"total": 2.0},
+        {"page": "1"},
+        {"limit": "800"},
+        {"limit": None},
+        {"limit": 0},
+        {"total": None},
     ],
 )
-def test_a_pagination_member_showing_more_items_is_unsupported(
-    envelope: dict[str, Any],
+def test_a_malformed_or_inconsistent_member_fails_closed(
+    member: dict[str, Any],
 ) -> None:
-    # No paginated response was observed; a first page alone is never returned.
-    with pytest.raises(UnsupportedCapabilityError):
-        parse_partial_grades(encoded(partial_grades(**envelope)))
-    with pytest.raises(UnsupportedCapabilityError):
-        parse_gateway_subjects(encoded(gateway_subjects(**envelope)))
+    with pytest.raises(ParseError):
+        parse_partial_grades(encoded(partial_grades(**page(**member))))
+
+
+@pytest.mark.parametrize("pagination", [None, [], "x", {}, {"page": 1}])
+def test_a_member_of_another_shape_fails_closed(pagination: Any) -> None:
+    with pytest.raises(ParseError):
+        parse_partial_grades(encoded(partial_grades(pagination=pagination)))
+
+
+def test_a_partial_grades_response_without_the_member_is_rejected() -> None:
+    # Every observed PartialGrades response (empty or populated) carried it,
+    # so its absence is an unrecorded shape, not a single page.
+    body = partial_grades()
+    del body["pagination"]
+    with pytest.raises(ParseError):
+        parse_partial_grades(encoded(body))
+
+
+def test_subjects_without_the_member_and_users_with_it_parse() -> None:
+    assert len(parse_gateway_subjects(encoded(gateway_subjects()))) == 3
+    users = gateway_users(pagination={"limit": 2, "page": 1, "total": 2})
+    assert len(parse_gateway_users(encoded(users))) == 2
+    assert len(parse_gateway_users(encoded(gateway_users()))) == 2
 
 
 @pytest.mark.parametrize(
     "envelope",
     [
-        {"pagination": {"page": 1, "pages": 1, "total": 2, "perPage": 50}},
-        {"pagination": {"total": 2, "perPage": 2, "next": None, "hasMore": False}},
-        {"pagination": {"page": 1}},
+        {"count": 9, "next": "/fixture?page=2", "total": 9},
+        {"Url": "/fixture", "Resources": {"Next": {"Url": "/fixture?page=2"}}},
+        {"meta": {"pagination": {"total": 9}}, "hasMore": True, "pages": 4},
     ],
 )
-def test_a_pagination_member_of_a_complete_collection_is_accepted(
+def test_keys_outside_the_pagination_member_decide_nothing(
     envelope: dict[str, Any],
 ) -> None:
     assert len(parse_partial_grades(encoded(partial_grades(**envelope)))) == 2
+    assert len(parse_gateway_subjects(encoded(gateway_subjects(**envelope)))) == 3
 
 
 # The service read.
@@ -383,7 +435,7 @@ def test_student_read_uses_its_own_identifier_and_empty_data_is_empty() -> None:
     }
     fixture.bodies["descriptive_partial_grades"] = {
         "data": [],
-        "pagination": {"page": 1},
+        "pagination": {"limit": 800, "page": 1, "total": 0},
     }
     result = read_grades(fixture)
     assert fixture.operations() == [
@@ -690,7 +742,7 @@ def test_a_non_json_gateway_response_is_a_parse_error(
 def test_pagination_showing_more_fails_the_grade_read() -> None:
     fixture = GatewayGradesFixture()
     fixture.bodies["descriptive_partial_grades"] = partial_grades(
-        pagination={"page": 1, "pages": 2}
+        pagination={"limit": 800, "page": 1, "total": 3}
     )
     assert isinstance(failure(fixture), UnsupportedCapabilityError)
     assert "descriptive_subjects" not in fixture.operations()

@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.10.0 (unreleased) - Behaviour points
+## Unreleased
 
 Thank you, @sanyok-ua, for reporting #76 and asking for behaviour points as a
 value. Existing signatures are unchanged; the additions are listed below.
@@ -24,6 +24,13 @@ value. Existing signatures are unchanged; the additions are listed below.
   `behaviour_point_entries` counts.
 - The layout follows two schools' pages seen offline on 2026-10-18 with
   original synthetic fixtures; no live login with points was available.
+- Gateway grades: the pagination check reads the member recorded on
+  2026-11-13 (`pagination` = `{limit, page, total}` integers) and nothing else,
+  instead of guessing key names. A total above the items received or a page
+  other than 1 still fails as `UNSUPPORTED_CAPABILITY`; non-integer or
+  inconsistent values fail as `PARSE`. A PartialGrades response without the
+  member is rejected; Subjects (no member) parses. Users now validates the
+  member when present. Requests are unchanged (#136).
 
 ## 1.9.0 (2026-11-08) - Grade IDs and correction links
 

@@ -135,7 +135,9 @@ def partial_grades(*items: dict[str, Any], **envelope: Any) -> dict[str, Any]:
                 semester=2,
             ),
         )
-    return {"data": list(items), **envelope}
+    # The observed member (2026-11-13): integers, the total equal to the items.
+    pagination = {"limit": 800, "page": 1, "total": len(items)}
+    return {"data": list(items), "pagination": pagination, **envelope}
 
 
 def gateway_subjects(*rows: dict[str, Any], **envelope: Any) -> dict[str, Any]:
@@ -148,13 +150,17 @@ def gateway_subjects(*rows: dict[str, Any], **envelope: Any) -> dict[str, Any]:
     return {"data": list(rows), **envelope}
 
 
-def gateway_users(*rows: dict[str, Any]) -> dict[str, Any]:
+def gateway_users(*rows: dict[str, Any], **envelope: Any) -> dict[str, Any]:
     if not rows:
         rows = (
             {"AccountId": "T-1", "FirstName": "Ada", "LastName": "Fixture"},
             {"AccountId": "T-2", "FirstName": None, "LastName": "Author"},
         )
-    return {"Users": list(rows), "Resources": {"Fixture": {"Url": "unused"}}}
+    return {
+        "Users": list(rows),
+        "Resources": {"Fixture": {"Url": "unused"}},
+        **envelope,
+    }
 
 
 def default_bodies() -> dict[str, Any]:
