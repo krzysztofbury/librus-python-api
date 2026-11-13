@@ -3,6 +3,24 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## e-Justifications list (2026-11-13, issue #137)
+
+Offline: parser semantics, the `GroupId` gate (no request for any group
+other than 5 or a missing one, including a fake upstream where the list ends
+a student session) and the shared read guarantees in
+`tests/test_account_reads.py`, against original fixtures written from the
+structure-only record in [the contract](contracts/justifications.md).
+
+Live, owner's weekly profile with `--record` on head `d7bef6d` (the earlier
+probe design), four logins in two pairs: the parent pair passed with
+`justifications` populated on both logins. The student pair failed with the
+guard's `login_submit` violation: the list request ended the student session
+and the probe design signed in again. A structure-only trace showed the
+cause, and the identity response showed `Me.Account.GroupId` 8 on both
+student logins and 5 on both parent logins. The gate replaces the probe; the
+weekly rerun on both pairs is pending with the owner. The explicit empty
+row's markup is still unobserved.
+
 ## Weekly student slot and runner timeouts (2026-11-09)
 
 The [scheduled run](https://github.com/krzysztofbury/librus-python-api/actions/runs/42630350448)

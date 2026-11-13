@@ -17,6 +17,7 @@ from librus_python_api.exceptions import ErrorKind
 type OperationName = Literal[
     "identity",
     "class_free_days",
+    "justifications",
     "student_information",
     "final_grades",
     "grades",
@@ -652,6 +653,46 @@ class ClassFreeDay:
 class ClassFreeDays:
     identity: "Identity" = field(repr=False)
     items: tuple[ClassFreeDay, ...] = field(repr=False)
+    observation: "Observation"
+
+
+class JustificationStatus(StrEnum):
+    SENT = "sent"
+    JUSTIFIED = "justified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True, slots=True)
+class Justification:
+    """One e-Justifications entry a parent sent.
+
+    A period of several days has `start < end` and no lessons; a one-day entry
+    has `start == end` and the lesson numbers it names, in page order.
+    """
+
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    lessons: tuple[int, ...] = field(repr=False)
+    absence_count: int = field(repr=False)
+    content: str = field(repr=False)
+    teachers: tuple[str, ...] = field(repr=False)
+    sent_at: datetime = field(repr=False)
+    status: JustificationStatus
+    decided_by: str | None = field(repr=False)
+    has_attachment: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Justifications:
+    """The list the page shows unfiltered, for `window_start..window_end`.
+
+    Entries sent before the window may exist and are not included.
+    """
+
+    identity: "Identity" = field(repr=False)
+    window_start: date = field(repr=False)
+    window_end: date = field(repr=False)
+    items: tuple[Justification, ...] = field(repr=False)
     observation: "Observation"
 
 
@@ -1470,11 +1511,22 @@ class _PersonWire(BaseModel):
 
 class _AccountWire(_PersonWire):
     UserId: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+    # The login's account group, internal only: 5 on parent and 8 on student
+    # logins observed (2026-11-13). Any value other than a plain integer reads
+    # as unknown, so an unexpected shape never breaks the identity read.
+    GroupId: int | None = None
 
     @field_validator("UserId", mode="before")
     @classmethod
     def normalize_user_id(cls, value: Any) -> Any:
         return cls.normalize_id(value)
+
+    @field_validator("GroupId", mode="before")
+    @classmethod
+    def normalize_group_id(cls, value: Any) -> Any:
+        if type(value) is int and 0 <= value < 10**9:
+            return value
+        return None
 
 
 class _UserWire(BaseModel):

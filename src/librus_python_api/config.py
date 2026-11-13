@@ -503,6 +503,17 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            # The e-Justifications list as the page shows it unfiltered. Both
+            # parent logins got it, both student logins the "Brak dostępu"
+            # page (2026-11-13). The filter form's POST is not used.
+            Endpoint(
+                "justifications",
+                "GET",
+                "/eusprawiedliwienia",
+                SideEffect.NONE,
+                True,
+                Evidence.INDEPENDENTLY_OBSERVED,
+            ),
             Endpoint(
                 "gateway_attendance",
                 "GET",
@@ -1039,6 +1050,35 @@ PAGE_NOTICES = MappingProxyType(
 )
 MODULE_UNAVAILABLE_PATH = "/modul_niedostepny"
 CLASS_FREE_DAYS_MAX_RECORDS = 4096
+# e-Justifications list (`/eusprawiedliwienia`, structure observed on two
+# parent logins on 2026-11-13). The list table's classes, its seven header
+# cells in page order (`td`, not `th`, in `thead`) and the status words. The
+# status words are the filter's options; `odrzucone` has not been seen on an
+# entry. A decided entry adds " (" + the deciding person's name + ")".
+JUSTIFICATION_TABLE_CLASSES = frozenset({"decorated", "stretch", "center"})
+JUSTIFICATION_HEADERS = (
+    "Załącznik",
+    "Okres usprawiedliwienia",
+    "Liczba usprawiedliwionych nieobecności",
+    "Treść",
+    "Powiadomieni nauczyciele",
+    "Data wysłania",
+    "Status",
+)
+JUSTIFICATION_STATUSES = MappingProxyType(
+    {"wysłane": "sent", "usprawiedliwione": "justified", "odrzucone": "rejected"}
+)
+# `Me.Account.GroupId` of the logins that may request the list: 5 on both
+# parent logins, 8 on both student logins (one school, 2026-11-13). Opening
+# the list on a student login ends its session, so any other or missing group
+# is refused before the request.
+JUSTIFICATION_ACCOUNT_GROUP = 5
+# The filter form's date inputs, filled with the window the list shows.
+JUSTIFICATION_WINDOW_FIELDS = ("data_od", "data_do")
+JUSTIFICATION_MAX_ITEMS = 512
+JUSTIFICATION_MAX_CONTENT_LENGTH = 8192
+JUSTIFICATION_MAX_TEACHERS = 64
+JUSTIFICATION_MAX_TOTAL_TEXT_LENGTH = 262144
 COMPLETED_LESSONS_MAX_WINDOW_DAYS = 371
 COMPLETED_LESSONS_MAX_PAGE_COUNT = 1000
 COMPLETED_LESSONS_MAX_PAGE_ITEMS = 256

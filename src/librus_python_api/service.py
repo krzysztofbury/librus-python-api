@@ -43,6 +43,7 @@ from librus_python_api.config import (
     ENDPOINTS,
     GRADE_MAX_RECORDS,
     GRADE_MAX_WINDOW_DAYS,
+    JUSTIFICATION_ACCOUNT_GROUP,
     MESSAGE_MAX_CURSOR_IDS,
     MODERN_RECIPIENT_OPERATIONS,
     MODULE_UNAVAILABLE_PATH,
@@ -90,6 +91,7 @@ from librus_python_api.gateway_grades import (
 )
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.homework_range import HomeworkAccumulator
+from librus_python_api.justifications import parse_justifications
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.message_content import parse_message_content, validate_reference
 from librus_python_api.messages import parse_messages
@@ -119,6 +121,7 @@ from librus_python_api.models import (
     Homework,
     HomeworkRangeRequest,
     Identity,
+    Justifications,
     LoginSubmission,
     MessageAttachmentReference,
     MessageContent,
@@ -207,7 +210,7 @@ from librus_python_api.notifications import (
 )
 from librus_python_api.parsers import (
     is_logged_out_page,
-    parse_identity,
+    parse_identity_record,
     parse_login,
     parse_profile,
 )
@@ -475,6 +478,8 @@ class AccountClient:
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
         self._consuming_schedule = False
         self._modern_account: ModernAccountData | None = None
+        # `Me.Account.GroupId` of the current session, None when unknown.
+        self._account_group: int | None = None
 
     @property
     def _transport(self) -> AccountTransport:
@@ -1415,6 +1420,37 @@ class AccountClient:
 
         return await self._read(("class_free_days",), fetch, budget, max_age_seconds)
 
+    async def justifications(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Justifications:
+        """Read the e-Justifications list in the window the page shows by default.
+
+        One GET with no filter: entries sent before `window_start` may exist
+        and are not returned. Only a login whose identity reports the parent
+        account group (`JUSTIFICATION_ACCOUNT_GROUP`) sends the request; any
+        other or missing group fails as UNSUPPORTED_CAPABILITY without it,
+        because the page ends a student login's session.
+        """
+
+        async def fetch(budget: RequestBudget, _: bool) -> Justifications:
+            if self._account_group != JUSTIFICATION_ACCOUNT_GROUP:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            start, end, items = await self._page(
+                "justifications", budget, parse_justifications
+            )
+            return Justifications(
+                self._session_identity(),
+                start,
+                end,
+                items,
+                self._observation("justifications"),
+            )
+
+        return await self._read(("justifications",), fetch, budget, max_age_seconds)
+
     async def attendance(
         self,
         *,
@@ -2263,6 +2299,7 @@ class AccountClient:
 
     def _invalidate(self) -> None:
         self._identity = None
+        self._account_group = None
         self._modern_account = None
         self._cache.clear()
         self._metadata.clear()
@@ -2686,8 +2723,8 @@ class AccountClient:
         )
 
     async def _fetch_identity(self, budget: RequestBudget) -> Identity:
-        owner, student = await self._page(
-            "identity", budget, parse_identity, content_type=JSON
+        owner, student, group = await self._page(
+            "identity", budget, parse_identity_record, content_type=JSON
         )
         credentials, previous = self._credentials, self._identity
         changed = previous is not None and (owner.id, student.id) != (
@@ -2704,6 +2741,7 @@ class AccountClient:
         if changed or unexpected:
             self._invalidate()
             raise LibrusError(ErrorKind.ACCESS_DENIED)
+        self._account_group = group
         return Identity(owner, student, self._observation("identity"))
 
     async def _authenticate(self, budget: RequestBudget) -> None:

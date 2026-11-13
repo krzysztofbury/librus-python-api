@@ -504,8 +504,17 @@ async def class_free_days(ctx: Context) -> Observed:
     return coverage_of(len(result.items), count=len(result.items))
 
 
+# Only a parent login (`GroupId` 5) sends the request; a student login reports
+# `unsupported_capability` without one, since the page ends its session.
+@check("justifications", reads={"justifications"})
+async def justifications(ctx: Context) -> Observed:
+    result = await ctx.client.justifications(budget=ctx.budget)
+    return coverage_of(len(result.items), count=len(result.items))
+
+
 WEEKLY_READS: tuple[Check, ...] = (
     class_free_days,
+    justifications,
     student_information,
     # The narrower views first, so the login ends on the all view as before.
     grade_view(GradeView.WEEK),

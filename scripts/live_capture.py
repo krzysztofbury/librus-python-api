@@ -55,6 +55,7 @@ ALLOWED = frozenset(
         "attendance_lesson",
         "attendance_subject",
         "class_free_days",
+        "justifications",
         "timetable",
         "announcements",
         "school_year_archive",
@@ -221,6 +222,9 @@ async def capture(
                 lambda: client.subject_frequency(day, day, budget=budget),
             )
         await step("class_free_days", lambda: client.class_free_days(budget=budget))
+        # Parent logins only (`GroupId` 5); any other login fails as
+        # UNSUPPORTED_CAPABILITY without a request.
+        await step("justifications", lambda: client.justifications(budget=budget))
         monday = today - timedelta(days=today.weekday())
         await step("timetable", lambda: client.timetable(monday, budget=budget))
         await step("announcements", lambda: client.announcements(budget=budget))

@@ -22,6 +22,7 @@ from tests.completed_lessons_support import lessons_html
 from tests.grade_records_support import grades_html
 from tests.grade_support import summary_html
 from tests.http_support import SchoolFixture, profile_html
+from tests.justifications_support import justifications_html
 from tests.message_content_support import content_html
 from tests.messages_support import message_row, messages_html
 from tests.recipients_support import groups_html, recipient_html
@@ -32,6 +33,7 @@ from tests.timetable_support import MONDAY, timetable_html
 HTML, JSON = "text/html", "application/json"
 VALID: dict[str, tuple[bytes, str]] = {
     "class_free_days": (free_days_body(), JSON),
+    "justifications": (justifications_html().encode(), HTML),
     "student_information": (profile_html().encode(), HTML),
     "final_grades": (summary_html().encode(), HTML),
     "grades": (grades_html().encode(), HTML),
@@ -121,6 +123,8 @@ def read(client: AccountClient, alias: str, operation: str) -> Read:
 class ReadsFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()
+        # Every login here is a parent login, so `justifications` is allowed.
+        self.default_account_group = 5
         self.reads: list[tuple[str, str]] = []
         self.wire: dict[str, tuple[dict[str, str], str, bytes]] = {}
         self.bodies: dict[str, tuple[bytes, str]] = {}

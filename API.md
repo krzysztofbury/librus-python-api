@@ -430,6 +430,21 @@ optional paired `lesson_no_from`/`lesson_no_to`. One bounded read-only GET;
 reference URLs are not followed and type labels are not inferred. An explicit
 empty collection returns `items=()`. See [contract](contracts/class-free-days.md).
 
+### e-Justifications
+
+`justifications(*, budget=None, max_age_seconds=0.0)` returns frozen
+`Justifications` with `identity`, `window_start`, `window_end`, `items` and
+`observation`. Each `Justification` has civil `start`/`end`, `lessons` (lesson
+numbers of a one-day entry, empty for a range), `absence_count`, `content`,
+`teachers`, naive local `sent_at`, `status` (`JustificationStatus.SENT`,
+`JUSTIFIED` or `REJECTED`), `decided_by` (the decider's name as text, or
+`None`) and `has_attachment`. One GET of the list in the window the page shows
+by default; entries sent before `window_start` may be missing. Only a login
+whose identity response reports `Me.Account.GroupId` 5 (both parent logins
+observed) sends the request; any other or missing group (8 on both student
+logins, where the page ends the session) raises `UnsupportedCapabilityError`
+without it. See [contract](contracts/justifications.md).
+
 ### Weekly timetable
 
 `timetable(monday)` takes a `date` that is a Monday and returns `Timetable` with

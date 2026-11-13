@@ -84,6 +84,12 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def parse_identity(body: bytes) -> tuple[Person, Person]:
+    owner, student, _ = parse_identity_record(body)
+    return owner, student
+
+
+def parse_identity_record(body: bytes) -> tuple[Person, Person, int | None]:
+    """The login owner, the represented student and the account group, if any."""
     data = decode_json(body)
     failed = False
     envelope: _EnvelopeWire | None = None
@@ -105,6 +111,7 @@ def parse_identity(body: bytes) -> tuple[Person, Person]:
     return (
         Person(account.Id, account.FirstName, account.LastName),
         Person(student_id, user.FirstName, user.LastName),
+        account.GroupId,
     )
 
 

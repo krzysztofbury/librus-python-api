@@ -27,6 +27,26 @@ value. Existing signatures are unchanged; the additions are listed below.
 - The layout follows two schools' pages seen offline on 2026-10-18 with
   original synthetic fixtures; no live login with points was available.
 
+- New read `AccountClient.justifications()` returns the e-Justifications list
+  (`/eusprawiedliwienia`) as typed `Justifications`: the page's default window
+  (`window_start`, `window_end`) and each `Justification` with its period or
+  day and lessons, absence count, content, notified teachers, sent time,
+  `JustificationStatus` and the decider's name. One GET, no filter POST; older
+  entries may be missing. Structure observed on two parent logins on
+  2026-11-13 (issue #137).
+- `justifications()` sends its request only for a login whose identity
+  reports `Me.Account.GroupId` 5 (both parent logins observed). Any other or
+  missing group raises `UnsupportedCapabilityError` with no request: opening
+  the list on a student login (`GroupId` 8) ends its session (owner live
+  check, 2026-11-13). A parent login that gets the logged-out page signs in
+  again once, as for any read. `GroupId` is parsed internally as an optional
+  integer; `Identity` is unchanged.
+- New route `justifications` in `config.ENDPOINTS` and the OpenAPI contract;
+  `inspect_page justifications`; the list's header labels are named in failure
+  diagnostics.
+- Weekly live check: new step `justifications` (slot 0 `any`, slot 1
+  `unavailable`).
+
 Other changes:
 
 - Gateway grades: the pagination check reads the member recorded on

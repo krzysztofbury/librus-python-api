@@ -29,7 +29,12 @@ from librus_python_api.exceptions import (
     error_for,
 )
 from librus_python_api.models import DiagnosticEvent
-from librus_python_api.parsers import is_logged_out_page, parse_identity, parse_profile
+from librus_python_api.parsers import (
+    is_logged_out_page,
+    parse_identity,
+    parse_identity_record,
+    parse_profile,
+)
 from librus_python_api.service import LibrusService
 from tests.http_support import (
     FIXTURE_SECRET,
@@ -70,6 +75,36 @@ def test_gateway_user_reference_is_explicit_and_consistent(
     else:
         with pytest.raises(ParseError):
             parse_identity(body)
+
+
+_ABSENT = object()
+
+
+@pytest.mark.parametrize(
+    ("group", "expected"),
+    [
+        (5, 5),
+        (8, 8),
+        (_ABSENT, None),
+        (None, None),
+        ("5", None),
+        (True, None),
+        (5.0, None),
+        (-1, None),
+        (10**12, None),
+        ({"Id": 5}, None),
+    ],
+)
+def test_account_group_is_optional_and_never_breaks_identity(
+    group: object, expected: int | None
+) -> None:
+    account: dict[str, object] = {"Id": 17, "FirstName": "Fixture Owner"}
+    if group is not _ABSENT:
+        account["GroupId"] = group
+    body = json.dumps({"Me": {"Account": account, "User": {"Id": 43}}}).encode()
+    owner, student, parsed = parse_identity_record(body)
+    assert (owner.id, student.id, parsed) == ("17", "43", expected)
+    assert parse_identity(body) == (owner, student)
 
 
 def test_four_login_profile_reads_coalesce_reuse_and_never_merge_by_student() -> None:
