@@ -547,8 +547,8 @@ header row (`tr.bolded`), a hidden `tr.studentGradesDetailsRow` after each
 subject row and an empty footer. Only a table with subject rows of its own
 counts now (`observed_descriptive_page` follows this structure). On the grade
 page, the owner's other logins have no new-schema table and make no gateway
-request. The pagination member's key names were not recorded; record them
-structure-only at the next authorized read so the heuristic can be narrowed.
+request. The pagination member's key names were not recorded then; see the
+2026-11-13 observation below.
 
 A refused gateway route (403) fails the read as `UNSUPPORTED_CAPABILITY`, not
 `ACCESS_DENIED`: the access-denied cooldown is keyed by the grades operation,
@@ -651,18 +651,29 @@ wrong types, missing required fields, duplicate subject `identifier` or
 `numericIdentifier`, and a repeated user `AccountId` with different names are
 `PARSE`. Unknown extra keys are ignored.
 
-Pagination: no paginated response was observed and the member's field names
-are unknown. Every object beside `data` (to depth three) is checked; any of
-these signals fails with `UNSUPPORTED_CAPABILITY` rather than returning a
-first page: a total (`total`, `totalCount`, `totalItems`, `totalRecords`,
-`totalResults`, `count`, `itemCount`, `itemsCount`, `recordCount`) above the
-items received; a page count (`pages`, `totalPages`, `pageCount`,
-`pagesCount`, `lastPage`, `numberOfPages`) above one; a non-empty next link
-or page (`next`, `nextPage`, `nextUrl`, `nextPageUrl`, `nextLink`); a true
-has-more flag (`hasMore`, `hasNext`, `hasNextPage`, `more`); or a page size
-(`limit`, `perPage`, `pageSize`, `itemsPerPage`, `pageLimit`) filled by the
-items with no total. Key matching ignores case and separators. The same rule
-applies to Subjects.
+Pagination (recorded 2026-11-13, structure-only read of one student at a
+new-schema school through two logins; the PartialGrades responses were
+byte-identical, so one observation): PartialGrades has top-level keys
+`Resources`, `Url`, `data` and `pagination`, with `pagination` =
+`{"limit": 800, "page": 1, "total": 12}` for 12 items; `3.0/Auth/Subjects` has
+no member (90 items in `data`); `2.0/Users` has `pagination` =
+`{"limit": 62, "page": 1, "total": 62}` beside `Users` (62 items), so `limit`
+is not a fixed page size. `Resources` and `Url` are not pagination. Only the
+`pagination` member beside `data` (or `Users`) is read, nothing else:
+`limit`, `page` and `total` must be integers (not strings, floats or booleans),
+`limit` at least 1, `total` not below the items received (`PARSE` otherwise).
+`page` other than 1, or `total` above the items received, fails as
+`UNSUPPORTED_CAPABILITY`: further pages are not followed, and a first page is
+never returned as everything. A full page with an equal total is complete.
+Other keys (`count`, `next`, `pages`, `Resources`, `Url`) decide nothing.
+
+A PartialGrades response without a `pagination` member is rejected as `PARSE`:
+every observed response, empty or populated, carried it, so its absence is an
+unrecorded shape. Subjects has no member, so a missing member is accepted
+there; Users (observed once) validates the member when present and accepts its
+absence. The 2026-10-12 empty responses also had a member whose keys were not
+recorded. Real 800-record pages cannot be reached: at about 900 bytes per
+record the 256 KiB parse limit fails a response near 290 records with `LIMIT`.
 
 Bounds: 2048 records counted together with the page's records, 8192
 characters per text field (longer is `LIMIT`), 1024 subjects, 8192 users,

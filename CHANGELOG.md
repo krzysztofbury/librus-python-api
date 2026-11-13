@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Gateway grades: the pagination check reads the member recorded on
+  2026-11-13 (`pagination` = `{limit, page, total}` integers) and nothing else,
+  instead of guessing key names. A total above the items received or a page
+  other than 1 still fails as `UNSUPPORTED_CAPABILITY`; non-integer or
+  inconsistent values fail as `PARSE`. A PartialGrades response without the
+  member is rejected; Subjects (no member) parses. Users now validates the
+  member when present. Requests are unchanged (#136).
+
 ## 1.9.0 (2026-11-08) - Grade IDs and correction links
 
 Thank you, @nawa, for raising krzysztofbury/librus-mcp#88 with a clear
