@@ -255,6 +255,7 @@ def _redaction_vocabulary() -> tuple[
         *config.GRADE_PERIOD_HEADERS,
         *config.GRADE_PREDICTED_PERIOD_HEADERS,
         *config.GRADE_AVERAGE_HEADERS,
+        *config.JUSTIFICATION_HEADERS,
     }
     texts |= {label.casefold() for label in config.FORMATIVE_HEADERS}
     profile = (*config.PROFILE_LABELS, *config.PROFILE_OWNER_LABELS)

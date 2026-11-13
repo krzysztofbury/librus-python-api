@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.10.0 (unreleased) - e-Justifications list
+
+- New read `AccountClient.justifications()` returns the e-Justifications list
+  (`/eusprawiedliwienia`) as typed `Justifications`: the page's default window
+  (`window_start`, `window_end`) and each `Justification` with its period or
+  day and lessons, absence count, content, notified teachers, sent time,
+  `JustificationStatus` and the decider's name. One GET, no filter POST; older
+  entries may be missing. Structure observed on two parent logins on
+  2026-11-13 (issue #137).
+- A login the page answers with "Brak dostępu" (both student logins observed)
+  gets `UnsupportedCapabilityError` after one probe of `/informacja`, keeps its
+  session and is not asked again in that session. A dead session still signs
+  in again once.
+- New route `justifications` in `config.ENDPOINTS` and the OpenAPI contract;
+  `inspect_page justifications`; the list's header labels are named in failure
+  diagnostics.
+- Weekly live check: new step `justifications` (slot 0 `any`, slot 1
+  `unavailable`).
+
 ## 1.9.0 (2026-11-08) - Grade IDs and correction links
 
 Thank you, @nawa, for raising krzysztofbury/librus-mcp#88 with a clear

@@ -3,6 +3,16 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## e-Justifications list (2026-11-13, issue #137)
+
+Offline only so far: parser semantics, the denied-page probe and its
+per-session memo, and the shared read guarantees in
+`tests/test_account_reads.py` run against original fixtures written from the
+structure-only record in [the contract](contracts/justifications.md). Not yet
+run live: the weekly profile's new `justifications` step on the owner's
+logins (expected: the list on both parent logins, `unavailable` on both
+student logins). The explicit empty row's markup is still unobserved.
+
 ## Weekly student slot and runner timeouts (2026-11-09)
 
 The [scheduled run](https://github.com/krzysztofbury/librus-python-api/actions/runs/42630350448)

@@ -90,6 +90,7 @@ from librus_python_api.gateway_grades import (
 )
 from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.homework_range import HomeworkAccumulator
+from librus_python_api.justifications import parse_justifications
 from librus_python_api.lifecycle import join_owned
 from librus_python_api.message_content import parse_message_content, validate_reference
 from librus_python_api.messages import parse_messages
@@ -119,6 +120,7 @@ from librus_python_api.models import (
     Homework,
     HomeworkRangeRequest,
     Identity,
+    Justifications,
     LoginSubmission,
     MessageAttachmentReference,
     MessageContent,
@@ -393,6 +395,12 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
+def _require_signed_in(body: bytes) -> None:
+    """A liveness probe: only the logged-out page is a failure."""
+    if is_logged_out_page(body):
+        raise LibrusError(ErrorKind.PARSE)
+
+
 def _check_record_count(records: GradeRecords, added: int) -> None:
     if (
         len(records.numeric)
@@ -475,6 +483,8 @@ class AccountClient:
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
         self._consuming_schedule = False
         self._modern_account: ModernAccountData | None = None
+        # Session generation whose e-Justifications page was denied, if any.
+        self._justifications_denied: int | None = None
 
     @property
     def _transport(self) -> AccountTransport:
@@ -1409,6 +1419,43 @@ class AccountClient:
             )
 
         return await self._read(("class_free_days",), fetch, budget, max_age_seconds)
+
+    async def justifications(
+        self,
+        *,
+        budget: RequestBudget | None = None,
+        max_age_seconds: float = 0.0,
+    ) -> Justifications:
+        """Read the e-Justifications list in the window the page shows by default.
+
+        One GET with no filter: entries sent before `window_start` may exist
+        and are not returned. A login the page answers with "Brak dostępu"
+        (every student login observed) fails as UNSUPPORTED_CAPABILITY once a
+        second page has shown the session is alive; the session is kept, and
+        later calls in the same session fail the same way without a request.
+        """
+
+        async def fetch(budget: RequestBudget, _: bool) -> Justifications:
+            if self._justifications_denied == self._generation:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            result = await self._page("justifications", budget, parse_justifications)
+            if result is None:
+                # The same page means a session Synergia no longer knows; the
+                # probe raises the usual expiry for that, and otherwise the
+                # login has no access to this module.
+                await self._page("student_information", budget, _require_signed_in)
+                self._justifications_denied = self._generation
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            start, end, items = result
+            return Justifications(
+                self._session_identity(),
+                start,
+                end,
+                items,
+                self._observation("justifications"),
+            )
+
+        return await self._read(("justifications",), fetch, budget, max_age_seconds)
 
     async def attendance(
         self,

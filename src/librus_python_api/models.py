@@ -17,6 +17,7 @@ from librus_python_api.exceptions import ErrorKind
 type OperationName = Literal[
     "identity",
     "class_free_days",
+    "justifications",
     "student_information",
     "final_grades",
     "grades",
@@ -652,6 +653,46 @@ class ClassFreeDay:
 class ClassFreeDays:
     identity: "Identity" = field(repr=False)
     items: tuple[ClassFreeDay, ...] = field(repr=False)
+    observation: "Observation"
+
+
+class JustificationStatus(StrEnum):
+    SENT = "sent"
+    JUSTIFIED = "justified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True, slots=True)
+class Justification:
+    """One e-Justifications entry a parent sent.
+
+    A period of several days has `start < end` and no lessons; a one-day entry
+    has `start == end` and the lesson numbers it names, in page order.
+    """
+
+    start: date
+    end: date
+    lessons: tuple[int, ...]
+    absence_count: int
+    content: str = field(repr=False)
+    teachers: tuple[str, ...] = field(repr=False)
+    sent_at: datetime
+    status: JustificationStatus
+    decided_by: str | None = field(repr=False)
+    has_attachment: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Justifications:
+    """The list the page shows unfiltered, for `window_start..window_end`.
+
+    Entries sent before the window may exist and are not included.
+    """
+
+    identity: "Identity" = field(repr=False)
+    window_start: date
+    window_end: date
+    items: tuple[Justification, ...] = field(repr=False)
     observation: "Observation"
 
 

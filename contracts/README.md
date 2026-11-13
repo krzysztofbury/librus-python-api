@@ -9,7 +9,8 @@ student-information and [grade reads](grades.md), including fixed-form
 all/week/last-login view POSTs, plus [attendance reads](attendance.md) and
 [explicit timetable weeks](timetable.md), [announcements](announcements.md),
 and [ordinary agenda/homework with details](school-reads.md), plus
-[completed lessons](completed-lessons.md).
+[completed lessons](completed-lessons.md) and the
+[e-Justifications list](justifications.md).
 Source-informed
 routes and synthetic callback/header
 variants are labelled separately; none are claimed live-verified. Unknown

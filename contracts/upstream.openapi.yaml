@@ -1723,6 +1723,33 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Html'}
         default: {$ref: '#/components/responses/Failure'}
+  /eusprawiedliwienia:
+    get:
+      operationId: justifications
+      tags: [School]
+      summary: Read the e-Justifications list in its default window
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: independently_observed
+      x-evidence-note: Structure-only observation of four owner logins on 2026-11-13 (issue 137); both parent logins got the list, both student logins the "Brak dostępu" page. Recorded in contracts/justifications.md.
+      description: |
+        Fixed GET with no query or form; the filter form's POST, the add page
+        and attachments are never requested. The page shows its default window
+        (the filter's data_od/data_do inputs), so older entries may be missing;
+        a list narrowed by a selected status is refused. The "Brak dostępu"
+        page is followed by one GET of /informacja: a logged-out answer there is
+        session expiry with the usual one recovery, otherwise the read fails as
+        unsupported_capability, keeps the session and is not requested again in
+        that session. Seven fixed header labels, seven cells per entry and the
+        three status words are required; anything else fails. Limits are 512
+        entries, 8192 content characters per entry, 64 teachers per entry and
+        262144 total characters. Details in contracts/justifications.md.
+      security: [{SessionCookie: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Html'}
+        default: {$ref: '#/components/responses/Failure'}
   /ogloszenia:
     get:
       operationId: announcements

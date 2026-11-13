@@ -21,6 +21,7 @@ from librus_python_api.diagnostics import describe_failure, failure_frames
 from librus_python_api.exceptions import LibrusError
 from librus_python_api.gateway_grades import parse_grade_page
 from librus_python_api.grade_parsers import parse_final_grades
+from librus_python_api.justifications import parse_justifications
 from librus_python_api.models import Availability
 from librus_python_api.parsers import parse_profile
 
@@ -57,10 +58,18 @@ def _profile(body: bytes) -> dict[str, int]:
     return {"lucky_number": int(lucky == Availability.AVAILABLE)}
 
 
+def _justifications(body: bytes) -> dict[str, int]:
+    result = parse_justifications(body)
+    if result is None:
+        return {"denied_page": 1}
+    return {"denied_page": 0, "entries": len(result[2])}
+
+
 PARSERS: dict[str, Callable[[bytes], dict[str, int]]] = {
     "grades": _grades,
     "final-grades": _final_grades,
     "profile": _profile,
+    "justifications": _justifications,
 }
 # macOS TextEdit saves a viewed page source as a new document holding the
 # source as text, not the page itself.
