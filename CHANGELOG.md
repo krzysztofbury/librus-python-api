@@ -9,10 +9,13 @@
   `JustificationStatus` and the decider's name. One GET, no filter POST; older
   entries may be missing. Structure observed on two parent logins on
   2026-11-13 (issue #137).
-- A login the page answers with "Brak dostępu" (both student logins observed)
-  gets `UnsupportedCapabilityError` after one probe of `/informacja`, keeps its
-  session and is not asked again in that session. A dead session still signs
-  in again once.
+- `justifications()` sends its request only for a login whose identity
+  reports `Me.Account.GroupId` 5 (both parent logins observed). Any other or
+  missing group raises `UnsupportedCapabilityError` with no request: opening
+  the list on a student login (`GroupId` 8) ends its session (owner live
+  check, 2026-11-13). A parent login that gets the logged-out page signs in
+  again once, as for any read. `GroupId` is parsed internally as an optional
+  integer; `Identity` is unchanged.
 - New route `justifications` in `config.ENDPOINTS` and the OpenAPI contract;
   `inspect_page justifications`; the list's header labels are named in failure
   diagnostics.

@@ -1,4 +1,4 @@
-"""e-Justifications semantics and the denied-page outcome.
+"""e-Justifications semantics and the account-group gate.
 
 Shared read guarantees (coalescing, budgets, expiry by status, notices) are
 owned by tests/test_account_reads.py; this module owns what is specific here.
@@ -156,15 +156,17 @@ def test_entries_and_text_are_bounded() -> None:
         parse_justifications(justifications_html(*rows).encode())
 
 
-def test_the_denied_page_is_returned_as_none() -> None:
-    assert parse_justifications(LOGGED_OUT_PAGE.encode()) is None
+def test_the_denied_page_fails_as_parse() -> None:
+    with pytest.raises(ParseError):
+        parse_justifications(LOGGED_OUT_PAGE.encode())
 
 
 class JustificationsFixture(SchoolFixture):
+    """Parent logins have `GroupId` 5; opening the list ends any other session."""
+
     def __init__(self) -> None:
         super().__init__()
-        # Logins answered with the "Brak dostępu" page on every list request.
-        self.denied: set[str] = set()
+        self.default_account_group = 5
 
     def app(self) -> web.Application:
         app = super().app()
@@ -173,7 +175,11 @@ class JustificationsFixture(SchoolFixture):
 
     async def justifications(self, request: web.Request) -> web.Response:
         login = self.record(request)
-        if login in self.denied or self.logged_out_page(login):
+        if self.account_groups.get(login, self.default_account_group) != 5:
+            # Live on a student login: this page and the next are logged out.
+            self.logged_out[login] = 1
+            return web.Response(text=LOGGED_OUT_PAGE, content_type="text/html")
+        if self.logged_out_page(login):
             return web.Response(text=LOGGED_OUT_PAGE, content_type="text/html")
         return web.Response(text=justifications_html(), content_type="text/html")
 
@@ -186,63 +192,80 @@ def run(scenario: Any) -> None:
         fixture = JustificationsFixture()
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
-            async with fixture.service() as service:
+            async with fixture.service(("student", "parent", "login")) as service:
                 await asyncio.wait_for(scenario(fixture, service), timeout=10)
 
     asyncio.run(main())
 
 
+def test_a_parent_group_login_reads_the_list() -> None:
+    async def scenario(fixture: JustificationsFixture, service: Any) -> None:
+        result = await service.account("parent").justifications()
+        assert len(result.items) == 2
+        assert (fixture.count(LIST), fixture.logins) == (1, {"parent": 1})
+
+    run(scenario)
+
+
+@pytest.mark.parametrize("group", [8, 0, 6, "5", True, None])
 @pytest.mark.parametrize("signed_in_first", [True, False])
-def test_a_denied_login_keeps_its_session_and_is_not_asked_again(
-    signed_in_first: bool,
+def test_any_other_or_missing_group_is_refused_without_a_request(
+    group: object, signed_in_first: bool
 ) -> None:
     async def scenario(fixture: JustificationsFixture, service: Any) -> None:
         client = service.account("student")
-        fixture.denied.add("student")
+        fixture.account_groups["student"] = group
         if signed_in_first:
             await client.identity()
-        with pytest.raises(UnsupportedCapabilityError):
-            await client.justifications()
-        assert (fixture.count(LIST), fixture.count(PROBE)) == (1, 1)
-        # Later calls in the same session make no request at all.
-        before = len(fixture.calls)
-        with pytest.raises(UnsupportedCapabilityError):
-            await client.justifications()
-        assert len(fixture.calls) == before
-        # The session was never cleared: other reads still use it.
+        for _ in range(2):
+            with pytest.raises(UnsupportedCapabilityError):
+                await client.justifications()
+        # The session the list would have ended is still the first one.
         await client.student_information()
+        assert fixture.count(LIST) == 0
         assert fixture.logins == {"student": 1}
 
     run(scenario)
 
 
-def test_a_denial_is_remembered_only_for_its_session() -> None:
+def test_a_group_learned_by_a_new_sign_in_applies_to_that_session() -> None:
     async def scenario(fixture: JustificationsFixture, service: Any) -> None:
-        client = service.account("student")
-        fixture.denied.add("student")
+        client = service.account("login")
+        fixture.account_groups["login"] = None
         with pytest.raises(UnsupportedCapabilityError):
             await client.justifications()
-        # Another read finds the session gone and signs in again.
-        fixture.logged_out["student"] = 1
+        # The session ends upstream; the next sign-in reports the parent group.
+        fixture.account_groups["login"] = 5
+        fixture.logged_out["login"] = 1
         await client.student_information()
-        assert fixture.logins == {"student": 2}
-        fixture.denied.clear()
         result = await client.justifications()
         assert len(result.items) == 2
-        assert fixture.count(LIST) == 2
+        assert (fixture.count(LIST), fixture.logins) == (1, {"login": 2})
 
     run(scenario)
 
 
-def test_a_dead_session_signs_in_again_and_reads_the_list() -> None:
+def test_a_dead_parent_session_signs_in_again_once() -> None:
     async def scenario(fixture: JustificationsFixture, service: Any) -> None:
-        client = service.account("student")
+        client = service.account("parent")
         await client.identity()
-        # The list and the probe both get the logged-out page once.
-        fixture.logged_out["student"] = 2
+        fixture.logged_out["parent"] = 1
         result = await client.justifications()
         assert len(result.items) == 2
-        assert fixture.logins == {"student": 2}
-        assert (fixture.count(LIST), fixture.count(PROBE)) == (2, 1)
+        assert (fixture.count(LIST), fixture.count(PROBE)) == (2, 0)
+        assert fixture.logins == {"parent": 2}
+
+    run(scenario)
+
+
+def test_a_parent_login_still_logged_out_after_sign_in_fails_as_parse() -> None:
+    async def scenario(fixture: JustificationsFixture, service: Any) -> None:
+        client = service.account("parent")
+        await client.identity()
+        fixture.logged_out["parent"] = 2
+        with pytest.raises(ParseError):
+            await client.justifications()
+        assert (fixture.count(LIST), fixture.count(PROBE)) == (2, 0)
+        assert fixture.logins == {"parent": 2}
 
     run(scenario)

@@ -403,10 +403,11 @@ numbers of a one-day entry, empty for a range), `absence_count`, `content`,
 `teachers`, naive local `sent_at`, `status` (`JustificationStatus.SENT`,
 `JUSTIFIED` or `REJECTED`), `decided_by` (the decider's name as text, or
 `None`) and `has_attachment`. One GET of the list in the window the page shows
-by default; entries sent before `window_start` may be missing. A login the
-page denies (every student login observed) raises `UnsupportedCapabilityError`
-after one probe of `/informacja`, keeps its session and is not asked again in
-that session. See [contract](contracts/justifications.md).
+by default; entries sent before `window_start` may be missing. Only a login
+whose identity response reports `Me.Account.GroupId` 5 (both parent logins
+observed) sends the request; any other or missing group (8 on both student
+logins, where the page ends the session) raises `UnsupportedCapabilityError`
+without it. See [contract](contracts/justifications.md).
 
 ### Weekly timetable
 

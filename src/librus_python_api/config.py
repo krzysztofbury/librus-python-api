@@ -1063,6 +1063,11 @@ JUSTIFICATION_HEADERS = (
 JUSTIFICATION_STATUSES = MappingProxyType(
     {"wysłane": "sent", "usprawiedliwione": "justified", "odrzucone": "rejected"}
 )
+# `Me.Account.GroupId` of the logins that may request the list: 5 on both
+# parent logins, 8 on both student logins (one school, 2026-11-13). Opening
+# the list on a student login ends its session, so any other or missing group
+# is refused before the request.
+JUSTIFICATION_ACCOUNT_GROUP = 5
 # The filter form's date inputs, filled with the window the list shows.
 JUSTIFICATION_WINDOW_FIELDS = ("data_od", "data_do")
 JUSTIFICATION_MAX_ITEMS = 512

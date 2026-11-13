@@ -43,6 +43,7 @@ from librus_python_api.config import (
     ENDPOINTS,
     GRADE_MAX_RECORDS,
     GRADE_MAX_WINDOW_DAYS,
+    JUSTIFICATION_ACCOUNT_GROUP,
     MESSAGE_MAX_CURSOR_IDS,
     MODERN_RECIPIENT_OPERATIONS,
     MODULE_UNAVAILABLE_PATH,
@@ -209,7 +210,7 @@ from librus_python_api.notifications import (
 )
 from librus_python_api.parsers import (
     is_logged_out_page,
-    parse_identity,
+    parse_identity_record,
     parse_login,
     parse_profile,
 )
@@ -395,12 +396,6 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
             raise LibrusError(ErrorKind.INVALID_INPUT)
 
 
-def _require_signed_in(body: bytes) -> None:
-    """A liveness probe: only the logged-out page is a failure."""
-    if is_logged_out_page(body):
-        raise LibrusError(ErrorKind.PARSE)
-
-
 def _check_record_count(records: GradeRecords, added: int) -> None:
     if (
         len(records.numeric)
@@ -483,8 +478,8 @@ class AccountClient:
         self._cooldowns: dict[str, tuple[float, ErrorKind]] = {}
         self._consuming_schedule = False
         self._modern_account: ModernAccountData | None = None
-        # Session generation whose e-Justifications page was denied, if any.
-        self._justifications_denied: int | None = None
+        # `Me.Account.GroupId` of the current session, None when unknown.
+        self._account_group: int | None = None
 
     @property
     def _transport(self) -> AccountTransport:
@@ -1429,24 +1424,18 @@ class AccountClient:
         """Read the e-Justifications list in the window the page shows by default.
 
         One GET with no filter: entries sent before `window_start` may exist
-        and are not returned. A login the page answers with "Brak dostępu"
-        (every student login observed) fails as UNSUPPORTED_CAPABILITY once a
-        second page has shown the session is alive; the session is kept, and
-        later calls in the same session fail the same way without a request.
+        and are not returned. Only a login whose identity reports the parent
+        account group (`JUSTIFICATION_ACCOUNT_GROUP`) sends the request; any
+        other or missing group fails as UNSUPPORTED_CAPABILITY without it,
+        because the page ends a student login's session.
         """
 
         async def fetch(budget: RequestBudget, _: bool) -> Justifications:
-            if self._justifications_denied == self._generation:
+            if self._account_group != JUSTIFICATION_ACCOUNT_GROUP:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            result = await self._page("justifications", budget, parse_justifications)
-            if result is None:
-                # The same page means a session Synergia no longer knows; the
-                # probe raises the usual expiry for that, and otherwise the
-                # login has no access to this module.
-                await self._page("student_information", budget, _require_signed_in)
-                self._justifications_denied = self._generation
-                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            start, end, items = result
+            start, end, items = await self._page(
+                "justifications", budget, parse_justifications
+            )
             return Justifications(
                 self._session_identity(),
                 start,
@@ -2305,6 +2294,7 @@ class AccountClient:
 
     def _invalidate(self) -> None:
         self._identity = None
+        self._account_group = None
         self._modern_account = None
         self._cache.clear()
         self._metadata.clear()
@@ -2728,8 +2718,8 @@ class AccountClient:
         )
 
     async def _fetch_identity(self, budget: RequestBudget) -> Identity:
-        owner, student = await self._page(
-            "identity", budget, parse_identity, content_type=JSON
+        owner, student, group = await self._page(
+            "identity", budget, parse_identity_record, content_type=JSON
         )
         credentials, previous = self._credentials, self._identity
         changed = previous is not None and (owner.id, student.id) != (
@@ -2746,6 +2736,7 @@ class AccountClient:
         if changed or unexpected:
             self._invalidate()
             raise LibrusError(ErrorKind.ACCESS_DENIED)
+        self._account_group = group
         return Identity(owner, student, self._observation("identity"))
 
     async def _authenticate(self, budget: RequestBudget) -> None:

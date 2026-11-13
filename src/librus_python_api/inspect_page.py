@@ -59,10 +59,7 @@ def _profile(body: bytes) -> dict[str, int]:
 
 
 def _justifications(body: bytes) -> dict[str, int]:
-    result = parse_justifications(body)
-    if result is None:
-        return {"denied_page": 1}
-    return {"denied_page": 0, "entries": len(result[2])}
+    return {"entries": len(parse_justifications(body)[2])}
 
 
 PARSERS: dict[str, Callable[[bytes], dict[str, int]]] = {

@@ -74,39 +74,52 @@ its exact markup was not captured. Accepted as empty: no entry rows, or
 exactly one row holding one non-empty cell with `colspan="7"` (its text is not
 read). This rule is not observed live; the live check will show it.
 
-## "Brak dostępu"
+## Who may request the list
 
 Both student logins got a 200 page whose only heading is `h2.inside`
 "Brak dostępu" and which has no menu: the same page Synergia gives a session
-it no longer knows (`LOGGED_OUT_HEADING`, `LOGGED_IN_PAGE_MARKER`), although
-the session was live. On this route the two look identical, and the login's
-role is not known from what the library reads (`Identity` has an owner and a
-student for every login), so the read cannot skip the request for a student.
+it no longer knows (`LOGGED_OUT_HEADING`, `LOGGED_IN_PAGE_MARKER`).
 
-Instead, when the list request gets that page:
+The owner's live check on 2026-11-13 (structure, statuses and
+`is_logged_out_page` only) showed that this is not only a denial. On a student
+login, `student_information` was signed in, `justifications` got the
+logged-out page, and the next page (`/informacja`) was logged out too:
+opening `/eusprawiedliwienia` ends a student login's session. A probe after
+the request cannot tell a denial from an expiry, because the request itself
+ends the session, and the usual recovery then signs in again and repeats it.
 
-1. One GET of `/informacja` (`student_information`) checks the session.
-2. If that page is also the logged-out page, the session is gone: the usual
-   recovery applies (sign in again once and read the list again; in a session
-   just signed in, `PARSE` and the cooldown, as for any read).
-3. Otherwise the read fails with `UNSUPPORTED_CAPABILITY`. The session is
-   kept, nothing is cached as a result, and later calls in the same session
-   fail the same way without a request. A new session (after any sign-in)
-   asks once again.
+The role signal is `Me.Account.GroupId` in the identity response that every
+sign-in already reads: `8` on both student logins and `5` on both parent
+logins (four logins, one school). No other `Account` or `User` field differed
+by role in structure. It is parsed as an optional integer, internal only (not
+on `Identity`); a missing value or any other shape reads as unknown and never
+breaks `identity()`.
 
-This applies equally to a parent login that gets the page, for example where
-a school has switched the module off. `UNSUPPORTED_CAPABILITY` was chosen over
-`ACCESS_DENIED` because the latter starts this account's cooldown for the
-operation (`justifications`) and is used for identity mismatches.
+The rule (`config.JUSTIFICATION_ACCOUNT_GROUP`):
+
+1. `justifications()` sends its GET only when the session's `GroupId` is `5`.
+2. Any other value, or none, fails as `UNSUPPORTED_CAPABILITY` with no
+   request to `/eusprawiedliwienia`. `8` is observed to end the session;
+   nothing else is observed. A client not yet signed in signs in first (that
+   is how the group is learned), then fails the same way.
+3. A `GroupId` 5 login that gets the logged-out page is treated like any other
+   read: the usual single recovery (sign in again once and read the list
+   again), then `PARSE` and the operation's cooldown if a session just signed
+   in still gets it. A parent login where a school has switched the module
+   off would look like that; it is not observed.
+
+`UNSUPPORTED_CAPABILITY` was chosen over `ACCESS_DENIED` because the latter
+starts the cooldown for this one operation (`justifications`) and is used for
+identity mismatches.
 
 ## Diagnostics
 
 The seven header labels are in the failure-diagnostics allowlist; cell text,
 names and dates are masked. `python -m librus_python_api.inspect_page
-justifications FILE` reports `denied_page` and `entries`.
+justifications FILE` reports `entries`; the logged-out page fails as `PARSE`.
 
 ## Live check
 
-`justifications` runs in the weekly profile with reads `justifications` and
-`student_information`. Slot 0 (parent) expects `any`; slot 1 (student)
-expects `unavailable`.
+`justifications` runs in the weekly profile with read `justifications`. Slot 0
+(parent) expects `any`; slot 1 (student) expects `unavailable`, now reported
+by the library without a request rather than after one.

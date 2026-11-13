@@ -1474,11 +1474,22 @@ class _PersonWire(BaseModel):
 
 class _AccountWire(_PersonWire):
     UserId: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")] = None
+    # The login's account group, internal only: 5 on parent and 8 on student
+    # logins observed (2026-11-13). Any value other than a plain integer reads
+    # as unknown, so an unexpected shape never breaks the identity read.
+    GroupId: int | None = None
 
     @field_validator("UserId", mode="before")
     @classmethod
     def normalize_user_id(cls, value: Any) -> Any:
         return cls.normalize_id(value)
+
+    @field_validator("GroupId", mode="before")
+    @classmethod
+    def normalize_group_id(cls, value: Any) -> Any:
+        if type(value) is int and 0 <= value < 10**9:
+            return value
+        return None
 
 
 class _UserWire(BaseModel):

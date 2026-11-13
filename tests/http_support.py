@@ -48,6 +48,10 @@ class SchoolFixture:
         self.challenge = False
         self.malformed_identity = False
         self.identity_mode = "json"
+        # `Me.Account.GroupId` per login; a login absent here gets the default,
+        # and None omits the field.
+        self.account_groups: dict[str, object] = {}
+        self.default_account_group: object = None
         self.cookie_missing = False
         self.redirect_loop = False
         self.connections: set[int] = set()
@@ -131,7 +135,7 @@ class SchoolFixture:
             return web.Response(status=302, headers={"Location": location})
         if self.malformed_identity:
             return web.json_response({"Me": {"Account": {"Id": login}}})
-        payload = {
+        payload: dict[str, dict[str, dict[str, object]]] = {
             "Me": {
                 "Account": {
                     "Id": login,
@@ -145,6 +149,9 @@ class SchoolFixture:
                 },
             }
         }
+        group = self.account_groups.get(login, self.default_account_group)
+        if group is not None:
+            payload["Me"]["Account"]["GroupId"] = group
         if self.identity_mode == "account_reference":
             payload["Me"]["Account"]["UserId"] = payload["Me"]["User"].pop("Id")
         return web.json_response(payload)

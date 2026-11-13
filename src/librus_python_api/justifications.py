@@ -22,7 +22,7 @@ from librus_python_api.config import (
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
 from librus_python_api.models import Justification, JustificationStatus
-from librus_python_api.parsers import is_logged_out_page, parse_page
+from librus_python_api.parsers import parse_page
 
 _DAY = r"([0-9]{4}-[0-9]{2}-[0-9]{2})"
 _RANGE = re.compile(rf"od {_DAY} do {_DAY}")
@@ -201,15 +201,12 @@ def _is_empty_marker(rows: list[html.HtmlElement]) -> bool:
 
 def parse_justifications(
     body: bytes,
-) -> tuple[date, date, tuple[Justification, ...]] | None:
-    """The list's window and entries, or None for the "Brak dostępu" page.
+) -> tuple[date, date, tuple[Justification, ...]]:
+    """The list's window and entries.
 
-    That page is what a login without the module gets (both student logins),
-    and also what a session Synergia no longer knows gets; the caller tells
-    the two apart.
+    The "Brak dostępu" page fails as PARSE like any page without the list;
+    the client treats it as a session Synergia no longer knows.
     """
-    if is_logged_out_page(body):
-        return None
     document = parse_page(body)
     table = _table(document)
     window = _window(document)

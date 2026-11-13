@@ -123,6 +123,8 @@ def read(client: AccountClient, alias: str, operation: str) -> Read:
 class ReadsFixture(SchoolFixture):
     def __init__(self) -> None:
         super().__init__()
+        # Every login here is a parent login, so `justifications` is allowed.
+        self.default_account_group = 5
         self.reads: list[tuple[str, str]] = []
         self.wire: dict[str, tuple[dict[str, str], str, bytes]] = {}
         self.bodies: dict[str, tuple[bytes, str]] = {}

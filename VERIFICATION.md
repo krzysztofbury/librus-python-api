@@ -5,13 +5,21 @@ in the Git history of this file.
 
 ## e-Justifications list (2026-11-13, issue #137)
 
-Offline only so far: parser semantics, the denied-page probe and its
-per-session memo, and the shared read guarantees in
-`tests/test_account_reads.py` run against original fixtures written from the
-structure-only record in [the contract](contracts/justifications.md). Not yet
-run live: the weekly profile's new `justifications` step on the owner's
-logins (expected: the list on both parent logins, `unavailable` on both
-student logins). The explicit empty row's markup is still unobserved.
+Offline: parser semantics, the `GroupId` gate (no request for any group
+other than 5 or a missing one, including a fake upstream where the list ends
+a student session) and the shared read guarantees in
+`tests/test_account_reads.py`, against original fixtures written from the
+structure-only record in [the contract](contracts/justifications.md).
+
+Live, owner's weekly profile with `--record` on head `d7bef6d` (the earlier
+probe design), four logins in two pairs: the parent pair passed with
+`justifications` populated on both logins. The student pair failed with the
+guard's `login_submit` violation: the list request ended the student session
+and the probe design signed in again. A structure-only trace showed the
+cause, and the identity response showed `Me.Account.GroupId` 8 on both
+student logins and 5 on both parent logins. The gate replaces the probe; the
+weekly rerun on both pairs is pending with the owner. The explicit empty
+row's markup is still unobserved.
 
 ## Weekly student slot and runner timeouts (2026-11-09)
 
