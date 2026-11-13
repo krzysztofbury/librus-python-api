@@ -17,13 +17,18 @@ value. Existing signatures are unchanged; the additions are listed below.
   `Zakres do`, `Data wystawienia`, `Dodał` and `Komentarz`
   (`config.BEHAVIOUR_POINT_LABELS`), a missing first line or a missing date
   raises `ParseError`; before, the tooltip was not read and such a page
-  parsed. So does a tally in a cell spanning both periods, whose period would
-  be a guess, and a point table showing different points for the same period.
-- Point entries count toward `GRADE_MAX_RECORDS` with the grades.
+  parsed. So does a point table showing different points for the same period.
+  A tally alone in a cell spanning both periods still parses and gives no
+  item, since its period would be a guess.
+- Point entries count toward `GRADE_MAX_RECORDS` with the grades; an item the
+  point table repeats counts once.
 - `inspect_page grades` reports `behaviour_points` and
   `behaviour_point_entries` counts.
 - The layout follows two schools' pages seen offline on 2026-10-18 with
   original synthetic fixtures; no live login with points was available.
+
+Other changes:
+
 - Gateway grades: the pagination check reads the member recorded on
   2026-11-13 (`pagination` = `{limit, page, total}` integers) and nothing else,
   instead of guessing key names. A total above the items received or a page

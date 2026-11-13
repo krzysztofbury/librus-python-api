@@ -148,10 +148,15 @@ def test_behaviour_points_are_a_typed_value_beside_the_grades() -> None:
 
 def test_behaviour_points_keep_school_text_out_of_reprs() -> None:
     (item,) = parse_grade_records(
-        _with_behaviour(behaviour_points(boxes=behaviour_box()), "-")
+        _with_behaviour(behaviour_points("4321", behaviour_box("+987", "11")), "-")
     ).behaviour_points
-    assert "Teacher Fixture" not in repr(item)
-    assert "fixture points category" not in repr(item)
+    (entry,) = item.entries
+    for text in (repr(item), repr(entry), repr(item.entries)):
+        assert "Teacher Fixture" not in text
+        assert "fixture points category" not in text
+        assert "4321" not in text
+        assert "987" not in text
+        assert "2026" not in text
 
 
 def test_a_tally_alone_is_an_item_without_entries() -> None:
@@ -160,12 +165,22 @@ def test_a_tally_alone_is_an_item_without_entries() -> None:
     assert records.behaviour_points == (BehaviourPoints(1, 120, ()),)
 
 
-def test_a_tally_in_a_cell_spanning_both_periods_fails() -> None:
-    # Its period would be a guess; no page was seen with it.
-    row = (
+def _spanning_behaviour_row(cell: str) -> str:
+    return (
         '<tr><td class="center micro screen-only"></td><td>Zachowanie</td>'
-        f'<td colspan="5">{behaviour_points()}</td><td>-</td><td>-</td><td>-</td></tr>'
+        f'<td colspan="5">{cell}</td><td>-</td><td>-</td><td>-</td></tr>'
     )
+
+
+def test_a_spanning_tally_alone_parses_without_an_item() -> None:
+    # It parsed before 1.10.0; its period would be a guess, so no item.
+    records = parse_grade_records(
+        grades_html(rows=_spanning_behaviour_row(behaviour_points())).encode()
+    )
+    assert records.behaviour_points == ()
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+    # Point entries in such a cell still fail, as before.
+    row = _spanning_behaviour_row(behaviour_points(boxes=behaviour_box()))
     with pytest.raises(ParseError):
         parse_grade_records(grades_html(rows=row).encode())
 
@@ -215,6 +230,23 @@ def _point_behaviour_row(cell: str) -> str:
         f'<td colspan="2">-</td><td class="center"> - </td>'
         '<td class="center"> - </td></tr>'
     )
+
+
+@pytest.mark.parametrize("count", [GRADE_MAX_RECORDS, GRADE_MAX_RECORDS + 1])
+def test_behaviour_points_shown_by_both_tables_count_once_toward_the_bound(
+    count: int,
+) -> None:
+    grades = grade_box(extra="") * (count - 2)
+    cell = behaviour_points(boxes=behaviour_box() + behaviour_box("-1", "902"))
+    extra = point_table(_point_behaviour_row(cell))
+    body = grades_html(first=grades, rows=behaviour_row(cell, "-"), extra=extra)
+    if count == GRADE_MAX_RECORDS:
+        records = parse_grade_records(body.encode())
+        (item,) = records.behaviour_points
+        assert len(records.numeric) + len(item.entries) == count
+    else:
+        with pytest.raises(LimitError):
+            parse_grade_records(body.encode())
 
 
 def test_behaviour_points_shown_by_both_tables_are_one_item() -> None:

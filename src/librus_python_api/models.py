@@ -1182,7 +1182,7 @@ class BehaviourPointEntry:
     `Zakres do`, `Data wystawienia`, `Dodał` and `Komentarz`, as present.
     """
 
-    points: int
+    points: int = field(repr=False)
     detail_id: str = field(repr=False)
     category: str = field(repr=False)
     day: date = field(repr=False)
@@ -1199,7 +1199,7 @@ class BehaviourPoints:
     """
 
     semester: Literal[1, 2]
-    tally: int
+    tally: int = field(repr=False)
     entries: tuple[BehaviourPointEntry, ...] = field(repr=False)
 
 

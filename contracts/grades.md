@@ -114,8 +114,9 @@ boxes whose only child links to a behaviour-points detail
 (`BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX`) with a signed integer label. Their
 tooltips open with an unlabelled line and use `Data wystawienia`, not `Data`.
 Points are not grades: such a cell adds no grade records. Any other content
-beside the points tooltip, the points tooltip outside the behaviour row, or a
-cell spanning both periods' current-grade columns fails. Behaviour cells
+beside the points tooltip, the points tooltip outside the behaviour row, or
+point entries in a cell spanning both periods' current-grade columns fails.
+Behaviour cells
 without a points tooltip keep the ordinary grade rules. Observed offline on
 2026-10-18 in two schools' pages, one with a tally and entries and one with a
 tally alone. On 2026-11-13 none of the owner's four logins, nor one browser
@@ -136,7 +137,10 @@ label outside it, a first line that is a known label, a missing or invalid
 date, or a missing tooltip fails, as for behaviour grade symbols. A page
 without points gives `()`. If the point table shows the behaviour row too, an
 equal item for the same period is one item and a different one fails. Point
-entries count toward `GRADE_MAX_RECORDS` with the grades. `GradeWindow`
+entries count toward `GRADE_MAX_RECORDS` with the grades; an item the point
+table repeats counts once. A tally alone in a cell spanning both periods'
+current-grade columns parses, as before 1.10.0, but gives no item: its period
+would be a guess. `GradeWindow`
 keeps an item when one of its entries is in the window, with only those
 entries and its tally; a tally without entries in the window, like averages,
 stays outside. Notification identities come from grades only and do not

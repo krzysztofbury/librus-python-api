@@ -290,7 +290,9 @@ from grades; no grade or summary type is reused.
 - A cell with the tally alone has no entries. A page without points gives `()`.
 - Any other tooltip label, a missing first line or date, other content beside
   the tally or a tally outside the behaviour row raises `ParseError`. Entries
-  count toward the grade record bound (`LimitError`).
+  count toward the grade record bound (`LimitError`). A tally alone in a cell
+  spanning both periods parses but gives no item, since its period would be a
+  guess.
 - `grades_window(...)` keeps an item when one of its entries falls in the
   window, with only those entries and the tally; a tally alone stays outside,
   like averages.

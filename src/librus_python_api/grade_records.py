@@ -379,7 +379,7 @@ def _behaviour_point_entry(element: html.HtmlElement) -> BehaviourPointEntry:
 
 def _behaviour_points(
     cell: html.HtmlElement,
-    period: Literal[1, 2],
+    period: Literal[1, 2] | None,
     collection: _Collection,
     *,
     points: bool = False,
@@ -390,7 +390,10 @@ def _behaviour_points(
     is not interpreted), and point entries linking to behaviour details, each
     with its own tooltip. Any other content next to the tally fails instead of
     being skipped. The point table may show the same cell again: an equal item
-    is one item, a different one for the same period fails.
+    is one item, a different one for the same period fails, and only an item
+    that is appended counts toward `GRADE_MAX_RECORDS`. A cell spanning both
+    periods (`period` None) holds no entries and is validated, not recorded:
+    its period would be a guess.
     """
     tallies = [
         node
@@ -411,6 +414,9 @@ def _behaviour_points(
         or _boxes(cell) != boxes
     ):
         raise LibrusError(ErrorKind.PARSE)
+    same = [known for known in collection.behaviour if known.semester == period]
+    if same and not points:
+        raise LibrusError(ErrorKind.PARSE)
     entries = []
     for box in boxes:
         anchors = [node for node in box if isinstance(node.tag, str)]
@@ -422,14 +428,16 @@ def _behaviour_points(
         ):
             raise LibrusError(ErrorKind.PARSE)
         entries.append(_behaviour_point_entry(anchors[0]))
-        collection.check_size(len(entries))
-    item = BehaviourPoints(period, int(tally), tuple(entries))
-    same = [known for known in collection.behaviour if known.semester == period]
-    if same:
-        if not points or same != [item]:
+        if not same:
+            collection.check_size(len(entries))
+        elif len(entries) > len(same[0].entries):
             raise LibrusError(ErrorKind.PARSE)
-    else:
-        collection.behaviour.append(item)
+    if period is not None:
+        item = BehaviourPoints(period, int(tally), tuple(entries))
+        if not same:
+            collection.behaviour.append(item)
+        elif same != [item]:
+            raise LibrusError(ErrorKind.PARSE)
     collection.consumed.update(boxes)
     return True
 
@@ -616,16 +624,15 @@ def _read_numeric_table(
         seen: set[html.HtmlElement] = set()
         for period, index in enumerate(current, start=1):
             if columns[index] not in seen:
-                if subject in GRADE_MERGED_SUBJECTS and _behaviour_points(
-                    columns[index],
-                    cast(Literal[1, 2], period),
-                    collection,
-                    points=points,
+                if not (
+                    subject in GRADE_MERGED_SUBJECTS
+                    and _behaviour_points(
+                        columns[index],
+                        None if spanning else cast(Literal[1, 2], period),
+                        collection,
+                        points=points,
+                    )
                 ):
-                    if spanning:
-                        # The tally's period would be a guess.
-                        raise LibrusError(ErrorKind.PARSE)
-                else:
                     start = len(collection.numeric)
                     _entries(
                         columns[index],
