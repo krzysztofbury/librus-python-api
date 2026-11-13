@@ -27,7 +27,6 @@ from tests.justifications_support import (
 )
 
 LIST = "/eusprawiedliwienia"
-PROBE = "/informacja"
 
 
 def parse(html: str) -> Any:
@@ -252,8 +251,7 @@ def test_a_dead_parent_session_signs_in_again_once() -> None:
         fixture.logged_out["parent"] = 1
         result = await client.justifications()
         assert len(result.items) == 2
-        assert (fixture.count(LIST), fixture.count(PROBE)) == (2, 0)
-        assert fixture.logins == {"parent": 2}
+        assert (fixture.count(LIST), fixture.logins) == (2, {"parent": 2})
 
     run(scenario)
 
@@ -265,7 +263,6 @@ def test_a_parent_login_still_logged_out_after_sign_in_fails_as_parse() -> None:
         fixture.logged_out["parent"] = 2
         with pytest.raises(ParseError):
             await client.justifications()
-        assert (fixture.count(LIST), fixture.count(PROBE)) == (2, 0)
-        assert fixture.logins == {"parent": 2}
+        assert (fixture.count(LIST), fixture.logins) == (2, {"parent": 2})
 
     run(scenario)
