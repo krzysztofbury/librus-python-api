@@ -108,17 +108,43 @@ Predicted-period labels extend the established semantic summary vocabulary in
 original synthetic fixtures; they are not independently observed live layouts.
 
 The behaviour row (`GRADE_MERGED_SUBJECTS`) may hold behaviour points in its
-current-grade cells: one tooltip span whose only content is an integer (starting
-points or a running total; the title is not interpreted), then optional point
-entries in grade boxes whose only child links to a behaviour-points detail
-(`BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX`) with an integer label. Their tooltips
-open with an unlabelled line and use `Data wystawienia`, not `Data`. Points are
-not grades: such a cell is validated and contributes no records. Any other
-content beside the points tooltip, or the points tooltip outside the behaviour
-row, fails. Behaviour cells without a points tooltip keep the ordinary grade
-rules. Observed offline on 2026-10-18 in two schools' pages, one with starting
-points and entries and one with a running total alone; the guarded live gate is
-pending.
+current-grade cells: one tooltip span whose only content is an integer (the
+tally; its title is not interpreted), then optional point entries in grade
+boxes whose only child links to a behaviour-points detail
+(`BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX`) with a signed integer label. Their
+tooltips open with an unlabelled line and use `Data wystawienia`, not `Data`.
+Points are not grades: such a cell adds no grade records. Any other content
+beside the points tooltip, the points tooltip outside the behaviour row, or
+point entries in a cell spanning both periods' current-grade columns fails.
+Behaviour cells
+without a points tooltip keep the ordinary grade rules. Observed offline on
+2026-10-18 in two schools' pages, one with a tally and entries and one with a
+tally alone. On 2026-11-13 none of the owner's four logins, nor one browser
+session, showed behaviour points, so the guarded live gate stays pending.
+
+From 1.10.0 (#138, asked for in #76) each such cell is a `BehaviourPoints`
+item in `GradeRecords.behaviour_points`, with its period (`semester`, the
+current-grade column it sits in), `tally` and `entries`. The tally is the
+integer the cell shows. Whether it is the starting points or a running total
+is not established, so it is not interpreted, and entries are never summed or
+compared with it. Each `BehaviourPointEntry` has its signed `points`, the
+`detail_id` of its link (never requested), `category` (the unlabelled first
+line), `day` (`Data wystawienia`) and the labelled lines in `metadata`. Only
+`Zakres od`, `Zakres do`, `Data wystawienia`, `Dodał` and `Komentarz`
+(`BEHAVIOUR_POINT_LABELS`) may follow the first line; that set comes from the
+1.6.2 synthetic entry, since the observed pages' tooltips were never read. A
+label outside it, a first line that is a known label, a missing or invalid
+date, or a missing tooltip fails, as for behaviour grade symbols. A page
+without points gives `()`. If the point table shows the behaviour row too, an
+equal item for the same period is one item and a different one fails. Point
+entries count toward `GRADE_MAX_RECORDS` with the grades; an item the point
+table repeats counts once. A tally alone in a cell spanning both periods'
+current-grade columns parses, as before 1.10.0, but gives no item: its period
+would be a guess. `GradeWindow`
+keeps an item when one of its entries is in the window, with only those
+entries and its tally; a tally without entries in the window, like averages,
+stays outside. Notification identities come from grades only and do not
+change.
 
 A behaviour-row grade box that links to a behaviour detail with a grade symbol
 instead of an integer, such as `wz`, is a behaviour grade (1.8.3, issue #114 by

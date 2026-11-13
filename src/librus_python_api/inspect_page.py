@@ -44,6 +44,10 @@ def _grades(body: bytes) -> dict[str, int]:
         "point_results": len(records.point_results),
         "formative": len(records.formative),
         "corrections": len(records.corrections),
+        "behaviour_points": len(records.behaviour_points),
+        "behaviour_point_entries": sum(
+            len(item.entries) for item in records.behaviour_points
+        ),
         "descriptive_table": int(table is not None),
         "descriptive_table_filled": int(table is not None and table.filled),
     }

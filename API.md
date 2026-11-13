@@ -225,12 +225,16 @@ source)` with an aware UTC timestamp.
   - `averages`: `SchoolAverage` as school-provided text. Nothing is computed.
   - `corrections` (1.9.0): `GradeCorrection`s, see
     [grade IDs and corrections](#grade-ids-and-corrections-190).
+  - `behaviour_points` (1.10.0): `BehaviourPoints`, see
+    [behaviour points](#behaviour-points-1100).
 - `grades_window(start=None, end=None, view=GradeView.ALL)` filters the selected
   collection to inclusive civil dates. Either boundary may be omitted; two
   supplied dates may be at most 370 days apart. `GradeWindow.view` records the
   selection. It reuses only that view's cache; averages and undated summaries
   remain outside the window. `GradeWindow.corrections` keeps every correction
   with at least one of its grades in the window, whole.
+  `GradeWindow.behaviour_points` keeps each item with an entry in the window,
+  with only those entries.
 
 ### Grade IDs and corrections (1.9.0)
 
@@ -266,6 +270,38 @@ Requested in krzysztofbury/librus-mcp#88.
   accepted. Comments inside a bracket are ignored. Failure diagnostics and
   `inspect_page grades` (its `corrections` count) show the brackets.
   See [correction brackets](contracts/grades.md#grade-ids-and-correction-brackets-190-librus-mcp88).
+
+### Behaviour points (1.10.0)
+
+Asked for in #76. Schools that grade behaviour with points show them in the
+`Zachowanie` row of the grades page. `GradeRecords.behaviour_points` holds one
+`BehaviourPoints(semester, tally, entries)` per period cell with points, apart
+from grades; no grade or summary type is reused.
+
+- `semester` is the period whose current-grade column holds the cell.
+- `tally` is the integer the cell shows. Whether it is the starting points or a
+  running total is not established, so it is not interpreted, and `entries`
+  are never summed or compared with it.
+- Each `BehaviourPointEntry(points, detail_id, category, day, metadata)` has its
+  signed points, the ID of its behaviour detail link (recognised, never
+  requested), its tooltip's unlabelled first line as `category`, `day` from
+  `Data wystawienia`, and the labelled lines (`Zakres od`, `Zakres do`,
+  `Data wystawienia`, `Dodał`, `Komentarz`) in `metadata`.
+- A cell with the tally alone has no entries. A page without points gives `()`.
+- Any other tooltip label, a missing first line or date, other content beside
+  the tally or a tally outside the behaviour row raises `ParseError`. Entries
+  count toward the grade record bound (`LimitError`). A tally alone in a cell
+  spanning both periods parses but gives no item, since its period would be a
+  guess.
+- `grades_window(...)` keeps an item when one of its entries falls in the
+  window, with only those entries and the tally; a tally alone stays outside,
+  like averages.
+- Grades, averages and notification identities are the same as before; behaviour
+  grade symbols (1.8.3) stay `NumericGrade`s. `inspect_page grades` reports
+  `behaviour_points` and `behaviour_point_entries` counts.
+
+The layout comes from two schools' pages seen offline (2026-10-18); no live
+login with points was available. See [grades](contracts/grades.md).
 
 ### School-year archive (1.3.0)
 

@@ -1213,6 +1213,38 @@ class GradeCorrection:
 
 
 @dataclass(frozen=True, slots=True)
+class BehaviourPointEntry:
+    """One behaviour-point entry of the behaviour row.
+
+    `points` is the entry's signed label and `detail_id` the ID of its
+    behaviour detail link, which is recognised, never requested. `category`
+    is its tooltip's unlabelled first line and `day` its `Data wystawienia`.
+    `metadata` keeps the tooltip's labelled lines in order: `Zakres od`,
+    `Zakres do`, `Data wystawienia`, `Dodał` and `Komentarz`, as present.
+    """
+
+    points: int = field(repr=False)
+    detail_id: str = field(repr=False)
+    category: str = field(repr=False)
+    day: date = field(repr=False)
+    metadata: tuple[tuple[str, str], ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class BehaviourPoints:
+    """A behaviour-row cell with points, read from one period's column.
+
+    `tally` is the integer the cell shows. Whether it is the starting points
+    or a running total is not established, so it is not interpreted, and it
+    is not compared with the entries, which are never summed.
+    """
+
+    semester: Literal[1, 2]
+    tally: int = field(repr=False)
+    entries: tuple[BehaviourPointEntry, ...] = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class GradeRecords:
     numeric: tuple[NumericGrade, ...] = field(repr=False)
     descriptive: tuple[DescriptiveGrade, ...] = field(repr=False)
@@ -1226,6 +1258,8 @@ class GradeRecords:
     point_results: tuple[SchoolAverage, ...] = field(default=(), repr=False)
     # The page's correction brackets; only the all view was seen to show them.
     corrections: tuple[GradeCorrection, ...] = field(default=(), repr=False)
+    # The behaviour row's points, apart from grades; empty without points.
+    behaviour_points: tuple[BehaviourPoints, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1248,6 +1282,9 @@ class GradeWindow:
     formative: tuple[FormativeGrade, ...] = field(default=(), repr=False)
     # Each correction with at least one of its grades in the window, whole.
     corrections: tuple[GradeCorrection, ...] = field(default=(), repr=False)
+    # Each behaviour-points item with an entry in the window, with only those
+    # entries and its tally; a tally without entries stays outside.
+    behaviour_points: tuple[BehaviourPoints, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True, slots=True)

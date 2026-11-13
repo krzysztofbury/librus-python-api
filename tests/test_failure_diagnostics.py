@@ -20,6 +20,7 @@ from librus_python_api.models import DiagnosticEvent
 from librus_python_api.parsers import parse_profile
 from tests.grade_records_support import (
     GradeRecordsFixture,
+    behaviour_row,
     formative_table,
     grade_box,
     grades_html,
@@ -222,11 +223,12 @@ def test_inspect_page_reports_counts_or_the_failure(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], fragment: bool
 ) -> None:
     good = tmp_path / "good.html"
-    body = grades_html()
+    body = grades_html(rows=behaviour_row())
     good.write_text(body.split("<body>")[1] if fragment else body, encoding="utf-8")
     assert main(["grades", str(good)]) == 0
     output = capsys.readouterr().out
     assert "OK numeric=1" in output and "descriptive_table=0" in output
+    assert "behaviour_points=2, behaviour_point_entries=1" in output
     assert ("fragment" in output) is fragment
     bad = tmp_path / "bad.html"
     bad.write_text(_sentinel_page(), encoding="utf-8")

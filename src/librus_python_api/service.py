@@ -1395,6 +1395,11 @@ class AccountClient:
                 for group in result.records.corrections
                 if not visible.isdisjoint(group.grade_ids)
             ),
+            tuple(
+                replace(item, entries=entries)
+                for item in result.records.behaviour_points
+                if (entries := tuple(e for e in item.entries if within(e.day)))
+            ),
         )
 
     async def class_free_days(

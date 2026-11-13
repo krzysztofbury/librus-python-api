@@ -9,6 +9,7 @@ from lxml import html
 from librus_python_api import markup
 from librus_python_api.config import (
     BEHAVIOUR_GRADE_LABELS,
+    BEHAVIOUR_POINT_LABELS,
     BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX,
     FORMATIVE_DETAIL_PATH_PREFIX,
     GRADE_AVERAGE_HEADERS,
@@ -45,6 +46,8 @@ from librus_python_api.grade_parsers import (
 )
 from librus_python_api.models import (
     Availability,
+    BehaviourPointEntry,
+    BehaviourPoints,
     DescriptiveGrade,
     DescriptiveGradeSummary,
     FormativeGrade,
@@ -224,14 +227,17 @@ class _Collection:
     point_subjects: set[str] = field(default_factory=set, repr=False)
     consumed: set[html.HtmlElement] = field(default_factory=set, repr=False)
     publication_rows: set[html.HtmlElement] = field(default_factory=set, repr=False)
+    behaviour: list[BehaviourPoints] = field(default_factory=list, repr=False)
     formative: int = 0
 
-    def check_size(self) -> None:
+    def check_size(self, pending: int = 0) -> None:
         if (
             len(self.numeric)
             + len(self.descriptive)
             + len(self.descriptive_summaries)
             + self.formative
+            + sum(len(item.entries) for item in self.behaviour)
+            + pending
             > GRADE_MAX_RECORDS
         ):
             raise LibrusError(ErrorKind.LIMIT)
@@ -343,13 +349,51 @@ def _read_corrections(
         collection.corrections.append(correction)
 
 
-def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
-    """Recognize and validate a behaviour-points cell; points are not grades.
+def _behaviour_point_entry(element: html.HtmlElement) -> BehaviourPointEntry:
+    """A point entry's link: signed points, detail ID and its tooltip.
 
-    The cell holds one points tooltip (starting points or a running total; its
-    title is not interpreted) and point entries linking to behaviour details,
-    each with its own unlabelled tooltip. Any other content next to the points
-    tooltip fails instead of being skipped.
+    The tooltip has an unlabelled first line, the category, then only
+    `config.BEHAVIOUR_POINT_LABELS`; `Data wystawienia` is required. A first
+    line that is a known label means the category is missing and fails.
+    """
+    detail = markup.detail_id(element.get("href"), BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX)
+    raw = markup.text(element)
+    if detail is None or not re.fullmatch(r"[+-]?[0-9]{1,4}", raw):
+        raise LibrusError(ErrorKind.PARSE)
+    heading: list[str] = []
+    metadata = markup.tooltip_fields(element, heading)
+    if (
+        not heading
+        or heading[0].partition(":")[0].strip() in TOOLTIP_LABELS
+        or not BEHAVIOUR_POINT_LABELS >= metadata.keys()
+    ):
+        raise LibrusError(ErrorKind.PARSE)
+    return BehaviourPointEntry(
+        int(raw),
+        detail,
+        heading[0],
+        markup.civil_date(metadata.get("Data wystawienia")),
+        tuple(metadata.items()),
+    )
+
+
+def _behaviour_points(
+    cell: html.HtmlElement,
+    period: Literal[1, 2] | None,
+    collection: _Collection,
+    *,
+    points: bool = False,
+) -> bool:
+    """Read a behaviour-points cell into `collection.behaviour`; not grades.
+
+    The cell holds one tooltip span showing an integer, the tally (its title
+    is not interpreted), and point entries linking to behaviour details, each
+    with its own tooltip. Any other content next to the tally fails instead of
+    being skipped. The point table may show the same cell again: an equal item
+    is one item, a different one for the same period fails, and only an item
+    that is appended counts toward `GRADE_MAX_RECORDS`. A cell spanning both
+    periods (`period` None) holds no entries and is validated, not recorded:
+    its period would be a guess.
     """
     tallies = [
         node
@@ -360,15 +404,20 @@ def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
         return False
     elements = [node for node in cell if isinstance(node.tag, str)]
     boxes = [node for node in elements if node not in tallies]
+    tally = markup.text(tallies[0])
     if (
         len(tallies) != 1
         or len(tallies[0])
-        or not re.fullmatch(r"-?[0-9]{1,4}", markup.text(tallies[0]))
+        or not re.fullmatch(r"-?[0-9]{1,4}", tally)
         or (cell.text or "").strip()
         or any((node.tail or "").strip() for node in cell)
         or _boxes(cell) != boxes
     ):
         raise LibrusError(ErrorKind.PARSE)
+    same = [known for known in collection.behaviour if known.semester == period]
+    if same and not points:
+        raise LibrusError(ErrorKind.PARSE)
+    entries = []
     for box in boxes:
         anchors = [node for node in box if isinstance(node.tag, str)]
         if (
@@ -376,14 +425,20 @@ def _behaviour_points(cell: html.HtmlElement, collection: _Collection) -> bool:
             or len(anchors) != 1
             or anchors[0].tag != "a"
             or len(anchors[0])
-            or markup.detail_id(
-                anchors[0].get("href"), BEHAVIOUR_POINTS_DETAIL_PATH_PREFIX
-            )
-            is None
-            or not re.fullmatch(r"[+-]?[0-9]{1,4}", markup.text(anchors[0]))
         ):
             raise LibrusError(ErrorKind.PARSE)
-        collection.consumed.add(box)
+        entries.append(_behaviour_point_entry(anchors[0]))
+        if not same:
+            collection.check_size(len(entries))
+        elif len(entries) > len(same[0].entries):
+            raise LibrusError(ErrorKind.PARSE)
+    if period is not None:
+        item = BehaviourPoints(period, int(tally), tuple(entries))
+        if not same:
+            collection.behaviour.append(item)
+        elif same != [item]:
+            raise LibrusError(ErrorKind.PARSE)
+    collection.consumed.update(boxes)
     return True
 
 
@@ -563,14 +618,20 @@ def _read_numeric_table(
                 )
             )
             averages.append(SchoolAverage(subject, period, value))
-        if columns[current[0]] is columns[current[1]] and _boxes(columns[current[0]]):
+        spanning = columns[current[0]] is columns[current[1]]
+        if spanning and _boxes(columns[current[0]]):
             raise LibrusError(ErrorKind.PARSE)
         seen: set[html.HtmlElement] = set()
         for period, index in enumerate(current, start=1):
             if columns[index] not in seen:
                 if not (
                     subject in GRADE_MERGED_SUBJECTS
-                    and _behaviour_points(columns[index], collection)
+                    and _behaviour_points(
+                        columns[index],
+                        None if spanning else cast(Literal[1, 2], period),
+                        collection,
+                        points=points,
+                    )
                 ):
                     start = len(collection.numeric)
                     _entries(
@@ -768,4 +829,5 @@ def read_grade_records(document: html.HtmlElement) -> GradeRecords:
         formative,
         tuple(collection.point_results),
         tuple(collection.corrections),
+        tuple(collection.behaviour),
     )
