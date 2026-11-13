@@ -670,13 +670,13 @@ class Justification:
     has `start == end` and the lesson numbers it names, in page order.
     """
 
-    start: date
-    end: date
-    lessons: tuple[int, ...]
-    absence_count: int
+    start: date = field(repr=False)
+    end: date = field(repr=False)
+    lessons: tuple[int, ...] = field(repr=False)
+    absence_count: int = field(repr=False)
     content: str = field(repr=False)
     teachers: tuple[str, ...] = field(repr=False)
-    sent_at: datetime
+    sent_at: datetime = field(repr=False)
     status: JustificationStatus
     decided_by: str | None = field(repr=False)
     has_attachment: bool
@@ -690,8 +690,8 @@ class Justifications:
     """
 
     identity: "Identity" = field(repr=False)
-    window_start: date
-    window_end: date
+    window_start: date = field(repr=False)
+    window_end: date = field(repr=False)
     items: tuple[Justification, ...] = field(repr=False)
     observation: "Observation"
 

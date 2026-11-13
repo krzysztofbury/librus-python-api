@@ -61,8 +61,11 @@ def test_default_window_entries_are_typed() -> None:
         (2, 3),
     )
     assert one_day.status is JustificationStatus.SENT and one_day.decided_by is None
-    # Parent-written text and names stay out of repr.
-    assert "Fixture" not in repr(ranged)
+    # Text, names, dates and counts stay out of repr; only the outcome shows.
+    assert repr(ranged) == (
+        "Justification(status=<JustificationStatus.JUSTIFIED: 'justified'>, "
+        "has_attachment=False)"
+    )
 
 
 @pytest.mark.parametrize(
