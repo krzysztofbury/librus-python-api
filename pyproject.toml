@@ -49,6 +49,10 @@ dev = [
 # so a freshly published (possibly compromised) release never reaches the lock.
 # The lock stores only the window, so it does not change from day to day.
 exclude-newer = "7 days"
+# The project's own releases are exempt: the release workflow's `confirm` job
+# installs the version uploaded seconds earlier from this checkout. Their
+# dependencies stay inside the window.
+exclude-newer-package = { librus-python-api = false }
 
 [tool.hatch.version]
 path = "src/librus_python_api/__init__.py"

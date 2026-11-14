@@ -172,7 +172,24 @@ packaging fault; retry or rerun it a few minutes later.
 
 Once anything reached PyPI, never delete and republish the release: a new run
 builds again and cannot upload over an existing version. If `confirm` or `attach`
-fails, rerun that job with `gh run rerun ID --failed`.
+fails on a flake, rerun that job with `gh run rerun ID --failed`. If it fails
+because of the workflow at the tag, a rerun fails the same way; complete both
+jobs by hand from the run's sealed artifact (`gh run download ID`), as was done
+for 1.10.0:
+
+1. Check the downloaded files against the `manifest` digest that `build`
+   recorded: `python3 scripts/release_gate.py verify --directory DIR --digest
+   DIGEST`.
+2. Confirm PyPI's files have the same hashes:
+   `uv run --locked python scripts/verify_published.py --wait-index DIR`.
+3. In a fresh environment, install the hash-pinned locked dependencies
+   (`uv export --locked --no-emit-project`), then the published version from
+   PyPI with `--no-cache --refresh`, and run `uv pip check` and
+   `scripts/installed_smoke.py` with `ARTIFACT_ENV` set to that environment.
+4. Attach the same files: `sha256sum -- *.whl *.tar.gz > SHA256SUMS`, then
+   `gh release upload vX ./*.whl ./*.tar.gz SHA256SUMS`.
+5. Say in the release notes what was done by hand, and fix the workflow before
+   the next release.
 
 If upload fails, check PyPI before rerunning. One of the two files may already
 exist. PyPI versions/files cannot be overwritten; do not rebuild different bytes
