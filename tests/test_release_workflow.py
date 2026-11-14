@@ -1,5 +1,6 @@
 """Publication authority and artifact reuse are workflow-level security contracts."""
 
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -66,3 +67,19 @@ def test_only_a_release_publishes_and_it_waits_for_exact_artifact_matrix() -> No
         )
     assert set(jobs["confirm"]["needs"]) == {"build", "publish"}
     assert set(jobs["attach"]["needs"]) == {"build", "confirm"}
+
+
+def test_confirm_can_resolve_the_version_it_just_published() -> None:
+    """`confirm` installs the new release from this checkout seconds after upload.
+
+    The project's window would hide that version for 7 days (1.10.0), so the
+    project's own package is exempt while its dependencies stay windowed.
+    """
+    root = Path(__file__).resolve().parents[1]
+    uv = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["uv"]
+    assert uv["exclude-newer"] == "7 days"
+    assert uv["exclude-newer-package"] == {"librus-python-api": False}
+    workflow = yaml.load(
+        (root / ".github/workflows/workflow.yaml").read_text(), Loader=yaml.BaseLoader
+    )
+    assert '"librus-python-api==$VERSION"' in script(workflow["jobs"]["confirm"])
