@@ -27,13 +27,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    DESCRIPTIVE_DETAIL_COLUMNS,
+    DESCRIPTIVE_DETAIL_GRADE_ROW_CLASS,
+    DESCRIPTIVE_DETAILS_CELL_CLASS,
     DESCRIPTIVE_DETAILS_ROW_CLASS,
     DESCRIPTIVE_IDENTIFIER,
     DESCRIPTIVE_MAX_NAME_LENGTH,
     DESCRIPTIVE_MAX_SUBJECTS,
     DESCRIPTIVE_MAX_USERS,
+    DESCRIPTIVE_PERIOD_LABELS,
     DESCRIPTIVE_ROW_CLASS,
     DESCRIPTIVE_TABLE_CLASS,
+    GRADE_EMPTY_MARKERS,
     GRADE_MAX_METADATA_LENGTH,
     GRADE_MAX_RECORDS,
     GRADE_MAX_SUBJECTS,
@@ -309,14 +314,118 @@ def _classes(element: html.HtmlElement) -> set[str]:
     return set(element.get("class", "").split())
 
 
+_Grades = list[tuple[str, date]]
+
+
+def _box_grades(cell: html.HtmlElement) -> _Grades | None:
+    """Value and date of each grade box in a semester cell of the box layout.
+
+    The cell has no attributes and holds either only grade boxes, each one
+    link with no markup, or a bare empty marker (no grades). Anything else is
+    None. The record parser reads and validates the same boxes.
+    """
+    if cell.attrib:
+        return None
+    elements = [node for node in cell if isinstance(node.tag, str)]
+    if not elements:
+        value = markup.text(cell)
+        return [] if value and value in GRADE_EMPTY_MARKERS else None
+    if (cell.text or "").strip() or any((node.tail or "").strip() for node in cell):
+        return None
+    result: _Grades = []
+    for box in elements:
+        links = [node for node in box if isinstance(node.tag, str)]
+        if (
+            box.tag != "span"
+            or "grade-box" not in _classes(box)
+            or (box.text or "").strip()
+            or len(links) != 1
+            or links[0].tag != "a"
+            or len(links[0])
+            or (links[0].tail or "").strip()
+        ):
+            return None
+        fields = markup.tooltip_fields(links[0])
+        result.append((markup.text(links[0]), markup.civil_date(fields.get("Data"))))
+    return result
+
+
+def _detail_grades(cell: html.HtmlElement) -> dict[int, _Grades]:
+    """Value and date of each grade in a filled detail row, by period.
+
+    The cell holds one table: `DESCRIPTIVE_DETAIL_COLUMNS` as its header, then
+    per period a heading row and either grade rows or one empty-marker row,
+    and an empty footer. A grade row with `Treść oceny` text fails: the grade
+    boxes carry no such field, so the text would be lost.
+    """
+    unsupported = LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+    tables = [node for node in cell if isinstance(node.tag, str)]
+    if (
+        len(tables) != 1
+        or tables[0].tag != "table"
+        or (cell.text or "").strip()
+        or (tables[0].tail or "").strip()
+    ):
+        raise unsupported
+    result: dict[int, _Grades] = {}
+    empty: set[int] = set()
+    header = False
+    period: int | None = None
+    for row in markup.rows(tables[0]):
+        cells = markup.cells(row)
+        texts = [markup.text(item) for item in cells]
+        if markup.in_header(row):
+            if header or texts != list(DESCRIPTIVE_DETAIL_COLUMNS):
+                raise unsupported
+            header = True
+        elif next(row.iterancestors("tfoot"), None) is not None:
+            if any(texts) or any(len(item) for item in cells):
+                raise unsupported
+        elif len(cells) == 1 and texts[0] in DESCRIPTIVE_PERIOD_LABELS:
+            period = DESCRIPTIVE_PERIOD_LABELS[texts[0]]
+            if period in result or len(cells[0]):
+                raise unsupported
+            result[period] = []
+        elif period is None or period in empty:
+            raise unsupported
+        elif len(cells) == 1:
+            if result[period] or texts[0] not in GRADE_EMPTY_MARKERS - {""}:
+                raise unsupported
+            if len(cells[0]):
+                raise unsupported
+            empty.add(period)
+        elif (
+            DESCRIPTIVE_DETAIL_GRADE_ROW_CLASS in _classes(row)
+            and len(cells) == len(DESCRIPTIVE_DETAIL_COLUMNS)
+            and texts[0]
+            and not texts[DESCRIPTIVE_DETAIL_COLUMNS.index("Treść oceny")]
+        ):
+            day = texts[DESCRIPTIVE_DETAIL_COLUMNS.index("Data")]
+            result[period].append((texts[0], markup.civil_date(day)))
+        else:
+            raise unsupported
+    if not header or sorted(result) != [1, 2]:
+        raise unsupported
+    if any(not result[key] and key not in empty for key in result):
+        raise unsupported
+    return result
+
+
 def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | None:
     """The new-schema subject table, or None when the page has none.
 
-    Its rows hold an expander, the subject and two semester cells. Either
-    every row has empty `gradesCell` cells that the page script fills from
-    the gateway, or every row has plain cells the page filled itself, which
-    `read_grade_records` reads and validates. A script cell the page already
-    filled would duplicate the gateway records, so it is unsupported.
+    Its rows hold an expander, the subject and two semester cells, in one of
+    three layouts that `read_grade_records` reads, with no gateway grades
+    except in the first:
+
+    - empty `gradesCell` cells that the page script fills from the gateway;
+    - bare text cells the page filled itself (#115), with no detail rows;
+    - grade boxes or a bare empty marker (2026-11-15, #76), with a filled
+      `studentGradesDetailsRow` for every subject row that lists the same
+      grades, value and date, in the same order.
+
+    A script cell the page already filled would duplicate the gateway records,
+    so it is unsupported, as is any other cell or a table mixing layouts.
     """
     tables = [
         table
@@ -338,6 +447,26 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
     if not populated:
         return None
     tables = populated
+    detail_rows = [
+        row
+        for row in markup.rows(tables[0])
+        if DESCRIPTIVE_DETAILS_ROW_CLASS in _classes(row)
+    ]
+    # Detail rows the page script fills from the gateway are empty; filled
+    # ones hold a table and belong to the box layout.
+    rendered = any(next(row.iter("table"), None) is not None for row in detail_rows)
+    details: dict[str, dict[int, _Grades]] = {}
+    if rendered:
+        for row in detail_rows:
+            cells = markup.cells(row)
+            if len(cells) != 1 or DESCRIPTIVE_DETAILS_CELL_CLASS not in _classes(
+                cells[0]
+            ):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            key = row.get("data-subject_id", "")
+            if key in details:
+                raise LibrusError(ErrorKind.PARSE)
+            details[key] = _detail_grades(cells[0])
     subjects: dict[int, str] = {}
     students: set[str | None] = set()
     layouts: set[bool] = set()
@@ -350,26 +479,36 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
         ):
             raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         semesters = cells[2:]
-        # A filled cell is bare text: no attributes and no markup, so a renamed
-        # or moved script hook never passes as a filled table.
-        filled = all(
-            not cell.attrib
-            and markup.text(cell)
-            and not any(isinstance(node.tag, str) for node in cell)
-            for cell in semesters
-        )
-        if not filled and (
-            [cell.get("data-semester") for cell in semesters] != ["1", "2"]
-            or not all("gradesCell" in _classes(cell) for cell in semesters)
-        ):
-            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-        layouts.add(filled)
-        if not filled and any(
-            markup.text(cell) or any(isinstance(node.tag, str) for node in cell)
-            for cell in semesters
-        ):
-            raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
         identifier = row.get("data-subject_id", "")
+        if rendered:
+            boxes = [_box_grades(cell) for cell in semesters]
+            if boxes[0] is None or boxes[1] is None:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            # The detail row must list exactly the grades the boxes show; any
+            # other grade there would be dropped.
+            if details.pop(identifier, None) != {1: boxes[0], 2: boxes[1]}:
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            filled = True
+        else:
+            # A filled cell is bare text: no attributes and no markup, so a
+            # renamed or moved script hook never passes as a filled table.
+            filled = all(
+                not cell.attrib
+                and markup.text(cell)
+                and not any(isinstance(node.tag, str) for node in cell)
+                for cell in semesters
+            )
+            if not filled and (
+                [cell.get("data-semester") for cell in semesters] != ["1", "2"]
+                or not all("gradesCell" in _classes(cell) for cell in semesters)
+            ):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+            if not filled and any(
+                markup.text(cell) or any(isinstance(node.tag, str) for node in cell)
+                for cell in semesters
+            ):
+                raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
+        layouts.add(filled)
         name = markup.text(cells[1])
         if not re.fullmatch(r"[0-9]{1,18}", identifier) or not name:
             raise LibrusError(ErrorKind.PARSE)
@@ -382,13 +521,12 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
     if len(students) > 1:
         # One page shows one student; rows of several students are unknown.
         raise LibrusError(ErrorKind.PARSE)
-    if len(layouts) > 1:
+    if len(layouts) > 1 or details:
+        # Mixed layouts, or a filled detail row without its subject row.
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-    if layouts == {True} and any(
-        DESCRIPTIVE_DETAILS_ROW_CLASS in _classes(row) for row in markup.rows(tables[0])
-    ):
-        # Detail rows are what the page script fills from the gateway; a filled
-        # table that still has them may also have gateway grades.
+    if not rendered and layouts == {True} and detail_rows:
+        # Empty detail rows are what the page script fills from the gateway; a
+        # bare-text table that still has them may also have gateway grades.
         raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     return DescriptiveTable(MappingProxyType(subjects), layouts == {True})
 

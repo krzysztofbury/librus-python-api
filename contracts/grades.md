@@ -612,6 +612,37 @@ example, not an observed page; the owner's logins have no such table.
 Summaries are undated, so notifications, which publish only dated numeric and
 descriptive grades, do not report them in any view.
 
+Box table (1.10.1, reported on #76 by @sanyok-ua): another school renders the
+same rows with semester cells that have no attributes and hold grade boxes,
+each one inert link whose text is the grade (such as `O`, `O+`, `C+` or `+`)
+and whose tooltip has `Obszar oceniania`, `Umiejętność`, `Data`, `Nauczyciel`,
+`Dodał` and an optional `Komentarz`, or the bare empty marker `Brak ocen`.
+Each subject row is followed by a hidden `studentGradesDetailsRow` that the
+page already filled: one `td.studentGradesDetailsCell` holding a table with
+the columns `Ocena`, `K`, `Obszar oceniania`, `Umiejętność`, `Data`,
+`Nauczyciel`, `Treść oceny` and `Dodał`, then per period a heading row
+(`Okres 1`, `Okres 2`) and either `tr.detail-grades` rows or one `Brak ocen`
+row, and an empty footer. The existing parser reads the boxes as
+`DescriptiveGrade`s (kind `CURRENT`, no `href`, the tooltip lines in
+`metadata`); the table makes no gateway request in any view. The detail rows
+are a check, not a second source: every subject row needs exactly one, with
+the same grades, value and date, in the same order, per period. A detail grade
+with `Treść oceny` text, which the boxes do not carry, a missing, extra or
+repeated detail row, other columns or periods, an empty detail row next to
+filled ones, a semester cell with other text or markup, or a table mixing this
+layout with another is `UNSUPPORTED_CAPABILITY` (a repeated detail row is
+`PARSE`). The shape comes from two sanitized pages the reporter checked with
+`inspect_page`; the fixtures (`box_row`, `details_row`, `skill_box`) are
+original. On 2026-11-15 none of the owner's four logins showed this table, and
+their grade reads gave the same counts with and without the change in every
+view. Whether the week and last-login views narrow the boxes and the detail
+rows alike is not observed; if they do not, those views fail closed.
+
+On the same date the reporter's numeric-grades page showed the behaviour row
+with a tally alone, no entries, whose tooltip reads `Punkty startowe`
+(starting points). That settles the tally's meaning only before any entry
+exists, so it stays uninterpreted.
+
 Every view runs these table checks (1.8.4, issue #123). Up to 1.8.3 only the
 all view did; the week and last-login views, which notification polls read,
 returned summaries or nothing for a layout the all view rejected. A rejected
@@ -637,7 +668,7 @@ and deadline:
    only when step 3 returned records.
 
 A fresh all-view read on such a page therefore makes three more requests, or
-five when there are grades. A bare-text table makes none in any view. Both identifiers must match `[A-Za-z0-9_-]{1,128}`
+five when there are grades. A bare-text or box table makes none in any view. Both identifiers must match `[A-Za-z0-9_-]{1,128}`
 (the transport enforces it for these two routes only; every other `{id}` route
 stays numeric); an upstream value outside it is a `PARSE` failure. Nothing is
 cached beyond the grade collection itself.
