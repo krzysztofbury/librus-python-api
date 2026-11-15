@@ -32,9 +32,11 @@ from tests.gateway_grades_support import (
     PARENT,
     STUDENT,
     GatewayGradesFixture,
+    box_row,
     descriptive_page,
     descriptive_row,
     descriptive_table,
+    details_row,
     encoded,
     filled_row,
     gateway_subjects,
@@ -42,6 +44,7 @@ from tests.gateway_grades_support import (
     observed_descriptive_page,
     partial_grade,
     partial_grades,
+    skill_box,
 )
 from tests.grade_records_support import grade_box, grades_html
 from tests.http_support import serve
@@ -537,6 +540,152 @@ def test_a_filled_table_with_gateway_detail_rows_is_unsupported() -> None:
         parse_grade_page(page.encode())
 
 
+BOXES = skill_box() + skill_box("C+", "2026-10-13 (wt.)", "Fixture reads aloud")
+BOX_DETAILS = [("O", "2026-10-06"), ("C+", "2026-10-13")]
+
+
+def box_page(
+    first: str = BOXES, details: str | None = None, rows: str | None = None
+) -> str:
+    if details is None:
+        details = details_row(first=BOX_DETAILS)
+    if rows is None:
+        rows = box_row("302", "Fixture Music") + details_row("302")
+    return descriptive_page(descriptive_table(box_row(first=first) + details + rows))
+
+
+def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
+    # #173, reported on #76 (2026-11-15) with a sanitized page: grade boxes in the
+    # semester cells and filled detail rows failed the whole grades read.
+    records, table = parse_grade_page(box_page().encode())
+    assert table is not None and table.filled
+    assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
+    assert [
+        (grade.subject, grade.raw, grade.day, grade.semester, grade.kind)
+        for grade in records.descriptive
+    ] == [
+        ("Fixture Nature", "O", date(2026, 10, 6), 1, GradeKind.CURRENT),
+        ("Fixture Nature", "C+", date(2026, 10, 13), 1, GradeKind.CURRENT),
+    ]
+    first = records.descriptive[0]
+    assert (first.teacher, first.comment, first.href) == (
+        "Fixture Teacher",
+        "Fixture remark",
+        None,
+    )
+    assert dict(first.metadata)["Obszar oceniania"] == "Fixture Maths"
+    assert dict(first.metadata)["Umiejętność"] == "Fixture counts to ten"
+    assert records.descriptive_summaries == ()
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = box_page()
+    result = read_grades(fixture)
+    assert fixture.gateway == []
+    assert result.records == records
+    # A box table without any grades yet still has filled detail rows.
+    empty = box_page("Brak ocen", details_row())
+    records, table = parse_grade_page(empty.encode())
+    assert table is not None and table.filled and records.descriptive == ()
+
+
+@pytest.mark.parametrize(
+    "page,expected",
+    [
+        # The detail rows must list exactly the boxes' grades, or one is lost.
+        (
+            box_page(details=details_row(first=[*BOX_DETAILS, ("O", "2026-10-20")])),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(details=details_row(first=[("O+", "2026-10-06"), BOX_DETAILS[1]])),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(details=details_row(first=[("O", "2026-10-07"), BOX_DETAILS[1]])),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(details=details_row(first=BOX_DETAILS[::-1])),
+            UnsupportedCapabilityError,
+        ),
+        (box_page(details=details_row(second=BOX_DETAILS)), UnsupportedCapabilityError),
+        # The boxes carry no grade text, so a detail row with it would lose it.
+        (
+            box_page(details=details_row(first=BOX_DETAILS, content="Fixture text")),
+            UnsupportedCapabilityError,
+        ),
+        (box_page(details=""), UnsupportedCapabilityError),
+        (box_page(rows=details_row("303")), UnsupportedCapabilityError),
+        (
+            box_page(
+                rows=details_row("301", BOX_DETAILS).replace(
+                    'id="przedmioty_oo_301"', 'id="przedmioty_oo_301_copy"'
+                )
+            ),
+            ParseError,
+        ),
+        (
+            box_page(
+                details=details_row(
+                    first=BOX_DETAILS, columns=["Ocena", "Obszar", "Data"]
+                )
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(details=details_row(first=BOX_DETAILS, periods=["Okres 1"])),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(rows=descriptive_row("302", "Fixture Music") + details_row("302")),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(
+                rows=box_row("302", "Fixture Music")
+                + '<tr class="studentGradesDetailsRow line0" data-subject_id="302">'
+                '<td class="studentGradesDetailsCell" colspan="4"></td></tr>'
+            ),
+            UnsupportedCapabilityError,
+        ),
+        # Matching detail rows, so only the cell check can reject these.
+        (box_page("5", details_row()), UnsupportedCapabilityError),
+        (box_page(first=BOXES + " Fixture"), UnsupportedCapabilityError),
+        (box_page(first=f"<b>{BOXES}</b>"), UnsupportedCapabilityError),
+        (
+            box_page(
+                grade_box(descriptive=True),
+                details_row(first=[("4+", "2026-09-30")]),
+            ),
+            UnsupportedCapabilityError,
+        ),
+    ],
+    ids=[
+        "extra-detail-grade",
+        "other-value",
+        "other-date",
+        "other-order",
+        "other-period",
+        "grade-text",
+        "missing-detail-row",
+        "orphan-detail-row",
+        "duplicate-detail-row",
+        "other-columns",
+        "missing-period",
+        "gateway-row",
+        "empty-detail-row",
+        "summary-text",
+        "stray-text",
+        "wrapped-boxes",
+        "box-without-link",
+    ],
+)
+def test_unseen_box_table_layouts_fail_closed(
+    page: str, expected: type[Exception]
+) -> None:
+    with pytest.raises(expected):
+        parse_grade_page(page.encode())
+
+
 REJECTED_TABLES = {
     "detail-rows": (
         observed_descriptive_page(filled_row(first="5")),
@@ -560,6 +709,10 @@ REJECTED_TABLES = {
     ),
     "blank": (
         descriptive_page(descriptive_table(filled_row(first="", second=""))),
+        UnsupportedCapabilityError,
+    ),
+    "box-mismatch": (
+        box_page(details=details_row(first=BOX_DETAILS[:1])),
         UnsupportedCapabilityError,
     ),
     "two-students": (
@@ -592,7 +745,7 @@ def test_every_view_rejects_the_same_table_layouts(view: GradeView, case: str) -
 
 
 @pytest.mark.parametrize("view", [GradeView.WEEK, GradeView.LAST_LOGIN])
-def test_other_views_read_both_supported_tables_without_the_gateway(
+def test_other_views_read_every_supported_table_without_the_gateway(
     view: GradeView,
 ) -> None:
     fixture = GatewayGradesFixture()
@@ -605,6 +758,11 @@ def test_other_views_read_both_supported_tables_without_the_gateway(
     assert result.records.descriptive_summaries == (
         DescriptiveGradeSummary("Fixture Nature", 1, "5"),
     )
+    assert fixture.gateway == []
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = box_page()
+    result = read_grades(fixture, view)
+    assert [grade.raw for grade in result.records.descriptive] == ["O", "C+"]
     assert fixture.gateway == []
 
 

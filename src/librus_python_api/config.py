@@ -760,11 +760,13 @@ TOOLTIP_LABELS = frozenset(
         "Maksymalna ilość punktów",
         "Nauczyciel",
         "Obowiązek wyk. zadania",
+        "Obszar oceniania",
         "Ocena",
         "Poprawa oceny",
         "Rodzaj",
         "Suma punktów",
         "Temat zajęć",
+        "Umiejętność",
         "Waga",
         "Zakres do",
         "Zakres od",
@@ -807,12 +809,29 @@ GRADE_PERIOD_HEADERS = MappingProxyType(
         "Ocena roczna": 0,
     }
 )
-# New-schema descriptive grading: the page renders this table either with empty
+# New-schema descriptive grading: the page renders this table with empty
 # `gradesCell` semester cells, which its script fills from the gateway routes
-# above, or with bare semester text, which needs no gateway read.
+# above, with bare semester text, or with grade boxes and filled detail rows;
+# the last two need no gateway read.
 DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
 DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"
+DESCRIPTIVE_DETAILS_CELL_CLASS = "studentGradesDetailsCell"
+# A filled detail row's table (2026-11-15, reported page, #173): these column
+# labels, then per period a heading row with one `DESCRIPTIVE_PERIOD_LABELS` cell and
+# either `detail-grades` rows or one empty-marker row.
+DESCRIPTIVE_DETAIL_COLUMNS = (
+    "Ocena",
+    "K",
+    "Obszar oceniania",
+    "Umiejętność",
+    "Data",
+    "Nauczyciel",
+    "Treść oceny",
+    "Dodał",
+)
+DESCRIPTIVE_DETAIL_GRADE_ROW_CLASS = "detail-grades"
+DESCRIPTIVE_PERIOD_LABELS = MappingProxyType({"Okres 1": 1, "Okres 2": 2})
 # Gateway account and student identifiers are opaque strings, unlike every
 # other `{id}` route, which takes a numeric ID.
 DESCRIPTIVE_IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}")

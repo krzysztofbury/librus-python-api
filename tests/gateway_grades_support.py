@@ -3,16 +3,19 @@
 The table follows a structure-only observation (2026-10-12) of the grades page;
 the JSON shapes follow the source-informed field names in contracts/grades.md.
 One authorized read on 2026-10-28 parsed four populated PartialGrades records,
-but no response was copied: every value here is invented.
+but no response was copied: every value here is invented. The box layout
+(`skill_box`, `box_row`, `details_row`) follows the structure of two sanitized
+pages reported on #76 on 2026-11-15 (#173); none of their content is used.
 """
 
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
+from html import escape
 from typing import Any
 
 from aiohttp import web
 
-from librus_python_api.config import ENDPOINTS
+from librus_python_api.config import DESCRIPTIVE_DETAIL_COLUMNS, ENDPOINTS
 from tests.grade_records_support import GradeRecordsFixture, grades_html
 
 GATEWAY_OPERATIONS = (
@@ -54,6 +57,82 @@ def filled_row(
         f'<tr class="studentRow line0" data-user_id="77" '
         f'data-subject_id="{subject_id}"><td class="micro center screen-only"></td>'
         f"<td>{subject}</td><td>{first}</td><td>{second}</td></tr>"
+    )
+
+
+def skill_box(
+    raw: str = "O",
+    day: str = "2026-10-06 (wt.)",
+    skill: str = "Fixture counts to ten",
+) -> str:
+    """A grade box of the box layout (#173): one inert link whose tooltip names
+    the grading area and the skill."""
+    title = escape(
+        f"Obszar oceniania: Fixture Maths<br />Umiejętność: {skill}<br />"
+        f"Data: {day}<br />Nauczyciel: Fixture Teacher<br />"
+        "Dodał: Fixture Teacher<br />Komentarz: Fixture remark",
+        quote=True,
+    )
+    return (
+        '<span class="grade-box" style="background-color:#ABCDEF">'
+        f'<a href="javascript:void(0);" title="{title}">{raw}</a></span>'
+    )
+
+
+def box_row(
+    subject_id: str = "301",
+    subject: str = "Fixture Nature",
+    first: str = "Brak ocen",
+    second: str = "Brak ocen",
+) -> str:
+    """A subject row of the box layout (#173): an expander link, then semester
+    cells with no attributes holding grade boxes or the empty marker."""
+    return (
+        f'<tr class="studentRow line0" data-subject_id="{subject_id}" '
+        'data-user_id="77"><td class="micro center screen-only">'
+        f'<a href="javascript:void(0);" onclick="showHideOO.ShowHide({subject_id});">'
+        f'<img id="przedmioty_oo_{subject_id}_node" src="/images/tree_colapsed.png">'
+        f"</a></td><td>{subject}</td><td>{first}</td><td>{second}</td></tr>"
+    )
+
+
+def details_row(
+    subject_id: str = "301",
+    first: Sequence[tuple[str, str]] = (),
+    second: Sequence[tuple[str, str]] = (),
+    *,
+    columns: Sequence[str] = DESCRIPTIVE_DETAIL_COLUMNS,
+    content: str = "",
+    periods: Sequence[str] = ("Okres 1", "Okres 2"),
+) -> str:
+    """The filled detail row of the box layout (#173), listing (value, date)
+    grades per period; a period without grades shows the empty marker."""
+
+    def grade(raw: str, day: str) -> str:
+        return (
+            f'<tr class="line1 detail-grades"><td class="center">{raw}</td>'
+            '<td class="center"> </td><td class="">Fixture Maths</td>'
+            '<td class="">Fixture skill</td>'
+            f'<td class="center">{day}</td><td class="">Fixture Teacher</td>'
+            f'<td class="">{content}</td><td class="">Fixture Teacher</td></tr>'
+        )
+
+    body = ""
+    for label, grades in zip(periods, (first, second), strict=False):
+        body += (
+            f'<tr class="line1 bolded"><td class="center" colspan="8">{label}</td></tr>'
+        )
+        body += "".join(grade(raw, day) for raw, day in grades) or (
+            '<tr class="line1"><td class="center" colspan="8">Brak ocen</td></tr>'
+        )
+    header = "".join(f"<td>{column}</td>" for column in columns)
+    return (
+        f'<tr " class="studentGradesDetailsRow line0" data-subject_id="{subject_id}" '
+        f'data-user_id="77" id="przedmioty_oo_{subject_id}" name="przedmioty_all" '
+        'style="display: none; visibility: hidden;">'
+        '<td class="studentGradesDetailsCell" colspan="4"><table class="stretch">'
+        f"<thead><tr>{header}</tr></thead><tbody>{body}</tbody>"
+        '<tfoot><tr><td colspan="9"></td></tr></tfoot></table></td></tr>'
     )
 
 

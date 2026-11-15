@@ -1331,10 +1331,12 @@ class AccountClient:
         no POST. Missing inline weight/count data remains unknown.
 
         Every view checks a new-schema descriptive table the same way. Its
-        semester cells either are empty script hooks or hold bare text, which
-        becomes undated summaries with no extra request; any other layout
-        fails the read. Only the all view with empty hooks adds that table's
-        grades from the gateway: three more reads, five when there are grades.
+        semester cells are empty script hooks, hold bare text, which becomes
+        undated summaries, or hold grade boxes matched by filled detail rows,
+        which become descriptive grades; any other layout fails the read. Only
+        the all view with empty hooks adds that table's grades from the
+        gateway: three more reads, five when there are grades. The other
+        layouts need no extra request.
 
         `records.corrections` links a corrected grade to its corrections by
         `grade_id`, read from the page's correction brackets. Only the all view

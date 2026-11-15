@@ -368,7 +368,7 @@ line (such as `wzorowe`), `day` is `Data wystawienia`, `teacher` stays `None`
 and `Dodał` is kept only in `metadata`. See [grades](contracts/grades.md).
 
 Schools on the new descriptive grading schema show a subject table
-(`newSchemaGradesByStudentTable`) in one of two layouts. Every view checks it
+(`newSchemaGradesByStudentTable`) in one of three layouts. Every view checks it
 the same way (from 1.8.4; before, only the `ALL` view did):
 
 - Empty semester cells (`gradesCell` hooks) that the page script fills from
@@ -377,9 +377,16 @@ the same way (from 1.8.4; before, only the `ALL` view did):
 - Semester cells holding bare text, such as `5` or `Brak ocen` (1.8.3). The
   text becomes undated `descriptive_summaries` (`Brak ocen` is empty) and no
   view makes a gateway request. Undated summaries are not notified.
+- Semester cells holding grade boxes such as `O` or `C+`, with filled detail
+  rows (1.10.1, #173). The boxes become dated `DescriptiveGrade`s in
+  `descriptive` (kind `CURRENT`, no `href`), with `Obszar oceniania`,
+  `Umiejętność` and the other tooltip lines in `metadata`, and no view makes a
+  gateway request. The detail rows must list the same grades, value and date,
+  in the same order; otherwise, or when a detail grade has `Treść oceny` text,
+  the read raises `UnsupportedCapabilityError`.
 - Anything else fails the read: blank cells without hooks, a cell with an
-  attribute or markup, both layouts in one table, a bare-text table that still
-  has `studentGradesDetailsRow` rows (`UnsupportedCapabilityError`), or rows
+  attribute or markup, mixed layouts in one table, a bare-text table that still
+  has empty `studentGradesDetailsRow` rows (`UnsupportedCapabilityError`), or rows
   of more than one student (`ParseError`).
 
 Gateway descriptive grades (1.8.0): with the empty layout, the `ALL` view

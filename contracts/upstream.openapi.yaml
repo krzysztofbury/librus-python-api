@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.10.0
+  version: 1.10.1
   license:
     name: MIT
   description: |
@@ -1358,7 +1358,7 @@ paths:
       description: |
         Requested only by an all-view grade read whose page has the new-schema
         descriptive table (table.newSchemaGradesByStudentTable) with empty
-        gradesCell hooks; a bare-text table needs no gateway read. Fixed GET with
+        gradesCell hooks; a bare-text or box table needs no gateway read. Fixed GET with
         no query or body under the same session, budget and parser pool as the
         grade read. UserIdentifier must match the strict path identifier pattern;
         anything else fails as a parse error. UserType is not used.
