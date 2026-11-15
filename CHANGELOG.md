@@ -2,7 +2,7 @@
 
 ## 1.10.1 (2026-11-15) - Descriptive grades shown as grade boxes
 
-Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout.
+Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout (#173).
 
 - Grades: a new-schema descriptive table whose semester cells hold grade boxes
   (such as `O` or `C+`) and whose hidden detail rows the page already filled
@@ -13,7 +13,9 @@ Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout.
   table. The detail rows must list the same grades, value and date, in the
   same order. A detail grade with `Treść oceny` text, which the boxes do not
   carry, a missing, extra or empty detail row, other columns, a semester cell
-  with other content, or a table mixing layouts still fails closed.
+  with other content, or a table mixing layouts still fails closed. So does a
+  table with empty script hooks whose detail rows hold a table, which used to
+  go on to the gateway read and could have counted grades twice.
 - `Obszar oceniania` and `Umiejętność` are known tooltip labels
   (`config.TOOLTIP_LABELS`), so failure diagnostics show them by name.
 - The layout follows two sanitized pages the reporter checked with

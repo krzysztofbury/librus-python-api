@@ -555,7 +555,7 @@ def box_page(
 
 
 def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
-    # Reported on #76 (2026-11-15) with a sanitized page: grade boxes in the
+    # #173, reported on #76 (2026-11-15) with a sanitized page: grade boxes in the
     # semester cells and filled detail rows failed the whole grades read.
     records, table = parse_grade_page(box_page().encode())
     assert table is not None and table.filled
@@ -647,10 +647,17 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
             ),
             UnsupportedCapabilityError,
         ),
-        (box_page(first="5"), UnsupportedCapabilityError),
+        # Matching detail rows, so only the cell check can reject these.
+        (box_page("5", details_row()), UnsupportedCapabilityError),
         (box_page(first=BOXES + " Fixture"), UnsupportedCapabilityError),
         (box_page(first=f"<b>{BOXES}</b>"), UnsupportedCapabilityError),
-        (box_page(first=grade_box(descriptive=True)), UnsupportedCapabilityError),
+        (
+            box_page(
+                grade_box(descriptive=True),
+                details_row(first=[("4+", "2026-09-30")]),
+            ),
+            UnsupportedCapabilityError,
+        ),
     ],
     ids=[
         "extra-detail-grade",

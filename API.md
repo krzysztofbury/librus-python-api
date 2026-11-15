@@ -378,14 +378,14 @@ the same way (from 1.8.4; before, only the `ALL` view did):
   text becomes undated `descriptive_summaries` (`Brak ocen` is empty) and no
   view makes a gateway request. Undated summaries are not notified.
 - Semester cells holding grade boxes such as `O` or `C+`, with filled detail
-  rows (1.10.1, #76). The boxes become dated `DescriptiveGrade`s in
+  rows (1.10.1, #173). The boxes become dated `DescriptiveGrade`s in
   `descriptive` (kind `CURRENT`, no `href`), with `Obszar oceniania`,
   `Umiejętność` and the other tooltip lines in `metadata`, and no view makes a
   gateway request. The detail rows must list the same grades, value and date,
   in the same order; otherwise, or when a detail grade has `Treść oceny` text,
   the read raises `UnsupportedCapabilityError`.
 - Anything else fails the read: blank cells without hooks, a cell with an
-  attribute or markup, both layouts in one table, a bare-text table that still
+  attribute or markup, mixed layouts in one table, a bare-text table that still
   has empty `studentGradesDetailsRow` rows (`UnsupportedCapabilityError`), or rows
   of more than one student (`ParseError`).
 

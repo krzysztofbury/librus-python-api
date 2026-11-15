@@ -612,11 +612,11 @@ example, not an observed page; the owner's logins have no such table.
 Summaries are undated, so notifications, which publish only dated numeric and
 descriptive grades, do not report them in any view.
 
-Box table (1.10.1, reported on #76 by @sanyok-ua): another school renders the
+Box table (1.10.1, issue #173, reported on #76 by @sanyok-ua): another school renders the
 same rows with semester cells that have no attributes and hold grade boxes,
 each one inert link whose text is the grade (such as `O`, `O+`, `C+` or `+`)
 and whose tooltip has `Obszar oceniania`, `Umiejętność`, `Data`, `Nauczyciel`,
-`Dodał` and an optional `Komentarz`, or the bare empty marker `Brak ocen`.
+`Dodał` and an optional `Komentarz`, or a bare empty marker (`Brak ocen` or `-`).
 Each subject row is followed by a hidden `studentGradesDetailsRow` that the
 page already filled: one `td.studentGradesDetailsCell` holding a table with
 the columns `Ocena`, `K`, `Obszar oceniania`, `Umiejętność`, `Data`,

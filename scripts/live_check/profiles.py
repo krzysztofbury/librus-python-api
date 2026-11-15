@@ -215,7 +215,7 @@ async def student_information(ctx: Context) -> Observed:
 
 # An all-view grade read on a page whose new-schema descriptive table has empty
 # `gradesCell` hooks also reads these gateway routes; two of them take the
-# login's identifier. A bare-text table and the other views read none.
+# login's identifier. A bare-text or box table and the other views read none.
 GRADE_READS = frozenset(
     {
         "grades",

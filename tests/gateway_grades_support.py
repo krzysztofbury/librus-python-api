@@ -5,7 +5,7 @@ the JSON shapes follow the source-informed field names in contracts/grades.md.
 One authorized read on 2026-10-28 parsed four populated PartialGrades records,
 but no response was copied: every value here is invented. The box layout
 (`skill_box`, `box_row`, `details_row`) follows the structure of two sanitized
-pages reported on #76 on 2026-11-15; none of their content is used.
+pages reported on #76 on 2026-11-15 (#173); none of their content is used.
 """
 
 import json
@@ -65,7 +65,7 @@ def skill_box(
     day: str = "2026-10-06 (wt.)",
     skill: str = "Fixture counts to ten",
 ) -> str:
-    """A grade box of the box layout (#76): one inert link whose tooltip names
+    """A grade box of the box layout (#173): one inert link whose tooltip names
     the grading area and the skill."""
     title = escape(
         f"Obszar oceniania: Fixture Maths<br />Umiejętność: {skill}<br />"
@@ -85,7 +85,7 @@ def box_row(
     first: str = "Brak ocen",
     second: str = "Brak ocen",
 ) -> str:
-    """A subject row of the box layout (#76): an expander link, then semester
+    """A subject row of the box layout (#173): an expander link, then semester
     cells with no attributes holding grade boxes or the empty marker."""
     return (
         f'<tr class="studentRow line0" data-subject_id="{subject_id}" '
@@ -105,7 +105,7 @@ def details_row(
     content: str = "",
     periods: Sequence[str] = ("Okres 1", "Okres 2"),
 ) -> str:
-    """The filled detail row of the box layout (#76), listing (value, date)
+    """The filled detail row of the box layout (#173), listing (value, date)
     grades per period; a period without grades shows the empty marker."""
 
     def grade(raw: str, day: str) -> str:

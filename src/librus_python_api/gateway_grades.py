@@ -10,9 +10,10 @@ the pagination member, `{"limit", "page", "total"}` integers beside `data` or
 shape fails instead of producing a partial collection.
 
 Another school renders the same table with plain text in its semester cells and
-no script hooks (#115, from a reporter's synthetic example). The grade record
-parser reads those cells like any descriptive row, so that table needs no
-gateway read.
+no script hooks (#115, from a reporter's synthetic example), and another with
+grade boxes in them and filled detail rows that list the same grades (#173,
+from a reporter's sanitized page). The grade record parser reads those cells
+like any descriptive row, so neither table needs a gateway read.
 """
 
 import re
@@ -420,7 +421,7 @@ def read_descriptive_table(document: html.HtmlElement) -> DescriptiveTable | Non
 
     - empty `gradesCell` cells that the page script fills from the gateway;
     - bare text cells the page filled itself (#115), with no detail rows;
-    - grade boxes or a bare empty marker (2026-11-15, #76), with a filled
+    - grade boxes or a bare empty marker (2026-11-15, #173), with a filled
       `studentGradesDetailsRow` for every subject row that lists the same
       grades, value and date, in the same order.
 

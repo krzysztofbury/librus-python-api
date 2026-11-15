@@ -817,8 +817,8 @@ DESCRIPTIVE_TABLE_CLASS = "newSchemaGradesByStudentTable"
 DESCRIPTIVE_ROW_CLASS = "studentRow"
 DESCRIPTIVE_DETAILS_ROW_CLASS = "studentGradesDetailsRow"
 DESCRIPTIVE_DETAILS_CELL_CLASS = "studentGradesDetailsCell"
-# A filled detail row's table (2026-11-15, reported page, #76): these column
-# labels, then per period a heading row with one `GRADE_PERIOD_LABELS` cell and
+# A filled detail row's table (2026-11-15, reported page, #173): these column
+# labels, then per period a heading row with one `DESCRIPTIVE_PERIOD_LABELS` cell and
 # either `detail-grades` rows or one empty-marker row.
 DESCRIPTIVE_DETAIL_COLUMNS = (
     "Ocena",
