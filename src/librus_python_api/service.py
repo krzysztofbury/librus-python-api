@@ -2616,15 +2616,14 @@ class AccountClient:
             )
         except LibrusError as error:
             # An unavailable or unexpected collection degrades to the original
-            # per-reference lookups. Deadlines, budgets, cancellation and session
-            # failures still propagate. Only deterministic outcomes are cached.
+            # per-reference lookups for this call only; the next call reads the
+            # collection again. Deadlines, budgets, cancellation and session
+            # failures still propagate. Only parsed maps are cached.
             if error.kind not in _METADATA_MAP_FALLBACK:
                 raise
             if error.kind is ErrorKind.LIMIT:
                 budget.check()  # An exhausted caller budget is not a large collection.
-            if error.kind is ErrorKind.CONNECTION:
-                return MappingProxyType({})
-            value = MappingProxyType({})
+            return MappingProxyType({})
         self._metadata_maps[endpoint] = time.monotonic(), value
         return value
 
