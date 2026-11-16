@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Dates followed by a weekday label, such as `2026-11-15 (ndz.)` in grade and
+  point-grade tooltips, now fail as `PARSE` when the label names another day
+  of the week (`2026-11-15 (pon.)`), as homework dates already did. Both
+  Sunday labels, `ndz.` and `nd.`, are still accepted, and dates without a
+  label are unchanged (#178).
+
 ## 1.10.1 (2026-11-15) - Descriptive grades shown as grade boxes
 
 Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout (#173).

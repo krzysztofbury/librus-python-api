@@ -43,6 +43,9 @@ from tests.http_support import serve
         ("2026-09-30 (śr.)", "2026-09-30"),
         ("2026-10-04 (nd.)", "2026-10-04"),
         ("2026-10-04 (ndz.)", "2026-10-04"),
+        ("2026-11-15 (nd.)", "2026-11-15"),
+        ("2026-11-15 (ndz.)", "2026-11-15"),
+        ("2026-11-16 (pon.)", "2026-11-16"),
     ],
 )
 def test_grade_date_is_a_civil_date_with_optional_display_weekday(
@@ -56,7 +59,18 @@ def test_grade_date_is_a_civil_date_with_optional_display_weekday(
 
 
 @pytest.mark.parametrize(
-    "day", ["2026-02-30", "2026-09-30 (unknown)", "2026-09-30 12:00", ""]
+    "day",
+    [
+        "2026-02-30",
+        "2026-09-30 (unknown)",
+        "2026-09-30 12:00",
+        "",
+        # A known label for another day of the week: Sunday shown as Monday,
+        # and both Sunday labels on a Monday.
+        "2026-11-15 (pon.)",
+        "2026-11-16 (ndz.)",
+        "2026-11-16 (nd.)",
+    ],
 )
 def test_invalid_or_unevidenced_grade_date_is_not_silently_skipped(day: str) -> None:
     with pytest.raises(ParseError) as caught:
@@ -406,6 +420,13 @@ def test_point_table_beside_the_ordinary_table_adds_percentage_scores() -> None:
         ("Fixture Language", 2, "-"),
         ("Fixture Language", 0, "-"),
     ]
+
+
+def test_point_grade_date_with_another_days_weekday_label_fails() -> None:
+    # 2026-10-05 is a Monday; the point-grade tooltip names Tuesday.
+    rows = point_row(point_box(day="2026-10-05 (wt.)"))
+    with pytest.raises(ParseError):
+        parse_grade_records(grades_html(extra=point_table(rows)).encode())
 
 
 @pytest.mark.parametrize("label", ["Wyn.I", "Wyn. I"])

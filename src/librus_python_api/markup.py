@@ -164,14 +164,16 @@ def tooltip_line(chunk: str) -> str:
 def civil_date(value: str | None) -> date:
     """An ISO date, optionally followed by its weekday label in parentheses."""
     match = re.fullmatch(r"([0-9]{4}-[0-9]{2}-[0-9]{2})(?: \(([^()]+)\))?", value or "")
-    if match is None or (
-        match[2] is not None and match[2] not in CIVIL_DATE_WEEKDAY_LABELS
-    ):
+    if match is None:
         raise LibrusError(ErrorKind.PARSE)
     try:
-        return date.fromisoformat(match[1])
+        day = date.fromisoformat(match[1])
     except ValueError:
         pass
+    else:
+        # A label must name the date's own weekday, as for homework dates.
+        if match[2] is None or match[2] in CIVIL_DATE_WEEKDAY_LABELS[day.weekday()]:
+            return day
     raise LibrusError(ErrorKind.PARSE)
 
 

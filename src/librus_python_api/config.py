@@ -1052,8 +1052,12 @@ HOMEWORK_MARK_DONE_HANDLER = (
     r"\s*showConfirmQuestion\(\s*[0-9]{1,64}\s*,\s*[0-9]{1,64}\s*\);?\s*"
 )
 WEEKDAY_LABELS = ("pon.", "wt.", "śr.", "czw.", "pt.", "sob.", "ndz.")
-# Grade tooltips also use the short Sunday display label.
-CIVIL_DATE_WEEKDAY_LABELS = frozenset((*WEEKDAY_LABELS, "nd."))
+# Accepted labels per weekday (Monday first) after a civil date. Grade
+# tooltips also use the short Sunday display label.
+CIVIL_DATE_WEEKDAY_LABELS: tuple[tuple[str, ...], ...] = (
+    *((label,) for label in WEEKDAY_LABELS[:-1]),
+    (WEEKDAY_LABELS[-1], "nd."),
+)
 # Observed page-level notices shown instead of the requested content.
 PAGE_NOTICES = MappingProxyType(
     {
