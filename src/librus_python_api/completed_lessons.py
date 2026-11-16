@@ -203,8 +203,11 @@ def _lesson(
     raw_number, combined, topic, z_value, symbol = values
     if raw_number not in {"", "-"} and re.fullmatch(r"[0-9]{1,2}", raw_number) is None:
         raise LibrusError(ErrorKind.PARSE)
-    # Some schools render "<b>Subject</b>, <br>Teacher" or pad the comma.
+    # Some schools render "<b>Subject</b>, <br>Teacher" or pad the comma. More
+    # than one comma leaves the subject/teacher boundary ambiguous, so fail.
     names = [name.strip() for name in combined.split(",")]
+    if len(names) > 2:
+        raise LibrusError(ErrorKind.PARSE)
     subject, teacher = (names[0], names[1]) if len(names) == 2 else (combined, None)
     if not subject or teacher == "":
         raise LibrusError(ErrorKind.PARSE)
