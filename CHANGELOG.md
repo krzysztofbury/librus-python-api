@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Completed lessons: a subject/teacher cell with more than one comma (such as
+  `Biology, advanced, Teacher`) now fails the read as a parse error. It used to
+  keep the whole cell as the subject and drop the teacher (#177).
+
 ## 1.10.1 (2026-11-15) - Descriptive grades shown as grade boxes
 
 Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout (#173).

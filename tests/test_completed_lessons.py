@@ -222,8 +222,16 @@ def test_subject_and_teacher_are_trimmed_around_the_separator(cell: str) -> None
     assert "Fixture Biology" in item.subject_teacher_text
 
 
-@pytest.mark.parametrize("cell", [" , Fixture Teacher", "Fixture Biology ,  "])
-def test_blank_subject_or_teacher_around_the_separator_fails(cell: str) -> None:
+@pytest.mark.parametrize(
+    "cell",
+    [
+        " , Fixture Teacher",
+        "Fixture Biology ,  ",
+        "Fixture Biology, advanced, Fixture Teacher",
+        "Fixture Biology,, Fixture Teacher",
+    ],
+)
+def test_blank_or_ambiguous_subject_teacher_separator_fails(cell: str) -> None:
     with pytest.raises(ParseError):
         parse(lessons_html().replace("Fixture Biology, Fixture Teacher", cell))
 
