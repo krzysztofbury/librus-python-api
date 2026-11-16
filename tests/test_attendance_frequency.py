@@ -29,6 +29,8 @@ class FrequencyFixture(AttendanceFixture):
         # None makes the collection route unavailable.
         self.collection_lessons: dict[int, int | None] | None = {41: 51}
         self.collection_subjects: tuple[int, ...] | None = (51,)
+        # Collection name -> how many next reads answer with a non-JSON body.
+        self.malformed_collections: dict[str, int] = {}
 
     def app(self) -> web.Application:
         app = super().app()
@@ -43,6 +45,9 @@ class FrequencyFixture(AttendanceFixture):
     async def lessons(self, request: web.Request) -> web.Response:
         self.record(request)
         self.metadata_requests.append(("lessons", "*"))
+        if self.malformed_collections.get("lessons"):
+            self.malformed_collections["lessons"] -= 1
+            return web.Response(text="<html>", content_type="application/json")
         if self.collection_lessons is None:
             return web.Response(status=404)
         return web.json_response(
@@ -59,6 +64,9 @@ class FrequencyFixture(AttendanceFixture):
     async def subjects(self, request: web.Request) -> web.Response:
         login = self.record(request)
         self.metadata_requests.append(("subjects", "*"))
+        if self.malformed_collections.get("subjects"):
+            self.malformed_collections["subjects"] -= 1
+            return web.Response(text="<html>", content_type="application/json")
         if self.collection_subjects is None:
             return web.Response(status=404)
         return web.json_response(
@@ -451,6 +459,47 @@ def test_references_missing_from_collections_resolve_individually() -> None:
                     ("subjects", "*"),
                     ("subject", "51"),
                 ]
+
+    asyncio.run(scenario())
+
+
+def test_malformed_collections_are_read_again_on_the_next_call() -> None:
+    # A failed collection read used to be cached as an empty map for the
+    # metadata TTL, so every later call paid one request per lesson.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = many_subject_rows(3)
+        # Per-reference lessons all name subject 51; the collection names
+        # 2000-2002, so the item count shows which source resolved them.
+        fixture.collection_lessons = {1000 + i: 2000 + i for i in range(3)}
+        fixture.collection_subjects = tuple(2000 + i for i in range(3))
+        fixture.malformed_collections = {"lessons": 1, "subjects": 1}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                first = await client.subject_frequency()
+                assert len(first.items) == 1
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("lesson", "1000"),
+                    ("lesson", "1001"),
+                    ("lesson", "1002"),
+                    ("subjects", "*"),
+                    ("subject", "51"),
+                ]
+                fixture.metadata_requests.clear()
+                second = await client.subject_frequency()
+                assert len(second.items) == 3
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("subjects", "*"),
+                ]
+                fixture.metadata_requests.clear()
+                # Parsed maps keep their TTL.
+                third = await client.subject_frequency()
+                assert len(third.items) == 3
+                assert fixture.metadata_requests == []
 
     asyncio.run(scenario())
 
