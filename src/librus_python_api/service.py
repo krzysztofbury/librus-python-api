@@ -2201,6 +2201,9 @@ class AccountClient:
                     error.kind,
                 )
             raise
+        # Reinsert so iteration order follows refresh time: eviction then drops
+        # the least recently refreshed entry, not the one just read again.
+        self._cache.pop(key, None)
         self._cache[key] = (time.monotonic(), result)
         if len(self._cache) > ACCOUNT_RESULT_CACHE_SIZE:
             del self._cache[next(iter(self._cache))]
@@ -2589,6 +2592,7 @@ class AccountClient:
             reference=identifier,
             content_type=JSON,
         )
+        self._metadata.pop(key, None)  # refresh order, as in _cached
         self._metadata[key] = time.monotonic(), value
         if len(self._metadata) > ATTENDANCE_METADATA_CACHE_SIZE:
             del self._metadata[next(iter(self._metadata))]

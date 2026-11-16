@@ -13,6 +13,7 @@ from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
     summarize_frequency,
 )
+from librus_python_api.config import ACCOUNT_RESULT_CACHE_SIZE
 from librus_python_api.exceptions import InvalidInputError, LimitError, ParseError
 from tests.attendance_support import DETAIL, AttendanceFixture, gateway_rows
 from tests.http_support import serve
@@ -513,3 +514,58 @@ def test_collection_parsers_bound_rows_and_omit_unresolvable_entries() -> None:
     ).encode()
     with pytest.raises(LimitError):
         parse_lesson_subjects(oversized)
+
+
+def test_result_cache_evicts_the_least_recently_refreshed_entry() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                for identifier in range(1, ACCOUNT_RESULT_CACHE_SIZE + 1):
+                    await client.attendance_detail(str(identifier))
+                await client.attendance_detail("1")  # refresh the oldest entry
+                await client.attendance_detail(str(ACCOUNT_RESULT_CACHE_SIZE + 1))
+                before = len(fixture.metadata_requests)
+                await client.attendance_detail("1", max_age_seconds=60)
+                assert len(fixture.metadata_requests) == before
+                # The entry not refreshed since its first read went instead.
+                await client.attendance_detail("2", max_age_seconds=60)
+                assert fixture.metadata_requests[-1] == ("detail", "2")
+
+    asyncio.run(scenario())
+
+
+def test_metadata_cache_evicts_the_least_recently_refreshed_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("librus_python_api.service.ATTENDANCE_METADATA_CACHE_SIZE", 2)
+
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+
+                async def lesson(identifier: str) -> None:
+                    await client._metadata_value(
+                        "attendance_lesson", identifier, RequestBudget()
+                    )
+
+                await lesson("41")
+                await lesson("42")
+                with monkeypatch.context() as stale:
+                    stale.setattr(
+                        "librus_python_api.service.ATTENDANCE_METADATA_TTL_SECONDS", -1
+                    )
+                    await lesson("41")  # refresh the oldest entry
+                await lesson("43")
+                before = len(fixture.metadata_requests)
+                await lesson("41")
+                assert len(fixture.metadata_requests) == before
+                await lesson("42")
+                assert fixture.metadata_requests[-1] == ("lesson", "42")
+
+    asyncio.run(scenario())

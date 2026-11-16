@@ -102,7 +102,8 @@ one summary across four logins. Requests are counted at dispatch and never
 refunded. Exhaustion raises `LimitError`; deadlines raise `OperationTimeoutError`.
 
 - Fresh reads are the default. `max_age_seconds > 0` allows reuse from a
-  64-entry per-account result cache. A new login clears it.
+  64-entry per-account result cache. Every read refreshes its entry, and a full
+  cache drops the entry refreshed longest ago. A new login clears it.
 - Identical in-flight reads on one account share one request. Calls with
   explicit budgets share only when they pass the same budget object. Cancelling
   one waiter leaves others running; cancelling the last waiter cancels and joins
