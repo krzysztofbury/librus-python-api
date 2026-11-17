@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.10.2 (2026-11-17) - Stricter dates and lesson cells; cache fixes
+
+- Dates followed by a weekday label, such as `2026-11-15 (ndz.)` in grade and
+  point-grade tooltips, now fail as `PARSE` when the label names another day
+  of the week (`2026-11-15 (pon.)`), as homework dates already did. Both
+  Sunday labels, `ndz.` and `nd.`, are still accepted, and dates without a
+  label are unchanged (#178).
+- Completed lessons: a subject/teacher cell with more than one comma (such as
+  `Biology, advanced, Teacher`) now fails the read as a parse error. It used to
+  keep the whole cell as the subject and drop the teacher (#177).
+- Attendance frequency: a lesson or subject collection that fails to parse, is
+  denied or is too large is no longer cached as an empty map for an hour, which
+  made every later `subject_frequency` call look up each lesson on its own. The
+  next call reads the collection again; parsed collections keep their one-hour
+  lifetime (#176).
+- The per-account result cache and the attendance metadata cache drop the
+  entry refreshed longest ago when full. They used to drop the entry stored
+  first, even if it had just been read again (#175).
+
 ## 1.10.1 (2026-11-15) - Descriptive grades shown as grade boxes
 
 Thank you, @sanyok-ua, for the sanitized pages on #76 that showed this layout (#173).

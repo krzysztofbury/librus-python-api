@@ -13,6 +13,7 @@ from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
     summarize_frequency,
 )
+from librus_python_api.config import ACCOUNT_RESULT_CACHE_SIZE
 from librus_python_api.exceptions import InvalidInputError, LimitError, ParseError
 from tests.attendance_support import DETAIL, AttendanceFixture, gateway_rows
 from tests.http_support import serve
@@ -29,6 +30,8 @@ class FrequencyFixture(AttendanceFixture):
         # None makes the collection route unavailable.
         self.collection_lessons: dict[int, int | None] | None = {41: 51}
         self.collection_subjects: tuple[int, ...] | None = (51,)
+        # Collection name -> how many next reads answer with a non-JSON body.
+        self.malformed_collections: dict[str, int] = {}
 
     def app(self) -> web.Application:
         app = super().app()
@@ -43,6 +46,9 @@ class FrequencyFixture(AttendanceFixture):
     async def lessons(self, request: web.Request) -> web.Response:
         self.record(request)
         self.metadata_requests.append(("lessons", "*"))
+        if self.malformed_collections.get("lessons"):
+            self.malformed_collections["lessons"] -= 1
+            return web.Response(text="<html>", content_type="application/json")
         if self.collection_lessons is None:
             return web.Response(status=404)
         return web.json_response(
@@ -59,6 +65,9 @@ class FrequencyFixture(AttendanceFixture):
     async def subjects(self, request: web.Request) -> web.Response:
         login = self.record(request)
         self.metadata_requests.append(("subjects", "*"))
+        if self.malformed_collections.get("subjects"):
+            self.malformed_collections["subjects"] -= 1
+            return web.Response(text="<html>", content_type="application/json")
         if self.collection_subjects is None:
             return web.Response(status=404)
         return web.json_response(
@@ -455,6 +464,47 @@ def test_references_missing_from_collections_resolve_individually() -> None:
     asyncio.run(scenario())
 
 
+def test_malformed_collections_are_read_again_on_the_next_call() -> None:
+    # A failed collection read used to be cached as an empty map for the
+    # metadata TTL, so every later call paid one request per lesson.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = many_subject_rows(3)
+        # Per-reference lessons all name subject 51; the collection names
+        # 2000-2002, so the item count shows which source resolved them.
+        fixture.collection_lessons = {1000 + i: 2000 + i for i in range(3)}
+        fixture.collection_subjects = tuple(2000 + i for i in range(3))
+        fixture.malformed_collections = {"lessons": 1, "subjects": 1}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                first = await client.subject_frequency()
+                assert len(first.items) == 1
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("lesson", "1000"),
+                    ("lesson", "1001"),
+                    ("lesson", "1002"),
+                    ("subjects", "*"),
+                    ("subject", "51"),
+                ]
+                fixture.metadata_requests.clear()
+                second = await client.subject_frequency()
+                assert len(second.items) == 3
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("subjects", "*"),
+                ]
+                fixture.metadata_requests.clear()
+                # Parsed maps keep their TTL.
+                third = await client.subject_frequency()
+                assert len(third.items) == 3
+                assert fixture.metadata_requests == []
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("unavailable", ["status", "conflict"])
 def test_unusable_collections_fall_back_to_per_reference_lookups(
     unavailable: str,
@@ -513,3 +563,58 @@ def test_collection_parsers_bound_rows_and_omit_unresolvable_entries() -> None:
     ).encode()
     with pytest.raises(LimitError):
         parse_lesson_subjects(oversized)
+
+
+def test_result_cache_evicts_the_least_recently_refreshed_entry() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                for identifier in range(1, ACCOUNT_RESULT_CACHE_SIZE + 1):
+                    await client.attendance_detail(str(identifier))
+                await client.attendance_detail("1")  # refresh the oldest entry
+                await client.attendance_detail(str(ACCOUNT_RESULT_CACHE_SIZE + 1))
+                before = len(fixture.metadata_requests)
+                await client.attendance_detail("1", max_age_seconds=60)
+                assert len(fixture.metadata_requests) == before
+                # The entry not refreshed since its first read went instead.
+                await client.attendance_detail("2", max_age_seconds=60)
+                assert fixture.metadata_requests[-1] == ("detail", "2")
+
+    asyncio.run(scenario())
+
+
+def test_metadata_cache_evicts_the_least_recently_refreshed_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("librus_python_api.service.ATTENDANCE_METADATA_CACHE_SIZE", 2)
+
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+
+                async def lesson(identifier: str) -> None:
+                    await client._metadata_value(
+                        "attendance_lesson", identifier, RequestBudget()
+                    )
+
+                await lesson("41")
+                await lesson("42")
+                with monkeypatch.context() as stale:
+                    stale.setattr(
+                        "librus_python_api.service.ATTENDANCE_METADATA_TTL_SECONDS", -1
+                    )
+                    await lesson("41")  # refresh the oldest entry
+                await lesson("43")
+                before = len(fixture.metadata_requests)
+                await lesson("41")
+                assert len(fixture.metadata_requests) == before
+                await lesson("42")
+                assert fixture.metadata_requests[-1] == ("lesson", "42")
+
+    asyncio.run(scenario())

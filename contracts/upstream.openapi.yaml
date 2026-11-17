@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.10.1
+  version: 1.10.2
   license:
     name: MIT
   description: |
@@ -1214,7 +1214,8 @@ paths:
         per login/session and one-hour TTL instead of one request per unique lesson,
         so its request count does not grow with the number of lessons. An access
         denial, HTTP failure, parse failure or oversized collection degrades to the
-        per-reference routes; deadlines, budgets and cancellation propagate.
+        per-reference routes for that call and is not cached, so the next call reads
+        the collection again; deadlines, budgets and cancellation propagate.
       security: [{SessionCookie: []}]
       responses:
         '200':

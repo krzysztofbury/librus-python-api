@@ -2201,6 +2201,9 @@ class AccountClient:
                     error.kind,
                 )
             raise
+        # Reinsert so iteration order follows refresh time: eviction then drops
+        # the least recently refreshed entry, not the one just read again.
+        self._cache.pop(key, None)
         self._cache[key] = (time.monotonic(), result)
         if len(self._cache) > ACCOUNT_RESULT_CACHE_SIZE:
             del self._cache[next(iter(self._cache))]
@@ -2589,6 +2592,7 @@ class AccountClient:
             reference=identifier,
             content_type=JSON,
         )
+        self._metadata.pop(key, None)  # refresh order, as in _cached
         self._metadata[key] = time.monotonic(), value
         if len(self._metadata) > ATTENDANCE_METADATA_CACHE_SIZE:
             del self._metadata[next(iter(self._metadata))]
@@ -2612,15 +2616,14 @@ class AccountClient:
             )
         except LibrusError as error:
             # An unavailable or unexpected collection degrades to the original
-            # per-reference lookups. Deadlines, budgets, cancellation and session
-            # failures still propagate. Only deterministic outcomes are cached.
+            # per-reference lookups for this call only; the next call reads the
+            # collection again. Deadlines, budgets, cancellation and session
+            # failures still propagate. Only parsed maps are cached.
             if error.kind not in _METADATA_MAP_FALLBACK:
                 raise
             if error.kind is ErrorKind.LIMIT:
                 budget.check()  # An exhausted caller budget is not a large collection.
-            if error.kind is ErrorKind.CONNECTION:
-                return MappingProxyType({})
-            value = MappingProxyType({})
+            return MappingProxyType({})
         self._metadata_maps[endpoint] = time.monotonic(), value
         return value
 

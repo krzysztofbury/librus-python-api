@@ -24,7 +24,9 @@ raises `ViewDisabledError`.
   into a teacher. Exactly two comma-delimited components, each stripped of
   surrounding whitespace and line breaks, supply separate subject/teacher (some
   schools render `<b>Subject</b>, <br>Teacher`); a blank component fails.
-  Ambiguous combined text is retained without inventing a teacher.
+  Text without a comma is the subject with no teacher. More than one comma
+  fails the row as a parse error rather than guessing which comma separates
+  subject and teacher.
 - Dates accept ISO or DD-MM-YYYY, must be valid civil dates within the selected
   window, and retain their original string. Attendance links reuse the fixed
   existing attendance-detail namespace. A caller may pass the returned numeric ID
