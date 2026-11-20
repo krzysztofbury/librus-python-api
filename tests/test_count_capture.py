@@ -1,6 +1,7 @@
 """Count-only live harness authorization, exclusively exercised on loopback."""
 
 import asyncio
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,11 @@ from librus_python_api.exceptions import (
 from scripts.capture_notification_counts import CountScope, capture
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.notifications_support import NotificationsFixture, counts_html
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 @pytest.mark.parametrize("student_landing", [False, True])

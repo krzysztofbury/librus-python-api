@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,11 @@ from librus_python_api.exceptions import (
 from scripts.capture_recipients import RecipientCaptureAudit, capture
 from tests.http_support import FIXTURE_SECRET, SchoolFixture, serve
 from tests.recipients_support import groups_html, recipient_html
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 def test_recipient_scope_requires_discovered_group_and_excludes_message_routes() -> (

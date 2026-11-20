@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import secrets
+import sys
 import traceback
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import date, timedelta
@@ -69,7 +70,17 @@ ALLOWED = frozenset(
 )
 
 
+def _posix_only() -> None:
+    # Captures hold raw school pages; their privacy is the 0o700 directory and
+    # 0o600 files, which Windows ignores.
+    if sys.platform == "win32":
+        raise SystemExit(
+            "Captures need POSIX owner-only permissions: run on Linux or macOS"
+        )
+
+
 def private_directory(path: Path) -> Path:
+    _posix_only()
     resolved = path.expanduser().resolve()
     # Any Git work tree could be committed and published, not only this one.
     if any((folder / ".git").exists() for folder in (resolved, *resolved.parents)):
@@ -80,6 +91,7 @@ def private_directory(path: Path) -> Path:
 
 def private_file(path: Path) -> Path:
     """Refuse a private output file inside any Git work tree, like captures."""
+    _posix_only()
     resolved = path.expanduser().resolve()
     if any((folder / ".git").exists() for folder in resolved.parents):
         raise SystemExit("Refusing to write private output inside a Git work tree")
