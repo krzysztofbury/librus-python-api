@@ -57,7 +57,7 @@ jobs:
           for f in tests/test_*.py; do
             uv run --locked python -m pytest "$f" -q -p no:cacheprovider --tb=line --timeout 60 -o faulthandler_timeout=0 > "$RUNNER_TEMP/out.txt" 2>&1 || status=1
             echo "### $f :: $(tail -1 "$RUNNER_TEMP/out.txt")"
-            grep -E "^(FAILED|ERROR) |^[A-Za-z]:.*:[0-9]+: |^E  |Timeout" "$RUNNER_TEMP/out.txt" | cut -c1-400 | head -40
+            grep -E "^(FAILED|ERROR) |^[A-Za-z]:.*:[0-9]+: |^E  |Timeout" "$RUNNER_TEMP/out.txt" | cut -c1-400 | head -40 || true
           done
           exit $status
 
