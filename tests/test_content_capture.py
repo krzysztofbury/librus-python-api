@@ -1,6 +1,7 @@
 """Owning live-authorization caps and selection logic, exercised offline only."""
 
 import asyncio
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,11 @@ from scripts.capture_message_content import ContentAudit, capture
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.messages_support import message_row, messages_html
 from tests.reads_support import ReadsFixture
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 def test_audit_only_allows_selected_received_message_and_one_login() -> None:

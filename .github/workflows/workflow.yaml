@@ -132,13 +132,14 @@ jobs:
           uv run --locked python scripts/release_gate.py verify --directory "$RUNNER_TEMP/archives" --digest "$MANIFEST"
           uv run --locked python scripts/qualify_release.py "$RUNNER_TEMP/archives" --python "$PYTHON" --dependencies "$DEPENDENCIES"
 
-  qualify-windows-disk:
+  qualify-windows:
     needs: build
-    runs-on: windows-2025
-    timeout-minutes: 25
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
+        os: [windows-2025, windows-11-arm]
         python: ['3.13', '3.14']
         dependencies: [locked, latest]
     steps:
@@ -149,13 +150,13 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: '0.13.5'
-          checksum: a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a
+          checksum: ${{ runner.arch == 'ARM64' && '09f47edf90726084a70f9426f6e3ca4f46e9bf7cbf23b1716ec64d60b055fae3' || 'a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a' }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.build.outputs.artifact }}
           path: ${{ runner.temp }}/archives
           merge-multiple: true
-      - name: Check sealed bytes and qualify Windows disk contracts
+      - name: Check sealed bytes and test installed archives on Windows
         env:
           MANIFEST: ${{ needs.build.outputs.manifest }}
           PYTHON: ${{ matrix.python }}
@@ -164,10 +165,10 @@ jobs:
         run: |
           uv python install "$PYTHON"
           uv run --locked python scripts/release_gate.py verify --directory "$RUNNER_TEMP/archives" --digest "$MANIFEST"
-          uv run --locked python scripts/qualify_release.py "$RUNNER_TEMP/archives" --python "$PYTHON" --dependencies "$DEPENDENCIES" --scope windows-disk
+          uv run --locked python scripts/qualify_release.py "$RUNNER_TEMP/archives" --python "$PYTHON" --dependencies "$DEPENDENCIES"
 
   publish:
-    needs: [build, qualify, qualify-windows-disk]
+    needs: [build, qualify, qualify-windows]
     if: github.event_name == 'release'
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -3,6 +3,41 @@
 What has actually been run, and what has not. Earlier per-increment logs are
 in the Git history of this file.
 
+## libxml2 2.11 on Windows, 1.10.3 preparation (krzysztofbury/librus-mcp#121, 2026-11-20)
+
+lxml 6.1.3 was built locally from source against libxml2 2.11.9, the version
+lxml's Windows wheels bundle (`STATIC_DEPS=true LIBXML2_VERSION=2.11.9`). With
+1.10.2, 38 offline tests failed with the reported `PARSE`; with 1.10.3 the full
+suite (2380 tests) passes on 2.11.9 and on 2.14.6 from the Linux wheel.
+
+Live, read-only (four logins): `librus-mcp check-tools` from the branch ran
+once per libxml2 version. Both gave 79 OK, completed lessons `VIEW_DISABLED`,
+justifications unsupported on the student logins and the archive `MAINTENANCE`
+(its loading notice), 82 requests with status 200 each. All 89 tool results
+were equal between the versions apart from timestamps and cursors. A first
+2.11.9 run kept the parsed pages in job scratch: all `&nbsp` references
+without `;` were in text (timetable teacher and room text on every login and
+one profile field), none in attributes, and no page had an escaped
+`&amp;nbsp` that decoding could confuse; the pages were deleted afterwards.
+The remaining tree difference, a `<p>` that 2.11 adds around bare text in
+fragments, renders the same text. After review, the extra repairs apply only
+below libxml2 2.14 (2.14 still rejects a misplaced `body`, `html` or `head`
+tag), and 2.11 refuses a document whose source has both a bare reference and
+an escaped one such as `&amp;para`, which parse to the same text.
+
+CI and release qualification now run the full suite on Windows x64 and ARM64
+runners, whose lxml wheels bundle 2.11.9 (printed by each job). Its first
+Windows run showed 40 more failures and one hang, none in a parser: the
+loopback fixtures served `localhost` on 127.0.0.1 only, and Windows tries ::1
+first and takes about 2 s to fail there, which broke every short deadline;
+two attachment tests published into a non-private directory or checked a POSIX
+mode; a checkpoint test sink flushed a directory handle; and the capture tools
+checked POSIX owner-only modes. The fixtures now also listen on ::1, the
+capture tools refuse Windows and their tests skip there. Run
+[44804488076](https://github.com/krzysztofbury/librus-python-api/actions/runs/44804488076):
+on x64 with Python 3.13 and 3.14 and on ARM64 with 3.14, the installed wheel
+and the sdist each passed 2358 tests (48 skipped), in about two minutes each.
+
 ## e-Justifications list (2026-11-13, issue #137)
 
 Offline: parser semantics, the `GroupId` gate (no request for any group

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,11 @@ from scripts.capture_attachment_streams import StreamAudit, capture
 from tests.http_support import FIXTURE_SECRET, SchoolFixture, serve
 from tests.message_content_support import attachment_html, content_html
 from tests.messages_support import message_row, messages_html
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 def test_capture_scope_exact_selection_one_login_and_one_bounded_download() -> None:

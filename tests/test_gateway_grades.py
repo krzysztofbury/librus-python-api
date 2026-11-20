@@ -29,6 +29,7 @@ from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.models import DescriptiveGradeSummary, Grades
 from librus_python_api.service import LibrusService
 from tests.gateway_grades_support import (
+    EMPTY_MARKER_ROW,
     PARENT,
     STUDENT,
     GatewayGradesFixture,
@@ -544,6 +545,9 @@ BOXES = skill_box() + skill_box("C+", "2026-10-13 (wt.)", "Fixture reads aloud")
 BOX_DETAILS = [("O", "2026-10-06"), ("C+", "2026-10-13")]
 
 
+NO_GRADES_DETAILS = details_row("302", body=EMPTY_MARKER_ROW)
+
+
 def box_page(
     first: str = BOXES, details: str | None = None, rows: str | None = None
 ) -> str:
@@ -585,6 +589,16 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
     empty = box_page("Brak ocen", details_row())
     records, table = parse_grade_page(empty.encode())
     assert table is not None and table.filled and records.descriptive == ()
+    # #184: one empty marker and no period headings, next to a subject with
+    # grades, failed the whole grades read.
+    unscoped = box_page(rows=box_row("302", "Fixture Music") + NO_GRADES_DETAILS)
+    records, table = parse_grade_page(unscoped.encode())
+    assert table is not None and table.filled
+    assert dict(table.subjects) == {301: "Fixture Nature", 302: "Fixture Music"}
+    assert [(grade.subject, grade.raw) for grade in records.descriptive] == [
+        ("Fixture Nature", "O"),
+        ("Fixture Nature", "C+"),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -658,6 +672,38 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
             ),
             UnsupportedCapabilityError,
         ),
+        # #184: the marker without period headings only stands for no grades
+        # in either period, and nothing may follow it.
+        (
+            box_page(details=details_row(body=EMPTY_MARKER_ROW)),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(
+                rows=box_row("302", "Fixture Music")
+                + details_row(
+                    "302",
+                    body=EMPTY_MARKER_ROW
+                    + EMPTY_MARKER_ROW.replace("Brak ocen", "Okres 1")
+                    + EMPTY_MARKER_ROW,
+                )
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(
+                rows=box_row("302", "Fixture Music")
+                + details_row("302", body=EMPTY_MARKER_ROW * 2)
+            ),
+            UnsupportedCapabilityError,
+        ),
+        (
+            box_page(
+                rows=box_row("302", "Fixture Music")
+                + details_row("302", body=EMPTY_MARKER_ROW.replace("Brak", "Fixture"))
+            ),
+            UnsupportedCapabilityError,
+        ),
     ],
     ids=[
         "extra-detail-grade",
@@ -677,6 +723,10 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
         "stray-text",
         "wrapped-boxes",
         "box-without-link",
+        "unscoped-marker-with-boxes",
+        "unscoped-marker-then-periods",
+        "two-unscoped-markers",
+        "unscoped-other-text",
     ],
 )
 def test_unseen_box_table_layouts_fail_closed(

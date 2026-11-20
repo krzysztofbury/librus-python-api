@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from html import escape
 
 from aiohttp import web
@@ -26,9 +26,13 @@ async def serve(app: web.Application) -> AsyncIterator[str]:
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     try:
-        site = web.TCPSite(runner, "127.0.0.1", 0)
-        await site.start()
-        yield f"http://localhost:{runner.addresses[0][1]}"
+        await web.TCPSite(runner, "127.0.0.1", 0).start()
+        port = runner.addresses[0][1]
+        # Windows resolves "localhost" to ::1 first, and a connection to a port
+        # nobody listens on there takes about 2 s to fail; listen on it too.
+        with suppress(OSError):
+            await web.TCPSite(runner, "::1", port).start()
+        yield f"http://localhost:{port}"
     finally:
         await runner.cleanup()
 

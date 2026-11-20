@@ -53,6 +53,8 @@ def durable_write(path: Path, body: bytes) -> None:
         stream.write(body)
         stream.flush()
         os.fsync(stream.fileno())
+    if os.name == "nt":
+        return  # Windows has no directory handle to flush; NTFS journals the entry.
     directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
     try:
         os.fsync(directory)

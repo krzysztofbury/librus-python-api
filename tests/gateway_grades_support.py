@@ -96,6 +96,11 @@ def box_row(
     )
 
 
+EMPTY_MARKER_ROW = (
+    '<tr class="line1"><td class="center" colspan="8">Brak ocen</td></tr>'
+)
+
+
 def details_row(
     subject_id: str = "301",
     first: Sequence[tuple[str, str]] = (),
@@ -104,9 +109,12 @@ def details_row(
     columns: Sequence[str] = DESCRIPTIVE_DETAIL_COLUMNS,
     content: str = "",
     periods: Sequence[str] = ("Okres 1", "Okres 2"),
+    body: str | None = None,
 ) -> str:
     """The filled detail row of the box layout (#173), listing (value, date)
-    grades per period; a period without grades shows the empty marker."""
+    grades per period; a period without grades shows the empty marker. `body`
+    replaces the period rows: `EMPTY_MARKER_ROW` alone is what a masked report of
+    a subject with no grades at all showed (#184)."""
 
     def grade(raw: str, day: str) -> str:
         return (
@@ -117,14 +125,14 @@ def details_row(
             f'<td class="">{content}</td><td class="">Fixture Teacher</td></tr>'
         )
 
-    body = ""
-    for label, grades in zip(periods, (first, second), strict=False):
-        body += (
-            f'<tr class="line1 bolded"><td class="center" colspan="8">{label}</td></tr>'
-        )
-        body += "".join(grade(raw, day) for raw, day in grades) or (
-            '<tr class="line1"><td class="center" colspan="8">Brak ocen</td></tr>'
-        )
+    if body is None:
+        body = ""
+        for label, grades in zip(periods, (first, second), strict=False):
+            body += (
+                '<tr class="line1 bolded">'
+                f'<td class="center" colspan="8">{label}</td></tr>'
+            )
+            body += "".join(grade(raw, day) for raw, day in grades) or EMPTY_MARKER_ROW
     header = "".join(f"<td>{column}</td>" for column in columns)
     return (
         f'<tr " class="studentGradesDetailsRow line0" data-subject_id="{subject_id}" '

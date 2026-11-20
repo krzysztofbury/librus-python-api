@@ -334,7 +334,8 @@ rows, 256 achievements, 1024 characters per short field, 65536 per long text
 cell and 262144 total rendered characters, plus the shared transport/tree bounds.
 
 The observed `Brak danych` information notice returns empty `years` and
-`achievements`. Missing tables without that explicit marker still raise `PARSE`;
+`achievements`. The notice that the archive is temporarily unavailable while
+Synergia fills it with the previous school year raises `MaintenanceError` (1.10.3). Missing tables without that explicit marker still raise `PARSE`;
 an empty notice combined with data tables is rejected. Repeated school years
 (including a class-change layout) are ambiguous and raise `PARSE`. Unknown
 geometry/markup raises `UNSUPPORTED_CAPABILITY`; bounds raise `LIMIT`, never
@@ -385,7 +386,8 @@ the same way (from 1.8.4; before, only the `ALL` view did):
   `Umiejętność` and the other tooltip lines in `metadata`, and no view makes a
   gateway request. The detail rows must list the same grades, value and date,
   in the same order; otherwise, or when a detail grade has `Treść oceny` text,
-  the read raises `UnsupportedCapabilityError`.
+  the read raises `UnsupportedCapabilityError`. A detail table with one
+  `Brak ocen` row and no period headings is a subject without grades (1.10.3).
 - Anything else fails the read: blank cells without hooks, a cell with an
   attribute or markup, mixed layouts in one table, a bare-text table that still
   has empty `studentGradesDetailsRow` rows (`UnsupportedCapabilityError`), or rows
@@ -1293,7 +1295,7 @@ text. `error_for(kind)` builds one.
 | `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
 | `ParseError` | The page or JSON does not match the expected structure |
 | `StaleCursorError` | A previously valid continuation no longer matches the current sequence; restart explicitly |
-| `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses |
+| `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses. Since 1.10.3 `MaintenanceError` is also the archive's notice that it is being filled, with no pause |
 | `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
 | `LimitError` | A request, byte, item or queue bound was reached |
 | `ClosedError` | The service is closed |

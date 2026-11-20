@@ -230,11 +230,9 @@ def test_independent_process_claims_and_killed_sender_never_replay(
                             ),
                             10,
                         )
-                        results = [
-                            json.loads(stdout)
-                            for stdout, stderr in output
-                            if not stderr
-                        ]
+                        errors = [stderr for _, stderr in output if stderr]
+                        assert not errors, [e.decode(errors="replace") for e in errors]
+                        results = [json.loads(stdout) for stdout, _ in output]
                         assert len(results) == 2
                         accepted = [
                             result

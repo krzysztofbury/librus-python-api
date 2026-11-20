@@ -3,6 +3,8 @@
 import json
 import math
 import re
+from html import unescape
+from html.entities import html5
 from typing import Any
 
 from lxml import etree, html
@@ -131,6 +133,67 @@ def parse_login(body: bytes) -> str:
     return location
 
 
+# Browser HTML commonly contains stray closing tags; every libxml2 reports them.
+HTML_RECOVERIES = frozenset({"ERR_TAG_NAME_MISMATCH"})
+# libxml2 2.14 parses HTML as HTML5 does and reports none of these; the 2.11.9
+# that lxml's Windows wheels bundle (#121) reports each one where a browser
+# repairs the markup. Accepted only below 2.14, so newer libxml2 is unchanged.
+# Seen on live pages: the first four. In the suite's fixtures and message
+# bodies under 2.11: the rest. A misplaced html, head or body tag, which 2.14
+# rejects too, is accepted only there.
+HTML_RECOVERIES_BEFORE_2_14 = HTML_RECOVERIES | frozenset(
+    {
+        "ERR_ATTRIBUTE_REDEFINED",  # a repeated attribute; the first one is kept
+        "ERR_NAME_REQUIRED",  # a stray character where a name belongs
+        "ERR_ENTITYREF_SEMICOL_MISSING",  # "&nbsp" without its ";"
+        "HTML_UNKNOWN_TAG",  # an element HTML 4 does not list, such as nobr
+        "ERR_INVALID_CHAR",  # a control character, dropped; 2.14 keeps it
+        "ERR_SPACE_REQUIRED",  # "<?" without an XML processing instruction
+        "ERR_GT_REQUIRED",  # a start tag the document ends inside
+        "ERR_COMMENT_ABRUPTLY_ENDED",  # "<!-->"
+        "HTML_INCORRECTLY_OPENED_COMMENT",  # "<!" that starts no comment
+        "HTML_STRUCURE_ERROR",  # a misplaced DOCTYPE, html, head or body tag
+    }
+)
+_LEGACY_REFERENCES = frozenset(name for name in html5 if not name.endswith(";"))
+# A named reference without its ";", which libxml2 2.11 keeps as text.
+_BARE_REFERENCE = re.compile(r"&[A-Za-z][A-Za-z0-9]*+(?!;)")
+# An escaped "&" before a name; parsed, it looks like a bare reference.
+_ESCAPED_REFERENCE = re.compile(
+    r"&(?:amp;|#0*38;|#[xX]0*26;)([A-Za-z][A-Za-z0-9]*+)(?!;)"
+)
+_RAW_TEXT_ELEMENTS = frozenset({"script", "style"})
+
+
+def _legacy(name: str) -> bool:
+    """Whether HTML5 decodes "&" + name without ";": a legacy name prefixes it."""
+    return any(name[:end] in _LEGACY_REFERENCES for end in range(len(name), 1, -1))
+
+
+def _decode_bare_references(source: str, document: html.HtmlElement) -> None:
+    """Decode text the way libxml2 2.14 and browsers do, where 2.11 did not.
+
+    Synergia templates write "&nbsp" without ";" (#121: every timetable entry).
+    HTML5 decodes such a reference in text when a legacy name starts it, as
+    `html.unescape` does; libxml2 2.11 leaves it as text. Once parsed, an
+    escaped "&amp;para" looks the same as a bare "&para", so a document with
+    both fails instead of guessing; no live Synergia page had one. Only text
+    and tails change: the observed attribute values parse alike.
+    """
+    if any(_legacy(match.group(1)) for match in _ESCAPED_REFERENCE.finditer(source)):
+        raise LibrusError(ErrorKind.PARSE)
+
+    def decode(value: str | None) -> str | None:
+        if not value or "&" not in value:
+            return value
+        return _BARE_REFERENCE.sub(lambda match: unescape(match.group()), value)
+
+    for node in document.iter():
+        if isinstance(node.tag, str) and node.tag not in _RAW_TEXT_ELEMENTS:
+            node.text = decode(node.text)
+        node.tail = decode(node.tail)
+
+
 def parse_html_document(
     body: bytes, *, repeatable_id: str | None = None
 ) -> html.HtmlElement:
@@ -145,11 +208,16 @@ def parse_html_document(
         )
     except (UnicodeError, etree.LxmlError, ValueError):
         failed = True
-    # Browser HTML commonly contains stray closing tags. Accept only this
-    # observed repair category; semantic tables, spans, IDs, and bounds still
-    # validate independently. Do not blanket-ignore arbitrary parser errors.
+    # Accept only the repairs a browser makes too; semantic tables, spans, IDs
+    # and bounds still validate independently. Do not blanket-ignore arbitrary
+    # parser errors, such as an exhausted allocation.
+    recoveries = (
+        HTML_RECOVERIES
+        if etree.LIBXML_VERSION >= (2, 14)
+        else HTML_RECOVERIES_BEFORE_2_14
+    )
     if failed or any(
-        error.type_name != "ERR_TAG_NAME_MISMATCH"
+        error.type_name not in recoveries
         and not (
             repeatable_id is not None
             and error.type_name == "DTD_ID_REDEFINED"
@@ -159,6 +227,10 @@ def parse_html_document(
     ):
         raise LibrusError(ErrorKind.PARSE)
     assert document is not None
+    if etree.LIBXML_VERSION < (2, 14) and any(
+        error.type_name == "ERR_ENTITYREF_SEMICOL_MISSING" for error in parser.error_log
+    ):
+        _decode_bare_references(text, document)
     count = 0
     pending = [(document, 0)]
     while pending:

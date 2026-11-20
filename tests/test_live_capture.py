@@ -1,6 +1,7 @@
 """Private live captures must never land inside this public repository."""
 
 import asyncio
+import sys
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,11 @@ from tests.http_support import FIXTURE_SECRET, serve
 from tests.notification_persistence_support import NotificationWorkflowFixture
 from tests.sending_support import SendFixture
 from tests.test_attendance_frequency import FrequencyFixture
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 @pytest.mark.parametrize("inside", [REPOSITORY, REPOSITORY / "captures" / "run"])
@@ -185,3 +191,14 @@ def test_private_output_file_inside_any_git_work_tree_is_refused(
         private_file(REPOSITORY / "expectations.json")
     outside = tmp_path / "private" / "expectations.json"
     assert private_file(outside) == outside.resolve()
+
+
+def test_captures_refuse_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("scripts.live_capture.sys.platform", "win32")
+    with pytest.raises(SystemExit, match="POSIX"):
+        private_directory(tmp_path / "run")
+    with pytest.raises(SystemExit, match="POSIX"):
+        private_file(tmp_path / "out.json")
+    assert not (tmp_path / "run").exists()

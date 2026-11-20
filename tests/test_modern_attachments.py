@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -20,9 +21,19 @@ from librus_python_api import (
     SchedulerLimits,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
-from librus_python_api.files import publish_attachment
+from librus_python_api.files import prepare_attachment_directory, publish_attachment
 from tests.http_support import serve
 from tests.test_modern_communication import CommunicationFixture
+
+
+@pytest.fixture
+def tmp_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    # Windows publishes only into a private directory, as in test_attachment_files.
+    root = tmp_path_factory.mktemp("publication")
+    if sys.platform == "win32":
+        root = root / "private"
+        asyncio.run(prepare_attachment_directory(root))
+    return root
 
 
 def reference(
@@ -127,7 +138,8 @@ def test_modern_download_is_distinct_bounded_credential_free_and_publishable(
                 stream, tmp_path, filename="../../Fixture.txt"
             )
             assert saved.path.read_bytes() == fixture.body
-            assert saved.path.stat().st_mode & 0o077 == 0
+            if sys.platform != "win32":  # Windows: the directory's private ACL
+                assert saved.path.stat().st_mode & 0o077 == 0
             assert stream.complete and stream.metadata.reference == selected
             assert saved.size_bytes == len(body)
             assert stream.metadata.observation.source == "modern_attachment_download"

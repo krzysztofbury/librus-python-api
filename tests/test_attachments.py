@@ -2,6 +2,7 @@
 
 import asyncio
 import gzip
+from contextlib import suppress
 from dataclasses import replace
 from typing import Any
 
@@ -165,7 +166,12 @@ def test_unsupported_or_ambiguous_wire_encodings_never_deliver_file_bytes(
 
         server = await asyncio.start_server(raw_download, "127.0.0.1", 0)
         assert server.sockets is not None
-        origin = f"http://localhost:{server.sockets[0].getsockname()[1]}"
+        port = server.sockets[0].getsockname()[1]
+        origin = f"http://localhost:{port}"
+        # As in `serve`: Windows tries ::1 first for "localhost".
+        servers = [server]
+        with suppress(OSError):
+            servers.append(await asyncio.start_server(raw_download, "::1", port))
         try:
             async with rig(download_origin_override=origin) as (_, service):
                 stream = service.account("student").stream_attachment(reference())
@@ -183,8 +189,9 @@ def test_unsupported_or_ambiguous_wire_encodings_never_deliver_file_bytes(
                     assert delivered == 0 and not stream.complete
                 assert service.snapshot().active == service.snapshot().queued == 0
         finally:
-            server.close()
-            await server.wait_closed()
+            for listener in servers:
+                listener.close()
+                await listener.wait_closed()
             await asyncio.gather(*workers)
 
     asyncio.run(scenario())

@@ -18,14 +18,20 @@ defaults:
     shell: bash
 
 jobs:
-  windows-disk:
-    name: Windows disk and installed artifacts (Python ${{ matrix.python-version }})
-    runs-on: windows-2025
-    timeout-minutes: 20
+  windows:
+    # The x64 names are required checks; keep them. lxml's Windows wheels bundle
+    # an older libxml2 than its Linux and macOS ones (#121), so every page
+    # parser runs here too.
+    name: Windows disk and installed artifacts (Python ${{ matrix.python-version }})${{ matrix.suffix }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13", "3.14"]
+        include:
+          - { runner: windows-2025, python-version: "3.13", suffix: "" }
+          - { runner: windows-2025, python-version: "3.14", suffix: "" }
+          - { runner: windows-11-arm, python-version: "3.14", suffix: " on ARM64" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,19 +39,20 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.5"
-          checksum: a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a
+          checksum: ${{ runner.arch == 'ARM64' && '09f47edf90726084a70f9426f6e3ca4f46e9bf7cbf23b1716ec64d60b055fae3' || 'a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a' }}
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - name: Build and qualify installed Windows disk boundaries
+      - name: Build and test installed artifacts on Windows
         env:
           PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           uv python install "$PYTHON_VERSION"
           uv sync --locked --python "$PYTHON_VERSION"
+          uv run --locked python -c "import lxml.etree as e; print('libxml2', e.LIBXML_VERSION)"
           uv build --no-sources
           uv run --locked python scripts/verify_artifacts.py dist
           uv run --locked twine check --strict dist/*
-          uv run --locked python scripts/qualify_release.py dist --python "$PYTHON_VERSION" --dependencies locked --scope windows-disk
+          uv run --locked python scripts/qualify_release.py dist --python "$PYTHON_VERSION" --dependencies locked
 
   quality:
     name: Quality and security

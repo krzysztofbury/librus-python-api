@@ -1,6 +1,7 @@
 """0.4.5 capture authorization scope and public wire path, offline only."""
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,11 @@ from scripts.capture_communication_coverage import CoverageScope, capture
 from tests.http_support import FIXTURE_SECRET, serve
 from tests.reads_support import ReadsFixture
 from tests.recipients_support import choice_html
+
+# The capture tools refuse Windows: their privacy is POSIX owner-only modes.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="capture tools run on Linux or macOS only"
+)
 
 
 def test_coverage_capture_loopback_discovers_every_group_and_exact_sent_content_once(

@@ -92,7 +92,7 @@ When a release of both is needed, publish this library first, then pin it in
 2. Create an annotated immutable tag at the intended merged commit. Push it and
    confirm the remote tag points to that commit. Never replace an uploaded tag.
 3. Run **Qualify and publish library** from **main** for that tag. It never
-   publishes. All checks must pass, including macOS and Windows disk gates.
+   publishes. All checks must pass, including the macOS and Windows gates.
 4. Run the read-only live check, which a release request from the owner covers.
    Nothing is published until it passes. Build the
    tagged source's wheel, install it into a fresh environment outside the
@@ -144,9 +144,11 @@ gh release create v1.0.0 --verify-tag --title "1.0.0 - Summary" --notes-file FIL
   and macOS, Python 3.13/3.14, with locked and newest permitted runtime dependencies.
   Test tooling stays locked. Latest-runtime resolution takes the newest releases
   outside the 7-day supply-chain window (`exclude-newer` in `pyproject.toml`).
-- Both archives separately run Windows x64 NTFS disk/persistence acceptance and
-  installed runtime smokes on Python 3.13/3.14, with locked/latest dependencies.
-  Every Windows job verifies the same manifest; publishing requires all of them.
+- Both archives also run the full offline suite and installed smoke on Windows
+  x64 and ARM64 (NTFS disk/persistence acceptance included), Python 3.13/3.14,
+  with locked/latest dependencies. lxml's Windows wheels bundle an older libxml2
+  than its Linux and macOS ones (#121), so every page parser runs on it. Every
+  Windows job verifies the same manifest; publishing requires all of them.
 - Only the isolated, environment-gated publishing job has `id-token: write`.
 - Post-upload verification compares public PyPI wheel/sdist hashes with the
   sealed manifest and resolves the exact version from PyPI outside the checkout.
