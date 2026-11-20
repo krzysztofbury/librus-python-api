@@ -138,7 +138,8 @@ def test_modern_download_is_distinct_bounded_credential_free_and_publishable(
                 stream, tmp_path, filename="../../Fixture.txt"
             )
             assert saved.path.read_bytes() == fixture.body
-            assert saved.path.stat().st_mode & 0o077 == 0
+            if sys.platform != "win32":  # Windows: the directory's private ACL
+                assert saved.path.stat().st_mode & 0o077 == 0
             assert stream.complete and stream.metadata.reference == selected
             assert saved.size_bytes == len(body)
             assert stream.metadata.observation.source == "modern_attachment_download"
