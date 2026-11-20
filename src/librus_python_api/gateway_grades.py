@@ -356,8 +356,10 @@ def _detail_grades(cell: html.HtmlElement) -> dict[int, _Grades]:
 
     The cell holds one table: `DESCRIPTIVE_DETAIL_COLUMNS` as its header, then
     per period a heading row and either grade rows or one empty-marker row,
-    and an empty footer. A grade row with `Treść oceny` text fails: the grade
-    boxes carry no such field, so the text would be lost.
+    and an empty footer. A subject without grades in either period may
+    instead have one empty-marker row and no period headings (#184). A grade
+    row with `Treść oceny` text fails: the grade boxes carry no such field, so
+    the text would be lost.
     """
     unsupported = LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
     tables = [node for node in cell if isinstance(node.tag, str)]
@@ -371,6 +373,7 @@ def _detail_grades(cell: html.HtmlElement) -> dict[int, _Grades]:
     result: dict[int, _Grades] = {}
     empty: set[int] = set()
     header = False
+    unscoped = False
     period: int | None = None
     for row in markup.rows(tables[0]):
         cells = markup.cells(row)
@@ -382,12 +385,23 @@ def _detail_grades(cell: html.HtmlElement) -> dict[int, _Grades]:
         elif next(row.iterancestors("tfoot"), None) is not None:
             if any(texts) or any(len(item) for item in cells):
                 raise unsupported
+        elif unscoped:
+            # Nothing may follow the marker that stands for both periods.
+            raise unsupported
         elif len(cells) == 1 and texts[0] in DESCRIPTIVE_PERIOD_LABELS:
             period = DESCRIPTIVE_PERIOD_LABELS[texts[0]]
             if period in result or len(cells[0]):
                 raise unsupported
             result[period] = []
-        elif period is None or period in empty:
+        elif period is None:
+            if (
+                len(cells) != 1
+                or texts[0] not in GRADE_EMPTY_MARKERS - {""}
+                or len(cells[0])
+            ):
+                raise unsupported
+            unscoped = True
+        elif period in empty:
             raise unsupported
         elif len(cells) == 1:
             if result[period] or texts[0] not in GRADE_EMPTY_MARKERS - {""}:
@@ -405,7 +419,11 @@ def _detail_grades(cell: html.HtmlElement) -> dict[int, _Grades]:
             result[period].append((texts[0], markup.civil_date(day)))
         else:
             raise unsupported
-    if not header or sorted(result) != [1, 2]:
+    if not header:
+        raise unsupported
+    if unscoped:
+        return {1: [], 2: []}
+    if sorted(result) != [1, 2]:
         raise unsupported
     if any(not result[key] and key not in empty for key in result):
         raise unsupported

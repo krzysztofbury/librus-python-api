@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 import pytest
+from lxml import etree
 
 from librus_python_api import MessageFolder, ModernMessageReference
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -112,7 +113,15 @@ def test_comment_and_pi_runs_without_xml_start_render_as_html_promptly(
     # Any Librus user can author a body; a backtracking preamble check took
     # seconds at this length and doubled with every repetition.
     started = time.perf_counter()
-    assert render_body(base64.b64encode(body.encode()).decode()) == expected
+    encoded = base64.b64encode(body.encode()).decode()
+    if body.endswith("<x") and etree.LIBXML_VERSION < (2, 14):
+        # libxml2 2.11 (lxml's Windows wheels, #121) reports a failed allocation
+        # for a start tag the body ends inside; that error is never accepted.
+        with pytest.raises(LibrusError) as caught:
+            render_body(encoded)
+        assert caught.value.kind is ErrorKind.PARSE
+    else:
+        assert render_body(encoded) == expected
     assert time.perf_counter() - started < 1
 
 

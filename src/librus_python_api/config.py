@@ -1069,6 +1069,13 @@ PAGE_NOTICES = MappingProxyType(
             ErrorKind.VIEW_DISABLED
         ),
         "Wybrano nieprawidłowy zakres daty.": ErrorKind.INVALID_INPUT,
+        # Observed on the school-year archive (2026-11-20) while Synergia fills
+        # it with the previous year; the page has no archive tables until then.
+        (
+            "Opcja chwilowo niedostępna. Aktualnie trwa proces zasilania archiwum "
+            "danymi z poprzedniego roku szkolnego. Po zakończeniu procesu "
+            "zasilania opcja zostanie ponownie udostępniona."
+        ): ErrorKind.MAINTENANCE,
     }
 )
 MODULE_UNAVAILABLE_PATH = "/modul_niedostepny"

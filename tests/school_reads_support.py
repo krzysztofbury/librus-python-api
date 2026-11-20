@@ -109,6 +109,11 @@ HOMEWORK_EMPTY = (
 )
 VIEW_DISABLED = "Ten widok został wyłączony przez administratora szkoły."
 RANGE_REJECTED = "Wybrano nieprawidłowy zakres daty."
+ARCHIVE_LOADING = (
+    "Opcja chwilowo niedostępna. Aktualnie trwa proces zasilania archiwum danymi "
+    "z poprzedniego roku szkolnego. Po zakończeniu procesu zasilania opcja "
+    "zostanie ponownie udostępniona."
+)
 
 
 def detail_html(

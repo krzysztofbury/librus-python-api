@@ -26,13 +26,16 @@ def test_only_a_release_publishes_and_it_waits_for_exact_artifact_matrix() -> No
         == "github.event_name == 'release' || github.ref == 'refs/heads/main'"
     )
     assert jobs["qualify"]["needs"] == "build"
-    assert set(jobs["publish"]["needs"]) == {"build", "qualify", "qualify-windows-disk"}
-    windows = jobs["qualify-windows-disk"]
-    assert windows["needs"] == "build" and windows["runs-on"] == "windows-2025"
+    assert set(jobs["publish"]["needs"]) == {"build", "qualify", "qualify-windows"}
+    windows = jobs["qualify-windows"]
+    assert windows["needs"] == "build" and windows["runs-on"] == "${{ matrix.os }}"
+    # Both architectures, with lxml's Windows libxml2 (#121), run every test.
     assert windows["strategy"]["matrix"] == {
+        "os": ["windows-2025", "windows-11-arm"],
         "python": ["3.13", "3.14"],
         "dependencies": ["locked", "latest"],
     }
+    assert "--scope" not in script(windows)
     assert jobs["publish"]["if"] == "github.event_name == 'release'"
     assert jobs["publish"]["environment"]["name"] == "pypi"
     assert jobs["publish"]["permissions"]["id-token"] == "write"
@@ -54,7 +57,7 @@ def test_only_a_release_publishes_and_it_waits_for_exact_artifact_matrix() -> No
     assert "release_gate.py identity" in script(jobs["publish"])
     for name in ("publish", "confirm", "attach"):
         assert "release_gate.py verify" in script(jobs[name])
-    for name in ("qualify", "qualify-windows-disk", "publish", "confirm", "attach"):
+    for name in ("qualify", "qualify-windows", "publish", "confirm", "attach"):
         downloads = [
             step
             for step in jobs[name]["steps"]

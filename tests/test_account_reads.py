@@ -45,7 +45,7 @@ from tests.reads_support import (
     ReadsFixture,
     read,
 )
-from tests.school_reads_support import VIEW_DISABLED, warning_html
+from tests.school_reads_support import ARCHIVE_LOADING, VIEW_DISABLED, warning_html
 from tests.timetable_support import MONDAY
 
 # portal, authorization form, credential submission, callback, identity
@@ -163,6 +163,7 @@ def test_unrecognized_page_fails_whole_read_and_is_not_cached(operation: str) ->
             "rozwiązania LIBRUS Synergia.",
             ModuleUnavailableError,
         ),
+        (ARCHIVE_LOADING, MaintenanceError),
     ],
 )
 @pytest.mark.parametrize("operation", HTML_OPERATIONS)
