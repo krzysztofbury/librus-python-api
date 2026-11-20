@@ -25,7 +25,9 @@ reproduction.
   2026-11-20 on every login) now raises `MaintenanceError` instead of
   `ParseError`. Nothing pauses the shared scheduler.
 - CI and release qualification run the full suite on Windows x64 and ARM64,
-  not only the disk tests.
+  not only the disk tests. The loopback test servers also listen on ::1, which
+  Windows tries first for `localhost`. The maintainer capture scripts refuse
+  Windows, where their owner-only file modes protect nothing.
 
 ## 1.10.2 (2026-11-17) - Stricter dates and lesson cells; cache fixes
 

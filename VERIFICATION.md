@@ -20,8 +20,20 @@ without `;` were in text (timetable teacher and room text on every login and
 one profile field), none in attributes, and no page had an escaped
 `&amp;nbsp` that decoding could confuse; the pages were deleted afterwards.
 The remaining tree difference, a `<p>` that 2.11 adds around bare text in
-fragments, renders the same text. CI and release qualification now run the
-full suite on Windows x64 and ARM64 runners, whose lxml wheels bundle 2.11.9.
+fragments, renders the same text.
+
+CI and release qualification now run the full suite on Windows x64 and ARM64
+runners, whose lxml wheels bundle 2.11.9 (printed by each job). Its first
+Windows run showed 40 more failures and one hang, none in a parser: the
+loopback fixtures served `localhost` on 127.0.0.1 only, and Windows tries ::1
+first and takes about 2 s to fail there, which broke every short deadline;
+two attachment tests published into a non-private directory or checked a POSIX
+mode; a checkpoint test sink flushed a directory handle; and the capture tools
+checked POSIX owner-only modes. The fixtures now also listen on ::1, the
+capture tools refuse Windows and their tests skip there. Run
+[44804488076](https://github.com/krzysztofbury/librus-python-api/actions/runs/44804488076):
+on x64 with Python 3.13 and 3.14 and on ARM64 with 3.14, the installed wheel
+and the sdist each passed 2358 tests (48 skipped), in about two minutes each.
 
 ## e-Justifications list (2026-11-13, issue #137)
 
