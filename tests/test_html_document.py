@@ -7,6 +7,7 @@ jobs run them on 2.11.
 """
 
 import pytest
+from lxml import etree
 
 from librus_python_api import markup
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -51,3 +52,32 @@ def test_a_duplicate_id_that_is_no_repair_still_fails() -> None:
     with pytest.raises(LibrusError) as caught:
         parse_html_document(b'<p id="fixture"></p><p id="fixture"></p>')
     assert caught.value.kind is ErrorKind.PARSE
+
+
+OLD_LIBXML2 = etree.LIBXML_VERSION < (2, 14)
+
+
+def test_escaped_text_is_never_decoded_as_a_bare_reference() -> None:
+    # Escaped references alone parse alike everywhere.
+    document = parse_html_document(b"<p>?a=1&amp;para=2 &amp;not</p>")
+    assert markup.text(next(document.iter("p"))) == "?a=1&para=2 &not"
+    # Next to a bare one, 2.11 cannot tell them apart once parsed, so it fails.
+    body = b"<p>?a=1&amp;para=2 Fixture&nbspText</p>"
+    if OLD_LIBXML2:
+        with pytest.raises(LibrusError) as caught:
+            parse_html_document(body)
+        assert caught.value.kind is ErrorKind.PARSE
+    else:
+        document = parse_html_document(body)
+        assert next(document.iter("p")).text == "?a=1&para=2 Fixture\xa0Text"
+
+
+def test_a_misplaced_body_tag_fails_where_libxml2_reports_it() -> None:
+    # libxml2 2.14 reports it, as before #121; only 2.11 accepts its repair.
+    body = b"<p>Fixture</p><body>Fixture second</body>"
+    if OLD_LIBXML2:
+        parse_html_document(body)
+    else:
+        with pytest.raises(LibrusError) as caught:
+            parse_html_document(body)
+        assert caught.value.kind is ErrorKind.PARSE

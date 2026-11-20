@@ -13,9 +13,11 @@ reproduction.
   are now accepted, and a text reference without its `;` is decoded as 2.14
   decodes it, so timetable teacher and room text no longer keeps a literal
   `&nbsp`. On four live logins, every `librus-mcp check-tools` result was the
-  same with both libxml2 versions. A duplicate ID and a failed allocation still
-  fail. With 2.11, a message body that ends inside a start tag (`... <x`)
-  still fails as `PARSE` (krzysztofbury/librus-mcp#121).
+  same with both libxml2 versions. Only libxml2 older than 2.14 accepts these
+  repairs, so Linux and macOS behave as before. With 2.11, a duplicate ID, a
+  failed allocation, a message body that ends inside a start tag (`... <x`)
+  and a text with both a bare reference and an escaped one such as
+  `&amp;para` still fail as `PARSE` (krzysztofbury/librus-mcp#121).
 - Grades: a filled detail row whose table holds one `Brak ocen` row and no
   period headings failed the whole read with `UnsupportedCapabilityError`. It
   is now a subject with no grades in either period, when its semester cells

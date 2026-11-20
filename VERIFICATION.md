@@ -20,7 +20,10 @@ without `;` were in text (timetable teacher and room text on every login and
 one profile field), none in attributes, and no page had an escaped
 `&amp;nbsp` that decoding could confuse; the pages were deleted afterwards.
 The remaining tree difference, a `<p>` that 2.11 adds around bare text in
-fragments, renders the same text.
+fragments, renders the same text. After review, the extra repairs apply only
+below libxml2 2.14 (2.14 still rejects a misplaced `body`, `html` or `head`
+tag), and 2.11 refuses a document whose source has both a bare reference and
+an escaped one such as `&amp;para`, which parse to the same text.
 
 CI and release qualification now run the full suite on Windows x64 and ARM64
 runners, whose lxml wheels bundle 2.11.9 (printed by each job). Its first
