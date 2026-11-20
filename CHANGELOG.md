@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.10.3 (2026-11-20) - Pages read on Windows; grade details without periods
+
+Thank you, @mpietson, for krzysztofbury/librus-mcp#121, with the libxml2 error
+counts that located the failure, and @wiktorw, for #184 and its offline
+reproduction.
+
+- Windows: every page read failed with `PARSE`. lxml's Windows wheels bundle
+  libxml2 2.11.9, which reports repairs that libxml2 2.14 (in the Linux and
+  macOS wheels) makes silently, such as a repeated attribute, a stray quote in
+  a start tag, an unknown tag such as `nobr` or `&nbsp` without its `;`. They
+  are now accepted, and a text reference without its `;` is decoded as 2.14
+  decodes it, so timetable teacher and room text no longer keeps a literal
+  `&nbsp`. On four live logins, every `librus-mcp check-tools` result was the
+  same with both libxml2 versions. A duplicate ID and a failed allocation still
+  fail. With 2.11, a message body that ends inside a start tag (`... <x`)
+  still fails as `PARSE` (krzysztofbury/librus-mcp#121).
+- Grades: a filled detail row whose table holds one `Brak ocen` row and no
+  period headings failed the whole read with `UnsupportedCapabilityError`. It
+  is now a subject with no grades in either period, when its semester cells
+  show no grades either; anything after that row still fails (#184).
+- School-year archive: the notice that the archive is temporarily unavailable
+  while Synergia fills it with the previous school year's data (observed
+  2026-11-20 on every login) now raises `MaintenanceError` instead of
+  `ParseError`. Nothing pauses the shared scheduler.
+- CI and release qualification run the full suite on Windows x64 and ARM64,
+  not only the disk tests.
+
 ## 1.10.2 (2026-11-17) - Stricter dates and lesson cells; cache fixes
 
 - Dates followed by a weekday label, such as `2026-11-15 (ndz.)` in grade and

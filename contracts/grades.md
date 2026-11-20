@@ -638,6 +638,12 @@ their grade reads gave the same counts with and without the change in every
 view. Whether the week and last-login views narrow the boxes and the detail
 rows alike is not observed; if they do not, those views fail closed.
 
+A subject with no grades in either period (1.10.3, #184, from @wiktorw's masked
+failure report) has a detail table with the header and one `Brak ocen` row
+spanning the columns, without period headings. It reads as no grades in both
+periods, so its semester cells must show the empty marker too; any row after
+it, a second such row or other text there is `UNSUPPORTED_CAPABILITY`.
+
 On the same date the reporter's numeric-grades page showed the behaviour row
 with a tally alone, no entries, whose tooltip reads `Punkty startowe`
 (starting points). That settles the tally's meaning only before any entry
