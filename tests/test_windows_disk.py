@@ -389,3 +389,38 @@ def test_notification_lock_validation_stops_before_reading_or_network(
             assert service.snapshot().requests_dispatched == 0
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("stays", [False, True])
+def test_a_journal_deleted_during_the_sidecar_check_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stays: bool
+) -> None:
+    # Another process's commit deletes its rollback journal between this
+    # check's lstat and open; a store then reported STORAGE after a dispatched
+    # send. A journal that stays and cannot be opened still fails closed.
+    from librus_python_api import _windows_filesystem as module
+
+    directory = tmp_path / "state"
+    pinned = module.WindowsDirectory(directory, create=True)
+    try:
+        journal = directory / "state.sqlite3-journal"
+        journal.write_bytes(b"")
+        opens: list[str] = []
+
+        def racing(self: Any, name: str, maximum: int, **kwargs: Any) -> Any:
+            opens.append(name)
+            if not stays:
+                journal.unlink()
+            raise OSError("Windows filesystem operation failed")
+
+        monkeypatch.setattr(module.WindowsDirectory, "check_file", racing)
+        monkeypatch.setattr(module, "_SIDECAR_RETRY_SECONDS", 0)
+        if stays:
+            with pytest.raises(OSError):
+                pinned.check_sidecar(journal.name, 1024)
+            assert len(opens) == module._SIDECAR_ATTEMPTS
+        else:
+            pinned.check_sidecar(journal.name, 1024)
+            assert opens == [journal.name]
+    finally:
+        pinned.close()
