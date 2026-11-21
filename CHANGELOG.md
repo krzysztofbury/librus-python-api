@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Windows: a durable store shared by several processes could report
+  `StorageError`, including on the save that records a dispatched send.
+  Between the store's sidecar check and its open, another process's
+  commit can delete SQLite's rollback journal or leave it pending deletion.
+  A journal that is gone is now absent, as on POSIX; one that stays and
+  cannot be opened still fails closed after bounded retries. On Windows CI,
+  the two-process durable-send test failed in 36 of 180 repeated runs before
+  and in none after.
+
 ## 1.11.0 (2026-11-21) - A view unavailable for now has its own error
 
 - New `ErrorKind.TEMPORARILY_UNAVAILABLE` and `TemporarilyUnavailableError`:

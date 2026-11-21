@@ -3,6 +3,7 @@
 import ntpath
 import os
 import sys
+import time
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
@@ -18,6 +19,11 @@ import winerror
 from librus_python_api.exceptions import ErrorKind, LibrusError
 
 _TRUSTED_SYSTEM_SIDS = {"S-1-5-18", "S-1-5-32-544"}
+# Another process's SQLite deletes its rollback journal when it commits. A
+# sidecar that is gone or pending deletion when it is opened is retried this
+# often before the open failure stands.
+_SIDECAR_ATTEMPTS = 40
+_SIDECAR_RETRY_SECONDS = 0.025
 _MAX_PATH_COMPONENTS = 128
 _MAX_ACES = 16
 
@@ -310,11 +316,22 @@ class WindowsDirectory:
     def check_sidecar(self, name: str, maximum: int) -> None:
         # A private pinned parent excludes other OS principals from replacement.
         # Same-user writers remain outside the threat boundary on both platforms.
-        try:
-            (self.path / name).lstat()
-        except FileNotFoundError:
-            return
-        self.check_file(name, maximum)
+        # Between the lstat and the open, another process's commit can delete
+        # the journal, or leave it pending deletion, and the open fails. Once
+        # it is gone it is absent, as on POSIX; a sidecar that stays and still
+        # cannot be opened fails closed after the bounded retries.
+        for attempt in range(_SIDECAR_ATTEMPTS):
+            try:
+                (self.path / name).lstat()
+                self.check_file(name, maximum)
+            except FileNotFoundError:
+                return
+            except OSError:
+                if attempt == _SIDECAR_ATTEMPTS - 1:
+                    raise
+            else:
+                return
+            time.sleep(_SIDECAR_RETRY_SECONDS)
 
 
 def acquire_lock(directory: WindowsDirectory, name: str, held: list[int]) -> None:
