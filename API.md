@@ -335,7 +335,8 @@ cell and 262144 total rendered characters, plus the shared transport/tree bounds
 
 The observed `Brak danych` information notice returns empty `years` and
 `achievements`. The notice that the archive is temporarily unavailable while
-Synergia fills it with the previous school year raises `MaintenanceError` (1.10.3). Missing tables without that explicit marker still raise `PARSE`;
+Synergia fills it with the previous school year raises `TemporarilyUnavailableError`
+(1.11.0; `MaintenanceError` in 1.10.3). Missing tables without that explicit marker still raise `PARSE`;
 an empty notice combined with data tables is rejected. Repeated school years
 (including a class-change layout) are ambiguous and raise `PARSE`. Unknown
 geometry/markup raises `UNSUPPORTED_CAPABILITY`; bounds raise `LIMIT`, never
@@ -1292,10 +1293,11 @@ text. `error_for(kind)` builds one.
 | `AccessDeniedError` | Denied, or an unexpected redirect or identity |
 | `ViewDisabledError` | The school administrator disabled this view |
 | `ModuleUnavailableError` | The school's Synergia variant does not include this module; exact same-origin unavailable redirect or fixed page notice, without follow/retry ([contract](contracts/module-unavailable.md)) |
+| `TemporarilyUnavailableError` | Synergia shows a fixed notice that this view is unavailable for now, such as the school-year archive while it is filled with the previous year (1.11.0); other views still work, nothing pauses, retry later |
 | `UnsupportedCapabilityError` | A recognized but unsupported layout or content |
 | `ParseError` | The page or JSON does not match the expected structure |
 | `StaleCursorError` | A previously valid continuation no longer matches the current sequence; restart explicitly |
-| `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses. Since 1.10.3 `MaintenanceError` is also the archive's notice that it is being filled, with no pause |
+| `ThrottledError`, `MaintenanceError` | HTTP 429 or 503; the shared scheduler pauses. In 1.10.3 only, `MaintenanceError` was also the archive's loading notice, now `TemporarilyUnavailableError` |
 | `ConnectionError`, `OperationTimeoutError` | Transport failure or budget deadline |
 | `LimitError` | A request, byte, item or queue bound was reached |
 | `ClosedError` | The service is closed |

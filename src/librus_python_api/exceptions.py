@@ -21,6 +21,7 @@ __all__ = [
     "SessionExpiredError",
     "StorageError",
     "StaleCursorError",
+    "TemporarilyUnavailableError",
     "ThrottledError",
     "UnknownDeliveryError",
     "UnsupportedCapabilityError",
@@ -40,6 +41,7 @@ class ErrorKind(StrEnum):
     UNSUPPORTED_CAPABILITY = "unsupported_capability"
     VIEW_DISABLED = "view_disabled"
     MODULE_UNAVAILABLE = "module_unavailable"
+    TEMPORARILY_UNAVAILABLE = "temporarily_unavailable"
     THROTTLED = "throttled"
     MAINTENANCE = "maintenance"
     CONNECTION = "connection"
@@ -119,6 +121,13 @@ class ModuleUnavailableError(LibrusError):
     """The school's Synergia product variant does not include this module."""
 
 
+class TemporarilyUnavailableError(LibrusError):
+    """Synergia says this view is unavailable for now; other views still work.
+
+    Retry later. Unlike MaintenanceError, nothing pauses the shared scheduler.
+    """
+
+
 class ThrottledError(LibrusError):
     pass
 
@@ -176,6 +185,7 @@ _ERROR_TYPES: dict[ErrorKind, type[LibrusError]] = {
     ErrorKind.UNSUPPORTED_CAPABILITY: UnsupportedCapabilityError,
     ErrorKind.VIEW_DISABLED: ViewDisabledError,
     ErrorKind.MODULE_UNAVAILABLE: ModuleUnavailableError,
+    ErrorKind.TEMPORARILY_UNAVAILABLE: TemporarilyUnavailableError,
     ErrorKind.THROTTLED: ThrottledError,
     ErrorKind.MAINTENANCE: MaintenanceError,
     ErrorKind.CONNECTION: ConnectionError,

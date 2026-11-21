@@ -16,9 +16,10 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.10.3` reads pages with the libxml2 that lxml's Windows wheels
-bundle, reads a grade detail table without period headings and types the
-archive's loading notice as maintenance. `1.10.2` rejects a date whose weekday
+**Status:** `1.11.0` raises `TemporarilyUnavailableError` for the archive's
+loading notice, a view that is unavailable for now while the rest of Synergia
+works. `1.10.3` reads pages with the libxml2 that lxml's Windows wheels
+bundle and reads a grade detail table without period headings. `1.10.2` rejects a date whose weekday
 label names another day and a completed-lesson cell with more than one comma,
 and fixes two cache bugs. `1.10.1` reads descriptive grades that the new-schema table
 shows as grade boxes. `1.10.0` returns behaviour points as a typed value
@@ -55,7 +56,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.10.3
+python -m pip install librus-python-api==1.11.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -71,7 +72,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.10.3-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.11.0-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your

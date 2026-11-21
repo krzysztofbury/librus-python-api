@@ -32,6 +32,7 @@ from librus_python_api.exceptions import (
     OperationTimeoutError,
     ParseError,
     SessionExpiredError,
+    TemporarilyUnavailableError,
     ThrottledError,
     ViewDisabledError,
 )
@@ -163,7 +164,7 @@ def test_unrecognized_page_fails_whole_read_and_is_not_cached(operation: str) ->
             "rozwiązania LIBRUS Synergia.",
             ModuleUnavailableError,
         ),
-        (ARCHIVE_LOADING, MaintenanceError),
+        (ARCHIVE_LOADING, TemporarilyUnavailableError),
     ],
 )
 @pytest.mark.parametrize("operation", HTML_OPERATIONS)
@@ -174,6 +175,27 @@ def test_view_disabled_by_school_is_typed_for_every_page(
         fixture.bodies[operation] = (warning_html(notice).encode(), "text/html")
         with pytest.raises(error):
             await read(service.account("student"), "student", operation)()
+
+    run(scenario)
+
+
+def test_a_temporarily_unavailable_view_is_neither_paused_nor_cached() -> None:
+    # 1.11.0: the archive's loading notice was MaintenanceError in 1.10.3, which
+    # elsewhere means Synergia is down. The next read goes out at once.
+    async def scenario(fixture: ReadsFixture, service: Any) -> None:
+        client = service.account("student")
+        archive = read(client, "student", "school_year_archive")
+        fixture.bodies["school_year_archive"] = (
+            warning_html(ARCHIVE_LOADING).encode(),
+            "text/html",
+        )
+        with pytest.raises(TemporarilyUnavailableError) as failure:
+            await archive(max_age_seconds=60)
+        assert failure.value.kind is ErrorKind.TEMPORARILY_UNAVAILABLE
+        del fixture.bodies["school_year_archive"]
+        async with asyncio.timeout(5):
+            await archive(max_age_seconds=60)
+        assert fixture.count("school_year_archive") == 2
 
     run(scenario)
 

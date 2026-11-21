@@ -1075,7 +1075,7 @@ PAGE_NOTICES = MappingProxyType(
             "Opcja chwilowo niedostępna. Aktualnie trwa proces zasilania archiwum "
             "danymi z poprzedniego roku szkolnego. Po zakończeniu procesu "
             "zasilania opcja zostanie ponownie udostępniona."
-        ): ErrorKind.MAINTENANCE,
+        ): ErrorKind.TEMPORARILY_UNAVAILABLE,
     }
 )
 MODULE_UNAVAILABLE_PATH = "/modul_niedostepny"

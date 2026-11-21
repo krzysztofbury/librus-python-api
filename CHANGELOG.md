@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.11.0 (2026-11-21) - A view unavailable for now has its own error
+
+- New `ErrorKind.TEMPORARILY_UNAVAILABLE` and `TemporarilyUnavailableError`:
+  Synergia shows a fixed notice that this one view is unavailable for now,
+  while other views still work. Retry later; nothing pauses the shared
+  scheduler. The school-year archive's notice that it is being filled with
+  the previous school year's data raises it. In 1.10.3 that notice raised
+  `MaintenanceError`, which otherwise means HTTP 503 with the whole service
+  paused, so consumers and both live checkers took the archive notice for an
+  outage. Code that caught `MaintenanceError` for the archive should catch
+  `TemporarilyUnavailableError` instead.
+- Live check: a temporarily unavailable view no longer ends the login's run;
+  the step is still reported as a problem because the view was not read.
+
 ## 1.10.3 (2026-11-20) - Pages read on Windows; grade details without periods
 
 Thank you, @mpietson, for krzysztofbury/librus-mcp#121, with the libxml2 error
