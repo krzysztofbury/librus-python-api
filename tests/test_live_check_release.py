@@ -13,6 +13,7 @@ from scripts.live_check.checks import Check, Context, Observed, check
 from scripts.live_check.expectations import Expected, compare
 from scripts.live_check.profiles import RELEASE, WEEKLY
 from scripts.live_check.report import (
+    Coverage,
     Report,
     SlotReport,
     Status,
@@ -157,6 +158,37 @@ def test_dependents_of_an_unavailable_view_share_its_expected_coverage() -> None
     report.slots.append(SlotReport(0, 1, 0.0, steps))
     expected = {0: {"parent_view": Expected.DISABLED, "child_view": Expected.DISABLED}}
     assert compare(report, expected) == []
+
+
+@pytest.mark.parametrize(
+    "kind,later",
+    [
+        (ErrorKind.TEMPORARILY_UNAVAILABLE, Status.OK),
+        (ErrorKind.MAINTENANCE, Status.NOT_RUN),
+    ],
+)
+def test_only_a_temporarily_unavailable_view_lets_the_login_continue(
+    kind: ErrorKind, later: Status
+) -> None:
+    # 1.11.0: the archive's loading notice ended every login as MAINTENANCE.
+    @check("archive_view")
+    async def archive(_: Context) -> Observed:
+        raise LibrusError(kind)
+
+    @check("other_view")
+    async def other(_: Context) -> Observed:
+        return Observed(Coverage.POPULATED)
+
+    steps = run_stub((archive, other))
+    assert [(s.status, s.kind) for s in steps] == [
+        (Status.ERROR, kind.value),
+        (later, None),
+    ]
+    report = Report("weekly", "1.2.1", "installed", "unknown", "now")
+    report.slots.append(SlotReport(0, 1, 0.0, steps))
+    expected = {0: dict.fromkeys(("archive_view", "other_view"), Expected.POPULATED)}
+    # Still a reported problem: the view was not read.
+    assert compare(report, expected)
 
 
 def test_dependents_of_a_broken_check_are_not_run() -> None:
