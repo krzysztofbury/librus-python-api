@@ -12,6 +12,7 @@ from librus_python_api.diagnostics import (
     RAISE_HELPERS,
     describe_failure,
     failure_frames,
+    failure_locator,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.grade_records import parse_grade_records
@@ -167,6 +168,26 @@ def test_failure_report_keeps_structure_and_masks_every_value() -> None:
     assert "[Komentarz], [Waga], NO-COLON(len=" in report
     assert "LABEL?(len=" in report
     assert "Kowalski" not in report
+
+
+def test_the_locator_names_the_failing_cell_and_the_widths_without_values() -> None:
+    # A behaviour row one column wider than the header because of a cell
+    # before the last, which stays unsupported; every value is the marker.
+    row = (
+        '<tr class="bolded line0"><td class="center micro screen-only"></td>'
+        f'<td>Zachowanie</td><td colspan="4">{SECRET}a</td>'
+        f'<td class="center">{SECRET}b</td><td colspan="2">{SECRET}c</td>'
+        f'<td>{SECRET}d</td><td class="center">{SECRET}e</td></tr>'
+    )
+    error = _failure(grades_html(rows=row))
+    assert failure_locator(error) == (
+        "table.stretch.decorated[1] > tbody[1] > tr.bolded.line0[2] > "
+        "td.center[7]; cells 7, columns 11, width 10, span 1"
+    )
+    report = describe_failure(error)
+    assert report is not None and "\nwidth: 10\n" in report
+    assert SECRET not in report
+    assert failure_locator(ValueError(SECRET)) is None
 
 
 def test_only_observed_id_shapes_and_lowercase_classes_are_shown() -> None:

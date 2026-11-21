@@ -163,6 +163,15 @@ def _subject_columns(
         if len(columns) + span > GRADE_MAX_COLUMNS:
             raise LibrusError(ErrorKind.LIMIT)
         columns.extend([cell] * span)
+    # One school's behaviour row ends with a cell spanning past the header
+    # (2026-11-21, #189): it starts inside the table, so the columns it covers
+    # there are kept. Only that last merged cell may overflow.
+    if (
+        subject in GRADE_MERGED_SUBJECTS
+        and len(columns) > width
+        and len(columns) - markup.colspan(cells[-1]) < width
+    ):
+        del columns[width:]
     if len(columns) != width:
         raise LibrusError(ErrorKind.PARSE)
     return subject, columns

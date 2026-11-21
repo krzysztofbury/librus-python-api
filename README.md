@@ -16,7 +16,8 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.11.1` fixes a Windows store shared by several processes
+**Status:** `1.11.2` reads a behaviour row whose last cell spans past the
+grade table and names the failing cell in diagnostics. `1.11.1` fixes a Windows store shared by several processes
 reporting `StorageError`, also after a dispatched send. `1.11.0` raises `TemporarilyUnavailableError` for the archive's
 loading notice, a view that is unavailable for now while the rest of Synergia
 works. `1.10.3` reads pages with the libxml2 that lxml's Windows wheels
@@ -57,7 +58,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.11.1
+python -m pip install librus-python-api==1.11.2
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -73,7 +74,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.11.1-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.11.2-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your
