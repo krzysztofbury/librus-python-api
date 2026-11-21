@@ -730,6 +730,9 @@ GRADE_MAX_COLUMNS = 64
 GRADE_MAX_SUBJECTS = 128
 GRADE_MAX_VALUE_LENGTH = 1024
 GRADE_MERGED_SUBJECTS = frozenset({"Zachowanie"})
+# Cell spans of the behaviour row reported in #189 (2026-11-21): the last cell
+# covers the annual average, the annual grade and one column the header lacks.
+GRADE_BEHAVIOUR_OVERFLOW_SPANS = (1, 1, 2, 1, 2, 1, 3)
 GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # Tooltip fields whose free text may continue on unlabelled lines. A teacher's
 # multi-line grade comment was observed on 2026-10-27. A formative mirror's

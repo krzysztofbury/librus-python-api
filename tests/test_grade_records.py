@@ -243,14 +243,20 @@ def test_a_behaviour_row_whose_last_cell_runs_past_the_header_parses() -> None:
 @pytest.mark.parametrize(
     "row",
     [
-        # An inner cell takes the extra column; the last starts outside.
+        # An inner cell is one column wider; the last cell still starts inside
+        # the table, and the summary fields would read shifted cells.
+        _overflowing_behaviour_row((2, 3, 2)),
+        _overflowing_behaviour_row((1, 3, 3)),
+        # The last cell runs two columns past the header.
+        _overflowing_behaviour_row((2, 2, 4)),
+        # The extra column comes from an inner cell; the last starts outside.
         _overflowing_behaviour_row((4, 2, 1)),
         # A full-width row with one more cell after it.
         _overflowing_behaviour_row((2, 2, 2)).replace(
             "</td></tr>", "</td><td>-</td></tr>"
         ),
     ],
-    ids=["inner-cell", "extra-cell"],
+    ids=["shifted-inner", "shifted-first", "two-over", "inner-cell", "extra-cell"],
 )
 def test_other_behaviour_rows_wider_than_the_header_still_fail(row: str) -> None:
     body = grades_html(rows=row).encode()

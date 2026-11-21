@@ -7,6 +7,7 @@ from lxml import html
 
 from librus_python_api import markup
 from librus_python_api.config import (
+    GRADE_BEHAVIOUR_OVERFLOW_SPANS,
     GRADE_BODY_PREFIX_COLUMNS,
     GRADE_CURRENT_HEADER,
     GRADE_EMPTY_MARKERS,
@@ -163,13 +164,14 @@ def _subject_columns(
         if len(columns) + span > GRADE_MAX_COLUMNS:
             raise LibrusError(ErrorKind.LIMIT)
         columns.extend([cell] * span)
-    # One school's behaviour row ends with a cell spanning past the header
-    # (2026-11-21, #189): it starts inside the table, so the columns it covers
-    # there are kept. Only that last merged cell may overflow.
+    # One school's behaviour row ends with a cell spanning one column past the
+    # header (2026-11-21, #189). Only that exact layout drops the extra column;
+    # any other span order could shift summary values into the wrong fields.
     if (
         subject in GRADE_MERGED_SUBJECTS
-        and len(columns) > width
-        and len(columns) - markup.colspan(cells[-1]) < width
+        and tuple(markup.colspan(cell) for cell in cells)
+        == GRADE_BEHAVIOUR_OVERFLOW_SPANS
+        and len(columns) == width + 1
     ):
         del columns[width:]
     if len(columns) != width:

@@ -4,12 +4,12 @@
 
 - Grades: at one school the `Zachowanie` row ends with a cell that spans one
   column past the grade table's header (#189). `grades()`, `grades_window()`
-  and `final_grades()` failed with `ParseError` for every such account. That
-  last cell starts inside the table, so its columns there are read and the
-  rest is ignored: the annual grade keeps its value, and the annual average it
-  merges with is unavailable, as for any merged cell. Only the last cell of the
-  `Zachowanie` row may do this; any other row wider than the header still
-  fails.
+  and `final_grades()` failed with `ParseError` for every such account. For
+  exactly that layout (cell spans 1, 1, 2, 1, 2, 1, 3), the extra column is
+  dropped: the annual grade keeps its value, and the annual average it merges
+  with is unavailable, as for any merged cell. Any other row wider than the
+  header still fails, since a different span order could put a value in the
+  wrong field.
 - New `diagnostics.failure_locator(error)`: one line saying where in the page a
   failure happened, such as `table.stretch.decorated[1] > tbody[1] >
   tr.bolded.line0[2] > td.center[7]; cells 7, columns 11, width 10, span 1`.
