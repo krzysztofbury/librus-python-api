@@ -10,7 +10,9 @@
   `MaintenanceError`, which otherwise means HTTP 503 with the whole service
   paused, so consumers and both live checkers took the archive notice for an
   outage. Code that caught `MaintenanceError` for the archive should catch
-  `TemporarilyUnavailableError` instead.
+  `TemporarilyUnavailableError` instead. A consumer that publishes
+  `ErrorKind` in a schema, such as `SendResult.reason`, gains the value
+  `temporarily_unavailable`.
 - Live check: a temporarily unavailable view no longer ends the login's run;
   the step is still reported as a problem because the view was not read.
 
