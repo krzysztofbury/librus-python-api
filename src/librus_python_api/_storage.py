@@ -219,9 +219,7 @@ class _SQLiteStore:
             except LibrusError:
                 raise
             except Exception:
-                import traceback  # DIAGNOSTIC ONLY, not for merge
-
-                traceback.print_exc()
+                pass
         raise LibrusError(ErrorKind.STORAGE)
 
     def _check_directory(self) -> None:
@@ -333,9 +331,6 @@ class _SQLiteStore:
         except LibrusError:
             raise
         except sqlite3.Error as error:
-            import traceback  # DIAGNOSTIC ONLY, not for merge
-
-            traceback.print_exc()
             kind = (
                 ErrorKind.LIMIT
                 if getattr(error, "sqlite_errorcode", None)
@@ -343,9 +338,6 @@ class _SQLiteStore:
                 else ErrorKind.STORAGE
             )
         except OSError:
-            import traceback  # DIAGNOSTIC ONLY, not for merge
-
-            traceback.print_exc()
             kind = ErrorKind.STORAGE
         finally:
             if connection is not None:
