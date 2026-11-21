@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import importlib
 import inspect
@@ -9,9 +10,11 @@ import pytest
 
 import librus_python_api
 from librus_python_api.diagnostics import (
+    _SHAPE_COUNTS,
     RAISE_HELPERS,
     describe_failure,
     failure_frames,
+    failure_locator,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.grade_records import parse_grade_records
@@ -167,6 +170,81 @@ def test_failure_report_keeps_structure_and_masks_every_value() -> None:
     assert "[Komentarz], [Waga], NO-COLON(len=" in report
     assert "LABEL?(len=" in report
     assert "Kowalski" not in report
+
+
+def test_the_locator_names_the_failing_cell_and_the_widths_without_values() -> None:
+    # A behaviour row one column wider than the header because of a cell
+    # before the last, which stays unsupported; every value is the marker.
+    row = (
+        '<tr class="bolded line0"><td class="center micro screen-only"></td>'
+        f'<td>Zachowanie</td><td colspan="4">{SECRET}a</td>'
+        f'<td class="center">{SECRET}b</td><td colspan="2">{SECRET}c</td>'
+        f'<td>{SECRET}d</td><td class="center">{SECRET}e</td></tr>'
+    )
+    error = _failure(grades_html(rows=row))
+    assert failure_locator(error) == (
+        "table.stretch.decorated[1] > tbody[1] > tr.bolded.line0[2] > "
+        "td.center[7]; cells 7, columns 11, width 10, span 1"
+    )
+    report = describe_failure(error)
+    assert report is not None and "\nwidth: 10\n" in report
+    assert SECRET not in report
+    assert failure_locator(ValueError(SECRET)) is None
+
+
+# Every binding of a name `describe_failure` and `failure_locator` show as a
+# layout count. Each was checked to hold a column count, span or position,
+# never a value read from page text (formative_grades' `span` is a string and
+# is skipped). Add a new one only after the same check.
+_REVIEWED_LAYOUT_BINDINGS = {
+    "completed_lessons:_closing_row:width=arg",
+    "completed_lessons:_optional_columns:position",
+    "completed_lessons:_optional_columns:span",
+    "formative_grades:read_formative_table:span",
+    "grade_parsers:_candidates:width",
+    "grade_parsers:_header:position",
+    "grade_parsers:_header:span",
+    "grade_parsers:_subject_columns:span",
+    "grade_parsers:_subject_columns:width=arg",
+    "grade_parsers:_subject_rows:width=arg",
+    "grade_parsers:_summary:width=arg",
+    "grade_parsers:parse_final_grades:width",
+    "grade_records:_layout:position",
+    "grade_records:_period_columns:position",
+    "grade_records:_read_numeric_table:width",
+    "markup:colspan:span",
+    "message_content:_recipient_receipts:width",
+    "messages:_header:width",
+    "messages:_summary:width=arg",
+    "messages:parse_messages:width",
+    "school_reads:_homework_columns:span",
+}
+
+
+def test_layout_counts_shown_in_diagnostics_come_from_reviewed_bindings() -> None:
+    root = Path(librus_python_api.__file__).parent
+    found = set()
+    for path in sorted(root.glob("*.py")):
+        if path.stem == "diagnostics":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for function in ast.walk(tree):
+            if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            arguments = function.args
+            for argument in (
+                arguments.posonlyargs + arguments.args + arguments.kwonlyargs
+            ):
+                if argument.arg in _SHAPE_COUNTS:
+                    found.add(f"{path.stem}:{function.name}:{argument.arg}=arg")
+            for node in ast.walk(function):
+                if (
+                    isinstance(node, ast.Name)
+                    and isinstance(node.ctx, ast.Store)
+                    and node.id in _SHAPE_COUNTS
+                ):
+                    found.add(f"{path.stem}:{function.name}:{node.id}")
+    assert found == _REVIEWED_LAYOUT_BINDINGS
 
 
 def test_only_observed_id_shapes_and_lowercase_classes_are_shown() -> None:

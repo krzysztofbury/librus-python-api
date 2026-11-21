@@ -41,6 +41,10 @@ _INPUT_TYPES = frozenset(
 # Element IDs whose presence tells a Synergia page from a login or error page.
 _PAGE_MARKERS = ("graphic-menu", "user-section")
 _REPORT_BYTES = 32 * 1024
+_LOCATOR_BYTES = 512
+# Integer locals that hold a table's layout, never a value read from the page:
+# a row's expected width, a cell's span, a column position.
+_SHAPE_COUNTS = frozenset({"width", "span", "position"})
 # Markup observed on Synergia pages. Other class tokens, tags and attribute
 # names are shown only as lengths, since they could carry data.
 _CLASSES = frozenset(
@@ -494,55 +498,109 @@ def _is_page(element: html.HtmlElement) -> bool:
     return element.getparent() is None and element.tag == "html"
 
 
+_Elements = list[tuple[str, html.HtmlElement]]
+_Sequences = list[tuple[str, list[html.HtmlElement] | tuple[html.HtmlElement, ...]]]
+
+
+def _failure_site(
+    error: BaseException,
+) -> tuple[FrameType, int, _Elements, _Sequences, list[tuple[str, int]]] | None:
+    """The innermost library frame holding HTML elements, with those elements,
+    element sequences and the layout counts named in `_SHAPE_COUNTS`."""
+    for frame, line in reversed(_frames(error, (_PACKAGE,))):
+        local_items = list(frame.f_locals.items())
+        elements = [
+            (name, value)
+            for name, value in local_items
+            if isinstance(value, html.HtmlElement)
+        ][:_ELEMENT_LOCALS]
+        sequences = [
+            (name, value)
+            for name, value in local_items
+            if isinstance(value, (list, tuple))
+            and value
+            and all(isinstance(item, html.HtmlElement) for item in value)
+        ][:_ELEMENT_LOCALS]
+        if not elements and not sequences:
+            continue
+        counts = [
+            (name, value)
+            for name, value in local_items
+            if name in _SHAPE_COUNTS and type(value) is int
+        ]
+        return frame, line, elements, sequences, counts
+    return None
+
+
 def describe_failure(error: BaseException) -> str | None:
     """The page structure around a failure, for a bug report.
 
     Shows the HTML elements held by the innermost library frame that holds
     any: tags, safe class tokens, known tooltip labels, known link families
-    and lengths. A whole page is summarized last (see _page_summary). Text
-    and attribute values are masked unless they equal a parser constant.
+    and lengths, then the layout counts it compared (such as `width`). A
+    whole page is summarized last (see _page_summary). Text and attribute
+    values are masked unless they equal a parser constant.
     Returns None when there is nothing to show; never raises.
     """
     try:
+        site = _failure_site(error)
+        if site is None:
+            return None
+        frame, line, elements, sequences, counts = site
         redactor = _Redactor()
-        for frame, line in reversed(_frames(error, (_PACKAGE,))):
-            local_items = list(frame.f_locals.items())
-            elements = [
-                (name, value)
-                for name, value in local_items
-                if isinstance(value, html.HtmlElement)
-            ][:_ELEMENT_LOCALS]
-            sequences = [
-                (name, value)
-                for name, value in local_items
-                if isinstance(value, (list, tuple))
-                and value
-                and all(isinstance(item, html.HtmlElement) for item in value)
-            ][:_ELEMENT_LOCALS]
-            if not elements and not sequences:
+        lines = [f"at {_site(frame, line)}"]
+        # The elements nearest the failure first; a page summary last.
+        for name, value in sorted(elements, key=lambda item: _is_page(item[1])):
+            redactor.nodes = 0
+            if _is_page(value):
+                summary = "\n".join(_page_summary(value, redactor))
+                if len(summary) > _ELEMENT_BYTES:
+                    summary = summary[:_ELEMENT_BYTES] + "...(truncated)"
+                lines += [f"{name}: page", summary]
                 continue
-            lines = [f"at {_site(frame, line)}"]
-            # The elements nearest the failure first; a page summary last.
-            for name, value in sorted(elements, key=lambda item: _is_page(item[1])):
-                redactor.nodes = 0
-                if _is_page(value):
-                    summary = "\n".join(_page_summary(value, redactor))
-                    if len(summary) > _ELEMENT_BYTES:
-                        summary = summary[:_ELEMENT_BYTES] + "...(truncated)"
-                    lines += [f"{name}: page", summary]
-                    continue
-                lines.append(f"{name}: {_path(value, redactor)}")
-                rendered = redactor.element(value)
-                if len(rendered) > _ELEMENT_BYTES:
-                    rendered = rendered[:_ELEMENT_BYTES] + "...(truncated)"
-                lines.append("  " + rendered)
-            for name, items in sequences:
-                tags = ",".join(str(item.tag) for item in items[:20])
-                lines.append(f"{name}: {len(items)} elements: {tags}")
-            report = "\n".join(lines)
-            if len(report) > _REPORT_BYTES:
-                report = report[:_REPORT_BYTES] + "...(truncated)"
-            return report
+            lines.append(f"{name}: {_path(value, redactor)}")
+            rendered = redactor.element(value)
+            if len(rendered) > _ELEMENT_BYTES:
+                rendered = rendered[:_ELEMENT_BYTES] + "...(truncated)"
+            lines.append("  " + rendered)
+        for name, items in sequences:
+            tags = ",".join(str(item.tag) for item in items[:20])
+            lines.append(f"{name}: {len(items)} elements: {tags}")
+        for name, count in counts:
+            lines.append(f"{name}: {count}")
+        report = "\n".join(lines)
+        if len(report) > _REPORT_BYTES:
+            report = report[:_REPORT_BYTES] + "...(truncated)"
+        return report
+    except Exception:
         return None
+
+
+def failure_locator(error: BaseException) -> str | None:
+    """One line saying where in the page a failure happened, for an error result.
+
+    The masked path of the element nearest the failure (as in
+    `describe_failure`), then the sizes it was checked against, for example
+    `table.stretch.decorated[1] > tbody[1] > tr.bolded.line0[2] > td.center[7];
+    cells 7, columns 11, width 10`. Structure and counts only, never page text
+    or values. Returns None when no page element is involved; never raises.
+    """
+    try:
+        site = _failure_site(error)
+        if site is None:
+            return None
+        _, _, elements, sequences, counts = site
+        redactor = _Redactor()
+        parts = [
+            _path(value, redactor) for _, value in elements if not _is_page(value)
+        ][:1]
+        sizes = [f"{name} {len(items)}" for name, items in sequences]
+        sizes += [f"{name} {value}" for name, value in counts]
+        if sizes:
+            parts.append(", ".join(sizes))
+        if not parts:
+            return None
+        locator = "; ".join(parts)
+        return locator[:_LOCATOR_BYTES]
     except Exception:
         return None

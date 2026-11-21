@@ -17,6 +17,7 @@ from librus_python_api.exceptions import (
     ParseError,
     UnsupportedCapabilityError,
 )
+from librus_python_api.grade_parsers import parse_final_grades
 from librus_python_api.grade_records import parse_grade_records
 from tests.grade_records_support import (
     BEHAVIOUR_TOOLTIP,
@@ -197,6 +198,72 @@ def test_a_spanning_tally_alone_parses_without_an_item() -> None:
     row = _spanning_behaviour_row(behaviour_points(boxes=behaviour_box()))
     with pytest.raises(ParseError):
         parse_grade_records(grades_html(rows=row).encode())
+
+
+def _overflowing_behaviour_row(spans: tuple[int, int, int] = (2, 2, 3)) -> str:
+    """The behaviour row with spans 1+1+2+1+2+1+3: one column wider than the
+    ten-column header, as reported in #189. Summary values are distinct."""
+    first, second, last = spans
+    return (
+        '<tr class="bolded line0"><td class="center micro screen-only"></td>'
+        f'<td>Zachowanie</td><td colspan="{first}">'
+        f"{behaviour_points(boxes=behaviour_box())}</td>"
+        f'<td class="center">good</td><td colspan="{second}">{behaviour_points()}'
+        f'</td><td>fair</td><td class="center" colspan="{last}">very good</td></tr>'
+    )
+
+
+def test_a_behaviour_row_whose_last_cell_runs_past_the_header_parses() -> None:
+    body = grades_html(rows=_overflowing_behaviour_row()).encode()
+    records = parse_grade_records(body)
+    usual = parse_grade_records(_with_behaviour())
+    assert (records.numeric, records.behaviour_points) == (
+        usual.numeric,
+        usual.behaviour_points,
+    )
+    # The last cell covers the annual average and the annual grade, so the
+    # average is not a value of its own.
+    assert [
+        (a.semester, a.value.availability)
+        for a in records.averages
+        if a.subject == "Zachowanie"
+    ] == [
+        (1, Availability.UNAVAILABLE),
+        (2, Availability.UNAVAILABLE),
+        (0, Availability.UNAVAILABLE),
+    ]
+    behaviour = next(s for s in parse_final_grades(body) if s.subject == "Zachowanie")
+    assert (
+        behaviour.midterm.raw,
+        behaviour.predicted_annual.raw,
+        behaviour.annual.raw,
+    ) == ("good", "fair", "very good")
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        # An inner cell is one column wider; the last cell still starts inside
+        # the table, and the summary fields would read shifted cells.
+        _overflowing_behaviour_row((2, 3, 2)),
+        _overflowing_behaviour_row((1, 3, 3)),
+        # The last cell runs two columns past the header.
+        _overflowing_behaviour_row((2, 2, 4)),
+        # The extra column comes from an inner cell; the last starts outside.
+        _overflowing_behaviour_row((4, 2, 1)),
+        # A full-width row with one more cell after it.
+        _overflowing_behaviour_row((2, 2, 2)).replace(
+            "</td></tr>", "</td><td>-</td></tr>"
+        ),
+    ],
+    ids=["shifted-inner", "shifted-first", "two-over", "inner-cell", "extra-cell"],
+)
+def test_other_behaviour_rows_wider_than_the_header_still_fail(row: str) -> None:
+    body = grades_html(rows=row).encode()
+    with pytest.raises(ParseError):
+        parse_grade_records(body)
+    with pytest.raises(ParseError):
+        parse_final_grades(body)
 
 
 @pytest.mark.parametrize(

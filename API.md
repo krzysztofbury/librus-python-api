@@ -183,7 +183,14 @@ from the exception's own traceback. Neither raises.
   present, title, headings, notices, forms and input types, then the first
   tables row by row, with known profile labels and notices by name. Output is
   bounded. It is meant for a human to review before sharing, not for
-  automatic upload.
+  automatic upload. The layout sizes the failing code compared (`width`,
+  `span`, `position`) follow the elements (1.11.2).
+- `diagnostics.failure_locator(error)` (1.11.2) returns one line, or None: the
+  masked path of the element nearest the failure, then those element counts
+  and sizes, for example `table.stretch.decorated[1] > tbody[1] >
+  tr.bolded.line0[2] > td.center[7]; cells 7, columns 11, width 10, span 1`.
+  It holds structure and counts only, at most 512 characters, so an
+  application can return it with the error, as `librus-mcp` does in `at`.
 - `python -m librus_python_api.inspect_page {grades,final-grades,profile} FILE`
   parses a saved page offline (a whole page or a copied table) and prints
   counts, or the failure kind, frames and structure. `profile` (1.8.1) reads the
