@@ -39,7 +39,7 @@ Database and existing sidecar handles reject reparse points, directories, non-di
 objects, multiply linked files, unsafe ACLs and configured size overflow. A
 sidecar that another process's commit deletes during the check is absent, as on
 POSIX; one that stays and cannot be opened fails as `STORAGE` after about one
-second of bounded retries (unreleased). Retain database identity across operations. SQLite uses DELETE journal mode, FULL
+second of bounded retries (1.11.1). Retain database identity across operations. SQLite uses DELETE journal mode, FULL
 synchronous transactions and the same bounded busy/final-save budgets as POSIX;
 send claims commit before HTTP and never permit replay of CLAIMED/UNKNOWN work.
 No weaker path-based consumer storage implementation is substituted.

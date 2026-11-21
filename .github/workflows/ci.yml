@@ -19,9 +19,9 @@ defaults:
 
 jobs:
   windows:
-    # The x64 names are required checks; keep them. lxml's Windows wheels bundle
-    # an older libxml2 than its Linux and macOS ones (#121), so every page
-    # parser runs here too.
+    # All three names, ARM64 included, are required checks; keep them. lxml's
+    # Windows wheels bundle an older libxml2 than its Linux and macOS ones
+    # (#121), so every page parser runs here too.
     name: Windows disk and installed artifacts (Python ${{ matrix.python-version }})${{ matrix.suffix }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30

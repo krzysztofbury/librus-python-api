@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.11.1 (2026-11-21) - Windows stores shared by several processes
 
 - Windows: a durable store shared by several processes could report
   `StorageError`, including on the save that records a dispatched send.
