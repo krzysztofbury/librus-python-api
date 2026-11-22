@@ -151,15 +151,16 @@ def test_reordered_header_and_body_columns_stay_aligned() -> None:
     )
 
 
-def test_behaviour_can_span_unused_columns_without_losing_values() -> None:
+def test_a_merged_behaviour_field_needs_current_grade_columns_to_check() -> None:
+    # Without current-grade columns in the header, nothing shows whether the
+    # merged cell is the behaviour points or the midterm (#192). Values that
+    # merge with columns beside them are covered in test_grade_records.py.
     markup = summary_html(subject="Zachowanie", annual="very good").replace(
         "<td></td><td></td><td>progressing</td>",
         '<td colspan="3">good</td>',
     )
-    (item,) = parse_final_grades(markup.encode())
-    assert item.midterm.raw == "good"
-    assert item.annual.raw == "very good"
-    assert item.predicted_annual.raw == "-"
+    with pytest.raises(ParseError):
+        parse_final_grades(markup.encode())
 
 
 def _with_points(

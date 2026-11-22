@@ -266,6 +266,118 @@ def test_other_behaviour_rows_wider_than_the_header_still_fail(row: str) -> None
         parse_final_grades(body)
 
 
+TALLY = "tally"
+
+
+def _behaviour_cells(*cells: tuple[int, str]) -> str:
+    """A behaviour row of (colspan, value) cells after the two prefix cells.
+
+    `grades_html` puts the current grades in columns 2 and 5, the midterm in
+    4, the predicted grade in 7 and the annual grade in 9 (width 10). TALLY
+    stands for a period's points cell: starting points and point entries.
+    """
+    return (
+        '<tr class="bolded line0"><td class="center micro screen-only"></td>'
+        "<td>Zachowanie</td>"
+        + "".join(
+            f'<td colspan="{span}">'
+            f"{behaviour_points() if value == TALLY else escape(value)}</td>"
+            for span, value in cells
+        )
+        + "</tr>"
+    )
+
+
+@pytest.mark.parametrize(
+    ("row", "expected"),
+    [
+        # The observed row (behaviour_row) with distinct summary values.
+        (
+            _behaviour_cells(
+                (2, TALLY),
+                (1, "good"),
+                (2, TALLY),
+                (1, "fair"),
+                (1, "-"),
+                (1, "very good"),
+            ),
+            ("good", "fair", "very good"),
+        ),
+        # A field merged with the average beside it, as the point table and
+        # #189 show the annual grade.
+        (
+            _behaviour_cells(
+                (2, TALLY), (1, "good"), (2, TALLY), (1, "fair"), (2, "very good")
+            ),
+            ("good", "fair", "very good"),
+        ),
+        (
+            _behaviour_cells(
+                (1, TALLY),
+                (2, "good"),
+                (2, TALLY),
+                (1, "fair"),
+                (1, "-"),
+                (1, "very good"),
+            ),
+            ("good", "fair", "very good"),
+        ),
+    ],
+    ids=["observed", "annual-over-average", "midterm-over-average"],
+)
+def test_a_behaviour_field_may_share_a_cell_with_columns_other_than_grades(
+    row: str, expected: tuple[str, str, str]
+) -> None:
+    body = grades_html(rows=row).encode()
+    parse_grade_records(body)
+    behaviour = next(s for s in parse_final_grades(body) if s.subject == "Zachowanie")
+    assert (
+        behaviour.midterm.raw,
+        behaviour.predicted_annual.raw,
+        behaviour.annual.raw,
+    ) == expected
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        # #192: the second points cell runs over the predicted grade's column.
+        _behaviour_cells(
+            (2, TALLY), (1, "good"), (3, TALLY), (1, "-"), (1, "very good")
+        ),
+        # The first points cell runs over the midterm's column.
+        _behaviour_cells(
+            (3, TALLY), (2, TALLY), (1, "fair"), (1, "-"), (1, "very good")
+        ),
+        # The midterm's cell runs over the second current-grades column: even
+        # "-" may be that column's, so it is not read as the midterm.
+        _behaviour_cells(
+            (2, TALLY),
+            (2, "-"),
+            (1, "-"),
+            (1, "fair"),
+            (1, "-"),
+            (1, "very good"),
+        ),
+        # One tally cell over both periods (test_a_spanning_tally_alone...).
+        _spanning_behaviour_row(behaviour_points()),
+    ],
+    ids=[
+        "tally-over-predicted",
+        "tally-over-midterm",
+        "midterm-over-grades",
+        "tally-over-both-periods",
+    ],
+)
+def test_a_behaviour_field_never_comes_from_a_current_grades_cell(row: str) -> None:
+    body = grades_html(rows=row).encode()
+    with pytest.raises(ParseError):
+        parse_final_grades(body)
+    # Grade records read no summary value from the row, so they still parse.
+    records = parse_grade_records(body)
+    assert [g.subject for g in records.numeric] == ["Fixture Language"]
+
+
 @pytest.mark.parametrize(
     "tooltip",
     [
