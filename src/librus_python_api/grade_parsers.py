@@ -202,11 +202,14 @@ def _summary(
         # A single merged value cannot mean two different summary fields.
         raise LibrusError(ErrorKind.PARSE)
     # A merged cell over a current-grade column holds the behaviour points,
-    # not a summary value (#192). Without current-grade columns in the header,
-    # a merged value cannot be checked at all.
-    for cell in selected if current is not None else []:
-        if markup.colspan(cell) > 1 and (
-            not current or any(columns[index] is cell for index in current)
+    # not a summary value (#192). Unless the header names both periods'
+    # current-grade columns, as every grade table does, a merged value cannot
+    # be checked at all.
+    for cell in selected:
+        if (
+            current is not None
+            and markup.colspan(cell) > 1
+            and (len(current) != 2 or any(columns[index] is cell for index in current))
         ):
             raise LibrusError(ErrorKind.PARSE)
     values = {

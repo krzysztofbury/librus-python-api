@@ -40,10 +40,10 @@ is replaced by arithmetic on grade symbols.
   cell cannot stand for multiple different summary fields, and a merged cell
   that covers a current-grade column (where the behaviour row holds its
   points) never supplies a summary field. A merged summary value in a table
-  whose header names no current-grade column cannot be checked and fails
-  (#192). Grade records read only the subject from such a row and still
-  parse. Unsupported rowspans,
-  short/long rows, duplicate labels, and ambiguous tables fail explicitly.
+  whose header does not name both periods' current-grade columns cannot be
+  checked and fails (#192). Grade records read only the subject from such a
+  row and still parse. Unsupported rowspans, short/long rows, duplicate
+  labels, and ambiguous tables fail explicitly.
 - Nested expanded-detail wrappers and the narrow inline `Ocena` label variant
   do not become subjects. Unexpected content in a nested subject row is rejected.
 - An empty single-cell, full-width spacer is ignored; nonempty or incorrectly
