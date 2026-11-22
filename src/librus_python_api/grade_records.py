@@ -587,9 +587,9 @@ def _read_numeric_table(
     # Preserve the established full-row and summary alignment validation. A
     # point table aligns on its current-grade header row and may lack summaries.
     if points:
-        fields, width = point_layout(table)
+        fields, width, _ = point_layout(table)
     else:
-        _, fields, width = _locate(table)
+        _, fields, width, _ = _locate(table)
     current, means = _layout(table, points=points)
     periods = _period_columns(table, points=points)
     averages = collection.point_results if points else collection.averages

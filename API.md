@@ -221,7 +221,11 @@ source)` with an aware UTC timestamp.
 - `final_grades()` returns `FinalGrades` with one `SubjectGradeSummary` per
   subject: `midterm`, `predicted_annual` and `annual`, each a
   `GradeSummaryValue(availability, raw)`. Raw school text is kept as is.
-  `UNAVAILABLE` means the column is absent.
+  `UNAVAILABLE` means the column is absent. In the `Zachowanie` row a value
+  may share a merged cell with the columns beside it, but never with a
+  current-grade (`Oceny bieżące`) column, where that row holds behaviour
+  points: such a row raises `ParseError` instead of returning the points as a
+  grade. `grades()` reads no summary value from that row and is unaffected.
 - `grades(view=GradeView.ALL)` returns `Grades(identity, records, observation,
   view)`. Selecting a view (`ALL`, `WEEK`, `LAST_LOGIN`) is one POST that changes
   the filter shown in that login's session; it is never replayed

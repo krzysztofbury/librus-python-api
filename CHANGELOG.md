@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.11.3 (2026-11-22) - Behaviour points never read as a final grade
+
+- Grades: `final_grades()` no longer reads a summary value from a merged
+  `Zachowanie` cell that also covers a current-grade (`Oceny bieżące`)
+  column (#192). That cell holds the behaviour points, so a different span
+  order could return the points tally as the predicted grade or the midterm.
+  Such a row now raises `ParseError`, and so does a merged summary value in a
+  table whose header does not name both periods' current-grade columns, where
+  the rule cannot be checked. Values merged with other
+  columns, as in the point table and the #189 row, read as before.
+  `grades()` and `grades_window()` read only the subject from that row and
+  are unchanged. No layout seen live is affected.
+
 ## 1.11.2 (2026-11-21) - A behaviour row wider than the grade table
 
 - Grades: at one school the `Zachowanie` row ends with a cell that spans one

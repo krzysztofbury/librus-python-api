@@ -37,8 +37,13 @@ is replaced by arithmetic on grade symbols.
   summary/subject/header title. Common HTML node/depth and transport/parser byte
   bounds still apply. These are conservative client limits, not school guarantees.
 - Body colspans are accepted only for the evidenced behaviour subject. A merged
-  cell cannot stand for multiple different summary fields. Unsupported rowspans,
-  short/long rows, duplicate labels, and ambiguous tables fail explicitly.
+  cell cannot stand for multiple different summary fields, and a merged cell
+  that covers a current-grade column (where the behaviour row holds its
+  points) never supplies a summary field. A merged summary value in a table
+  whose header does not name both periods' current-grade columns cannot be
+  checked and fails (#192). Grade records read only the subject from such a
+  row and still parse. Unsupported rowspans, short/long rows, duplicate
+  labels, and ambiguous tables fail explicitly.
 - Nested expanded-detail wrappers and the narrow inline `Ocena` label variant
   do not become subjects. Unexpected content in a nested subject row is rejected.
 - An empty single-cell, full-width spacer is ignored; nonempty or incorrectly
@@ -140,7 +145,8 @@ equal item for the same period is one item and a different one fails. Point
 entries count toward `GRADE_MAX_RECORDS` with the grades; an item the point
 table repeats counts once. A tally alone in a cell spanning both periods'
 current-grade columns parses, as before 1.10.0, but gives no item: its period
-would be a guess. `GradeWindow`
+would be a guess. `final_grades()` fails for that row, since its midterm
+column is covered by the tally (#192). `GradeWindow`
 keeps an item when one of its entries is in the window, with only those
 entries and its tally; a tally without entries in the window, like averages,
 stays outside. Notification identities come from grades only and do not

@@ -48,20 +48,24 @@ def _summary_field(cell: html.HtmlElement, *, points: bool = False) -> str | Non
 
 def _header(
     row: html.HtmlElement, *, points: bool = False
-) -> tuple[dict[str, int], int]:
+) -> tuple[dict[str, int], int, frozenset[int]]:
+    """Summary field columns, the width, and the current-grade columns."""
     fields: dict[str, int] = {}
+    current: set[int] = set()
     position = GRADE_BODY_PREFIX_COLUMNS
     for cell in markup.cells(row):
         span = markup.colspan(cell)
         if position + span > GRADE_MAX_COLUMNS:
             raise LibrusError(ErrorKind.LIMIT)
+        if markup.text(cell) == GRADE_CURRENT_HEADER:
+            current.update(range(position, position + span))
         field = _summary_field(cell, points=points)
         if field is not None:
             if field in fields:
                 raise LibrusError(ErrorKind.PARSE)
             fields[field] = position
         position += span
-    return fields, position
+    return fields, position, frozenset(current)
 
 
 def is_point_table(table: html.HtmlElement) -> bool:
@@ -85,8 +89,11 @@ def _current_header(table: html.HtmlElement) -> bool:
     )
 
 
-def point_layout(table: html.HtmlElement) -> tuple[dict[str, int], int]:
-    """Summary fields and width from the point table's current-grade header row.
+def point_layout(
+    table: html.HtmlElement,
+) -> tuple[dict[str, int], int, frozenset[int]]:
+    """Summary fields, width and current-grade columns from the point table's
+    current-grade header row.
 
     Point tables are not required to have an annual column, so the row with
     the two current-grade headers defines the body alignment instead.
@@ -102,10 +109,11 @@ def point_layout(table: html.HtmlElement) -> tuple[dict[str, int], int]:
     return _header(headers[0], points=True)
 
 
-def _candidates(
-    document: html.HtmlElement,
-) -> list[tuple[html.HtmlElement, dict[str, int], int]]:
-    candidates: list[tuple[html.HtmlElement, dict[str, int], int]] = []
+_Layout = tuple[html.HtmlElement, dict[str, int], int, frozenset[int]]
+
+
+def _candidates(document: html.HtmlElement) -> list[_Layout]:
+    candidates: list[_Layout] = []
     for table in document.iter("table"):
         if not {"decorated", "stretch"} <= set(table.get("class", "").split()):
             continue
@@ -118,14 +126,12 @@ def _candidates(
             # an annual summary title defines the body alignment contract.
             if not any(_summary_field(cell) == "annual" for cell in markup.cells(row)):
                 continue
-            fields, width = _header(row)
-            candidates.append((table, fields, width))
+            fields, width, current = _header(row)
+            candidates.append((table, fields, width, current))
     return candidates
 
 
-def _locate(
-    document: html.HtmlElement,
-) -> tuple[html.HtmlElement, dict[str, int], int]:
+def _locate(document: html.HtmlElement) -> _Layout:
     candidates = _candidates(document)
     if len(candidates) != 1:
         raise LibrusError(ErrorKind.PARSE)
@@ -183,12 +189,29 @@ def _summary(
     cells: list[html.HtmlElement],
     fields: dict[str, int],
     width: int,
+    current: frozenset[int] | None = None,
 ) -> SubjectGradeSummary:
+    """One subject's summary values.
+
+    `current` holds the header's current-grade columns. Pass it whenever the
+    values are returned; `grades()` reads only the subject and passes none.
+    """
     subject, columns = _subject_columns(cells, width)
     selected = [columns[index] for index in fields.values()]
     if len({id(cell) for cell in selected}) != len(selected):
         # A single merged value cannot mean two different summary fields.
         raise LibrusError(ErrorKind.PARSE)
+    # A merged cell over a current-grade column holds the behaviour points,
+    # not a summary value (#192). Unless the header names both periods'
+    # current-grade columns, as every grade table does, a merged value cannot
+    # be checked at all.
+    for cell in selected:
+        if (
+            current is not None
+            and markup.colspan(cell) > 1
+            and (len(current) != 2 or any(columns[index] is cell for index in current))
+        ):
+            raise LibrusError(ErrorKind.PARSE)
     values = {
         name: GradeSummaryValue(Availability.AVAILABLE, markup.text(columns[index]))
         for name, index in fields.items()
@@ -270,21 +293,21 @@ def parse_final_grades(body: bytes) -> tuple[SubjectGradeSummary, ...]:
     if len(sources) > 1 or not (sources or point_tables):
         raise LibrusError(ErrorKind.PARSE)
     if point_tables:
-        located = {id(table) for table, _, _ in sources}
+        located = {id(table) for table, _, _, _ in sources}
         if any(
             _current_header(table) and id(table) not in located
             for table in document.iter("table")
             if table not in point_tables
         ):
             raise LibrusError(ErrorKind.PARSE)
-        fields, width = point_layout(point_tables[0])
+        fields, width, current = point_layout(point_tables[0])
         if fields:
-            sources.append((point_tables[0], fields, width))
+            sources.append((point_tables[0], fields, width, current))
     items: dict[str, SubjectGradeSummary] = {}
-    for table, fields, width in sources:
+    for table, fields, width, current in sources:
         family_subjects: set[str] = set()
         for cells in _subject_rows(table, width, points=table in point_tables):
-            item = _summary(cells, fields, width)
+            item = _summary(cells, fields, width, current)
             if item.subject in family_subjects:
                 raise LibrusError(ErrorKind.PARSE)
             family_subjects.add(item.subject)

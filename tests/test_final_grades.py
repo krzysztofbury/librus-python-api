@@ -151,15 +151,33 @@ def test_reordered_header_and_body_columns_stay_aligned() -> None:
     )
 
 
-def test_behaviour_can_span_unused_columns_without_losing_values() -> None:
-    markup = summary_html(subject="Zachowanie", annual="very good").replace(
-        "<td></td><td></td><td>progressing</td>",
-        '<td colspan="3">good</td>',
-    )
-    (item,) = parse_final_grades(markup.encode())
-    assert item.midterm.raw == "good"
-    assert item.annual.raw == "very good"
-    assert item.predicted_annual.raw == "-"
+@pytest.mark.parametrize(
+    "markup",
+    [
+        summary_html(subject="Zachowanie", annual="very good").replace(
+            "<td></td><td></td><td>progressing</td>",
+            '<td colspan="3">good</td>',
+        ),
+        # Only the first period's current-grade column is named, so the
+        # second points cell over the predicted column goes unseen.
+        grades_html(
+            rows='<tr><td></td><td>Zachowanie</td><td colspan="2">50</td>'
+            '<td>good</td><td colspan="3">50</td><td>-</td><td>very good</td></tr>'
+        ).replace(
+            '<th>Oceny bieżące</th><th title="Średnia ocen z drugiego',
+            '<th>Display</th><th title="Średnia ocen z drugiego',
+        ),
+    ],
+    ids=["no-current-columns", "one-current-column"],
+)
+def test_a_merged_behaviour_field_needs_current_grade_columns_to_check(
+    markup: str,
+) -> None:
+    # Without both current-grade columns in the header, nothing shows whether
+    # a merged cell is the behaviour points or a summary value (#192). Values
+    # that merge with other columns are covered in test_grade_records.py.
+    with pytest.raises(ParseError):
+        parse_final_grades(markup.encode())
 
 
 def _with_points(
@@ -212,6 +230,27 @@ def test_point_table_alone_is_a_summary_source() -> None:
     )
     with pytest.raises(ParseError):
         parse_final_grades(untitled.encode())
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        '<td colspan="3">50</td><td colspan="3">50</td><td colspan="2">-</td>',
+        '<td colspan="2">50</td><td>good</td><td colspan="5">50</td>',
+    ],
+    ids=["tally-over-midterm", "tally-over-annual"],
+)
+def test_a_point_table_behaviour_field_never_comes_from_a_current_grades_cell(
+    cells: str,
+) -> None:
+    observed = (
+        '<td class="left" colspan="2">&nbsp;</td><td class="center">-</td>'
+        '<td colspan="2">&nbsp;</td><td class="center" colspan="3">-</td>'
+    )
+    page = observed_point_page()
+    assert page.count(observed) == 1
+    with pytest.raises(ParseError):
+        parse_final_grades(page.replace(observed, cells).encode())
 
 
 def test_observed_point_page_summaries_include_the_broken_midterm_title() -> None:
