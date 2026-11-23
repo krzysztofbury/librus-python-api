@@ -157,6 +157,14 @@ def test_a_complete_single_page_range_is_accepted() -> None:
     assert parse(body) == parse(lessons_html())
 
 
+def test_the_last_page_of_several_may_end_at_the_total() -> None:
+    body = lessons_html(8, 9).replace(
+        "Strona 9 z 9", "Strona 9 z 9 Pozycje 121..121 z 121"
+    )
+    items, count, _ = parse(body, 8)
+    assert len(items) == 1 and count == 9
+
+
 def test_a_page_before_the_last_cannot_already_end_at_the_total() -> None:
     # #196: page 2 of 9 claiming the final item contradicts the page count.
     body = lessons_html(1, 9).replace(

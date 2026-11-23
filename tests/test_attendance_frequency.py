@@ -675,3 +675,25 @@ def test_lookups_past_the_budget_fail_before_any_is_sent() -> None:
                 assert fixture.metadata_requests == [("lessons", "*")]
 
     asyncio.run(scenario())
+
+
+def test_cached_lookups_are_not_counted_against_the_budget() -> None:
+    # Review of #199: lessons the per-reference cache still holds cost no
+    # request, so a later call within the default budget must not fail.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _distinct_lessons(40)
+        fixture.collection_lessons = None
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.subject_frequency(budget=RequestBudget(max_requests=100))
+                before = len(fixture.metadata_requests)
+                result = await client.subject_frequency()
+                assert [item.frequency.total_count for item in result.items] == [40]
+                # Only the unavailable lessons collection is asked again; the
+                # subjects map and every lesson come from the caches.
+                assert fixture.metadata_requests[before:] == [("lessons", "*")]
+
+    asyncio.run(scenario())

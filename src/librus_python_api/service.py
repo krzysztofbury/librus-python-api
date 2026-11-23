@@ -8,7 +8,7 @@ import json
 import math
 import re
 import time
-from collections.abc import Awaitable, Callable, Hashable, Mapping
+from collections.abc import Awaitable, Callable, Hashable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from types import MappingProxyType, TracebackType
@@ -2599,13 +2599,29 @@ class AccountClient:
         _check_record_count(records, len(added))
         return replace(records, descriptive=records.descriptive + added)
 
+    def _fresh_metadata(self, endpoint: str, identifier: str) -> str | None:
+        cached = self._metadata.get((endpoint, identifier))
+        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
+            return cached[1]
+        return None
+
+    def _lookups(
+        self, endpoint: str, known: Mapping[str, str], identifiers: Iterable[str]
+    ) -> int:
+        """How many of `identifiers` would cost a per-reference request."""
+        return sum(
+            identifier not in known
+            and self._fresh_metadata(endpoint, identifier) is None
+            for identifier in identifiers
+        )
+
     async def _metadata_value(
         self, endpoint: str, identifier: str, budget: RequestBudget
     ) -> str:
         key = endpoint, identifier
-        cached = self._metadata.get(key)
-        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
-            return cached[1]
+        cached = self._fresh_metadata(endpoint, identifier)
+        if cached is not None:
+            return cached
         parser = (
             parse_lesson_subject
             if endpoint == "attendance_lesson"
@@ -2674,7 +2690,7 @@ class AccountClient:
         lesson_map = (
             await self._metadata_map("attendance_lessons", budget) if lessons else {}
         )
-        _check_lookups(budget, sum(lesson not in lesson_map for lesson in lessons))
+        _check_lookups(budget, self._lookups("attendance_lesson", lesson_map, lessons))
         lesson_subjects = {
             lesson: lesson_map.get(lesson)
             or await self._metadata_value("attendance_lesson", lesson, budget)
@@ -2686,7 +2702,9 @@ class AccountClient:
         subject_map = (
             await self._metadata_map("attendance_subjects", budget) if subjects else {}
         )
-        _check_lookups(budget, sum(subject not in subject_map for subject in subjects))
+        _check_lookups(
+            budget, self._lookups("attendance_subject", subject_map, subjects)
+        )
         items = [
             SubjectFrequency(
                 subject,
