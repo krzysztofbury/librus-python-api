@@ -181,13 +181,15 @@ class LoggedOutLaunchFixture(ModernFixture):
     """The launch answers 200 with a page instead of redirecting."""
 
     launch_page: str | None = None
+    # How many launches answer with `launch_page` before redirecting again.
+    launch_pages = 1
 
     async def launch(self, request: web.Request) -> web.Response:
-        if self.launch_page is None:
+        if self.launch_page is None or not self.launch_pages:
             return await super().launch(request)
         self.record(request)
-        page, self.launch_page = self.launch_page, None
-        return web.Response(text=page, content_type="text/html")
+        self.launch_pages -= 1
+        return web.Response(text=self.launch_page, content_type="text/html")
 
 
 def test_a_logged_out_launch_page_signs_in_again_once() -> None:
@@ -241,5 +243,38 @@ def test_a_send_never_signs_in_again_after_a_logged_out_launch(
             assert attempt.outcome.status is SendStatus.NOT_DISPATCHED
             assert fixture.sends == [] and fixture.modern_calls == []
             assert fixture.logins == {"student": 1}
+
+    asyncio.run(scenario())
+
+
+def test_a_launch_that_stays_logged_out_signs_in_once_more_then_cools_down() -> None:
+    # No loop: one more sign-in, then PARSE, then the cooldown answers.
+    async def scenario() -> None:
+        fixture = LoggedOutLaunchFixture()
+        fixture.launch_page, fixture.launch_pages = LOGGED_OUT_PAGE, 10
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.identity()
+            with pytest.raises(LibrusError) as error:
+                await client.modern_recipient_types()
+            assert error.value.kind is ErrorKind.PARSE
+            assert fixture.logins == {"student": 2} and fixture.launch_pages == 8
+            with pytest.raises(LibrusError) as again:
+                await client.modern_recipient_types()
+            assert again.value.kind is ErrorKind.PARSE
+            assert fixture.logins == {"student": 2} and fixture.launch_pages == 8
+
+    asyncio.run(scenario())
+
+
+def test_a_fresh_session_that_gets_a_logged_out_launch_fails_as_parse() -> None:
+    async def scenario() -> None:
+        fixture = LoggedOutLaunchFixture()
+        fixture.launch_page = LOGGED_OUT_PAGE
+        async with fixture.running() as service:
+            with pytest.raises(LibrusError) as error:
+                await service.account("student").modern_recipient_types()
+            assert error.value.kind is ErrorKind.PARSE
+            assert fixture.logins == {"student": 1} and fixture.modern_calls == []
 
     asyncio.run(scenario())

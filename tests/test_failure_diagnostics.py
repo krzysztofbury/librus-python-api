@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, NoReturn, get_type_hints
 
 import pytest
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 import librus_python_api
 from librus_python_api.attendance_frequency import parse_gateway_attendance
@@ -23,7 +24,7 @@ from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.inspect_page import main
 from librus_python_api.models import DiagnosticEvent
-from librus_python_api.parsers import parse_profile
+from librus_python_api.parsers import parse_profile, wire_failure
 from tests.attendance_support import gateway_rows
 from tests.grade_records_support import (
     GradeRecordsFixture,
@@ -226,9 +227,23 @@ def test_a_gateway_envelope_failure_names_its_field_and_rule_only(
     change(payload["Attendances"])
     with pytest.raises(ParseError) as caught:
         parse_gateway_attendance(json.dumps(payload).encode())
-    assert failure_locator(caught.value) == expected
-    assert describe_failure(caught.value) == expected
-    assert SECRET not in expected
+    located, described = failure_locator(caught.value), describe_failure(caught.value)
+    assert located == described == expected
+    assert SECRET not in f"{located}{described}"
+
+
+class _KeyedWire(BaseModel):
+    """A wire shape whose `loc` can hold a key taken from the body."""
+
+    model_config = ConfigDict(strict=True, hide_input_in_errors=True)
+    counts: dict[str, int]
+
+
+def test_a_wire_path_part_that_is_no_field_name_is_masked() -> None:
+    # A dict key comes from the body, so it never reaches the report.
+    with pytest.raises(ValidationError) as caught:
+        _KeyedWire.model_validate({"counts": {SECRET: "x"}})
+    assert wire_failure(caught.value, _KeyedWire) == "counts.? int_type"
 
 
 def test_a_body_that_is_no_envelope_is_named_as_the_body() -> None:
