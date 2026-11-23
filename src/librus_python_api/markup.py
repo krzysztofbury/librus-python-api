@@ -13,6 +13,7 @@ from librus_python_api.config import (
     GRADE_MAX_COLUMNS,
     GRADE_MAX_METADATA_FIELDS,
     GRADE_MAX_METADATA_LENGTH,
+    GRADE_MAX_METADATA_LINES,
     TOOLTIP_LABELS,
     TOOLTIP_MULTILINE_LABELS,
     TOOLTIP_REPEATABLE_LABELS,
@@ -110,10 +111,14 @@ def tooltip_fields(
         raise LibrusError(ErrorKind.LIMIT)
     result: dict[str, str] = {}
     last: str | None = None
-    chunks = re.split(r"<br\s*/?>|\n", title, flags=re.I)
-    if len(chunks) > GRADE_MAX_METADATA_FIELDS:
+    # Fields and lines are bounded apart: free text may span more lines than
+    # there are fields, and blank lines count toward neither (librus-mcp#136).
+    chunks = [
+        chunk for chunk in re.split(r"<br\s*/?>|\n", title, flags=re.I) if chunk.strip()
+    ]
+    if len(chunks) > GRADE_MAX_METADATA_LINES:
         raise LibrusError(ErrorKind.LIMIT)
-    lines = [tooltip_line(chunk) for chunk in chunks if chunk.strip()]
+    lines = [tooltip_line(chunk) for chunk in chunks]
     # Start of the closing run of known-label lines, such as Kategoria, Data.
     closing = len(lines)
     while closing and _known_label(lines[closing - 1]):
@@ -143,6 +148,8 @@ def tooltip_fields(
             continue
         if not separator or not key or key in result:
             raise LibrusError(ErrorKind.PARSE)
+        if len(result) == GRADE_MAX_METADATA_FIELDS:
+            raise LibrusError(ErrorKind.LIMIT)
         result[key] = value
         last = key
     return result

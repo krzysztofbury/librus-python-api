@@ -440,7 +440,9 @@ school's login. See [gateway descriptive grades](contracts/grades.md#gateway-des
 - `attendance_detail(detail_id)` takes a numeric string and returns ordered
   `fields`, `notes` and stable-key `normalized_fields` (see below).
 - `gateway_attendance()` returns the JSON records with a strict `AttendanceKind`
-  per stable type ID; unknown IDs stay `UNKNOWN`.
+  per stable type ID; unknown IDs stay `UNKNOWN`. A record's `identifier` is an
+  opaque token of up to 64 printable ASCII characters, not always digits
+  (1.11.5); it only detects duplicate records.
 - `attendance_frequency()` returns per-semester and overall `FrequencyMeasure`
   (attended, total, excluded and unknown counts, plus `ratio` in 0..1 or `None`).
   Unknown types or an empty denominator give `ratio=None`, never 100 %.

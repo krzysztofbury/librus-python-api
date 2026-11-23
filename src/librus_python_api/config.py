@@ -807,6 +807,9 @@ GRADE_POINT_RESULT_PERIODS = MappingProxyType({"I": 1, "II": 2, "R": 0})
 GRADE_MAX_RECORDS = 2048
 GRADE_MAX_METADATA_LENGTH = 8192
 GRADE_MAX_METADATA_FIELDS = 32
+# Non-blank tooltip lines. Free text may span more lines than the tooltip has
+# fields (librus-mcp#136); each line is parsed on its own, so lines stay bounded.
+GRADE_MAX_METADATA_LINES = 256
 GRADE_MAX_WINDOW_DAYS = 371
 GRADE_PERIOD_HEADERS = MappingProxyType(
     {
