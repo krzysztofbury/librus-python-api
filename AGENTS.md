@@ -36,6 +36,11 @@ client. Follow any workspace-level agent rules as well as these project rules.
 - Reuse established concepts and flows from existing clients as design
   references, with original implementation and fixtures. Source-informed
   requirements are not independently observed live behavior.
+- When triaging a report, scoping a fix or reviewing a change, search public
+  Librus client repositories for the same page, route or field and say in the
+  issue or pull request how they handle it, or that none does. A check stricter
+  than all of them (a pattern, an allowed set, a count bound) needs a stated
+  reason: two such checks failed a tester's login (librus-mcp#136).
 - Releases follow the steps in [RELEASE.md](RELEASE.md), the same ones as
   `DISTRIBUTION.md` in `librus-mcp`: a passing live check comes before the GitHub
   Release, which starts publication. While watching CI or a release run,
