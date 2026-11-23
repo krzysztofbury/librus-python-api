@@ -142,8 +142,9 @@ label outside it, a first line that is a known label, a missing or invalid
 date, or a missing tooltip fails, as for behaviour grade symbols. A page
 without points gives `()`. If the point table shows the behaviour row too, an
 equal item for the same period is one item and a different one fails. Point
-entries count toward `GRADE_MAX_RECORDS` with the grades; an item the point
-table repeats counts once. A tally alone in a cell spanning both periods'
+entries count toward `GRADE_MAX_RECORDS` with the grades, also when gateway
+grades are merged in afterwards (1.11.4, #195); an item the point table repeats
+counts once. A tally alone in a cell spanning both periods'
 current-grade columns parses, as before 1.10.0, but gives no item: its period
 would be a guess. `final_grades()` fails for that row, since its midterm
 column is covered by the tally (#192). `GradeWindow`

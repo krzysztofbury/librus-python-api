@@ -47,7 +47,7 @@ from tests.gateway_grades_support import (
     partial_grades,
     skill_box,
 )
-from tests.grade_records_support import grade_box, grades_html
+from tests.grade_records_support import behaviour_row, grade_box, grades_html
 from tests.http_support import serve
 
 LOGIN_REQUESTS = 5  # portal, form, submission, callback, identity
@@ -1018,4 +1018,25 @@ def test_page_and_gateway_records_share_the_grade_record_bound(
     monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 2)
     fixture = GatewayGradesFixture()
     fixture.grade_body = grades_html(extra=descriptive_table())
+    assert isinstance(failure(fixture), LimitError)
+
+
+def test_behaviour_point_entries_count_toward_the_merged_record_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #195: the page parser counts behaviour-point entries, and the gateway
+    # merge did not, so the merged result could pass the bound. The page holds
+    # one grade and one behaviour entry; the gateway adds two.
+    page = grades_html(rows=behaviour_row(), extra=descriptive_table())
+    monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 4)
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
+    records = read_grades(fixture).records
+    assert (len(records.descriptive), len(records.behaviour_points[0].entries)) == (
+        2,
+        1,
+    )
+    monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 3)
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
     assert isinstance(failure(fixture), LimitError)

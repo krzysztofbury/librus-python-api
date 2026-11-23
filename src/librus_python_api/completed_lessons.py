@@ -103,6 +103,10 @@ def _pagination(document: html.HtmlElement, page: int) -> tuple[int, int | None]
     first, last, total = int(match[3]), int(match[4]), int(match[5])
     if not 1 <= first <= last <= total:
         raise LibrusError(ErrorKind.PARSE)
+    # The range must agree with the page count (#196): the first page starts
+    # at the first item, only the last page ends at the total.
+    if (current == 1 and first != 1) or ((current == count) != (last == total)):
+        raise LibrusError(ErrorKind.PARSE)
     return count, last - first + 1
 
 

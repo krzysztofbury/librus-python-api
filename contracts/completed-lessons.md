@@ -53,6 +53,9 @@ The optional pagination display must report one-based current and total pages as
 `[Strona ]N z M`, with normalized whitespace, optionally followed by the item
 range `Pozycje A..B z T`. It must match the requested page. A shown range must
 satisfy `1 <= A <= B <= T` and count exactly the rows parsed from the page.
+Since 1.11.4 (#196) it must also agree with the page count: page 1 starts at
+`A = 1`, and `B = T` on the last page only, so a last page that stops short of
+the total no longer returns a partial list as complete.
 Missing pagination is accepted only for page zero as a single page. Total pages
 must be 1..1000. Clamp/wrong-page responses and malformed/contradictory metadata
 fail. Short nonterminal pages do not imply completion; metadata decides it.

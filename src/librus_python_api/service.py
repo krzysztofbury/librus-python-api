@@ -397,14 +397,22 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
 
 
 def _check_record_count(records: GradeRecords, added: int) -> None:
+    # The same records `grade_records._Collection.check_size` counts (#195).
     if (
         len(records.numeric)
         + len(records.descriptive)
         + len(records.descriptive_summaries)
         + len(records.formative)
+        + sum(len(item.entries) for item in records.behaviour_points)
         + added
         > GRADE_MAX_RECORDS
     ):
+        raise LibrusError(ErrorKind.LIMIT)
+
+
+def _check_lookups(budget: RequestBudget, lookups: int) -> None:
+    """LIMIT now when `lookups` more requests would exceed the budget."""
+    if budget.requests_dispatched + lookups > budget._max_requests:
         raise LibrusError(ErrorKind.LIMIT)
 
 
@@ -2658,14 +2666,15 @@ class AccountClient:
             if (start is None or r.day >= start) and (end is None or r.day <= end)
         )
         lessons = dict.fromkeys(row.lesson_id for row in rows)
-        if len(lessons) > ATTENDANCE_METADATA_CACHE_SIZE:
-            raise LibrusError(ErrorKind.LIMIT)
         # Two collection reads keep the request count independent of how many
-        # lessons and subjects a student has. References absent from a
-        # collection keep the strict per-reference contract.
+        # lessons and subjects a student has; the attendance row cap bounds
+        # both (#199). References absent from a collection keep the strict
+        # per-reference contract, one request each, so fail before spending the
+        # budget on lookups it cannot finish.
         lesson_map = (
             await self._metadata_map("attendance_lessons", budget) if lessons else {}
         )
+        _check_lookups(budget, sum(lesson not in lesson_map for lesson in lessons))
         lesson_subjects = {
             lesson: lesson_map.get(lesson)
             or await self._metadata_value("attendance_lesson", lesson, budget)
@@ -2674,11 +2683,10 @@ class AccountClient:
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
         for row in rows:
             subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
-        if len(subjects) > ATTENDANCE_METADATA_CACHE_SIZE:
-            raise LibrusError(ErrorKind.LIMIT)
         subject_map = (
             await self._metadata_map("attendance_subjects", budget) if subjects else {}
         )
+        _check_lookups(budget, sum(subject not in subject_map for subject in subjects))
         items = [
             SubjectFrequency(
                 subject,
