@@ -78,6 +78,11 @@ rule changes as pull requests.
   its structure. Delete it once the fix has been checked against it, not
   before: a capture deleted early costs another live read. For an owner's own account, capture with
   `scripts/live_capture.py` into scratch and print label structure only.
+- Before a release that only adds diagnostics and asks the reporter for another
+  run, search public Librus client repositories for the failing page, field or
+  label and how they handle it. A variation they already absorb is a likely
+  cause and can ship as a fix in the same release (librus-mcp#136: a
+  non-numeric attendance ID cost one extra round).
 - Diagnostics are allowlist-based (`describe_failure`, `config.TOOLTIP_LABELS`).
   Extend the lists only with Librus-authored labels and markup, never values,
   and keep the marker tests in `tests/test_failure_diagnostics.py` passing.
