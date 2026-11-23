@@ -142,8 +142,9 @@ label outside it, a first line that is a known label, a missing or invalid
 date, or a missing tooltip fails, as for behaviour grade symbols. A page
 without points gives `()`. If the point table shows the behaviour row too, an
 equal item for the same period is one item and a different one fails. Point
-entries count toward `GRADE_MAX_RECORDS` with the grades; an item the point
-table repeats counts once. A tally alone in a cell spanning both periods'
+entries count toward `GRADE_MAX_RECORDS` with the grades, also when gateway
+grades are merged in afterwards (1.11.4, #195); an item the point table repeats
+counts once. A tally alone in a cell spanning both periods'
 current-grade columns parses, as before 1.10.0, but gives no item: its period
 would be a guess. `final_grades()` fails for that row, since its midterm
 column is covered by the tally (#192). `GradeWindow`
@@ -643,6 +644,11 @@ original. On 2026-11-15 none of the owner's four logins showed this table, and
 their grade reads gave the same counts with and without the change in every
 view. Whether the week and last-login views narrow the boxes and the detail
 rows alike is not observed; if they do not, those views fail closed.
+Since 1.11.4 (librus-mcp#136) the `Umiejętność` and `Obszar oceniania` values
+may continue on unlabelled lines, as `Komentarz` does: a parent login's grade
+box had a skill that wrapped onto a 14-character line of its own, and the
+whole grades read failed. The lines are kept in order, joined with newlines.
+A known label such as `Data` still never continues.
 
 A subject with no grades in either period (1.10.3, #184, from @wiktorw's masked
 failure report) has a detail table with the header and one `Brak ocen` row

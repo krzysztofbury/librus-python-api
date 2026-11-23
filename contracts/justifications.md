@@ -104,9 +104,20 @@ The rule (`config.JUSTIFICATION_ACCOUNT_GROUP`):
    is how the group is learned), then fails the same way.
 3. A `GroupId` 5 login that gets the logged-out page is treated like any other
    read: the usual single recovery (sign in again once and read the list
-   again), then `PARSE` and the operation's cooldown if a session just signed
-   in still gets it. A parent login where a school has switched the module
-   off would look like that; it is not observed.
+   again). If a session just signed in still gets it, the module is off for
+   that login: `VIEW_DISABLED` since 1.11.4 (`PARSE` before), with the
+   operation's cooldown, and the session is cleared so the next read signs in
+   again.
+
+Observed on 2026-11-22 (librus-mcp#136): a tester's parent login got the
+logged-out page after a fresh sign-in as well, and every modern-message read
+that followed failed. The owner's live check on 2026-11-23 (statuses, sizes
+and headings only) showed why on a student login: after the GET of
+`/eusprawiedliwienia`, `/wiadomosci3` answered 200 with the logged-out page
+(2301 bytes, the size in the tester's log) and `/uczen/index` answered 403.
+The request ends the session whatever the role, so the client clears it
+rather than keep using it. The messages sign-in recovers from that page too
+(see [modern messages](modern-messages.md)).
 
 `UNSUPPORTED_CAPABILITY` was chosen over `ACCESS_DENIED` because the latter
 starts the cooldown for this one operation (`justifications`) and is used for

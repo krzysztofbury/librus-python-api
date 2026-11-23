@@ -8,7 +8,7 @@ import json
 import math
 import re
 import time
-from collections.abc import Awaitable, Callable, Hashable, Mapping
+from collections.abc import Awaitable, Callable, Hashable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from types import MappingProxyType, TracebackType
@@ -397,25 +397,34 @@ def _require_dates(*days: date | None, max_days: int | None = None) -> None:
 
 
 def _check_record_count(records: GradeRecords, added: int) -> None:
+    # The same records `grade_records._Collection.check_size` counts (#195).
     if (
         len(records.numeric)
         + len(records.descriptive)
         + len(records.descriptive_summaries)
         + len(records.formative)
+        + sum(len(item.entries) for item in records.behaviour_points)
         + added
         > GRADE_MAX_RECORDS
     ):
         raise LibrusError(ErrorKind.LIMIT)
 
 
+def _check_lookups(budget: RequestBudget, lookups: int) -> None:
+    """LIMIT now when `lookups` more requests would exceed the budget."""
+    if budget.requests_dispatched + lookups > budget._max_requests:
+        raise LibrusError(ErrorKind.LIMIT)
+
+
 def _cooldown_due(error: LibrusError) -> bool:
     """A denial, an unrecovered expiry, or a logged-out page that a session
-    just signed in also got: signing in again at once cannot help."""
+    just signed in also got (PARSE, or VIEW_DISABLED for a module that is
+    off): signing in again at once cannot help."""
     if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
         return True
     cause = error.__cause__
     return (
-        error.kind is ErrorKind.PARSE
+        error.kind in (ErrorKind.PARSE, ErrorKind.VIEW_DISABLED)
         and isinstance(cause, SessionExpiredError)
         and cause._logged_out_page
     )
@@ -1001,7 +1010,13 @@ class AccountClient:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
             # A bound cookie/account is not proof it is still valid. One fresh
             # side-effect-free identity GET prevents avoidable UNKNOWN sends.
-            await self._modern_ready(budget, refresh=True)
+            try:
+                await self._modern_ready(budget, refresh=True)
+            except SessionExpiredError as error:
+                # A send never signs in again by itself, whatever ended the
+                # session: the caller decides whether to send again.
+                error._logged_out_page = False
+                raise
 
             def dispatched() -> None:
                 attempt._dispatch(
@@ -1434,15 +1449,26 @@ class AccountClient:
         and are not returned. Only a login whose identity reports the parent
         account group (`JUSTIFICATION_ACCOUNT_GROUP`) sends the request; any
         other or missing group fails as UNSUPPORTED_CAPABILITY without it,
-        because the page ends a student login's session.
+        because the page ends a student login's session. A parent login that
+        still gets the logged-out page right after signing in fails as
+        VIEW_DISABLED, and its session is cleared.
         """
 
-        async def fetch(budget: RequestBudget, _: bool) -> Justifications:
+        async def fetch(budget: RequestBudget, fresh_login: bool) -> Justifications:
             if self._account_group != JUSTIFICATION_ACCOUNT_GROUP:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            start, end, items = await self._page(
-                "justifications", budget, parse_justifications
-            )
+            try:
+                start, end, items = await self._page(
+                    "justifications", budget, parse_justifications
+                )
+            except SessionExpiredError as error:
+                if not (fresh_login and error._logged_out_page):
+                    raise
+                # A session just signed in still gets the logged-out page: the
+                # module is off for this login, and the request ended the
+                # session (librus-mcp#136), so the next read signs in again.
+                self._invalidate()
+                raise LibrusError(ErrorKind.VIEW_DISABLED) from error
             return Justifications(
                 self._session_identity(),
                 start,
@@ -2573,13 +2599,29 @@ class AccountClient:
         _check_record_count(records, len(added))
         return replace(records, descriptive=records.descriptive + added)
 
+    def _fresh_metadata(self, endpoint: str, identifier: str) -> str | None:
+        cached = self._metadata.get((endpoint, identifier))
+        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
+            return cached[1]
+        return None
+
+    def _lookups(
+        self, endpoint: str, known: Mapping[str, str], identifiers: Iterable[str]
+    ) -> int:
+        """How many of `identifiers` would cost a per-reference request."""
+        return sum(
+            identifier not in known
+            and self._fresh_metadata(endpoint, identifier) is None
+            for identifier in identifiers
+        )
+
     async def _metadata_value(
         self, endpoint: str, identifier: str, budget: RequestBudget
     ) -> str:
         key = endpoint, identifier
-        cached = self._metadata.get(key)
-        if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
-            return cached[1]
+        cached = self._fresh_metadata(endpoint, identifier)
+        if cached is not None:
+            return cached
         parser = (
             parse_lesson_subject
             if endpoint == "attendance_lesson"
@@ -2640,14 +2682,15 @@ class AccountClient:
             if (start is None or r.day >= start) and (end is None or r.day <= end)
         )
         lessons = dict.fromkeys(row.lesson_id for row in rows)
-        if len(lessons) > ATTENDANCE_METADATA_CACHE_SIZE:
-            raise LibrusError(ErrorKind.LIMIT)
         # Two collection reads keep the request count independent of how many
-        # lessons and subjects a student has. References absent from a
-        # collection keep the strict per-reference contract.
+        # lessons and subjects a student has; the attendance row cap bounds
+        # both (#199). References absent from a collection keep the strict
+        # per-reference contract, one request each, so fail before spending the
+        # budget on lookups it cannot finish.
         lesson_map = (
             await self._metadata_map("attendance_lessons", budget) if lessons else {}
         )
+        _check_lookups(budget, self._lookups("attendance_lesson", lesson_map, lessons))
         lesson_subjects = {
             lesson: lesson_map.get(lesson)
             or await self._metadata_value("attendance_lesson", lesson, budget)
@@ -2656,10 +2699,11 @@ class AccountClient:
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
         for row in rows:
             subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
-        if len(subjects) > ATTENDANCE_METADATA_CACHE_SIZE:
-            raise LibrusError(ErrorKind.LIMIT)
         subject_map = (
             await self._metadata_map("attendance_subjects", budget) if subjects else {}
+        )
+        _check_lookups(
+            budget, self._lookups("attendance_subject", subject_map, subjects)
         )
         items = [
             SubjectFrequency(

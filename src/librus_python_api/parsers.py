@@ -3,12 +3,13 @@
 import json
 import math
 import re
+import typing
 from html import unescape
 from html.entities import html5
 from typing import Any
 
 from lxml import etree, html
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from librus_python_api.config import (
     LOGGED_IN_PAGE_MARKER,
@@ -18,7 +19,7 @@ from librus_python_api.config import (
     PROFILE_LUCKY_NUMBER_CLASS,
     PROFILE_LUCKY_NUMBER_DISABLED,
 )
-from librus_python_api.exceptions import ErrorKind, LibrusError
+from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.models import (
     Availability,
     LuckyNumber,
@@ -262,6 +263,57 @@ def parse_page(body: bytes, *, repeatable_id: str | None = None) -> html.HtmlEle
         if kind is not None:
             raise LibrusError(kind)
     return document
+
+
+def _wire_names(model: type[BaseModel], seen: set[type[BaseModel]]) -> set[str]:
+    """Every field name of a wire model and the models nested in it."""
+    if model in seen:
+        return set()
+    seen.add(model)
+    names: set[str] = set()
+    for name, field in model.model_fields.items():
+        names.add(name)
+        if field.alias:
+            names.add(field.alias)
+        pending: list[object] = [field.annotation]
+        while pending:
+            kind = pending.pop()
+            if isinstance(kind, type) and issubclass(kind, BaseModel):
+                names |= _wire_names(kind, seen)
+            pending.extend(typing.get_args(kind))
+    return names
+
+
+def wire_failure(error: ValidationError, model: type[BaseModel]) -> str:
+    """Where a wire model rejected a body: field path and rule, never a value.
+
+    A path part is shown only when it is a list index or a field name of
+    `model`; anything else (such as a dict key from the body) is `?`.
+    """
+    names = _wire_names(model, set())
+    errors = error.errors(include_url=False, include_context=False, include_input=False)
+    shown: list[str] = []
+    for item in errors[:3]:
+        path = ""
+        for part in item["loc"]:
+            if type(part) is int:
+                path += f"[{part}]"
+            else:
+                path += ("." if path else "") + (part if part in names else "?")
+        shown.append(f"{path or '(body)'} {item['type']}")
+    more = f"; {len(errors)} errors" if len(errors) > 3 else ""
+    return "; ".join(shown) + more
+
+
+def validate_wire[M: BaseModel](model: type[M], data: object) -> M:
+    """`model` validated from decoded JSON; PARSE naming the failing field."""
+    try:
+        return model.model_validate(data)
+    except ValidationError as error:
+        failure = wire_failure(error, model)
+    parse = ParseError(ErrorKind.PARSE)
+    parse._wire_failure = failure
+    raise parse
 
 
 def is_logged_out_page(body: bytes) -> bool:

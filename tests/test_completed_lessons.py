@@ -141,11 +141,37 @@ def test_pagination_may_append_the_item_range() -> None:
         "Pozycje 0..0 z 1",
         "Pozycje 1 z 1",
         "Fixture 1..1 z 1",
+        # #196: the last page must end at the total, and the first page must
+        # start at the first item; either would hide rows.
+        "Pozycje 1..1 z 50",
+        "Pozycje 2..2 z 2",
     ],
 )
 def test_item_range_must_describe_the_rows_on_the_page(suffix: str) -> None:
     with pytest.raises(ParseError):
         parse(lessons_html().replace("Strona 1 z 1", "Strona 1 z 1 " + suffix))
+
+
+def test_a_complete_single_page_range_is_accepted() -> None:
+    body = lessons_html().replace("Strona 1 z 1", "Strona 1 z 1 Pozycje 1..1 z 1")
+    assert parse(body) == parse(lessons_html())
+
+
+def test_the_last_page_of_several_may_end_at_the_total() -> None:
+    body = lessons_html(8, 9).replace(
+        "Strona 9 z 9", "Strona 9 z 9 Pozycje 121..121 z 121"
+    )
+    items, count, _ = parse(body, 8)
+    assert len(items) == 1 and count == 9
+
+
+def test_a_page_before_the_last_cannot_already_end_at_the_total() -> None:
+    # #196: page 2 of 9 claiming the final item contradicts the page count.
+    body = lessons_html(1, 9).replace(
+        "Strona 2 z 9", "Strona 2 z 9 Pozycje 21..21 z 21"
+    )
+    with pytest.raises(ParseError):
+        parse(body, 1)
 
 
 def test_date_filter_form_table_is_not_a_second_data_table() -> None:

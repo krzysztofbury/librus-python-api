@@ -1,6 +1,6 @@
 """Original validated gateway parsing and explicit attendance ratio policies."""
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from librus_python_api import markup
 from librus_python_api.config import (
@@ -20,7 +20,7 @@ from librus_python_api.models import (
     _SubjectEnvelopeWire,
     _SubjectsEnvelopeWire,
 )
-from librus_python_api.parsers import decode_json
+from librus_python_api.parsers import decode_json, validate_wire
 
 
 def parse_gateway_attendance(body: bytes) -> tuple[GatewayAttendanceRecord, ...]:
@@ -31,14 +31,7 @@ def parse_gateway_attendance(body: bytes) -> tuple[GatewayAttendanceRecord, ...]
         and len(data["Attendances"]) > ATTENDANCE_MAX_RECORDS
     ):
         raise LibrusError(ErrorKind.LIMIT)
-    failed = False
-    envelope = None
-    try:
-        envelope = _AttendanceEnvelopeWire.model_validate(data)
-    except ValidationError:
-        failed = True
-    if failed or envelope is None:
-        raise LibrusError(ErrorKind.PARSE)
+    envelope = validate_wire(_AttendanceEnvelopeWire, data)
     seen: set[str] = set()
     records: list[GatewayAttendanceRecord] = []
     for row in envelope.Attendances:
@@ -62,31 +55,16 @@ def parse_gateway_attendance(body: bytes) -> tuple[GatewayAttendanceRecord, ...]
 
 def parse_lesson_subject(body: bytes, identifier: str) -> str:
     data = decode_json(body)
-    failed = False
-    lesson = None
-    try:
-        lesson = _LessonEnvelopeWire.model_validate(data).Lesson
-    except ValidationError:
-        failed = True
-    if failed or lesson is None or lesson.Id != identifier:
+    lesson = validate_wire(_LessonEnvelopeWire, data).Lesson
+    if lesson.Id != identifier:
         raise LibrusError(ErrorKind.PARSE)
     return lesson.Subject.Id
 
 
 def parse_subject_name(body: bytes, identifier: str) -> str:
     data = decode_json(body)
-    failed = False
-    subject = None
-    try:
-        subject = _SubjectEnvelopeWire.model_validate(data).Subject
-    except ValidationError:
-        failed = True
-    if (
-        failed
-        or subject is None
-        or subject.Id != identifier
-        or not subject.Name.strip()
-    ):
+    subject = validate_wire(_SubjectEnvelopeWire, data).Subject
+    if subject.Id != identifier or not subject.Name.strip():
         raise LibrusError(ErrorKind.PARSE)
     return subject.Name.strip()
 
@@ -98,15 +76,7 @@ def _collection[M: BaseModel](data: object, key: str, maximum: int, wire: type[M
         and len(data[key]) > maximum
     ):
         raise LibrusError(ErrorKind.LIMIT)
-    failed = False
-    envelope = None
-    try:
-        envelope = wire.model_validate(data)
-    except ValidationError:
-        failed = True
-    if failed or envelope is None:
-        raise LibrusError(ErrorKind.PARSE)
-    return envelope
+    return validate_wire(wire, data)
 
 
 def _unique(pairs: list[tuple[str, str]]) -> dict[str, str]:

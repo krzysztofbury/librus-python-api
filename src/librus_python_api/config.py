@@ -737,7 +737,10 @@ GRADE_INLINE_DETAIL_LABEL = "Ocena"
 # Tooltip fields whose free text may continue on unlabelled lines. A teacher's
 # multi-line grade comment was observed on 2026-10-27. A formative mirror's
 # assessment text after `Ocena` also spans lines (2026-11-08, markup.py).
-TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz"})
+# In a descriptive grade the skill after `Umiejętność` wrapped onto a line of
+# its own (librus-mcp#136); its sibling `Obszar oceniania` is the same kind of
+# curriculum text and continues the same way.
+TOOLTIP_MULTILINE_LABELS = frozenset({"Komentarz", "Obszar oceniania", "Umiejętność"})
 # Labels a tooltip may repeat. In the week view a correction listed
 # `Poprawa oceny` twice, both naming the same original grade, the first ending
 # in a comma; the all view showed it once (2026-11-08). The tooltip is no

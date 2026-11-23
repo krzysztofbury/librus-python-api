@@ -13,7 +13,7 @@ from librus_python_api.attendance_frequency import (
     parse_gateway_attendance,
     summarize_frequency,
 )
-from librus_python_api.config import ACCOUNT_RESULT_CACHE_SIZE
+from librus_python_api.config import ACCOUNT_RESULT_CACHE_SIZE, ATTENDANCE_MAX_RECORDS
 from librus_python_api.exceptions import InvalidInputError, LimitError, ParseError
 from tests.attendance_support import DETAIL, AttendanceFixture, gateway_rows
 from tests.http_support import serve
@@ -616,5 +616,84 @@ def test_metadata_cache_evicts_the_least_recently_refreshed_entry(
                 assert len(fixture.metadata_requests) == before
                 await lesson("42")
                 assert fixture.metadata_requests[-1] == ("lesson", "42")
+
+    asyncio.run(scenario())
+
+
+def _distinct_lessons(count: int) -> bytes:
+    """`count` attendance rows, each in a lesson of its own."""
+    return json.dumps(
+        {
+            "Attendances": [
+                {
+                    "Id": index + 1,
+                    "Date": "2026-10-01",
+                    "Semester": 1,
+                    "Type": {"Id": 100},
+                    "Lesson": {"Id": 1000 + index},
+                    "LessonNo": 2,
+                }
+                for index in range(count)
+            ]
+        }
+    ).encode()
+
+
+@pytest.mark.parametrize("count", [257, ATTENDANCE_MAX_RECORDS])
+def test_subject_counts_cover_every_lesson_the_row_cap_allows(count: int) -> None:
+    # #199: more than 256 distinct lessons raised LIMIT although the rows
+    # were within the attendance cap; the collections resolve them all.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _distinct_lessons(count)
+        fixture.collection_lessons = {1000 + index: 51 for index in range(count)}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").subject_frequency()
+                assert [item.frequency.total_count for item in result.items] == [count]
+                assert fixture.metadata_requests == [
+                    ("lessons", "*"),
+                    ("subjects", "*"),
+                ]
+
+    asyncio.run(scenario())
+
+
+def test_lookups_past_the_budget_fail_before_any_is_sent() -> None:
+    # Without the lessons collection every lesson costs a request: more than
+    # the budget allows fails at once instead of after spending it.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _distinct_lessons(40)
+        fixture.collection_lessons = None
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                with pytest.raises(LimitError):
+                    await service.account("student").subject_frequency()
+                assert fixture.metadata_requests == [("lessons", "*")]
+
+    asyncio.run(scenario())
+
+
+def test_cached_lookups_are_not_counted_against_the_budget() -> None:
+    # Review of #199: lessons the per-reference cache still holds cost no
+    # request, so a later call within the default budget must not fail.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _distinct_lessons(40)
+        fixture.collection_lessons = None
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                await client.subject_frequency(budget=RequestBudget(max_requests=100))
+                before = len(fixture.metadata_requests)
+                result = await client.subject_frequency()
+                assert [item.frequency.total_count for item in result.items] == [40]
+                # Only the unavailable lessons collection is asked again; the
+                # subjects map and every lesson come from the caches.
+                assert fixture.metadata_requests[before:] == [("lessons", "*")]
 
     asyncio.run(scenario())

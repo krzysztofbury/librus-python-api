@@ -57,8 +57,10 @@ supported labels/layouts remain synthetic contracts, not populated qualification
 - A 64-entry account result cache bounds fixed collections, numeric details, and
   subject-frequency selections. The lesson/subject collection maps (at most 4096
   lessons and 1024 subjects) and a separate 256-entry per-reference metadata cache
-  have a one-hour TTL; session invalidation clears all of them. Unique resolution
-  is limited to 256 lessons/subjects per selection and the original request budget.
+  have a one-hour TTL; session invalidation clears all of them. Since 1.11.4
+  (#199) unique resolution is bounded by the 2048-entry row cap, not 256 lessons
+  or subjects per selection. References a collection lacks cost one request each;
+  more of them than the request budget has left fail as LIMIT before any is sent.
   HTML date windows add no cache entries; fresh gateway records remain fresh even
   when metadata is reused. Neither cache merges login contexts.
 - Detail responses contain at most 32 fields/notes, 1024 rendered characters each.

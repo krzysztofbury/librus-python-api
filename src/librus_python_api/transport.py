@@ -67,6 +67,7 @@ from librus_python_api.models import (
     SendSubmission,
     TransportResponse,
 )
+from librus_python_api.parsers import is_logged_out_page
 from librus_python_api.scheduler import RequestScheduler
 
 NUMERIC_REFERENCE = re.compile(r"[0-9]{1,64}")
@@ -335,6 +336,14 @@ class AiohttpTransport:
                 budget,
                 None,
             )
+            if response.status == 200 and is_logged_out_page(response.body):
+                # Synergia no longer knows the session, for example after a
+                # GET of /eusprawiedliwienia ended it (live 2026-11-23). The
+                # launch comes before the operation's own request, so nothing
+                # was applied and the read may sign in again once.
+                expired = SessionExpiredError(ErrorKind.SESSION_EXPIRED)
+                expired._logged_out_page = True
+                raise expired
             if response.status != 302:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
             if self._native_login_redirect(

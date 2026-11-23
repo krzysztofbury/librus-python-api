@@ -47,7 +47,7 @@ from tests.gateway_grades_support import (
     partial_grades,
     skill_box,
 )
-from tests.grade_records_support import grade_box, grades_html
+from tests.grade_records_support import behaviour_row, grade_box, grades_html
 from tests.http_support import serve
 
 LOGIN_REQUESTS = 5  # portal, form, submission, callback, identity
@@ -602,6 +602,43 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
 
 
 @pytest.mark.parametrize(
+    ("box", "field", "value"),
+    [
+        pytest.param(
+            skill_box(skill="Fixture counts<br />to ten"),
+            "Umiejętność",
+            "Fixture counts\nto ten",
+            id="skill",
+        ),
+        pytest.param(
+            skill_box(area="Fixture<br />Maths"),
+            "Obszar oceniania",
+            "Fixture\nMaths",
+            id="area",
+        ),
+    ],
+)
+def test_a_wrapped_skill_or_area_continues_on_its_own_line(
+    box: str, field: str, value: str
+) -> None:
+    # librus-mcp#136: a skill wrapped onto an unlabelled line, 14 characters
+    # long, failed the whole grades read of a parent login.
+    records, _ = parse_grade_page(
+        box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
+    )
+    first = records.descriptive[0]
+    assert dict(first.metadata)[field] == value
+    assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
+
+
+def test_a_line_after_a_known_label_still_fails_the_grades_page() -> None:
+    # Only free text continues; an unlabelled line after `Data` is a layout.
+    box = skill_box(day="2026-10-06 (wt.)<br />Fixture stray")
+    with pytest.raises(ParseError):
+        parse_grade_page(box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode())
+
+
+@pytest.mark.parametrize(
     "page,expected",
     [
         # The detail rows must list exactly the boxes' grades, or one is lost.
@@ -981,4 +1018,25 @@ def test_page_and_gateway_records_share_the_grade_record_bound(
     monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 2)
     fixture = GatewayGradesFixture()
     fixture.grade_body = grades_html(extra=descriptive_table())
+    assert isinstance(failure(fixture), LimitError)
+
+
+def test_behaviour_point_entries_count_toward_the_merged_record_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # #195: the page parser counts behaviour-point entries, and the gateway
+    # merge did not, so the merged result could pass the bound. The page holds
+    # one grade and one behaviour entry; the gateway adds two.
+    page = grades_html(rows=behaviour_row(), extra=descriptive_table())
+    monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 4)
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
+    records = read_grades(fixture).records
+    assert (len(records.descriptive), len(records.behaviour_points[0].entries)) == (
+        2,
+        1,
+    )
+    monkeypatch.setattr("librus_python_api.service.GRADE_MAX_RECORDS", 3)
+    fixture = GatewayGradesFixture()
+    fixture.grade_body = page
     assert isinstance(failure(fixture), LimitError)

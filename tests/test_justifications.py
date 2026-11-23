@@ -16,6 +16,7 @@ from librus_python_api.exceptions import (
     LimitError,
     ParseError,
     UnsupportedCapabilityError,
+    ViewDisabledError,
 )
 from librus_python_api.justifications import parse_justifications
 from tests.http_support import LOGGED_OUT_PAGE, SchoolFixture, serve
@@ -256,13 +257,28 @@ def test_a_dead_parent_session_signs_in_again_once() -> None:
     run(scenario)
 
 
-def test_a_parent_login_still_logged_out_after_sign_in_fails_as_parse() -> None:
+@pytest.mark.parametrize("signed_in_first", [True, False])
+def test_a_parent_login_still_logged_out_after_sign_in_is_view_disabled(
+    signed_in_first: bool,
+) -> None:
+    # librus-mcp#136: a parent login whose school has the module off gets the
+    # logged-out page after a fresh sign-in too, and the request ends the
+    # session, so the next read must sign in again.
     async def scenario(fixture: JustificationsFixture, service: Any) -> None:
         client = service.account("parent")
-        await client.identity()
-        fixture.logged_out["parent"] = 2
-        with pytest.raises(ParseError):
+        if signed_in_first:
+            await client.identity()
+        # One logged-out page per request to the list.
+        fixture.logged_out["parent"] = 2 if signed_in_first else 1
+        with pytest.raises(ViewDisabledError):
             await client.justifications()
-        assert (fixture.count(LIST), fixture.logins) == (2, {"parent": 2})
+        lists, logins = (2, 2) if signed_in_first else (1, 1)
+        assert (fixture.count(LIST), fixture.logins) == (lists, {"parent": logins})
+        # The operation's cooldown answers without a request or a sign-in.
+        with pytest.raises(ViewDisabledError):
+            await client.justifications()
+        assert (fixture.count(LIST), fixture.logins) == (lists, {"parent": logins})
+        await client.student_information()
+        assert fixture.logins == {"parent": logins + 1}
 
     run(scenario)

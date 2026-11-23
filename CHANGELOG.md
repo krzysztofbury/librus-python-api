@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.11.4 (2026-11-23) - Parent logins: messages, e-Justifications, grade tooltips; audit fixes
+
+Four failures from a tester's parent login (librus-mcp#136, #201):
+
+- Modern messages: opening `/eusprawiedliwienia` ends a Synergia session, and
+  the messages sign-in then got Synergia's logged-out page instead of a
+  redirect. Every message read failed with `UnsupportedCapabilityError` until
+  the process restarted. That page now counts as an expired session: a read
+  signs in again once and continues. A send still fails as `SessionExpiredError`
+  without being dispatched and never signs in again by itself.
+- e-Justifications: a parent login that still gets the logged-out page right
+  after signing in raises `ViewDisabledError` instead of `ParseError`, and its
+  session is cleared so the next read signs in again. The operation's cooldown
+  still applies, so repeated calls do not sign in again each time.
+- Grades: in a descriptive grade's tooltip, `Umiejętność` and `Obszar
+  oceniania` may continue on unlabelled lines, as `Komentarz` does. A skill that
+  wrapped onto a line of its own failed the whole grades read.
+- Diagnostics: when a gateway JSON envelope fails validation,
+  `failure_locator` and `describe_failure` name the field path and rule, such as
+  `wire Attendances[3].Lesson missing`, with no values. Attendance frequency
+  reads use it; the tester's attendance list fails on a field that the next run
+  will name.
+
+Three bugs from the weekly audit:
+
+- Grades: when gateway grades are merged into the page's records, behaviour-point
+  entries now count toward `GRADE_MAX_RECORDS`, as they do in the page parser
+  (#195). The merged result could exceed the bound before.
+- Completed lessons: a `Pozycje A..B z T` range must agree with the page count
+  (#196). A last page that ends before the total, a first page that does not
+  start at item 1, or an earlier page that already ends at the total raises
+  `ParseError` instead of returning a partial list as complete.
+- Attendance: `subject_frequency()` no longer raises `LimitError` above 256
+  distinct lessons or subjects (#199). The lesson and subject collections
+  resolve every row the 2048-row cap allows. Without a collection, lookups that
+  would exceed the request budget fail before any is sent.
+
 ## 1.11.3 (2026-11-22) - Behaviour points never read as a final grade
 
 - Grades: `final_grades()` no longer reads a summary value from a merged
