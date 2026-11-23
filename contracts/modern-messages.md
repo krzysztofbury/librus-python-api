@@ -12,7 +12,14 @@ sent UI. This is not universal receipt/layout qualification or recipient reading
 ## 0.4.11 offline session recovery
 
 A launch redirect to an exact native login route reports SESSION_EXPIRED, not
-ACCESS_DENIED, without following it. Foreign origins, mismatched login/token/target
+ACCESS_DENIED, without following it. Since 1.11.4 so does a launch answered 200
+with Synergia's logged-out page (`is_logged_out_page`), which a session gets
+after a request such as `/eusprawiedliwienia` ended it (librus-mcp#136; any
+other 200 is still UNSUPPORTED_CAPABILITY). That page proves nothing was
+applied and the operation's own request has not been sent, so a read signs in
+again once and repeats; a session just signed in that gets it fails as PARSE.
+A send never signs in again by itself: it fails as SESSION_EXPIRED,
+NOT_DISPATCHED, as for the native login redirect. Foreign origins, mismatched login/token/target
 and unsupported handoff shapes remain denied. At the 0.4.11 checkpoint this
 classification did not establish a replacement live handoff layout; the subsequent
 0.5 qualification is recorded below.

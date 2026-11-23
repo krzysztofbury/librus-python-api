@@ -410,12 +410,13 @@ def _check_record_count(records: GradeRecords, added: int) -> None:
 
 def _cooldown_due(error: LibrusError) -> bool:
     """A denial, an unrecovered expiry, or a logged-out page that a session
-    just signed in also got: signing in again at once cannot help."""
+    just signed in also got (PARSE, or VIEW_DISABLED for a module that is
+    off): signing in again at once cannot help."""
     if error.kind in (ErrorKind.ACCESS_DENIED, ErrorKind.SESSION_EXPIRED):
         return True
     cause = error.__cause__
     return (
-        error.kind is ErrorKind.PARSE
+        error.kind in (ErrorKind.PARSE, ErrorKind.VIEW_DISABLED)
         and isinstance(cause, SessionExpiredError)
         and cause._logged_out_page
     )
@@ -1001,7 +1002,13 @@ class AccountClient:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
             # A bound cookie/account is not proof it is still valid. One fresh
             # side-effect-free identity GET prevents avoidable UNKNOWN sends.
-            await self._modern_ready(budget, refresh=True)
+            try:
+                await self._modern_ready(budget, refresh=True)
+            except SessionExpiredError as error:
+                # A send never signs in again by itself, whatever ended the
+                # session: the caller decides whether to send again.
+                error._logged_out_page = False
+                raise
 
             def dispatched() -> None:
                 attempt._dispatch(
@@ -1434,15 +1441,26 @@ class AccountClient:
         and are not returned. Only a login whose identity reports the parent
         account group (`JUSTIFICATION_ACCOUNT_GROUP`) sends the request; any
         other or missing group fails as UNSUPPORTED_CAPABILITY without it,
-        because the page ends a student login's session.
+        because the page ends a student login's session. A parent login that
+        still gets the logged-out page right after signing in fails as
+        VIEW_DISABLED, and its session is cleared.
         """
 
-        async def fetch(budget: RequestBudget, _: bool) -> Justifications:
+        async def fetch(budget: RequestBudget, fresh_login: bool) -> Justifications:
             if self._account_group != JUSTIFICATION_ACCOUNT_GROUP:
                 raise LibrusError(ErrorKind.UNSUPPORTED_CAPABILITY)
-            start, end, items = await self._page(
-                "justifications", budget, parse_justifications
-            )
+            try:
+                start, end, items = await self._page(
+                    "justifications", budget, parse_justifications
+                )
+            except SessionExpiredError as error:
+                if not (fresh_login and error._logged_out_page):
+                    raise
+                # A session just signed in still gets the logged-out page: the
+                # module is off for this login, and the request ended the
+                # session (librus-mcp#136), so the next read signs in again.
+                self._invalidate()
+                raise LibrusError(ErrorKind.VIEW_DISABLED) from error
             return Justifications(
                 self._session_identity(),
                 start,

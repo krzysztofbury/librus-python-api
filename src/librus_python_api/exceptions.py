@@ -151,7 +151,9 @@ class LimitError(LibrusError):
 
 
 class ParseError(LibrusError):
-    pass
+    # Library-private: where a JSON envelope failed validation, as wire field
+    # names, list indexes and pydantic error types only (`wire_failure`).
+    _wire_failure: str | None = None
 
 
 class StaleCursorError(LibrusError):

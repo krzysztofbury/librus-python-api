@@ -2,13 +2,16 @@ import ast
 import asyncio
 import importlib
 import inspect
+import json
 import pkgutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import NoReturn, get_type_hints
+from typing import Any, NoReturn, get_type_hints
 
 import pytest
 
 import librus_python_api
+from librus_python_api.attendance_frequency import parse_gateway_attendance
 from librus_python_api.diagnostics import (
     _SHAPE_COUNTS,
     RAISE_HELPERS,
@@ -21,6 +24,7 @@ from librus_python_api.grade_records import parse_grade_records
 from librus_python_api.inspect_page import main
 from librus_python_api.models import DiagnosticEvent
 from librus_python_api.parsers import parse_profile
+from tests.attendance_support import gateway_rows
 from tests.grade_records_support import (
     GradeRecordsFixture,
     behaviour_row,
@@ -190,6 +194,47 @@ def test_the_locator_names_the_failing_cell_and_the_widths_without_values() -> N
     assert report is not None and "\nwidth: 10\n" in report
     assert SECRET not in report
     assert failure_locator(ValueError(SECRET)) is None
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [
+        pytest.param(
+            lambda rows: rows[1].pop("Lesson"),
+            "wire Attendances[1].Lesson missing",
+            id="missing",
+        ),
+        pytest.param(
+            lambda rows: rows[2].update(Semester=SECRET),
+            "wire Attendances[2].Semester value_error",
+            id="semester",
+        ),
+        pytest.param(
+            lambda rows: rows[0].update(LessonNo=100, Type={"Id": SECRET}),
+            "wire Attendances[0].Type.Id string_pattern_mismatch; "
+            "Attendances[0].LessonNo less_than_equal",
+            id="two-fields",
+        ),
+    ],
+)
+def test_a_gateway_envelope_failure_names_its_field_and_rule_only(
+    change: Callable[[list[dict[str, Any]]], object], expected: str
+) -> None:
+    # librus-mcp#136: the attendance gateway failed validation and nothing said
+    # which field; the report shows wire field names and rule types, no value.
+    payload = json.loads(gateway_rows())
+    change(payload["Attendances"])
+    with pytest.raises(ParseError) as caught:
+        parse_gateway_attendance(json.dumps(payload).encode())
+    assert failure_locator(caught.value) == expected
+    assert describe_failure(caught.value) == expected
+    assert SECRET not in expected
+
+
+def test_a_body_that_is_no_envelope_is_named_as_the_body() -> None:
+    with pytest.raises(ParseError) as caught:
+        parse_gateway_attendance(json.dumps([SECRET]).encode())
+    assert failure_locator(caught.value) == "wire (body) model_type"
 
 
 # Every binding of a name `describe_failure` and `failure_locator` show as a

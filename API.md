@@ -191,6 +191,11 @@ from the exception's own traceback. Neither raises.
   tr.bolded.line0[2] > td.center[7]; cells 7, columns 11, width 10, span 1`.
   It holds structure and counts only, at most 512 characters, so an
   application can return it with the error, as `librus-mcp` does in `at`.
+  Since 1.11.4 a gateway JSON envelope that fails validation gives its field
+  path and rule instead, such as `wire Attendances[3].Lesson missing`: wire
+  field names, list indexes and pydantic error types only, never a value (a
+  path part that is not a field name shows as `?`). `describe_failure` returns
+  the same line. The attendance frequency reads use it so far.
 - `python -m librus_python_api.inspect_page {grades,final-grades,profile} FILE`
   parses a saved page offline (a whole page or a copied table) and prints
   counts, or the failure kind, frames and structure. `profile` (1.8.1) reads the
@@ -466,7 +471,9 @@ by default; entries sent before `window_start` may be missing. Only a login
 whose identity response reports `Me.Account.GroupId` 5 (both parent logins
 observed) sends the request; any other or missing group (8 on both student
 logins, where the page ends the session) raises `UnsupportedCapabilityError`
-without it. See [contract](contracts/justifications.md).
+without it. A parent login that still gets the logged-out page right after
+signing in raises `ViewDisabledError` (1.11.4) and its session is cleared. See
+[contract](contracts/justifications.md).
 
 ### Weekly timetable
 

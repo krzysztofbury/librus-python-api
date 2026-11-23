@@ -602,6 +602,43 @@ def test_a_box_table_is_read_from_its_boxes_without_the_gateway() -> None:
 
 
 @pytest.mark.parametrize(
+    ("box", "field", "value"),
+    [
+        pytest.param(
+            skill_box(skill="Fixture counts<br />to ten"),
+            "Umiejętność",
+            "Fixture counts\nto ten",
+            id="skill",
+        ),
+        pytest.param(
+            skill_box(area="Fixture<br />Maths"),
+            "Obszar oceniania",
+            "Fixture\nMaths",
+            id="area",
+        ),
+    ],
+)
+def test_a_wrapped_skill_or_area_continues_on_its_own_line(
+    box: str, field: str, value: str
+) -> None:
+    # librus-mcp#136: a skill wrapped onto an unlabelled line, 14 characters
+    # long, failed the whole grades read of a parent login.
+    records, _ = parse_grade_page(
+        box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
+    )
+    first = records.descriptive[0]
+    assert dict(first.metadata)[field] == value
+    assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
+
+
+def test_a_line_after_a_known_label_still_fails_the_grades_page() -> None:
+    # Only free text continues; an unlabelled line after `Data` is a layout.
+    box = skill_box(day="2026-10-06 (wt.)<br />Fixture stray")
+    with pytest.raises(ParseError):
+        parse_grade_page(box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode())
+
+
+@pytest.mark.parametrize(
     "page,expected",
     [
         # The detail rows must list exactly the boxes' grades, or one is lost.

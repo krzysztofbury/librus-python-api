@@ -15,6 +15,7 @@ from typing import Protocol
 
 from lxml import html
 
+from librus_python_api.exceptions import ParseError
 from librus_python_api.models import DiagnosticEvent
 
 _PACKAGE = "librus_python_api"
@@ -532,6 +533,14 @@ def _failure_site(
     return None
 
 
+def _wire_failure(error: BaseException) -> str | None:
+    """Where a JSON envelope failed validation (`parsers.validate_wire`)."""
+    for failure in _chain(error):
+        if isinstance(failure, ParseError) and failure._wire_failure:
+            return f"wire {failure._wire_failure}"
+    return None
+
+
 def describe_failure(error: BaseException) -> str | None:
     """The page structure around a failure, for a bug report.
 
@@ -539,13 +548,15 @@ def describe_failure(error: BaseException) -> str | None:
     any: tags, safe class tokens, known tooltip labels, known link families
     and lengths, then the layout counts it compared (such as `width`). A
     whole page is summarized last (see _page_summary). Text and attribute
-    values are masked unless they equal a parser constant.
+    values are masked unless they equal a parser constant. A JSON envelope
+    that failed validation is named by field path and rule instead.
     Returns None when there is nothing to show; never raises.
     """
     try:
         site = _failure_site(error)
         if site is None:
-            return None
+            wire = _wire_failure(error)
+            return None if wire is None else wire[:_REPORT_BYTES]
         frame, line, elements, sequences, counts = site
         redactor = _Redactor()
         lines = [f"at {_site(frame, line)}"]
@@ -583,12 +594,15 @@ def failure_locator(error: BaseException) -> str | None:
     `describe_failure`), then the sizes it was checked against, for example
     `table.stretch.decorated[1] > tbody[1] > tr.bolded.line0[2] > td.center[7];
     cells 7, columns 11, width 10`. Structure and counts only, never page text
-    or values. Returns None when no page element is involved; never raises.
+    or values. A JSON envelope that failed validation gives its field path and
+    rule, for example `wire Attendances[3].Lesson missing`. Returns None when
+    neither is involved; never raises.
     """
     try:
         site = _failure_site(error)
         if site is None:
-            return None
+            wire = _wire_failure(error)
+            return None if wire is None else wire[:_LOCATOR_BYTES]
         _, _, elements, sequences, counts = site
         redactor = _Redactor()
         parts = [

@@ -643,6 +643,11 @@ original. On 2026-11-15 none of the owner's four logins showed this table, and
 their grade reads gave the same counts with and without the change in every
 view. Whether the week and last-login views narrow the boxes and the detail
 rows alike is not observed; if they do not, those views fail closed.
+Since 1.11.4 (librus-mcp#136) the `Umiejętność` and `Obszar oceniania` values
+may continue on unlabelled lines, as `Komentarz` does: a parent login's grade
+box had a skill that wrapped onto a 14-character line of its own, and the
+whole grades read failed. The lines are kept in order, joined with newlines.
+A known label such as `Data` still never continues.
 
 A subject with no grades in either period (1.10.3, #184, from @wiktorw's masked
 failure report) has a detail table with the header and one `Brak ocen` row

@@ -8,6 +8,7 @@ from aiohttp import web
 
 from librus_python_api import RequestBudget, SendStatus, TransportLimits
 from librus_python_api.exceptions import ErrorKind, LibrusError
+from tests.http_support import LOGGED_OUT_PAGE
 from tests.modern_support import ModernFixture
 from tests.test_modern_messages import prepare
 
@@ -172,5 +173,73 @@ def test_post_dispatch_modern_expiry_is_uncertain_but_does_not_expire_legacy() -
                 == initial.observation.session_generation
             )
             assert fixture.logins == {"student": 1} and len(fixture.sends) == 1
+
+    asyncio.run(scenario())
+
+
+class LoggedOutLaunchFixture(ModernFixture):
+    """The launch answers 200 with a page instead of redirecting."""
+
+    launch_page: str | None = None
+
+    async def launch(self, request: web.Request) -> web.Response:
+        if self.launch_page is None:
+            return await super().launch(request)
+        self.record(request)
+        page, self.launch_page = self.launch_page, None
+        return web.Response(text=page, content_type="text/html")
+
+
+def test_a_logged_out_launch_page_signs_in_again_once() -> None:
+    # librus-mcp#136, live 2026-11-23: after a GET of /eusprawiedliwienia ended
+    # the session, the launch answered 200 with the logged-out page and every
+    # modern read failed as UNSUPPORTED_CAPABILITY.
+    async def scenario() -> None:
+        fixture = LoggedOutLaunchFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.identity()
+            fixture.launch_page = LOGGED_OUT_PAGE
+            result = await client.modern_recipient_types()
+            assert len(result.items) == 2
+            assert fixture.logins == {"student": 2}
+            assert [stage for stage, _, _ in fixture.modern_calls].count("handoff") == 1
+
+    asyncio.run(scenario())
+
+
+def test_any_other_launch_page_is_still_unsupported() -> None:
+    async def scenario() -> None:
+        fixture = LoggedOutLaunchFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            await client.identity()
+            fixture.launch_page = "<html><body><h2>Fixture page</h2></body></html>"
+            with pytest.raises(LibrusError) as error:
+                await client.modern_recipient_types()
+            assert error.value.kind is ErrorKind.UNSUPPORTED_CAPABILITY
+            assert fixture.logins == {"student": 1} and fixture.modern_calls == []
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("signed_in_first", [True, False])
+def test_a_send_never_signs_in_again_after_a_logged_out_launch(
+    signed_in_first: bool,
+) -> None:
+    async def scenario() -> None:
+        fixture = LoggedOutLaunchFixture()
+        async with fixture.running() as service:
+            client = service.account("student")
+            if signed_in_first:
+                await client.identity()
+            fixture.launch_page = LOGGED_OUT_PAGE
+            attempt = prepare(client)
+            with pytest.raises(LibrusError) as error:
+                await attempt.execute()
+            assert error.value.kind is ErrorKind.SESSION_EXPIRED
+            assert attempt.outcome.status is SendStatus.NOT_DISPATCHED
+            assert fixture.sends == [] and fixture.modern_calls == []
+            assert fixture.logins == {"student": 1}
 
     asyncio.run(scenario())
