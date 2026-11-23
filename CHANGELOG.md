@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.11.5 (2026-11-23) - Parent logins: attendance frequency and long grade tooltips
+
+The two failures left on a tester's parent login (librus-mcp#136):
+
+- Attendance frequency: some gateway attendance records carry an ID that is not
+  a number, and `attendance_frequency()` and `subject_frequency()` failed with
+  `ParseError`. The shape was not shown; another Librus client strips
+  non-digits from this ID. The ID is now an opaque token of 1 to 64 printable ASCII
+  characters. It only detects duplicate records; nothing else reads it.
+- Grades: the 32-field bound on a grade tooltip counted lines, blank ones
+  included, and a descriptive grade's tooltip with more than 32 lines failed
+  the whole grades read with `LimitError`. Most likely its free text spans
+  many lines. The bound now counts fields; non-blank lines have a bound of
+  their own, 256, and the 8192-character bound still applies.
+
 ## 1.11.4 (2026-11-23) - Parent logins: messages, e-Justifications, grade tooltips; audit fixes
 
 Four failures from a tester's parent login (librus-mcp#136, #201):

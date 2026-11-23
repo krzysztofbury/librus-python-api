@@ -204,6 +204,25 @@ def test_gateway_schema_fails_without_partial_rows(field: str, value: object) ->
         parse_gateway_attendance(json.dumps(payload).encode())
 
 
+def test_gateway_ids_with_a_letter_prefix_are_counted() -> None:
+    # librus-mcp#136: some rows of a parent login carried a non-numeric Id and
+    # failed the frequency tools; the ID is opaque, digits or not.
+    payload = json.loads(gateway_rows())
+    payload["Attendances"][1]["Id"] = "t1"
+    payload["Attendances"][2]["Id"] = "t2"
+    rows = parse_gateway_attendance(json.dumps(payload).encode())
+    assert [row.identifier for row in rows] == ["1", "t1", "t2", "4", "5"]
+    assert summarize_frequency(rows, subject_policy=False).total_count == 5
+
+
+@pytest.mark.parametrize("value", ["", "t 1", "t\u00f31", "t" * 65, "../1\n"])
+def test_gateway_ids_outside_printable_ascii_fail(value: str) -> None:
+    payload = json.loads(gateway_rows())
+    payload["Attendances"][1]["Id"] = value
+    with pytest.raises(ParseError):
+        parse_gateway_attendance(json.dumps(payload).encode())
+
+
 def test_gateway_duplicate_ids_fail() -> None:
     payload = json.loads(gateway_rows())
     payload["Attendances"][1]["Id"] = payload["Attendances"][0]["Id"]

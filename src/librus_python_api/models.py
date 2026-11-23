@@ -1422,7 +1422,10 @@ class _NumericReferenceWire(BaseModel):
 
 class _AttendanceWire(BaseModel):
     model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
-    Id: Annotated[str | None, Field(pattern=r"^[0-9]{1,64}$")] = None
+    # Opaque: a parent login's rows failed a digits-only pattern (librus-mcp#136,
+    # shape unseen). szkolny-android strips non-digits from this ID, which
+    # suggests a prefix such as `t`. It only detects duplicate rows.
+    Id: Annotated[str | None, Field(pattern=r"^[!-~]{1,64}$")] = None
     Date: Annotated[str, Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")]
     Semester: Literal[1, 2]
     Type: _NumericReferenceWire

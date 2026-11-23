@@ -649,6 +649,11 @@ may continue on unlabelled lines, as `Komentarz` does: a parent login's grade
 box had a skill that wrapped onto a 14-character line of its own, and the
 whole grades read failed. The lines are kept in order, joined with newlines.
 A known label such as `Data` still never continues.
+Since 1.11.5 the 32-field bound counts fields, not lines: on the same login a
+descriptive grade's tooltip split into more than 32 lines and the read failed
+with `LimitError`. The old count included blank lines; how many were blank, and
+which field the extra lines continue, is not known. Non-blank lines have their
+own bound of 256, as each is parsed on its own.
 
 A subject with no grades in either period (1.10.3, #184, from @wiktorw's masked
 failure report) has a detail table with the header and one `Brak ocen` row

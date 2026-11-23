@@ -631,6 +631,50 @@ def test_a_wrapped_skill_or_area_continues_on_its_own_line(
     assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
 
 
+def test_a_long_free_text_tooltip_is_bounded_by_fields_not_lines() -> None:
+    # librus-mcp#136: a descriptive grade's tooltip had more than 32 lines,
+    # some of them blank, and the line count failed the grades read with LIMIT.
+    skill = "<br />".join(f"Fixture skill line {n}" for n in range(20))
+    comment = "<br /><br />".join(f"Fixture remark line {n}" for n in range(20))
+    box = skill_box(skill=skill, comment=comment)
+    records, _ = parse_grade_page(
+        box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
+    )
+    first = records.descriptive[0]
+    assert dict(first.metadata)["Umiejętność"].count("\n") == 19
+    assert first.comment is not None and first.comment.count("\n") == 19
+    assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
+
+
+@pytest.mark.parametrize(("lines", "fails"), [(256, False), (257, True)])
+def test_tooltip_line_bound_counts_non_blank_lines(lines: int, fails: bool) -> None:
+    # skill_box has six lines; the rest continue the comment, each followed by
+    # a blank line that does not count.
+    comment = "<br /><br />".join(f"<i>{n}</i>" for n in range(lines - 5))
+    box = skill_box(comment=comment)
+    page = box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
+    if fails:
+        with pytest.raises(LimitError):
+            parse_grade_page(page)
+    else:
+        first = parse_grade_page(page)[0].descriptive[0]
+        assert first.comment is not None and first.comment.count("\n") == lines - 6
+
+
+@pytest.mark.parametrize(("fields", "fails"), [(32, False), (33, True)])
+def test_tooltip_field_bound_counts_distinct_fields(fields: int, fails: bool) -> None:
+    # The six fields of skill_box plus labelled extras in the comment slot.
+    extra = "".join(f"<br />Fixture {n}: x" for n in range(fields - 6))
+    box = skill_box(comment="Fixture remark" + extra)
+    page = box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
+    if fails:
+        with pytest.raises(LimitError):
+            parse_grade_page(page)
+    else:
+        record = parse_grade_page(page)[0].descriptive[0]
+        assert dict(record.metadata)[f"Fixture {fields - 7}"] == "x"
+
+
 def test_a_line_after_a_known_label_still_fails_the_grades_page() -> None:
     # Only free text continues; an unlabelled line after `Data` is a layout.
     box = skill_box(day="2026-10-06 (wt.)<br />Fixture stray")

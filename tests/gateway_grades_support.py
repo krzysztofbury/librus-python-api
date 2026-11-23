@@ -65,13 +65,14 @@ def skill_box(
     day: str = "2026-10-06 (wt.)",
     skill: str = "Fixture counts to ten",
     area: str = "Fixture Maths",
+    comment: str = "Fixture remark",
 ) -> str:
     """A grade box of the box layout (#173): one inert link whose tooltip names
     the grading area and the skill."""
     title = escape(
         f"Obszar oceniania: {area}<br />Umiejętność: {skill}<br />"
         f"Data: {day}<br />Nauczyciel: Fixture Teacher<br />"
-        "Dodał: Fixture Teacher<br />Komentarz: Fixture remark",
+        f"Dodał: Fixture Teacher<br />Komentarz: {comment}",
         quote=True,
     )
     return (
