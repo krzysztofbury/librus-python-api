@@ -36,6 +36,11 @@ client. Follow any workspace-level agent rules as well as these project rules.
 - Reuse established concepts and flows from existing clients as design
   references, with original implementation and fixtures. Source-informed
   requirements are not independently observed live behavior.
+- When triaging a report, scoping a fix or reviewing a change, search public
+  Librus client repositories for the same page, route or field and say in the
+  issue or pull request how they handle it, or that none does. A check stricter
+  than all of them (a pattern, an allowed set, a count bound) needs a stated
+  reason: two such checks failed a tester's login (librus-mcp#136).
 - Releases follow the steps in [RELEASE.md](RELEASE.md), the same ones as
   `DISTRIBUTION.md` in `librus-mcp`: a passing live check comes before the GitHub
   Release, which starts publication. While watching CI or a release run,
@@ -73,6 +78,11 @@ rule changes as pull requests.
   its structure. Delete it once the fix has been checked against it, not
   before: a capture deleted early costs another live read. For an owner's own account, capture with
   `scripts/live_capture.py` into scratch and print label structure only.
+- Before a release that only adds diagnostics and asks the reporter for another
+  run, search public Librus client repositories for the failing page, field or
+  label and how they handle it. A variation they already absorb is a likely
+  cause and can ship as a fix in the same release (librus-mcp#136: a
+  non-numeric attendance ID cost one extra round).
 - Diagnostics are allowlist-based (`describe_failure`, `config.TOOLTIP_LABELS`).
   Extend the lists only with Librus-authored labels and markup, never values,
   and keep the marker tests in `tests/test_failure_diagnostics.py` passing.
