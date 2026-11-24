@@ -1213,7 +1213,9 @@ paths:
       x-evidence-note: Shape from public Librus client sources and a public response sample (librus-mcp#136); original fixtures. Not yet observed on an owner login, whose attendance has only fixed-policy types.
       description: |
         Read only when an attendance read has a record whose type is outside the
-        fixed type policy, at most once per login/session and one-hour TTL.
+        fixed type policy: one more request, so gateway_attendance takes one or
+        two and subject frequency up to four. A parsed list is reused for the
+        login/session with a one-hour TTL; an unusable one is not cached.
         Required Types array, at most 1024 rows; Id and an optional StandardType.Id
         are numeric references. A type whose StandardType is 1, 2, 3, 4 or 100
         counts as absence, late, excused, exemption or present; any other type
@@ -1238,7 +1240,9 @@ paths:
                       required: [Id]
                       properties:
                         Id: {$ref: '#/components/schemas/NumericIdentifier'}
-                        StandardType: {$ref: '#/components/schemas/NumericReference'}
+                        StandardType:
+                          allOf: [{$ref: '#/components/schemas/NumericReference'}]
+                          nullable: true
         default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Lessons:
     get:
@@ -1337,8 +1341,10 @@ paths:
         method or cross-login metadata. A lesson this route cannot give (access
         denied, HTTP failure or a mismatched body) does not fail subject frequency:
         its records are counted in the result's unresolved measure. The same holds
-        for attendance_subject. Session failures, deadlines, budgets and
-        cancellation propagate.
+        for attendance_subject. When no lesson or subject resolved at all, the
+        first such failure is raised instead. An expired session (401 or a login
+        redirect), throttling, maintenance, deadlines, budgets and cancellation
+        propagate.
         At most 256 unique lessons per selected frequency workload; lesson and
         subject metadata share a 256-entry account/session cache, one-hour TTL.
         Deduplication, finite request budgets and the common scheduler bound traffic.

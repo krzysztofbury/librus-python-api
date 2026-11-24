@@ -14,7 +14,15 @@ from librus_python_api.attendance_frequency import (
     summarize_frequency,
 )
 from librus_python_api.config import ACCOUNT_RESULT_CACHE_SIZE, ATTENDANCE_MAX_RECORDS
-from librus_python_api.exceptions import InvalidInputError, LimitError, ParseError
+from librus_python_api.exceptions import (
+    ConnectionError,
+    InvalidInputError,
+    LimitError,
+    MaintenanceError,
+    ParseError,
+    SessionExpiredError,
+    ThrottledError,
+)
 from tests.attendance_support import DETAIL, AttendanceFixture, gateway_rows
 from tests.http_support import serve
 
@@ -34,9 +42,9 @@ class FrequencyFixture(AttendanceFixture):
         self.malformed_collections: dict[str, int] = {}
         # The school's attendance type list; None makes the route unavailable.
         self.types: list[dict[str, object]] | None = []
-        # Per-reference routes answer 404 for these IDs.
-        self.missing_lessons: set[str] = set()
-        self.missing_subjects: set[str] = set()
+        # Per-reference routes answer these IDs with this HTTP status.
+        self.missing_lessons: dict[str, int] = {}
+        self.missing_subjects: dict[str, int] = {}
 
     def app(self) -> web.Application:
         app = super().app()
@@ -108,7 +116,7 @@ class FrequencyFixture(AttendanceFixture):
         self.record(request)
         self.metadata_requests.append(("lesson", request.match_info["id"]))
         if request.match_info["id"] in self.missing_lessons:
-            return web.Response(status=404)
+            return web.Response(status=self.missing_lessons[request.match_info["id"]])
         return web.json_response(
             {"Lesson": {"Id": int(request.match_info["id"]), "Subject": {"Id": 51}}}
         )
@@ -117,7 +125,7 @@ class FrequencyFixture(AttendanceFixture):
         login = self.record(request)
         self.metadata_requests.append(("subject", request.match_info["id"]))
         if request.match_info["id"] in self.missing_subjects:
-            return web.Response(status=404)
+            return web.Response(status=self.missing_subjects[request.match_info["id"]])
         return web.json_response(
             {
                 "Subject": {
@@ -844,12 +852,12 @@ def test_an_unresolvable_reference_is_counted_apart_not_fatal(missing: str) -> N
         fixture.collection_lessons = {41: 51}
         fixture.collection_subjects = (51,)
         if missing == "lesson":
-            fixture.missing_lessons = {"42"}
+            fixture.missing_lessons = {"42": 404}
         else:
             # Lesson 42 resolves individually to subject 51 of the fixture, so
             # give it a subject of its own that the subject route lacks.
             fixture.collection_lessons = {41: 51, 42: 52}
-            fixture.missing_subjects = {"52"}
+            fixture.missing_subjects = {"52": 404}
         async with serve(fixture.app()) as origin:
             fixture.origin = origin
             async with fixture.service() as service:
@@ -876,5 +884,52 @@ def test_every_reference_resolved_leaves_no_unresolved_measure() -> None:
             async with fixture.service() as service:
                 result = await service.account("student").subject_frequency()
                 assert result.items and result.unresolved is None
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("status", "error"),
+    [
+        (401, SessionExpiredError),
+        (429, ThrottledError),
+        (503, MaintenanceError),
+    ],
+)
+@pytest.mark.parametrize("missing", ["lesson", "subject"])
+def test_a_lookup_failing_for_the_session_or_service_still_fails(
+    missing: str, status: int, error: type[Exception]
+) -> None:
+    # Only a reference Librus does not give is counted apart; an expired
+    # session, throttling or maintenance is no answer about that reference.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _two_lesson_rows()
+        if missing == "lesson":
+            fixture.missing_lessons = {"42": status}
+        else:
+            fixture.collection_lessons = {41: 51, 42: 52}
+            fixture.missing_subjects = {"52": status}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                with pytest.raises(error):
+                    await service.account("student").subject_frequency()
+
+    asyncio.run(scenario())
+
+
+def test_nothing_resolved_fails_with_the_lookup_error() -> None:
+    # Every lookup failing is a failing route, not missing references; an
+    # all-unresolved success would hide it and could be cached.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.collection_lessons = None
+        fixture.missing_lessons = {"41": 404}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                with pytest.raises(ConnectionError):
+                    await service.account("student").subject_frequency()
 
     asyncio.run(scenario())

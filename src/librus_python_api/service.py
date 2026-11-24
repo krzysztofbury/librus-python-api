@@ -2709,9 +2709,12 @@ class AccountClient:
             await self._metadata_map("attendance_lessons", budget) if lessons else {}
         )
         _check_lookups(budget, self._lookups("attendance_lesson", lesson_map, lessons))
+        failures: list[LibrusError] = []
         lesson_subjects = {
             lesson: lesson_map.get(lesson)
-            or await self._reference_or_none("attendance_lesson", lesson, budget)
+            or await self._reference_or_none(
+                "attendance_lesson", lesson, budget, failures
+            )
             for lesson in lessons
         }
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
@@ -2731,7 +2734,7 @@ class AccountClient:
         items: list[SubjectFrequency] = []
         for subject, records in subjects.items():
             name = subject_map.get(subject) or await self._reference_or_none(
-                "attendance_subject", subject, budget
+                "attendance_subject", subject, budget, failures
             )
             if name is None:
                 unresolved.extend(records)
@@ -2743,6 +2746,10 @@ class AccountClient:
                     summarize_frequency(tuple(records), subject_policy=True),
                 )
             )
+        if failures and not items:
+            # Nothing resolved: a failing route, not a missing reference. A
+            # successful all-unresolved result would hide it and be cached.
+            raise failures[0]
         return SubjectFrequencies(
             self._session_identity(),
             tuple(items),
@@ -2755,17 +2762,24 @@ class AccountClient:
         )
 
     async def _reference_or_none(
-        self, endpoint: str, identifier: str, budget: RequestBudget
+        self,
+        endpoint: str,
+        identifier: str,
+        budget: RequestBudget,
+        failures: list[LibrusError],
     ) -> str | None:
-        """A lesson's subject or a subject's name; None when Librus cannot give it.
+        """A lesson's subject or a subject's name; None when Librus does not give
+        it, with the failure appended to `failures`.
 
-        Session failures, deadlines, budgets and cancellation still propagate.
+        An expired session (401 or a login redirect), throttling, maintenance,
+        deadlines, budgets and cancellation still propagate.
         """
         try:
             return await self._metadata_value(endpoint, identifier, budget)
         except LibrusError as error:
             if error.kind not in _UNRESOLVED_REFERENCE:
                 raise
+            failures.append(error)
             return None
 
     async def _typed(

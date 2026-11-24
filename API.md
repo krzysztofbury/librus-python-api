@@ -452,7 +452,8 @@ school's login. See [gateway descriptive grades](contracts/grades.md#gateway-des
   a 256-entry, one-hour metadata cache and returns one measure per subject ID.
   Records whose lesson or subject Librus does not give are counted in
   `unresolved` (a subject-policy `FrequencyMeasure`, `None` when all resolved)
-  instead of failing the read (1.12.0).
+  instead of failing the read (1.12.0). When nothing resolved, the first lookup
+  error is raised.
 
 ## Timetable
 

@@ -10,13 +10,16 @@ clients before the tester's next run:
   resolved through the school's type list (`/gateway/api/2.0/Attendances/Types`,
   new route `attendance_types`): a school's own type counts as the standard
   type it names (absence, late, excused, exemption or present). The list is
-  read only when a record needs it, at most once per login and hour. When it
-  is unavailable, those records stay `unknown` as before.
+  read only when a record needs it, one more request; a parsed list is reused
+  for an hour per login, and an unusable one is read again on the next call.
+  When it is unavailable, those records stay `unknown` as before.
 - Subject frequency: a lesson or subject that Librus does not give (an HTTP
   failure, a denial or an unexpected body) failed the whole
   `subject_frequency()` read. Its records are now counted in the new
   `SubjectFrequencies.unresolved` measure, `None` when every record resolved.
-  An exhausted budget, an expired session and cancellation still fail.
+  When nothing resolved, the read fails with the first lookup's error, since
+  that is a failing route rather than a missing record. An exhausted budget,
+  an expired session, throttling, maintenance and cancellation still fail.
 - Grades: a line such as `Word: text` inside a grade's comment, skill or
   grading area started a field of its own, and the next plain line failed the
   whole grades read with `ParseError`. A line whose label is not a Librus label
