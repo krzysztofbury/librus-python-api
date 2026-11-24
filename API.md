@@ -440,7 +440,9 @@ school's login. See [gateway descriptive grades](contracts/grades.md#gateway-des
 - `attendance_detail(detail_id)` takes a numeric string and returns ordered
   `fields`, `notes` and stable-key `normalized_fields` (see below).
 - `gateway_attendance()` returns the JSON records with a strict `AttendanceKind`
-  per stable type ID; unknown IDs stay `UNKNOWN`. A record's `identifier` is an
+  per stable type ID. A type outside that policy takes the kind of the standard
+  type the school's type list names for it (1.12.0; the list is read only when
+  needed); one the list cannot map stays `UNKNOWN`. A record's `identifier` is an
   opaque token of up to 64 printable ASCII characters, not always digits
   (1.11.5); it only detects duplicate records.
 - `attendance_frequency()` returns per-semester and overall `FrequencyMeasure`
@@ -448,6 +450,9 @@ school's login. See [gateway descriptive grades](contracts/grades.md#gateway-des
   Unknown types or an empty denominator give `ratio=None`, never 100 %.
 - `subject_frequency(start=None, end=None)` resolves lessons to subjects through
   a 256-entry, one-hour metadata cache and returns one measure per subject ID.
+  Records whose lesson or subject Librus does not give are counted in
+  `unresolved` (a subject-policy `FrequencyMeasure`, `None` when all resolved)
+  instead of failing the read (1.12.0).
 
 ## Timetable
 

@@ -19,11 +19,13 @@ from librus_python_api.announcements import parse_announcements
 from librus_python_api.attachments import AttachmentStream, ModernAttachmentStream
 from librus_python_api.attendance import parse_attendance, parse_attendance_detail
 from librus_python_api.attendance_frequency import (
+    parse_attendance_types,
     parse_gateway_attendance,
     parse_lesson_subject,
     parse_lesson_subjects,
     parse_subject_name,
     parse_subject_names,
+    resolve_type_kinds,
     summarize_frequency,
 )
 from librus_python_api.budget import RequestBudget
@@ -437,6 +439,21 @@ _READ_STATUS: contextvars.ContextVar[list[int | None] | None] = contextvars.Cont
 )
 _METADATA_MAP_FALLBACK = frozenset(
     {ErrorKind.ACCESS_DENIED, ErrorKind.CONNECTION, ErrorKind.LIMIT, ErrorKind.PARSE}
+)
+_METADATA_MAP_PARSERS: Mapping[str, Callable[[bytes], dict[str, str]]] = (
+    MappingProxyType(
+        {
+            "attendance_lessons": parse_lesson_subjects,
+            "attendance_subjects": parse_subject_names,
+            "attendance_types": parse_attendance_types,
+        }
+    )
+)
+# A single lesson or subject Librus does not give (an HTTP failure, a denial or
+# an unexpected body): its attendance is counted as unresolved instead of
+# failing the whole read, as public clients do. An exhausted budget stays LIMIT.
+_UNRESOLVED_REFERENCE = frozenset(
+    {ErrorKind.ACCESS_DENIED, ErrorKind.CONNECTION, ErrorKind.PARSE}
 )
 
 
@@ -1565,11 +1582,14 @@ class AccountClient:
         self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
     ) -> GatewayAttendance:
         async def fetch(budget: RequestBudget, _: bool) -> GatewayAttendance:
-            items = await self._page(
-                "gateway_attendance",
+            items = await self._typed(
+                await self._page(
+                    "gateway_attendance",
+                    budget,
+                    parse_gateway_attendance,
+                    content_type=JSON,
+                ),
                 budget,
-                parse_gateway_attendance,
-                content_type=JSON,
             )
             return GatewayAttendance(
                 self._session_identity(),
@@ -2647,11 +2667,7 @@ class AccountClient:
         cached = self._metadata_maps.get(endpoint)
         if cached and time.monotonic() - cached[0] <= ATTENDANCE_METADATA_TTL_SECONDS:
             return cached[1]
-        parser = (
-            parse_lesson_subjects
-            if endpoint == "attendance_lessons"
-            else parse_subject_names
-        )
+        parser = _METADATA_MAP_PARSERS[endpoint]
         try:
             value: Mapping[str, str] = MappingProxyType(
                 await self._page(endpoint, budget, parser, content_type=JSON)
@@ -2676,47 +2692,93 @@ class AccountClient:
             "gateway_attendance", budget, parse_gateway_attendance, content_type=JSON
         )
         observed = self._observation("gateway_attendance")
-        rows = tuple(
-            r
-            for r in collection
-            if (start is None or r.day >= start) and (end is None or r.day <= end)
+        rows = await self._typed(
+            tuple(
+                r
+                for r in collection
+                if (start is None or r.day >= start) and (end is None or r.day <= end)
+            ),
+            budget,
         )
         lessons = dict.fromkeys(row.lesson_id for row in rows)
         # Two collection reads keep the request count independent of how many
         # lessons and subjects a student has; the attendance row cap bounds
-        # both (#199). References absent from a collection keep the strict
-        # per-reference contract, one request each, so fail before spending the
-        # budget on lookups it cannot finish.
+        # both (#199). References absent from a collection resolve one request
+        # each, so fail before spending the budget on lookups it cannot finish.
         lesson_map = (
             await self._metadata_map("attendance_lessons", budget) if lessons else {}
         )
         _check_lookups(budget, self._lookups("attendance_lesson", lesson_map, lessons))
         lesson_subjects = {
             lesson: lesson_map.get(lesson)
-            or await self._metadata_value("attendance_lesson", lesson, budget)
+            or await self._reference_or_none("attendance_lesson", lesson, budget)
             for lesson in lessons
         }
         subjects: dict[str, list[GatewayAttendanceRecord]] = {}
+        unresolved: list[GatewayAttendanceRecord] = []
         for row in rows:
-            subjects.setdefault(lesson_subjects[row.lesson_id], []).append(row)
+            subject = lesson_subjects[row.lesson_id]
+            if subject is None:
+                unresolved.append(row)
+            else:
+                subjects.setdefault(subject, []).append(row)
         subject_map = (
             await self._metadata_map("attendance_subjects", budget) if subjects else {}
         )
         _check_lookups(
             budget, self._lookups("attendance_subject", subject_map, subjects)
         )
-        items = [
-            SubjectFrequency(
-                subject,
-                subject_map.get(subject)
-                or await self._metadata_value("attendance_subject", subject, budget),
-                summarize_frequency(tuple(records), subject_policy=True),
+        items: list[SubjectFrequency] = []
+        for subject, records in subjects.items():
+            name = subject_map.get(subject) or await self._reference_or_none(
+                "attendance_subject", subject, budget
             )
-            for subject, records in subjects.items()
-        ]
+            if name is None:
+                unresolved.extend(records)
+                continue
+            items.append(
+                SubjectFrequency(
+                    subject,
+                    name,
+                    summarize_frequency(tuple(records), subject_policy=True),
+                )
+            )
         return SubjectFrequencies(
-            self._session_identity(), tuple(items), start, end, observed
+            self._session_identity(),
+            tuple(items),
+            start,
+            end,
+            observed,
+            summarize_frequency(tuple(unresolved), subject_policy=True)
+            if unresolved
+            else None,
         )
+
+    async def _reference_or_none(
+        self, endpoint: str, identifier: str, budget: RequestBudget
+    ) -> str | None:
+        """A lesson's subject or a subject's name; None when Librus cannot give it.
+
+        Session failures, deadlines, budgets and cancellation still propagate.
+        """
+        try:
+            return await self._metadata_value(endpoint, identifier, budget)
+        except LibrusError as error:
+            if error.kind not in _UNRESOLVED_REFERENCE:
+                raise
+            return None
+
+    async def _typed(
+        self, rows: tuple[GatewayAttendanceRecord, ...], budget: RequestBudget
+    ) -> tuple[GatewayAttendanceRecord, ...]:
+        """Resolve a school's own attendance types; one read, only when needed.
+
+        A type list Librus cannot give leaves those rows unknown, as before.
+        """
+        if all(row.kind != "unknown" for row in rows):
+            return rows
+        kinds = await self._metadata_map("attendance_types", budget)
+        return resolve_type_kinds(rows, kinds)
 
     # Authentication and response validation.
 

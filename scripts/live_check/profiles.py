@@ -308,7 +308,7 @@ async def attendance_detail(ctx: Context) -> Observed:
     return coverage_of(len(result.fields), fields=len(result.fields))
 
 
-@check("attendance_frequency", reads={"gateway_attendance"})
+@check("attendance_frequency", reads={"gateway_attendance", "attendance_types"})
 async def attendance_frequency(ctx: Context) -> Observed:
     await ctx.client.attendance_frequency(budget=ctx.budget)
     return POPULATED
@@ -320,6 +320,7 @@ async def attendance_frequency(ctx: Context) -> Observed:
         "gateway_attendance",
         "attendance_lessons",
         "attendance_subjects",
+        "attendance_types",
         "attendance_lesson",
         "attendance_subject",
     },

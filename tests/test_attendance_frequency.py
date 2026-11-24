@@ -32,11 +32,17 @@ class FrequencyFixture(AttendanceFixture):
         self.collection_subjects: tuple[int, ...] | None = (51,)
         # Collection name -> how many next reads answer with a non-JSON body.
         self.malformed_collections: dict[str, int] = {}
+        # The school's attendance type list; None makes the route unavailable.
+        self.types: list[dict[str, object]] | None = []
+        # Per-reference routes answer 404 for these IDs.
+        self.missing_lessons: set[str] = set()
+        self.missing_subjects: set[str] = set()
 
     def app(self) -> web.Application:
         app = super().app()
         app.router.add_get("/przegladaj_nb/szczegoly/{id}", self.detail)
         app.router.add_get("/gateway/api/2.0/Attendances", self.gateway)
+        app.router.add_get("/gateway/api/2.0/Attendances/Types", self.attendance_types)
         app.router.add_get("/gateway/api/2.0/Lessons", self.lessons)
         app.router.add_get("/gateway/api/2.0/Subjects", self.subjects)
         app.router.add_get("/gateway/api/2.0/Lessons/{id}", self.lesson)
@@ -61,6 +67,13 @@ class FrequencyFixture(AttendanceFixture):
                 "Url": "fixture",
             }
         )
+
+    async def attendance_types(self, request: web.Request) -> web.Response:
+        self.record(request)
+        self.metadata_requests.append(("types", "*"))
+        if self.types is None:
+            return web.Response(status=404)
+        return web.json_response({"Types": self.types, "Url": "fixture"})
 
     async def subjects(self, request: web.Request) -> web.Response:
         login = self.record(request)
@@ -94,6 +107,8 @@ class FrequencyFixture(AttendanceFixture):
     async def lesson(self, request: web.Request) -> web.Response:
         self.record(request)
         self.metadata_requests.append(("lesson", request.match_info["id"]))
+        if request.match_info["id"] in self.missing_lessons:
+            return web.Response(status=404)
         return web.json_response(
             {"Lesson": {"Id": int(request.match_info["id"]), "Subject": {"Id": 51}}}
         )
@@ -101,6 +116,8 @@ class FrequencyFixture(AttendanceFixture):
     async def subject(self, request: web.Request) -> web.Response:
         login = self.record(request)
         self.metadata_requests.append(("subject", request.match_info["id"]))
+        if request.match_info["id"] in self.missing_subjects:
+            return web.Response(status=404)
         return web.json_response(
             {
                 "Subject": {
@@ -714,5 +731,150 @@ def test_cached_lookups_are_not_counted_against_the_budget() -> None:
                 # Only the unavailable lessons collection is asked again; the
                 # subjects map and every lesson come from the caches.
                 assert fixture.metadata_requests[before:] == [("lessons", "*")]
+
+    asyncio.run(scenario())
+
+
+# A school's own types as the gateway lists them (shape from public client
+# sources and a public sample): standard types, then custom ones naming the
+# standard type they count as.
+SCHOOL_TYPES: list[dict[str, object]] = [
+    {"Id": 1, "Standard": True, "IsPresenceKind": False},
+    {"Id": 100, "Standard": True, "IsPresenceKind": True},
+    {"Id": 1266, "Standard": False, "StandardType": {"Id": 1, "Url": "fixture"}},
+    {"Id": 2928, "Standard": False, "StandardType": {"Id": 1, "Url": "fixture"}},
+    {"Id": 2930, "Standard": False, "StandardType": {"Id": 100, "Url": "fixture"}},
+    {"Id": 2931, "Standard": False, "StandardType": {"Id": 999, "Url": "fixture"}},
+    {"Id": 2932, "Standard": False},
+]
+
+
+def test_school_types_take_the_kind_of_their_standard_type() -> None:
+    # librus-mcp#136: a type outside the fixed policy made every ratio null.
+    from librus_python_api.attendance_frequency import (
+        parse_attendance_types,
+        resolve_type_kinds,
+    )
+
+    kinds = parse_attendance_types(json.dumps({"Types": SCHOOL_TYPES}).encode())
+    assert kinds == {"1266": "absence", "2928": "absence", "2930": "present"}
+    rows = resolve_type_kinds(
+        parse_gateway_attendance(gateway_rows((2928, 2930, 1266, 2931, 2932))), kinds
+    )
+    # The fixed policy wins: 1266 stays an excursion whatever the list says.
+    assert [row.kind for row in rows] == [
+        "absence",
+        "present",
+        "excursion",
+        "unknown",
+        "unknown",
+    ]
+
+
+def test_conflicting_or_oversized_type_lists_fail_to_parse() -> None:
+    from librus_python_api.attendance_frequency import parse_attendance_types
+
+    conflict = [
+        {"Id": 2928, "StandardType": {"Id": 1}},
+        {"Id": 2928, "StandardType": {"Id": 100}},
+    ]
+    with pytest.raises(ParseError):
+        parse_attendance_types(json.dumps({"Types": conflict}).encode())
+    with pytest.raises(LimitError):
+        parse_attendance_types(json.dumps({"Types": [{"Id": 1}] * 1025}).encode())
+
+
+def test_school_types_are_read_once_and_only_when_a_type_is_unknown() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.types = SCHOOL_TYPES
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                client = service.account("student")
+                known = await client.attendance_frequency()
+                assert known.overall.unknown_count == 0
+                assert fixture.metadata_requests == []
+                fixture.gateway_body = gateway_rows((100, 2930, 2928))
+                first = await client.attendance_frequency()
+                assert first.overall.unknown_count == 0
+                assert (first.overall.attended_count, first.overall.total_count) == (
+                    2,
+                    3,
+                )
+                assert first.overall.ratio == pytest.approx(2 / 3)
+                by_subject = await client.subject_frequency()
+                assert by_subject.items[0].frequency.unknown_count == 0
+                # One list read serves both calls for the metadata TTL.
+                assert fixture.metadata_requests.count(("types", "*")) == 1
+
+    asyncio.run(scenario())
+
+
+def test_an_unusable_type_list_leaves_the_rows_unknown() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.types = None
+        fixture.gateway_body = gateway_rows((100, 2930))
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").attendance_frequency()
+                assert result.overall.unknown_count == 1
+                assert result.overall.ratio is None
+                assert fixture.metadata_requests == [("types", "*")]
+
+    asyncio.run(scenario())
+
+
+def _two_lesson_rows() -> bytes:
+    payload = json.loads(gateway_rows((100, 1, 100, 2)))
+    for row in payload["Attendances"][2:]:
+        row["Lesson"] = {"Id": 42}
+    return json.dumps(payload).encode()
+
+
+@pytest.mark.parametrize("missing", ["lesson", "subject"])
+def test_an_unresolvable_reference_is_counted_apart_not_fatal(missing: str) -> None:
+    # Librus may not give a lesson or subject an attendance record names; that
+    # failed the whole subject frequency read before.
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        fixture.gateway_body = _two_lesson_rows()
+        fixture.collection_lessons = {41: 51}
+        fixture.collection_subjects = (51,)
+        if missing == "lesson":
+            fixture.missing_lessons = {"42"}
+        else:
+            # Lesson 42 resolves individually to subject 51 of the fixture, so
+            # give it a subject of its own that the subject route lacks.
+            fixture.collection_lessons = {41: 51, 42: 52}
+            fixture.missing_subjects = {"52"}
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").subject_frequency()
+                (item,) = result.items
+                assert item.subject_id == "51"
+                assert (item.frequency.attended_count, item.frequency.total_count) == (
+                    1,
+                    2,
+                )
+                unresolved = result.unresolved
+                assert unresolved is not None
+                assert (unresolved.attended_count, unresolved.total_count) == (2, 2)
+                assert unresolved.policy == "subject"
+
+    asyncio.run(scenario())
+
+
+def test_every_reference_resolved_leaves_no_unresolved_measure() -> None:
+    async def scenario() -> None:
+        fixture = FrequencyFixture()
+        async with serve(fixture.app()) as origin:
+            fixture.origin = origin
+            async with fixture.service() as service:
+                result = await service.account("student").subject_frequency()
+                assert result.items and result.unresolved is None
 
     asyncio.run(scenario())

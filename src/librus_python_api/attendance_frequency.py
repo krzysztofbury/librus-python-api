@@ -1,5 +1,8 @@
 """Original validated gateway parsing and explicit attendance ratio policies."""
 
+from collections.abc import Mapping
+from dataclasses import replace
+
 from pydantic import BaseModel
 
 from librus_python_api import markup
@@ -7,6 +10,8 @@ from librus_python_api.config import (
     ATTENDANCE_MAX_LESSONS,
     ATTENDANCE_MAX_RECORDS,
     ATTENDANCE_MAX_SUBJECTS,
+    ATTENDANCE_MAX_TYPES,
+    ATTENDANCE_STANDARD_TYPE_KINDS,
     ATTENDANCE_TYPE_KINDS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError
@@ -15,6 +20,7 @@ from librus_python_api.models import (
     FrequencyMeasure,
     GatewayAttendanceRecord,
     _AttendanceEnvelopeWire,
+    _AttendanceTypesEnvelopeWire,
     _LessonEnvelopeWire,
     _LessonsEnvelopeWire,
     _SubjectEnvelopeWire,
@@ -114,6 +120,39 @@ def parse_subject_names(body: bytes) -> dict[str, str]:
             for subject in envelope.Subjects
             if subject.Name is not None and subject.Name.strip()
         ]
+    )
+
+
+def parse_attendance_types(body: bytes) -> dict[str, str]:
+    """Map a school's own attendance type IDs to the kind of their standard type.
+
+    Types without a known standard type are omitted and stay unknown.
+    """
+    envelope = _collection(
+        decode_json(body), "Types", ATTENDANCE_MAX_TYPES, _AttendanceTypesEnvelopeWire
+    )
+    return _unique(
+        [
+            (kind.Id, ATTENDANCE_STANDARD_TYPE_KINDS[kind.StandardType.Id])
+            for kind in envelope.Types
+            if kind.StandardType is not None
+            and kind.StandardType.Id in ATTENDANCE_STANDARD_TYPE_KINDS
+        ]
+    )
+
+
+def resolve_type_kinds(
+    rows: tuple[GatewayAttendanceRecord, ...], kinds: Mapping[str, str]
+) -> tuple[GatewayAttendanceRecord, ...]:
+    """Rows of an unknown type take the kind `kinds` gives their type, if any.
+
+    The fixed ATTENDANCE_TYPE_KINDS policy always wins over a school's list.
+    """
+    return tuple(
+        replace(row, kind=AttendanceKind(kinds[row.type_id]))
+        if row.kind == "unknown" and row.type_id in kinds
+        else row
+        for row in rows
     )
 
 

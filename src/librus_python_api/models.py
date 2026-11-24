@@ -1408,6 +1408,9 @@ class SubjectFrequencies:
     start: date | None
     end: date | None
     observation: Observation
+    # Attendance whose lesson or subject Librus could not resolve; None when
+    # every record resolved.
+    unresolved: FrequencyMeasure | None = None
 
 
 class _NumericReferenceWire(BaseModel):
@@ -1448,6 +1451,15 @@ class _AttendanceWire(BaseModel):
 class _AttendanceEnvelopeWire(BaseModel):
     model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
     Attendances: Annotated[list[_AttendanceWire], Field(max_length=2048)]
+
+
+class _AttendanceTypeWire(_NumericReferenceWire):
+    StandardType: _NumericReferenceWire | None = None
+
+
+class _AttendanceTypesEnvelopeWire(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", hide_input_in_errors=True)
+    Types: list[_AttendanceTypeWire]
 
 
 class _LessonWire(_NumericReferenceWire):

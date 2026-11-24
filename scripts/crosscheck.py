@@ -446,6 +446,7 @@ NOT_RENDERED = frozenset(
         "gateway_attendance",
         "attendance_lessons",
         "attendance_subjects",
+        "attendance_types",
         "attendance_lesson",
         "attendance_subject",
         "class_free_days",
