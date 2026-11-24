@@ -28,6 +28,35 @@ def prepare(client: Any, **kwargs: Any) -> Any:
     )
 
 
+class SendDeadline:
+    """Expire a send's operation deadline at the stage a test has reached.
+
+    A 0.1 s budget raced the send to that stage: on a loaded Windows runner it
+    ran out before the send was queued, and the test saw `queued == 0`. The send
+    opens its operation deadline as `asyncio.timeout(None)` in its own task
+    before any I/O, and the budget then sets it; this expires that deadline.
+    """
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._real = asyncio.timeout
+        self.send: asyncio.Task[Any] | None = None
+        self._opened: list[asyncio.Timeout] = []
+        monkeypatch.setattr(asyncio, "timeout", self._record)
+
+    def _record(self, delay: float | None) -> asyncio.Timeout:
+        timeout = self._real(delay)
+        if delay is None and asyncio.current_task() is self.send:
+            self._opened.append(timeout)
+        return timeout
+
+    async def expire(self) -> None:
+        async with self._real(10):
+            # No event marks it; poll by time, not by a count of loop ticks.
+            while not self._opened or self._opened[0].when() is None:  # noqa: ASYNC110
+                await asyncio.sleep(0)
+        self._opened[0].reschedule(asyncio.get_running_loop().time())
+
+
 def test_local_frozen_attempt_preserves_exact_repeated_wire_fields() -> None:
     async def scenario() -> None:
         fixture = SendFixture()
@@ -286,8 +315,10 @@ def test_two_distinct_attempts_are_not_cached_or_coalesced() -> None:
 
 @pytest.mark.parametrize("interruption", ["cancel", "timeout", "shutdown"])
 def test_post_dispatch_interruption_joins_and_preserves_inspectable_unknown(
-    interruption: str,
+    interruption: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    deadline = SendDeadline(monkeypatch)
+
     async def scenario() -> None:
         fixture = SendFixture()
         fixture.send_hold = asyncio.Event()
@@ -298,12 +329,9 @@ def test_post_dispatch_interruption_joins_and_preserves_inspectable_unknown(
                 await client.identity()
                 attempt = prepare(client)
                 task = asyncio.create_task(
-                    attempt.execute(
-                        budget=RequestBudget(
-                            timeout_seconds=0.1 if interruption == "timeout" else 10
-                        )
-                    )
+                    attempt.execute(budget=RequestBudget(timeout_seconds=10))
                 )
+                deadline.send = task
                 await fixture.send_started.wait()
                 assert attempt.outcome.status is SendStatus.UNKNOWN
                 with pytest.raises(InvalidInputError):
@@ -313,6 +341,7 @@ def test_post_dispatch_interruption_joins_and_preserves_inspectable_unknown(
                 if interruption == "shutdown":
                     await service.aclose()
                 if interruption == "timeout":
+                    await deadline.expire()
                     result = await task
                     assert (
                         result.status is SendStatus.UNKNOWN
@@ -391,7 +420,7 @@ def test_dispatch_invalidates_sent_page_and_batch_even_when_response_is_unknown(
 @pytest.mark.parametrize("stage", ["authentication", "lock", "scheduler"])
 @pytest.mark.parametrize("interruption", ["cancel", "timeout", "shutdown"])
 def test_pre_dispatch_interruption_never_crosses_http_boundary(
-    stage: str, interruption: str
+    stage: str, interruption: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class AuthFixture(SendFixture):
         async def submit(self, request: Any) -> Any:
@@ -400,6 +429,8 @@ def test_pre_dispatch_interruption_never_crosses_http_boundary(
             assert self.hold is not None
             await self.hold.wait()
             return response
+
+    deadline = SendDeadline(monkeypatch)
 
     async def scenario() -> None:
         fixture = AuthFixture() if stage == "authentication" else SendFixture()
@@ -430,25 +461,24 @@ def test_pre_dispatch_interruption_never_crosses_http_boundary(
                     body="Fixture body",
                 )
                 task = asyncio.create_task(
-                    attempt.execute(
-                        budget=RequestBudget(
-                            timeout_seconds=0.1 if interruption == "timeout" else 10
-                        )
-                    )
+                    attempt.execute(budget=RequestBudget(timeout_seconds=10))
                 )
+                deadline.send = task
                 if stage == "authentication":
                     await fixture.held.wait()
                 else:
-                    for _ in range(1000):
-                        if attempt.used and (
-                            stage != "scheduler" or service.snapshot().queued == 1
+                    async with asyncio.timeout(10):
+                        while not (  # noqa: ASYNC110
+                            attempt.used
+                            and (stage != "scheduler" or service.snapshot().queued == 1)
                         ):
-                            break
-                        await asyncio.sleep(0)
+                            await asyncio.sleep(0)
                     assert attempt.used
                     if stage == "scheduler":
                         assert service.snapshot().queued == 1
                 assert attempt.outcome.status is SendStatus.NOT_DISPATCHED
+                if interruption == "timeout":
+                    await deadline.expire()
                 if interruption == "cancel":
                     task.cancel()
                 if interruption == "shutdown":

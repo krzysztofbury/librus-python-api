@@ -358,8 +358,13 @@ def test_shared_pause_resumes_without_accumulated_burst() -> None:
                 scheduler.run("a", budget, action),
                 scheduler.run("b", budget, action),
             )
+            # Tokens are granted at pause + 1/rate (0.06) and 0.02 later (0.08).
+            # Measure both from the start: a first action that starts late on a
+            # loaded runner shortens the gap between the two (12 ms on macOS),
+            # though the scheduler spaced them correctly. A burst after the
+            # pause would start the second at about 0.06.
             assert timestamps[0] - started >= 0.05
-            assert timestamps[1] - timestamps[0] >= 0.015
+            assert timestamps[1] - started >= 0.075
 
     run(scenario())
 
