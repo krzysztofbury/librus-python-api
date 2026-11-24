@@ -159,8 +159,11 @@ dependencies weekly and on demand. It has no upload authority or Librus secrets.
 
 ## Failures and recovery
 
-A job that failed on a flake reruns with `gh run rerun ID --failed`, which keeps
-that run's sealed artifact for 14 days. Before upload, fix a real failure and
+A hosted job GitHub never started (no runner, no steps, annotated "not
+acquired by Runner") is rerun automatically by `rerun-unacquired.yml`, at most
+twice per run, when it is the only kind of failure in the run. A job that
+failed on a flake reruns with `gh run rerun ID --failed`, which keeps that
+run's sealed artifact for 14 days. Before upload, fix a real failure and
 repeat verification. Do not waive a failed platform matrix or remove an invariant
 just to get a release out. To stop a release, reject the waiting approval first,
 since a later approval would publish with no release to attach to, then
