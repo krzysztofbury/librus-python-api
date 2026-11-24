@@ -10,6 +10,12 @@ Use it in personal scripts, notification services or application backends. One
 service can manage multiple logins while keeping their sessions and data separate.
 It is not an official Librus product.
 
+> **Unofficial project.** This is an independent, private open-source project.
+> It is not affiliated with, endorsed by or sponsored by Librus or its owner.
+> "Librus" and "Librus Synergia" are trademarks of their owner, named here only
+> to say which service this software works with. See
+> [Trademarks and affiliation](#trademarks-and-affiliation).
+
 **Requirements:** Python 3.13 or newer. Disk workflows require a trusted local
 POSIX filesystem on Linux/macOS, or a fixed local NTFS volume on Windows with
 private ACLs. Windows installations include `pywin32` and `tzdata` automatically.
@@ -304,6 +310,16 @@ concerns according to [SECURITY.md][security]. Do not attach credentials or raw
 school data to public reports.
 
 MIT licensed. See [LICENSE][license].
+
+## Trademarks and affiliation
+
+This is an independent, private open-source project. It is not affiliated with,
+endorsed by, sponsored by or otherwise connected to Librus or its owner, and it
+is not an official Librus product. "Librus", "Librus Synergia" and related
+names and logos are trademarks of their owner. They are used here only to
+describe which service this software works with; the author claims no rights to
+them. Use of the service through this software remains subject to the
+service's own terms.
 
 [api]: https://github.com/krzysztofbury/librus-python-api/blob/main/API.md
 [upgrade]: https://github.com/krzysztofbury/librus-python-api/blob/main/contracts/account-context.md
