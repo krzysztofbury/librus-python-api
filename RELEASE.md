@@ -161,7 +161,9 @@ dependencies weekly and on demand. It has no upload authority or Librus secrets.
 
 A hosted job GitHub never started (no runner, no steps, annotated "not
 acquired by Runner") is rerun automatically by `rerun-unacquired.yml`, at most
-twice per run, when it is the only kind of failure in the run. A job that
+twice per run, when it is the only kind of failure in the run; in a release run
+that puts `publish` back to a waiting approval, which a stopped release rejects
+again. A job that
 failed on a flake reruns with `gh run rerun ID --failed`, which keeps that
 run's sealed artifact for 14 days. Before upload, fix a real failure and
 repeat verification. Do not waive a failed platform matrix or remove an invariant
