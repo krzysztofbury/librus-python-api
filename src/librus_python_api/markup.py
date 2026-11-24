@@ -96,9 +96,10 @@ def tooltip_fields(
     A free-text field may span lines; an unlabelled line after it continues
     its value. Any other unlabelled line is an unknown layout. With `heading`,
     the first line is taken whole, colon included, and appended to it.
-    `multiline` names the free-text labels (default `Komentarz`); with
-    `unknown_multiline`, a field whose label is not a known one (teacher text
-    holding a colon) is free text too, and inside such free text a line
+    `multiline` names the free-text labels (default `Komentarz`); a line
+    inside one whose label is no known label (teacher text holding a colon)
+    continues it too. With `unknown_multiline`, such a line starts a field of
+    its own that is free text as well, and inside free text a line
     starting with a known label is text unless the tooltip's closing run of
     known-label lines begins there. Otherwise a known label such as `Data`
     never continues. A repeatable label (`Poprawa oceny`) adds its value as
@@ -136,6 +137,13 @@ def tooltip_fields(
             )
             and (
                 not separator
+                # Teacher text holding a colon inside a labelled free-text field
+                # such as `Komentarz` (librus-mcp#136): no Librus label, so text.
+                or (
+                    not unknown_multiline
+                    and last in multiline
+                    and key not in TOOLTIP_LABELS
+                )
                 or (unknown_multiline and index < closing and key in TOOLTIP_LABELS)
             )
         ):

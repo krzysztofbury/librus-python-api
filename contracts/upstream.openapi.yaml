@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Librus upstream integration contract
-  version: 1.11.5
+  version: 1.12.0
   license:
     name: MIT
   description: |
@@ -1159,10 +1159,15 @@ paths:
       description: |
         Required Attendances collection, at most 2048 records. Dates are ISO civil
         dates; semesters are explicit 1/2; type/lesson references are numeric IDs.
-        Optional record Id and LessonNo remain absent when not supplied. Duplicate
-        supplied record IDs, malformed references/dates and missing envelopes fail.
+        The optional record Id is an opaque token of 1 to 64 printable ASCII
+        characters (a parent login's rows were not all digits, librus-mcp#136),
+        used only to detect duplicates. Optional record Id and LessonNo remain
+        absent when not supplied. Duplicate supplied record IDs, malformed
+        references/dates and missing envelopes fail.
         Known source-informed type IDs map to absence/late/excused/exemption/present/
-        excursion/contest/training; unmapped IDs are retained as unknown.
+        excursion/contest/training. Any other type ID resolves through
+        attendance_types when a read has one; one that list cannot map is retained
+        as unknown.
         Overall/semester ratio counts present, late and excursion over all records.
         Per-subject ratio counts present and late over present/late/absence/excused/
         exemption; known other kinds are excluded. Ratios are 0..1, unrounded, not
@@ -1188,12 +1193,56 @@ paths:
                       type: object
                       required: [Date, Semester, Type, Lesson]
                       properties:
-                        Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                        Id: {type: string, pattern: '^[!-~]{1,64}$'}
                         Date: {type: string, format: date}
                         Semester: {type: integer, enum: [1, 2]}
                         Type: {$ref: '#/components/schemas/NumericReference'}
                         Lesson: {$ref: '#/components/schemas/NumericReference'}
                         LessonNo: {type: integer, minimum: 0, maximum: 99, nullable: true}
+        default: {$ref: '#/components/responses/Failure'}
+  /gateway/api/2.0/Attendances/Types:
+    get:
+      operationId: attendance_types
+      tags: [Attendance]
+      summary: Map a school's own attendance types to the standard type they count as
+      x-origin: synergia
+      x-upstream-origin: https://synergia.librus.pl
+      x-side-effect: none
+      x-retry-safe: true
+      x-evidence: source_informed
+      x-evidence-note: Shape from public Librus client sources and a public response sample (librus-mcp#136); original fixtures. Not yet observed on an owner login, whose attendance has only fixed-policy types.
+      description: |
+        Read only when an attendance read has a record whose type is outside the
+        fixed type policy: one more request, so gateway_attendance takes one or
+        two and subject frequency up to four. A parsed list is reused for the
+        login/session with a one-hour TTL; an unusable one is not cached.
+        Required Types array, at most 1024 rows; Id and an optional StandardType.Id
+        are numeric references. A type whose StandardType is 1, 2, 3, 4 or 100
+        counts as absence, late, excused, exemption or present; any other type
+        stays unknown. The fixed policy wins over this list. A repeated ID with a
+        different kind fails as a parse error. Cache and fallback policy match
+        attendance_lessons; when the list is unusable, those records stay unknown.
+      security: [{SessionCookie: []}]
+      responses:
+        '200':
+          description: Raw gateway attendance type collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [Types]
+                properties:
+                  Types:
+                    type: array
+                    maxItems: 1024
+                    items:
+                      type: object
+                      required: [Id]
+                      properties:
+                        Id: {$ref: '#/components/schemas/NumericIdentifier'}
+                        StandardType:
+                          allOf: [{$ref: '#/components/schemas/NumericReference'}]
+                          nullable: true
         default: {$ref: '#/components/responses/Failure'}
   /gateway/api/2.0/Lessons:
     get:
@@ -1289,7 +1338,13 @@ paths:
         Fallback for lessons absent from the attendance_lessons collection or when
         that collection is unusable. Response Lesson.Id must match the requested
         numeric ID; Subject.Id is a required numeric reference. No arbitrary URL
-        method or cross-login metadata.
+        method or cross-login metadata. A lesson this route cannot give (access
+        denied, HTTP failure or a mismatched body) does not fail subject frequency:
+        its records are counted in the result's unresolved measure. The same holds
+        for attendance_subject. When no lesson or subject resolved at all, the
+        first such failure is raised instead. An expired session (401 or a login
+        redirect), throttling, maintenance, deadlines, budgets and cancellation
+        propagate.
         At most 256 unique lessons per selected frequency workload; lesson and
         subject metadata share a 256-entry account/session cache, one-hour TTL.
         Deduplication, finite request budgets and the common scheduler bound traffic.

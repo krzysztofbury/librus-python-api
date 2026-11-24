@@ -646,6 +646,22 @@ def test_a_long_free_text_tooltip_is_bounded_by_fields_not_lines() -> None:
     assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
 
 
+def test_free_text_lines_holding_a_colon_stay_text_in_a_box_tooltip() -> None:
+    # librus-mcp#136: the skill and the comment of a descriptive grade are
+    # teacher text that may hold `Word: text` lines between plain ones.
+    skill = "Fixture skill<br />Fixture part: one<br />Fixture skill end"
+    comment = "Fixture remark<br />Fixture aspect: well<br /><br />Fixture end"
+    page = box_page(
+        skill_box(skill=skill, comment=comment) + skill_box("C+", "2026-10-13 (wt.)")
+    )
+    first = parse_grade_page(page.encode())[0].descriptive[0]
+    assert dict(first.metadata)["Umiejętność"] == (
+        "Fixture skill\nFixture part: one\nFixture skill end"
+    )
+    assert first.comment == "Fixture remark\nFixture aspect: well\nFixture end"
+    assert (first.day, first.teacher) == (date(2026, 10, 6), "Fixture Teacher")
+
+
 @pytest.mark.parametrize(("lines", "fails"), [(256, False), (257, True)])
 def test_tooltip_line_bound_counts_non_blank_lines(lines: int, fails: bool) -> None:
     # skill_box has six lines; the rest continue the comment, each followed by
@@ -663,9 +679,10 @@ def test_tooltip_line_bound_counts_non_blank_lines(lines: int, fails: bool) -> N
 
 @pytest.mark.parametrize(("fields", "fails"), [(32, False), (33, True)])
 def test_tooltip_field_bound_counts_distinct_fields(fields: int, fails: bool) -> None:
-    # The six fields of skill_box plus labelled extras in the comment slot.
+    # The six fields of skill_box plus labelled extras after `Data`, where they
+    # are fields; inside the comment they would be its text.
     extra = "".join(f"<br />Fixture {n}: x" for n in range(fields - 6))
-    box = skill_box(comment="Fixture remark" + extra)
+    box = skill_box(day="2026-10-06 (wt.)" + extra)
     page = box_page(box + skill_box("C+", "2026-10-13 (wt.)")).encode()
     if fails:
         with pytest.raises(LimitError):

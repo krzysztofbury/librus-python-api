@@ -538,6 +538,17 @@ ENDPOINTS: Mapping[str, Endpoint] = MappingProxyType(
                 True,
                 Evidence.INDEPENDENTLY_OBSERVED,
             ),
+            # Read only when a record's type is outside ATTENDANCE_TYPE_KINDS.
+            # Shape from public client sources and a public sample (custom
+            # types name their standard type); not yet seen on an owner login.
+            Endpoint(
+                "attendance_types",
+                "GET",
+                "/gateway/api/2.0/Attendances/Types",
+                SideEffect.NONE,
+                True,
+                Evidence.SOURCE_INFORMED,
+            ),
             Endpoint(
                 "attendance_lesson",
                 "GET",
@@ -908,6 +919,7 @@ ATTENDANCE_MAX_WINDOW_DAYS = 371
 # Whole-school gateway collections resolve attendance metadata in two requests.
 ATTENDANCE_MAX_LESSONS = 4096
 ATTENDANCE_MAX_SUBJECTS = 1024
+ATTENDANCE_MAX_TYPES = 1024
 # Collection recognition and detail retrieval share this central path family.
 ATTENDANCE_DETAIL_PATH_PREFIX = "/przegladaj_nb/szczegoly/"
 # Recognition only: formative detail links are classified, never requested.
@@ -1088,6 +1100,8 @@ PAGE_NOTICES = MappingProxyType(
     }
 )
 MODULE_UNAVAILABLE_PATH = "/modul_niedostepny"
+# Distinct field and rule pairs a wire validation failure names.
+WIRE_FAILURE_GROUPS = 5
 CLASS_FREE_DAYS_MAX_RECORDS = 4096
 # e-Justifications list (`/eusprawiedliwienia`, structure observed on two
 # parent logins on 2026-11-13). The list table's classes, its seven header
@@ -1665,6 +1679,17 @@ ATTENDANCE_TYPE_KINDS = MappingProxyType(
         "1266": "excursion",
         "2022": "contest",
         "2829": "training",
+    }
+)
+# A school's own attendance type names one of the standard types it counts
+# as (`StandardType`); public clients map them this way (librus-mcp#136).
+ATTENDANCE_STANDARD_TYPE_KINDS = MappingProxyType(
+    {
+        "1": "absence",
+        "2": "late",
+        "3": "excused",
+        "4": "exemption",
+        "100": "present",
     }
 )
 

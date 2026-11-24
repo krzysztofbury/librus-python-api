@@ -216,6 +216,30 @@ def test_the_locator_names_the_failing_cell_and_the_widths_without_values() -> N
             "Attendances[0].LessonNo less_than_equal",
             id="two-fields",
         ),
+        pytest.param(
+            # librus-mcp#136: three repeats of one field hid the fourth error.
+            lambda rows: [
+                *(row.update(Id="t 1") for row in rows[1:4]),
+                rows[4].pop("Lesson"),
+            ],
+            "wire Attendances[*].Id string_pattern_mismatch x3; "
+            "Attendances[4].Lesson missing",
+            id="repeats-grouped",
+        ),
+        pytest.param(
+            lambda rows: (
+                rows[0].update(
+                    Id="t 1", Date="x", Semester=3, Type={"Id": SECRET}, LessonNo=100
+                )
+                or rows[0].pop("Lesson")
+            ),
+            "wire Attendances[0].Id string_pattern_mismatch; "
+            "Attendances[0].Date string_pattern_mismatch; "
+            "Attendances[0].Semester literal_error; "
+            "Attendances[0].Type.Id string_pattern_mismatch; "
+            "Attendances[0].Lesson missing; 6 errors",
+            id="groups-bounded",
+        ),
     ],
 )
 def test_a_gateway_envelope_failure_names_its_field_and_rule_only(

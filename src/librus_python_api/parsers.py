@@ -18,6 +18,7 @@ from librus_python_api.config import (
     PROFILE_LABELS,
     PROFILE_LUCKY_NUMBER_CLASS,
     PROFILE_LUCKY_NUMBER_DISABLED,
+    WIRE_FAILURE_GROUPS,
 )
 from librus_python_api.exceptions import ErrorKind, LibrusError, ParseError
 from librus_python_api.models import (
@@ -288,20 +289,32 @@ def wire_failure(error: ValidationError, model: type[BaseModel]) -> str:
     """Where a wire model rejected a body: field path and rule, never a value.
 
     A path part is shown only when it is a list index or a field name of
-    `model`; anything else (such as a dict key from the body) is `?`.
+    `model`; anything else (such as a dict key from the body) is `?`. Errors
+    that differ only in a list index are one entry, `[*]` with a count, so a
+    different field is never hidden behind repeats of the first one
+    (librus-mcp#136 showed three of four errors, all the same field).
     """
     names = _wire_names(model, set())
     errors = error.errors(include_url=False, include_context=False, include_input=False)
-    shown: list[str] = []
-    for item in errors[:3]:
-        path = ""
+    groups: dict[tuple[str, str], list[str]] = {}
+    for item in errors:
+        path = pattern = ""
         for part in item["loc"]:
             if type(part) is int:
                 path += f"[{part}]"
+                pattern += "[*]"
             else:
-                path += ("." if path else "") + (part if part in names else "?")
-        shown.append(f"{path or '(body)'} {item['type']}")
-    more = f"; {len(errors)} errors" if len(errors) > 3 else ""
+                name = ("." if path else "") + (part if part in names else "?")
+                path += name
+                pattern += name
+        groups.setdefault((pattern or "(body)", item["type"]), []).append(
+            path or "(body)"
+        )
+    shown = [
+        f"{paths[0]} {rule}" if len(paths) == 1 else f"{pattern} {rule} x{len(paths)}"
+        for (pattern, rule), paths in list(groups.items())[:WIRE_FAILURE_GROUPS]
+    ]
+    more = f"; {len(errors)} errors" if len(groups) > WIRE_FAILURE_GROUPS else ""
     return "; ".join(shown) + more
 
 

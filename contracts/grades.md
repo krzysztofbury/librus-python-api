@@ -654,6 +654,12 @@ descriptive grade's tooltip split into more than 32 lines and the read failed
 with `LimitError`. The old count included blank lines; how many were blank, and
 which field the extra lines continue, is not known. Non-blank lines have their
 own bound of 256, as each is parsed on its own.
+Since 1.12.0 a line inside `Komentarz`, `Umiejętność` or `Obszar oceniania`
+whose label is no known Librus label (teacher text such as `Uwaga: ...`)
+continues that free text. It used to start a field of its own, and the next
+plain line failed the whole read with `PARSE`. A known label such as `Waga`
+still starts its own field, so a teacher line starting with one is still read
+as that field.
 
 A subject with no grades in either period (1.10.3, #184, from @wiktorw's masked
 failure report) has a detail table with the header and one `Brak ocen` row

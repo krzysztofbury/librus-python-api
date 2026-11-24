@@ -16,7 +16,10 @@ private ACLs. Windows installations include `pywin32` and `tzdata` automatically
 Network paths, reparse-point paths and unsafe storage permissions fail closed.
 See [platform requirements](contracts/persistence.md#windows-disk-boundary-25).
 
-**Status:** `1.11.5` reads gateway attendance records whose ID is not a
+**Status:** `1.12.0` resolves a school's own attendance types, counts
+attendance whose lesson or subject cannot be resolved apart instead of failing
+the subject frequency read, keeps grade comment lines that hold a colon as
+text and groups repeated gateway validation errors. `1.11.5` reads gateway attendance records whose ID is not a
 number and grade tooltips longer than 32 lines. `1.11.4` recovers the messages sign-in after a page that ended the
 session, reports e-Justifications switched off for a parent login as
 `ViewDisabledError`, reads descriptive grade skills that wrap onto a second
@@ -64,7 +67,7 @@ See [limitations](#supported-features-and-limitations) below.
 Install the exact release from PyPI after its gated publication completes:
 
 ```sh
-python -m pip install librus-python-api==1.11.5
+python -m pip install librus-python-api==1.12.0
 ```
 
 Pin the exact version qualified by your application. Before publication, use a
@@ -80,7 +83,7 @@ python -m pip install .
 To install a locally built wheel instead:
 
 ```sh
-python -m pip install ./dist/librus_python_api-1.11.5-py3-none-any.whl
+python -m pip install ./dist/librus_python_api-1.12.0-py3-none-any.whl
 ```
 
 No console script or background process is installed: import the library in your

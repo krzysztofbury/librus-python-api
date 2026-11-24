@@ -812,6 +812,30 @@ def test_a_multi_line_comment_continues_on_unlabelled_lines() -> None:
     assert grade.weight == 2
 
 
+def test_a_comment_line_holding_a_colon_stays_comment_text() -> None:
+    # librus-mcp#136: a long teacher comment may hold `Word: text` lines; they
+    # started a field of their own and the next plain line failed with PARSE.
+    extra = (
+        "Komentarz: first part<br>Fixture aspect: what went well<br>last part"
+        "<br>Fixture note: closing<br>Waga: 2"
+    )
+    (grade,) = parse_grade_records(
+        grades_html(first=grade_box(extra=extra)).encode()
+    ).numeric
+    assert grade.comment == (
+        "first part\nFixture aspect: what went well\nlast part\nFixture note: closing"
+    )
+    # A Librus label after the comment still starts its own field.
+    assert grade.weight == 2
+    assert [key for key, _ in grade.metadata] == [
+        "Data",
+        "Kategoria",
+        "Nauczyciel",
+        "Komentarz",
+        "Waga",
+    ]
+
+
 @pytest.mark.parametrize("counts", ["tak", "nie", "TAK"])
 def test_count_and_weight_are_taken_only_from_explicit_metadata(counts: str) -> None:
     records = parse_grade_records(
