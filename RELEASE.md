@@ -159,18 +159,18 @@ dependencies weekly and on demand. It has no upload authority or Librus secrets.
 
 ## Failures and recovery
 
-A hosted job GitHub never started (no runner, no steps, annotated "not
-acquired by Runner") is rerun automatically by `rerun-unacquired.yml`, at most
-twice per run, when it is the only kind of failure in the run; in a release run
-that puts `publish` back to a waiting approval, which a stopped release rejects
-again. A job that
-failed on a flake reruns with `gh run rerun ID --failed`, which keeps that
-run's sealed artifact for 14 days. Before upload, fix a real failure and
-repeat verification. Do not waive a failed platform matrix or remove an invariant
-just to get a release out. To stop a release, reject the waiting approval first,
-since a later approval would publish with no release to attach to, then
-`gh release delete` it; the tag stays. A fault in the tag's own source or workflow
-needs a new version, because a release run uses the files at the tag.
+A hosted job GitHub never started (no runner, no steps, annotated "not acquired
+by Runner") is rerun automatically by `rerun-unacquired.yml`, at most twice per
+run, when it is the only kind of failure in the run; in a release run that puts
+`publish` back to a waiting approval, which a stopped release rejects again. A
+job that failed on a flake reruns with `gh run rerun ID --failed`, which keeps
+that run's sealed artifact for 14 days. Before upload, fix a real failure and
+repeat verification. Do not waive a failed platform matrix or remove an
+invariant just to get a release out. To stop a release, reject the waiting
+approval first, since a later approval would publish with no release to attach
+to, then `gh release delete` it; the tag stays. A fault in the tag's own source
+or workflow needs a new version, because a release run uses the files at the
+tag.
 
 For a few minutes after an upload, uv may report that the new version does
 not exist although PyPI's JSON API lists it: the simple index is still
