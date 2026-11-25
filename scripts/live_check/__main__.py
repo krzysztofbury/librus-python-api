@@ -30,7 +30,7 @@ from scripts.live_check.credentials import MissingSecrets, from_environment, fro
 from scripts.live_check.expectations import compare, load, record, record_problems
 from scripts.live_check.guard import guarded
 from scripts.live_check.profiles import PROFILES, RELEASE
-from scripts.live_check.report import render_json, render_summary
+from scripts.live_check.report import render_json, render_summary, warning_lines
 from scripts.live_check.runner import release_problems, run_profile
 
 COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -115,6 +115,8 @@ def _run(
         report.problems = record_problems(report)
     else:
         report.problems = compare(report, load(args.expectations.read_text()))
+    if profile is not RELEASE:
+        report.warnings = warning_lines(report)
     print(render_json(report))
     if args.record:
         print(json.dumps(record(report), indent=2, sort_keys=True))

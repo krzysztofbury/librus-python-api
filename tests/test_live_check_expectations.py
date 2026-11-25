@@ -11,7 +11,14 @@ from scripts.live_check.expectations import (
     record,
     record_problems,
 )
-from scripts.live_check.report import Coverage, Report, SlotReport, Status, StepResult
+from scripts.live_check.report import (
+    Coverage,
+    Report,
+    SlotReport,
+    Status,
+    StepResult,
+    warning_lines,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -84,6 +91,20 @@ def test_drift_is_reported_by_fixed_reason(
     steps: tuple[StepResult, ...], expected: dict[str, Expected], reason: str
 ) -> None:
     assert compare(report_of(*steps), {0: expected}) == [reason]
+
+
+def test_a_view_unavailable_for_now_is_a_warning_not_drift() -> None:
+    loading = StepResult(
+        "school_year_archive", Status.ERROR, kind="temporarily_unavailable"
+    )
+    report = report_of(OK_POPULATED, loading)
+    assert compare(report, {0: {"grades": Expected.POPULATED}}) == []
+    archive_expected = {"grades": Expected.ANY, "school_year_archive": Expected.EMPTY}
+    assert compare(report, {0: archive_expected}) == []
+    assert record_problems(report) == []
+    assert warning_lines(report) == [
+        "slot 0 school_year_archive: temporarily_unavailable"
+    ]
 
 
 def test_an_expected_slot_that_did_not_run_fails() -> None:

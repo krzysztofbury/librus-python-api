@@ -16,6 +16,7 @@ from scripts.live_check.report import (
     Report,
     Status,
     StepResult,
+    is_warning,
     problem,
 )
 
@@ -75,6 +76,8 @@ def compare(
         seen: set[str] = set()
         for step in slot.steps:
             seen.add(step.step)
+            if is_warning(step):
+                continue
             coverage = observed(step)
             if coverage is None:
                 problems.append(
@@ -117,5 +120,5 @@ def record_problems(report: Report) -> list[str]:
         problem(slot.slot, step.step, step.kind or step.status.value)
         for slot in report.slots
         for step in slot.steps
-        if observed(step) is None
+        if observed(step) is None and not is_warning(step)
     ]

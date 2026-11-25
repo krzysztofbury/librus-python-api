@@ -39,6 +39,12 @@ AVAILABILITY_KINDS = {
     "unsupported_capability": Coverage.UNAVAILABLE,
 }
 
+# Error kinds for a view Synergia itself says is unavailable for now, such as
+# the school-year archive while it is filled with last year's data. Weekly and
+# recording runs list them as warnings and still pass: the notice is not
+# drift, and a check that stays red for weeks hides real drift.
+WARNING_KINDS = frozenset({"temporarily_unavailable"})
+
 
 @dataclass(frozen=True, slots=True)
 class StepResult:
@@ -84,6 +90,7 @@ class Report:
     slots: list[SlotReport] = field(default_factory=list)
     violations: list[str] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -98,6 +105,7 @@ class Report:
             "started_at": self.started_at,
             "passed": self.passed,
             "problems": list(self.problems),
+            "warnings": list(self.warnings),
             "violations": list(self.violations),
             "slots": [
                 {
@@ -115,6 +123,19 @@ def problem(slot: int, step: str, reason: str) -> str:
     if not STEP.fullmatch(step) or not IDENTIFIER.fullmatch(reason):
         raise ValueError("problems are built from fixed identifiers")
     return f"slot {slot} {step}: {reason}"
+
+
+def is_warning(step: StepResult) -> bool:
+    return step.status is Status.ERROR and step.kind in WARNING_KINDS
+
+
+def warning_lines(report: Report) -> list[str]:
+    return [
+        problem(slot.slot, step.step, step.kind or step.status.value)
+        for slot in report.slots
+        for step in slot.steps
+        if is_warning(step)
+    ]
 
 
 def render_json(report: Report) -> str:
@@ -142,4 +163,7 @@ def render_summary(report: Report) -> str:
         lines += ["", "### Problems", ""]
         lines += [f"- {item}" for item in report.problems]
         lines += [f"- guard violation: {name}" for name in report.violations]
+    if report.warnings:
+        lines += ["", "### Warnings", ""]
+        lines += [f"- {item}" for item in report.warnings]
     return "\n".join(lines) + "\n"
