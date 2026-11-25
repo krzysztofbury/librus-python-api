@@ -20,8 +20,6 @@ WATCHED = ["CI", "Qualify and publish library"]
 NOT_ACQUIRED = (
     "The job was not acquired by Runner of type hosted even after multiple attempts"
 )
-# Answers `gh api URL --jq FILTER` from GH_FIXTURE through the real jq, and
-# records `gh run rerun` in GH_LOG.
 STUB = r"""#!/usr/bin/env python3
 import json, os, subprocess, sys
 args = sys.argv[1:]
@@ -88,7 +86,6 @@ def test_it_can_only_rerun_and_only_a_failed_same_repository_run() -> None:
     ):
         assert condition in job_["if"]
     (step,) = job_["steps"]
-    # Event fields reach the script through the environment, never inline.
     assert "${{" not in step["run"]
 
 

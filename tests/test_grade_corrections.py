@@ -61,7 +61,6 @@ def test_a_bracket_links_the_correction_to_the_grade_it_corrects() -> None:
     result = records(box("4", "10") + corrected() + box("3", "13"))
     assert [grade.grade_id for grade in result.numeric] == ["10", "11", "12", "13"]
     assert result.corrections == (GradeCorrection("Fixture Language", 1, ("11", "12")),)
-    # Both grades stay ordinary records with their own tooltips.
     original, correction = result.numeric[1:3]
     assert "Poprawa oceny" not in dict(original.metadata)
     assert dict(correction.metadata)["Poprawa oceny"] == "1 (Fixture quiz)"
@@ -105,7 +104,6 @@ def test_a_comment_inside_a_bracket_is_not_a_grade(cell: str) -> None:
 
 
 def test_a_period_correction_shown_by_both_tables_is_one_link() -> None:
-    # Period grades shown by the ordinary and the point table are one record.
     page = grades_html(
         extra=point_table(point_row(subject="Fixture Language", node="72"))
     ).replace("<td>4,25</td><td>-</td>", "<td>4,25</td><td>" + corrected() + "</td>")
@@ -132,7 +130,6 @@ def test_a_new_bracket_in_the_point_tables_period_column_fails() -> None:
 
 
 def test_brackets_are_markup_not_grade_text() -> None:
-    # A bracket inside a grade's own tooltip or symbol is not a correction.
     inside = grade_box("[5]", extra="Komentarz: see [1]", href=LINK.format("11")) + box(
         "4", "12"
     )

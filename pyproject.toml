@@ -73,6 +73,7 @@ faulthandler_timeout = 100
 timeout = 120
 markers = [
   "performance: opt-in hardware-sensitive resource measurements",
+  "to_delete(issue): marked by a test audit for replacement; see the issue",
 ]
 
 [tool.ruff]

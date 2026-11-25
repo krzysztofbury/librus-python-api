@@ -187,13 +187,11 @@ async def cancellation_workload(measurement: Measurement) -> dict[str, int]:
             ]
             try:
                 async with asyncio.timeout(5):
-                    # Sample public scheduler counters and server receipt together.
                     while (  # noqa: ASYNC110
                         (service.snapshot().active, service.snapshot().queued) != (2, 2)
                         or len(fixture.calls) < 22
                     ):
                         await asyncio.sleep(0.001)
-                # Both active slow bodies and queued work are cancelled together.
                 for task in tasks:
                     task.cancel()
                 outcomes = await asyncio.gather(*tasks, return_exceptions=True)

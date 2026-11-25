@@ -39,6 +39,7 @@ against a single sealed artifact pair; they never call real Librus.
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
+uv run python scripts/audit_ratchet.py check
 uv run pytest
 uv build --no-sources
 ```

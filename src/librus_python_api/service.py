@@ -622,7 +622,6 @@ class AccountClient:
         self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
     ) -> ModernIdentity:
         async def fetch(budget: RequestBudget, _: bool) -> ModernIdentity:
-            # Identity reads are fresh even if a modern session is already bound.
             account = await self._modern_ready(budget, refresh=True)
             return ModernIdentity(
                 self._session_identity(), account, self._observation("modern_identity")
@@ -1081,8 +1080,6 @@ class AccountClient:
             preserve_cancellation=True,
             deadline=deadline,
         )
-
-    # Public reads: validate input, then describe one fetch for _read.
 
     async def notification_counts(
         self, *, budget: RequestBudget | None = None, max_age_seconds: float = 0.0
@@ -2049,8 +2046,6 @@ class AccountClient:
             ("recipients", "choices", group.identifier), fetch, budget, max_age_seconds
         )
 
-    # Shared read machinery.
-
     async def _school_detail(
         self,
         operation: Literal["agenda_detail", "homework_detail"],
@@ -2389,8 +2384,6 @@ class AccountClient:
 
     def _observation(self, source: str) -> Observation:
         return Observation(self._alias, datetime.now(UTC), self._generation, source)
-
-    # Multi-request reads.
 
     async def _message_page(
         self, folder: MessageFolder, page: int, budget: RequestBudget
@@ -2793,8 +2786,6 @@ class AccountClient:
             return rows
         kinds = await self._metadata_map("attendance_types", budget)
         return resolve_type_kinds(rows, kinds)
-
-    # Authentication and response validation.
 
     def _validate_read_response(
         self, response: TransportResponse, content_type: str

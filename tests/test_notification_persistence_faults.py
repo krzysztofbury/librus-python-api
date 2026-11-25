@@ -388,7 +388,6 @@ def test_fresh_agenda_without_consent_is_consent_required_before_any_read(
                         ).payload
                     )
                     assert archive["raw"] is None and archive["delivery"] is None
-                    # The same request with consent is the one that consumes.
                     batch = await workflow.poll(
                         categories=categories, allow_consume_events=True
                     )

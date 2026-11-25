@@ -60,6 +60,7 @@ WEEKLY_ONLY = [
         (date(2028, 2, 29), (date(2028, 2, 1), date(2028, 2, 29))),
     ],
 )
+@pytest.mark.to_delete(issue=211)
 def test_month_bounds_cover_the_whole_calendar_month(
     day: date, bounds: tuple[date, date]
 ) -> None:

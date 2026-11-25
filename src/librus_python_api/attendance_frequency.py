@@ -88,7 +88,6 @@ def _collection[M: BaseModel](data: object, key: str, maximum: int, wire: type[M
 def _unique(pairs: list[tuple[str, str]]) -> dict[str, str]:
     result: dict[str, str] = {}
     for identifier, value in pairs:
-        # Conflicting rows are never resolved by choosing one of them.
         if identifier in result and result[identifier] != value:
             raise LibrusError(ErrorKind.PARSE)
         result[identifier] = value

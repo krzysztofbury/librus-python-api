@@ -37,7 +37,6 @@ def test_a_page_with_browser_repairs_reads_the_same_on_every_libxml2() -> None:
     assert markup.text(cells[0]) == "Fixture Teacher s. 12"
     assert markup.text(cells[1]) == "Fixture cell"
     assert next(document.iter("a")).get("href") == "/fixture?a=1&copy=2&lang=pl"
-    # Script text and escaped ampersands are not references.
     assert next(document.iter("script")).text == "var fixture = '&nbsp';"
     assert markup.text(next(document.iter("p"))) == "Fixture &nbsp; R&D"
 

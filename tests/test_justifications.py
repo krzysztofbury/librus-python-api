@@ -61,7 +61,6 @@ def test_default_window_entries_are_typed() -> None:
         (2, 3),
     )
     assert one_day.status is JustificationStatus.SENT and one_day.decided_by is None
-    # Text, names, dates and counts stay out of repr; only the outcome shows.
     assert repr(ranged) == (
         "Justification(status=<JustificationStatus.JUSTIFIED: 'justified'>, "
         "has_attachment=False)"
@@ -274,7 +273,6 @@ def test_a_parent_login_still_logged_out_after_sign_in_is_view_disabled(
             await client.justifications()
         lists, logins = (2, 2) if signed_in_first else (1, 1)
         assert (fixture.count(LIST), fixture.logins) == (lists, {"parent": logins})
-        # The operation's cooldown answers without a request or a sign-in.
         with pytest.raises(ViewDisabledError):
             await client.justifications()
         assert (fixture.count(LIST), fixture.logins) == (lists, {"parent": logins})

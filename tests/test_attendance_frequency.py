@@ -310,7 +310,6 @@ def test_metadata_ttl_and_result_cache_capacity_are_bounded(
                     await client.attendance_detail(identifier)
                 await client.attendance_detail("1", max_age_seconds=60)
                 assert fixture.metadata_requests[-1] == ("detail", "1")
-                # Collection maps are independent of the per-reference cache size.
                 await client.subject_frequency()
                 await client.subject_frequency()
                 assert fixture.metadata_requests[-2:] == [
@@ -541,7 +540,6 @@ def test_malformed_collections_are_read_again_on_the_next_call() -> None:
                     ("subjects", "*"),
                 ]
                 fixture.metadata_requests.clear()
-                # Parsed maps keep their TTL.
                 third = await client.subject_frequency()
                 assert len(third.items) == 3
                 assert fixture.metadata_requests == []
@@ -623,7 +621,6 @@ def test_result_cache_evicts_the_least_recently_refreshed_entry() -> None:
                 before = len(fixture.metadata_requests)
                 await client.attendance_detail("1", max_age_seconds=60)
                 assert len(fixture.metadata_requests) == before
-                # The entry not refreshed since its first read went instead.
                 await client.attendance_detail("2", max_age_seconds=60)
                 assert fixture.metadata_requests[-1] == ("detail", "2")
 
@@ -736,8 +733,6 @@ def test_cached_lookups_are_not_counted_against_the_budget() -> None:
                 before = len(fixture.metadata_requests)
                 result = await client.subject_frequency()
                 assert [item.frequency.total_count for item in result.items] == [40]
-                # Only the unavailable lessons collection is asked again; the
-                # subjects map and every lesson come from the caches.
                 assert fixture.metadata_requests[before:] == [("lessons", "*")]
 
     asyncio.run(scenario())
@@ -813,7 +808,6 @@ def test_school_types_are_read_once_and_only_when_a_type_is_unknown() -> None:
                 assert first.overall.ratio == pytest.approx(2 / 3)
                 by_subject = await client.subject_frequency()
                 assert by_subject.items[0].frequency.unknown_count == 0
-                # One list read serves both calls for the metadata TTL.
                 assert fixture.metadata_requests.count(("types", "*")) == 1
 
     asyncio.run(scenario())

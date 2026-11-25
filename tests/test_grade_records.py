@@ -90,7 +90,6 @@ def test_behaviour_starting_points_are_not_a_malformed_grade_cell() -> None:
     other = parse_grade_records(
         _with_behaviour(behaviour_points("45"), behaviour_points("0"))
     )
-    # Only the tallies differ; grades and averages do not depend on them.
     assert (records.numeric, records.averages) == (other.numeric, other.averages)
     assert [(p.semester, p.tally) for p in other.behaviour_points] == [(1, 45), (2, 0)]
     assert [g.subject for g in records.numeric] == ["Fixture Language"]
@@ -194,7 +193,6 @@ def test_a_spanning_tally_alone_parses_without_an_item() -> None:
     )
     assert records.behaviour_points == ()
     assert [g.subject for g in records.numeric] == ["Fixture Language"]
-    # Point entries in such a cell still fail, as before.
     row = _spanning_behaviour_row(behaviour_points(boxes=behaviour_box()))
     with pytest.raises(ParseError):
         parse_grade_records(grades_html(rows=row).encode())
@@ -387,11 +385,9 @@ def test_a_behaviour_field_never_comes_from_a_current_grades_cell(row: str) -> N
         # A missing first line: the tooltip opens with a label.
         BEHAVIOUR_TOOLTIP.partition("<br/>")[2],
         "Dodał: Teacher Fixture<br/>" + BEHAVIOUR_TOOLTIP.partition("<br/>")[2],
-        # A missing or malformed date.
         BEHAVIOUR_TOOLTIP.replace("<br />Data wystawienia: 2026-09-21", ""),
         BEHAVIOUR_TOOLTIP.replace("2026-09-21", "2026-02-30"),
         BEHAVIOUR_TOOLTIP.replace("Data wystawienia", "Data"),
-        # No tooltip at all.
         "",
     ],
 )
@@ -403,7 +399,6 @@ def test_behaviour_point_entry_tooltip_fails_closed(tooltip: str) -> None:
 
 @pytest.mark.parametrize("count", [GRADE_MAX_RECORDS, GRADE_MAX_RECORDS + 1])
 def test_behaviour_point_entries_share_the_grade_record_bound(count: int) -> None:
-    # Ordinary grades and point entries together are bounded, as one page.
     grades = grade_box(extra="") * (count - 2)
     cell = behaviour_points(boxes=behaviour_box() + behaviour_box("-1", "902"))
     body = grades_html(first=grades, rows=behaviour_row(cell, "-")).encode()
@@ -448,7 +443,6 @@ def test_behaviour_points_shown_by_both_tables_are_one_item() -> None:
     body = grades_html(rows=behaviour_row(cell, "-"), extra=extra)
     (item,) = parse_grade_records(body.encode()).behaviour_points
     assert (item.semester, item.tally, len(item.entries)) == (1, 50, 1)
-    # Only the point table shows them.
     alone = grades_html(rows=behaviour_row("-", "-"), extra=extra)
     assert parse_grade_records(alone.encode()).behaviour_points == (item,)
     other = point_table(point_row() + _point_behaviour_row(behaviour_points("49")))
@@ -506,7 +500,6 @@ def test_behaviour_grade_symbol_entries_are_grades_with_their_category() -> None
         behaviour_grade_box(heading="Komentarz: Fixture remark"),
         behaviour_grade_box(heading="Data wystawienia: 2026-10-01"),
         behaviour_grade_box().replace('title="', 'data-x="'),
-        # A point entry's tooltip with a symbol label.
         behaviour_box("wz"),
         behaviour_points(boxes=behaviour_grade_box()),
     ],
@@ -790,7 +783,6 @@ def test_unrecognized_current_grade_markup_does_not_mean_empty_success() -> None
         "Waga: 1.5",
         "Waga: 10000",
         "Malformed field",
-        # Only the free-text comment continues on unlabelled lines.
         "Waga: 2\nMalformed field",
     ],
 )
@@ -825,7 +817,6 @@ def test_a_comment_line_holding_a_colon_stays_comment_text() -> None:
     assert grade.comment == (
         "first part\nFixture aspect: what went well\nlast part\nFixture note: closing"
     )
-    # A Librus label after the comment still starts its own field.
     assert grade.weight == 2
     assert [key for key, _ in grade.metadata] == [
         "Data",
@@ -1052,9 +1043,7 @@ def test_known_labels_inside_formative_assessment_text_stay_text() -> None:
 @pytest.mark.parametrize(
     "first",
     [
-        # Only a formative entry's assessment text may span lines.
         _formative_mirror(MULTILINE_ASSESSMENT, href="/przegladaj_oceny/szczegoly/971"),
-        # A known label never takes a continuation line.
         _formative_mirror("<br/>").replace(
             escape("Data: 2026-11-07<br/>"),
             escape("Data: 2026-11-07<br/>Fixture stray<br/>"),
@@ -1086,7 +1075,6 @@ def test_a_repeated_correction_line_keeps_both_values() -> None:
         grades_html(first=grade_box("4", extra=single)).encode()
     ).numeric
     assert dict(grade.metadata)["Poprawa oceny"] == "1 (Fixture quiz)"
-    # Other labels still may not repeat.
     with pytest.raises(ParseError):
         parse_grade_records(
             grades_html(

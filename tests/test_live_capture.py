@@ -104,7 +104,6 @@ def capture_service(
 def test_capture_follows_subject_frequency_and_survives_a_refused_read(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # capture() sets these class attributes once per process; restore them after.
     monkeypatch.setattr(CapturingTransport, "out", tmp_path, raising=False)
     monkeypatch.setattr(CapturingTransport, "index", [], raising=False)
     monkeypatch.setattr(CapturingTransport, "logins", 0)

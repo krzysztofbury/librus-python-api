@@ -146,7 +146,6 @@ def test_formative_table_is_read_and_grid_boxes_are_flagged() -> None:
             "902",
         ),
     ]
-    # The grid record is unchanged apart from the computed recognition.
     [grid] = records.numeric
     assert (grid.subject, grid.raw, grid.formative_id) == (
         "KARTA SPOSTRZEŻEŃ",

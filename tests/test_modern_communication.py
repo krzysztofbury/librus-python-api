@@ -389,7 +389,6 @@ def test_cursor_and_content_stay_inside_their_mailbox_before_io() -> None:
             archive = await client.modern_messages(limit=7, archived=True)
             assert archive.next_cursor is not None
             calls = len(fixture.modern_calls)
-            # A cursor never continues the other mailbox.
             with pytest.raises(LibrusError) as error:
                 await client.modern_messages(cursor=archive.next_cursor)
             assert error.value.kind is ErrorKind.INVALID_INPUT
@@ -438,7 +437,6 @@ def test_correspondent_filter_uses_the_web_app_query_and_binds_the_cursor(
             cursor = filtered.next_cursor
             assert cursor is not None and cursor.correspondent == "502"
             calls = len(fixture.modern_calls)
-            # The cursor belongs to the filtered list, never the whole mailbox.
             with pytest.raises(LibrusError) as error:
                 await client.modern_messages(folder, cursor=cursor, page_size=2)
             assert error.value.kind is ErrorKind.INVALID_INPUT
@@ -451,7 +449,6 @@ def test_correspondent_filter_uses_the_web_app_query_and_binds_the_cursor(
                 unread_only=unread,
             )
             assert len(filtered.items) + len(rest.items) == 3
-            # Filtered and whole-mailbox pages are cached separately.
             whole = await client.modern_messages_page(folder, max_age_seconds=60)
             assert whole.total_count == 23 and whole.correspondent is None
 

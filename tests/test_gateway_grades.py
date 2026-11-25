@@ -87,9 +87,6 @@ def failure(fixture: GatewayGradesFixture) -> LibrusError:
     return caught.value
 
 
-# The page table.
-
-
 @pytest.mark.parametrize(
     "page",
     [descriptive_page(), grades_html(extra=descriptive_table())],
@@ -98,8 +95,6 @@ def failure(fixture: GatewayGradesFixture) -> LibrusError:
 def test_new_schema_rows_stay_empty_descriptive_subjects_on_the_page(
     page: str,
 ) -> None:
-    # The page alone shows no grades; its subjects keep their unavailable
-    # averages as before this read existed.
     records, table = parse_grade_page(page.encode())
     assert records == parse_grade_records(page.encode())
     assert records.descriptive == ()
@@ -110,6 +105,7 @@ def test_new_schema_rows_stay_empty_descriptive_subjects_on_the_page(
     assert "Fixture" not in repr(table)
 
 
+@pytest.mark.to_delete(issue=212)
 def test_a_page_without_the_new_schema_table_has_no_table() -> None:
     assert parse_grade_page(grades_html().encode())[1] is None
 
@@ -177,9 +173,6 @@ def test_unknown_new_schema_table_layouts_fail_closed(
 ) -> None:
     with pytest.raises(expected):
         parse_grade_page(descriptive_page(table).encode())
-
-
-# The JSON parsers.
 
 
 @pytest.mark.parametrize(
@@ -286,7 +279,6 @@ def test_an_empty_page_with_the_member_is_an_empty_result() -> None:
 
 
 def test_a_total_above_the_items_received_is_unsupported() -> None:
-    # A first page is never returned as everything.
     with pytest.raises(UnsupportedCapabilityError):
         parse_partial_grades(encoded(partial_grades(**page(total=3))))
     with pytest.raises(UnsupportedCapabilityError):
@@ -355,9 +347,6 @@ def test_keys_outside_the_pagination_member_decide_nothing(
 ) -> None:
     assert len(parse_partial_grades(encoded(partial_grades(**envelope)))) == 2
     assert len(parse_gateway_subjects(encoded(gateway_subjects(**envelope)))) == 3
-
-
-# The service read.
 
 
 def test_parent_read_adds_gateway_grades_to_the_all_view() -> None:
@@ -492,7 +481,6 @@ HOOKLESS = "<td>Brak ocen</td>"
             filled_row().replace(HOOKLESS, '<td class="gradesCell">5</td>', 1),
             UnsupportedCapabilityError,
         ),
-        # Renamed, moved or missing hooks must not pass as a filled table.
         (filled_row(first="", second=""), UnsupportedCapabilityError),
         (
             filled_row().replace(
@@ -1007,7 +995,6 @@ def test_gateway_errors_propagate_without_a_partial_result_or_replay(
     fixture = GatewayGradesFixture()
     fixture.raw[operation] = (status, b"", "application/json")
     assert isinstance(failure(fixture), expected)
-    # Neither the gateway read nor the credentials are submitted again.
     assert fixture.operations().count(operation) == 1
     assert fixture.logins == {"student": 1}
     assert len(fixture.view_posts) == 1

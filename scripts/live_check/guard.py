@@ -56,11 +56,6 @@ class GuardedTransport(AiohttpTransport):
             or (reference_id is not None and endpoint_id not in self.with_reference)
         ):
             self._refuse(endpoint_id)
-        if query is None:
-            # Older installed builds have no `query` parameter.
-            return await super().request(
-                endpoint_id, budget, form=form, reference_id=reference_id
-            )
         return await super().request(
             endpoint_id, budget, form=form, reference_id=reference_id, query=query
         )

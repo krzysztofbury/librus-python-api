@@ -152,7 +152,6 @@ async def run_profile(
         for index, alias in enumerate(accounts):
             left = profile.deadline_seconds - (time.monotonic() - run_started)
             if left <= 0:
-                # The run deadline is spent: report the login, contact nothing.
                 skipped = [StepResult(c.name, Status.NOT_RUN) for c in profile.checks]
                 report.slots.append(SlotReport(index, 0, 0.0, skipped))
                 continue
