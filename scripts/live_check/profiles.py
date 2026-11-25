@@ -234,14 +234,12 @@ async def grades(ctx: Context) -> Observed:
     records = (await ctx.client.grades(budget=ctx.budget)).records
     numeric, descriptive = len(records.numeric), len(records.descriptive)
     facts: dict[str, int | bool] = {"numeric": numeric, "descriptive": descriptive}
-    formative = getattr(records, "formative", None)  # absent before 1.4.0
-    if formative is not None:
-        facts["formative"] = len(formative)
-        facts["formative_in_grid"] = sum(
-            1
-            for grade in (*records.numeric, *records.descriptive)
-            if getattr(grade, "formative_id", None) is not None
-        )
+    facts["formative"] = len(records.formative)
+    facts["formative_in_grid"] = sum(
+        1
+        for grade in (*records.numeric, *records.descriptive)
+        if getattr(grade, "formative_id", None) is not None
+    )
     return coverage_of(numeric + descriptive, **facts)
 
 
@@ -545,7 +543,7 @@ WEEKLY_READS: tuple[Check, ...] = (
     modern_recipients,
     modern_sent_content,
 )
-# Measured fixture requests per login: 50. The budget leaves live headroom for
+# Measured fixture requests per login: 52. The budget leaves live headroom for
 # more attendance rows to resolve, as the design targets about 70. A login whose
 # grades page has the new-schema table with empty `gradesCell` hooks adds three
 # to five gateway reads to each of the two all-view grade checks.

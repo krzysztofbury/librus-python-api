@@ -51,7 +51,6 @@ def test_warm_modern_send_revalidates_and_clears_only_modern_on_error(
             )
             assert attempt.outcome.status is SendStatus.NOT_DISPATCHED
             assert fixture.sends == [] and budget.requests_dispatched == 1
-            # A messages-origin denial/expiry must not replay legacy credentials.
             profile = await client.student_information(
                 budget=RequestBudget(max_requests=1)
             )

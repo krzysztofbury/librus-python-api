@@ -202,7 +202,6 @@ def test_point_table_summaries_join_the_ordinary_summaries() -> None:
     science = items[1]
     assert science.midterm.raw == "-"
     assert science.predicted_annual.availability == Availability.UNAVAILABLE
-    # The point table holds the values when the ordinary row is unassigned.
     unassigned = summary_html(annual="-", midterm="", predicted="-")
     (item,) = parse_final_grades(
         _with_points(
@@ -210,7 +209,6 @@ def test_point_table_summaries_join_the_ordinary_summaries() -> None:
         )
     )
     assert item.annual.raw == "3"
-    # Without an annual column the titled midterm still makes a summary.
     items = parse_final_grades(_with_points(point_row(annual="5"), annual=False))
     assert [(item.subject, item.annual.availability) for item in items] == [
         ("Fixture Language", Availability.AVAILABLE),
@@ -265,7 +263,6 @@ def test_observed_point_page_summaries_include_the_broken_midterm_title() -> Non
 @pytest.mark.parametrize(
     "body",
     [
-        # An ordinary grade table without an annual column is not optional.
         grades_html()
         .replace('<th title="Ocena roczna">Annual</th>', "<th>Annual</th>")
         .replace("</body>", point_table() + "</body>"),
@@ -289,8 +286,6 @@ def test_ambiguous_point_layout_fails_closed(body: str) -> None:
 
 
 def test_a_subject_in_both_tables_merges_each_summary_value() -> None:
-    # The same assigned grade shown by both tables is one value, and each table
-    # can fill what the other leaves unassigned.
     rows = point_row(subject="Fixture Language", annual="4+")
     (item,) = parse_final_grades(_with_points(rows))
     assert (item.midterm.raw, item.annual.raw) == ("progressing", "4+")

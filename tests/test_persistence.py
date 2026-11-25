@@ -161,8 +161,6 @@ def test_modern_public_attempts_use_same_durable_workflow_without_legacy_fallbac
                         await store.preview_send(modern())
                 else:
                     await store.preview_send(modern())
-                # A backend-specific block does not prohibit another backend's
-                # independent approval, but cannot dispatch that backend itself.
                 await store.preview_send(prepare(client))
                 assert len(fixture.sends) == 1
                 assert all(path != "/wiadomosci/1/6" for path, _ in fixture.calls)
@@ -284,8 +282,6 @@ def test_independent_process_claims_and_killed_sender_never_replay(
                                 )
                                 == 1
                             )
-                            # LIMIT before a claim never permits duplicate work
-                            # after another process has accepted this payload.
                             for confirmation in (first, second):
                                 attempt = prepare(client)
                                 with pytest.raises(LibrusError) as error:

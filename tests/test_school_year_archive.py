@@ -108,7 +108,7 @@ def test_the_name_in_the_page_header_never_reaches_the_result() -> None:
         )
     ]
     assert all(CANARY_NAME not in text for text in [rendered, *fields])
-    assert "Fixture" not in repr(years[0])  # School text stays out of reprs.
+    assert "Fixture" not in repr(years[0])
     assert CANARY_NAME not in repr([asdict(item) for item in years])
     assert CANARY_NAME not in repr([asdict(item) for item in achievements])
 

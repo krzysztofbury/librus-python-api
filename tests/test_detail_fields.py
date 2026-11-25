@@ -47,7 +47,6 @@ def test_attendance_detail_rejects_ambiguous_case_and_colon_variants(
                     detail_body((("Data:", "2026-10-03"),)),
                     "text/html",
                 )
-                # Failed normalization cannot publish a cache entry.
                 result = await service.account("student").attendance_detail(
                     "2468", max_age_seconds=60
                 )

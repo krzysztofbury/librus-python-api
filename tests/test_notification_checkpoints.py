@@ -379,7 +379,6 @@ def test_invalid_consent_callback_and_deadline_fail_before_authentication(
                     await client.consume_schedule_events(
                         checkpoint=persist, allow_consume_events=consent
                     )
-                # A plain refusal is missing consent; another type is bad input.
                 assert (refused.value.kind is ErrorKind.CONSENT_REQUIRED) is (
                     consent is False
                 )

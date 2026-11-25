@@ -47,7 +47,6 @@ def test_only_a_release_publishes_and_it_waits_for_exact_artifact_matrix() -> No
     for name, job in jobs.items():
         if name != "attach":
             assert job.get("permissions", {}).get("contents") != "write"
-        # Release values reach shell only through the environment.
         assert "${{" not in script(job)
         for step in job["steps"]:
             if step.get("uses", "").startswith("actions/checkout@"):

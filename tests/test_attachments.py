@@ -46,8 +46,6 @@ from tests.attachments_support import queued, reference, rig
 def test_foreign_destination_stays_denied_despite_unsupported_encoding(
     location: str,
 ) -> None:
-    # Origin, scheme and userinfo violations are permission failures even when
-    # the location also carries an unsupported query, fragment or encoding.
     with pytest.raises(AccessDeniedError):
         signed_attachment_key(location, ConnectionSettings())
 

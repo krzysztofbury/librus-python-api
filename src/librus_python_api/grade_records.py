@@ -767,7 +767,6 @@ def read_grade_records(document: html.HtmlElement) -> GradeRecords:
         else:
             for row in markup.rows(table):
                 if markup.in_header(row):
-                    # The new-schema table's column labels, not a subject.
                     continue
                 cells = markup.cells(row)
                 if _descriptive_row(cells):

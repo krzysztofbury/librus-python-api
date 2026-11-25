@@ -106,13 +106,11 @@ def test_release_identity_uses_real_remote_tag_and_main(
         ["git", "push", "origin", "main", "v1.0.0rc1"], check=True, capture_output=True
     )
     assert identity("v1.0.0rc1", "pypi") == "1.0.0rc1"
-    # A longer candidate version must not pass a substring match.
     contract = repo / "contracts/upstream.openapi.yaml"
     contract.write_text("version: 1.0.0rc10\n")
     with pytest.raises(ValueError, match="OpenAPI version differs"):
         identity("v1.0.0rc1", "pypi")
     contract.write_text("version: 1.0.0rc1\n")
-    # A local source update must not qualify as the unchanged remote tag.
     (package / "__init__.py").write_text('__version__ = "1.0.0rc2"\n')
     subprocess.run(["git", "add", "."], check=True)
     subprocess.run(
@@ -120,7 +118,6 @@ def test_release_identity_uses_real_remote_tag_and_main(
     )
     with pytest.raises(ValueError):
         identity("v1.0.0rc1", "pypi")
-    # A tag named like the remote branch must not stand in for main.
     subprocess.run(["git", "tag", "origin/main"], check=True)
     subprocess.run(["git", "tag", "v1.0.0rc2"], check=True)
     subprocess.run(

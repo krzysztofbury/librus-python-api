@@ -330,7 +330,6 @@ def test_default_rate_bucket_is_shared_bounded_and_refills(
             now = 0.101
             await scheduler.run("b", budget, partial(action, "b"))
             assert budget.requests_dispatched == 21
-            # Long idle periods cannot accumulate unlimited burst credit.
             now = 100.0
             for _ in range(20):
                 await scheduler.run("a", budget, partial(action, "a"))

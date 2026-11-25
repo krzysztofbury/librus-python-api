@@ -280,7 +280,6 @@ def check_timetable(body: bytes, form: Form, view: Any) -> str:
 
 def check_profile(body: bytes, form: Form, view: Any) -> str:
     fields = parse_profile(body)
-    # Resolve rendered rows through every label alias the parser accepts.
     rendered: dict[str, str] = {}
     for label, value in view.items():
         attribute = PROFILE_LABELS.get(label)

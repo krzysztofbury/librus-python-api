@@ -84,6 +84,7 @@ jobs:
           uv run --locked ruff check .
           uv run --locked ruff format --check .
           uv run --locked mypy
+          uv run --locked python scripts/audit_ratchet.py check
 
       - name: Run repository hooks
         env:

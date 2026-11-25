@@ -208,9 +208,7 @@ def test_complete_receipt_local_parsing_is_bounded_and_external_cancel_still_pro
                         await asyncio.sleep(0)
                     else:
                         await asyncio.sleep(0.15)
-                    assert (
-                        not task.done()
-                    )  # Thread must be joined even at cancellation.
+                    assert not task.done()
                 finally:
                     release.set()
                 if interruption == "cancel":

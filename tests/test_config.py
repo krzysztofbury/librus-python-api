@@ -16,22 +16,26 @@ from librus_python_api.exceptions import ErrorKind, LibrusError
 
 
 @pytest.mark.parametrize("size", [0, -1, True, 1.5])
+@pytest.mark.to_delete(issue=210)
 def test_invalid_byte_budget_is_rejected(size: int) -> None:
     with pytest.raises(LibrusError, match="^invalid_input$"):
         TransportLimits(response_max_bytes=size)
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf"), True])
+@pytest.mark.to_delete(issue=210)
 def test_invalid_timeouts_are_rejected(timeout: float) -> None:
     with pytest.raises(LibrusError, match="^invalid_input$"):
         TransportLimits(request_timeout_seconds=timeout)
 
 
+@pytest.mark.to_delete(issue=210)
 def test_connect_timeout_cannot_exceed_total_deadline() -> None:
     with pytest.raises(LibrusError, match="^invalid_input$"):
         TransportLimits(connect_timeout_seconds=31)
 
 
+@pytest.mark.to_delete(issue=210)
 def test_limits_are_immutable() -> None:
     limits = TransportLimits()
     with pytest.raises(ValidationError, match="frozen_instance"):

@@ -269,7 +269,6 @@ class GatewayGradesFixture(GradeRecordsFixture):
         super().__init__()
         self.grade_body = descriptive_page()
         self.bodies: dict[str, Any] = default_bodies()
-        # Raw replacements: (status, body, content type) served for a route.
         self.raw: dict[str, tuple[int, bytes, str]] = {}
         self.gateway: list[dict[str, Any]] = []
 

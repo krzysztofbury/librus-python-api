@@ -470,8 +470,6 @@ def test_a_page_summary_tells_a_login_page_apart_and_stays_bounded() -> None:
     assert report is not None and SECRET.casefold() not in report.casefold()
     assert "graphic-menu=no user-section=no" in report
     assert "forms: 1 <other len" in report and "inputs ?=1 password=1 text=1" in report
-    # Large tables before the student table: the summary is cut, the
-    # failing row still shown first.
     cells = "".join(f"<td>{SECRET}</td>" for _ in range(8))
     rows = "".join(f"<tr>{cells}</tr>" for _ in range(40))
     page = (

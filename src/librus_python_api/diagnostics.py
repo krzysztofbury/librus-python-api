@@ -560,7 +560,6 @@ def describe_failure(error: BaseException) -> str | None:
         frame, line, elements, sequences, counts = site
         redactor = _Redactor()
         lines = [f"at {_site(frame, line)}"]
-        # The elements nearest the failure first; a page summary last.
         for name, value in sorted(elements, key=lambda item: _is_page(item[1])):
             redactor.nodes = 0
             if _is_page(value):

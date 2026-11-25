@@ -150,7 +150,6 @@ def tooltip_fields(
             result[last] = f"{result[last]}\n{rendered}".strip()
             continue
         if separator and key in result and key in TOOLTIP_REPEATABLE_LABELS:
-            # Each repeat keeps its value, in order, as one more line.
             result[key] = f"{result[key]}\n{value}"
             last = key
             continue

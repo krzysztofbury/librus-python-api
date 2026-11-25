@@ -396,10 +396,10 @@ CREDENTIALS = LoginSubmission(SecretStr("fixture"), SecretStr("fixture-secret"))
         ("timetable", None),  # a view-changing POST always carries its form
         ("agenda", {"rok": 2026}),
         ("identity", {"fixture": "value"}),  # a GET never carries a form body
-        ("agenda", {"rok": "2026", "miesiac": "10", "extra": "1"}),  # unknown field
-        ("timetable", {"rok": "2026"}),  # another endpoint's field
-        ("agenda", {"rok": "2026", "miesiac": "1" * 65}),  # oversized value
-        ("grades", {}),  # empty form
+        ("agenda", {"rok": "2026", "miesiac": "10", "extra": "1"}),
+        ("timetable", {"rok": "2026"}),
+        ("agenda", {"rok": "2026", "miesiac": "1" * 65}),
+        ("grades", {}),
         ("recipients", {"typAdresata": "nauczyciel"}),
         ("recipients", recipient_form("nauczyciel") | {"idGrupy": "301"}),
         ("recipients", recipient_form("grupa") | {"idGrupy": "0301"}),

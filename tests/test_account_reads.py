@@ -80,7 +80,6 @@ def test_identical_reads_coalesce_per_login_and_never_share_a_session(
         assert fixture.logins == dict.fromkeys(aliases, 1)
         for index, alias in enumerate(aliases):
             assert fixture.count(operation, alias) == 1
-            # Same-student logins remain separate owners, never merged sessions.
             assert (
                 {results[2 * index].identity.owner.id}
                 == {results[2 * index + 1].identity.owner.id}

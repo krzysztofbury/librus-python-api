@@ -858,7 +858,6 @@ DESCRIPTIVE_IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}")
 DESCRIPTIVE_IDENTIFIER_OPERATIONS = frozenset(
     {"descriptive_user_info", "descriptive_partial_grades"}
 )
-# The PartialGrades read is a POST whose only body is this fixed JSON object.
 DESCRIPTIVE_PARTIAL_GRADES_BODY = b"{}"
 DESCRIPTIVE_MAX_SUBJECTS = 1024
 DESCRIPTIVE_MAX_USERS = 8192

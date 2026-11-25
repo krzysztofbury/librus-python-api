@@ -90,7 +90,6 @@ THREE_COLUMNS = (("Fixture Pupil", "7q FX", "2026-10-03 09:00:00"),)
 @pytest.mark.parametrize(
     "receipts",
     [
-        # Rows of one table must share one layout.
         (("Fixture Office", "NIE"),) + THREE_COLUMNS,
         THREE_COLUMNS + (("Fixture Office", "NIE"),),
         (("Fixture Pupil", "7q FX", "Extra", "NIE"),),
