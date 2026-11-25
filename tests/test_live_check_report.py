@@ -72,6 +72,7 @@ def test_json_report_has_only_the_documented_fields() -> None:
         "started_at",
         "passed",
         "problems",
+        "warnings",
         "violations",
         "slots",
     }

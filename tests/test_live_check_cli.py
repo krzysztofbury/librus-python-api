@@ -20,6 +20,7 @@ from scripts.live_check.credentials import (
 )
 from tests.http_support import serve
 from tests.live_check_support import TODAY, WeeklyFixture
+from tests.school_reads_support import ARCHIVE_LOADING, warning_html
 
 CANARY = "canary-password-value-7f3a"
 
@@ -262,6 +263,55 @@ def test_recorded_expectations_pass_and_drift_fails(
     monkeypatch.setattr(cli, "run_profile", loopback(drifted, ("canary-login-a",)))
     assert cli.main(compare, secrets) == 1
     assert "slot 0 grades: parse" in json.loads(capsys.readouterr().out)["problems"]
+
+
+def test_a_view_synergia_marks_unavailable_for_now_warns_without_failing(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    # 2026-11-23: the archive's loading notice stayed up for days and every
+    # weekly run failed on it, though nothing had drifted.
+    secrets = env(
+        LOGIN_0="canary-login-a", PASSWORD_0=CANARY, IDENTITY_0="301:student-shared"
+    )
+    weekly = ["run", "--profile", "weekly", "--from-env"]
+    monkeypatch.setattr(
+        cli, "run_profile", loopback(WeeklyFixture(), ("canary-login-a",))
+    )
+    assert cli.main([*weekly, "--record"], secrets) == 0
+    recorded = json.loads(capsys.readouterr().out.split("\n}\n", 1)[1])
+    recorded["slots"]["0"]["role"] = "student"
+    expectations = tmp_path / "expectations.json"
+    expectations.write_text(json.dumps(recorded))
+
+    loading = WeeklyFixture()
+    loading.bodies["school_year_archive"] = (
+        warning_html(ARCHIVE_LOADING).encode(),
+        "text/html",
+    )
+    monkeypatch.setattr(cli, "run_profile", loopback(loading, ("canary-login-a",)))
+    summary = tmp_path / "summary.md"
+    code = cli.main(
+        [*weekly, "--expectations", str(expectations), "--summary", str(summary)],
+        secrets,
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert report["passed"] is True
+    assert report["problems"] == []
+    assert report["warnings"] == ["slot 0 school_year_archive: temporarily_unavailable"]
+    written = summary.read_text()
+    assert written.startswith("## Live check: weekly passed")
+    assert "### Warnings\n\n- slot 0 school_year_archive: temporarily_unavailable" in (
+        written
+    )
+
+    monkeypatch.setattr(cli, "run_profile", loopback(loading, ("canary-login-a",)))
+    assert cli.main([*weekly, "--record"], secrets) == 0
+    assert json.loads(capsys.readouterr().out.split("\n}\n", 1)[0] + "\n}")[
+        "warnings"
+    ] == ["slot 0 school_year_archive: temporarily_unavailable"]
 
 
 def test_early_exits_still_write_a_redacted_summary(

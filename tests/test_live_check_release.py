@@ -187,8 +187,11 @@ def test_only_a_temporarily_unavailable_view_lets_the_login_continue(
     report = Report("weekly", "1.2.1", "installed", "unknown", "now")
     report.slots.append(SlotReport(0, 1, 0.0, steps))
     expected = {0: dict.fromkeys(("archive_view", "other_view"), Expected.POPULATED)}
-    # Still a reported problem: the view was not read.
-    assert compare(report, expected)
+    # The release gate fails on both; weekly runs only warn on the notice.
+    assert f"slot 0 archive_view: {kind.value}" in release_problems(report)
+    assert (compare(report, expected) == []) is (
+        kind is ErrorKind.TEMPORARILY_UNAVAILABLE
+    )
 
 
 def test_dependents_of_a_broken_check_are_not_run() -> None:

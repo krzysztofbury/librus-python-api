@@ -222,8 +222,12 @@ and makes only the side-effect-free reads declared in `scripts/live_check`.
 It never sends, opens received messages, consumes read-once events, downloads
 files or writes notification state. It fails on rejected credentials, required
 account action, throttling, maintenance, parser errors, identity mismatch, or
-coverage that differs from `contracts/live-check-expectations.json`. It never
-retries and never logs in twice with the same credentials in one run.
+coverage that differs from `contracts/live-check-expectations.json`. A view
+Synergia itself marks as unavailable for now (`temporarily_unavailable`, such
+as the school-year archive while it is filled with last year's data) is listed
+under Warnings and does not fail the run; check the summary for one that stays
+for weeks. The release profile in step 4 still fails on it. The weekly check
+never retries and never logs in twice with the same credentials in one run.
 
 Hard limits: at most two logins, 70 requests and 4 minutes per login, and 10
 minutes per run. Logins the run deadline leaves unchecked are reported as not

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Weekly live check: a view Synergia itself marks as unavailable for now
+  (`temporarily_unavailable`, such as the school-year archive while it is
+  filled with last year's data) is listed under Warnings and no longer fails
+  the run. The notice stayed up for days and failed every run although
+  nothing had drifted. The release profile still fails on it, since that view
+  was not read.
+
 ## 1.12.0 (2026-11-24) - Attendance on schools' own types; colons in grade comments
 
 Follow-ups to librus-mcp#136, found by comparing each check with public Librus
