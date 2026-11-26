@@ -1,9 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "roots": [
     "src",
     "tests",
     "scripts"
+  ],
+  "languages": [
+    "py"
   ],
   "comments": {
     "scripts/audit_ratchet.py": 1,
