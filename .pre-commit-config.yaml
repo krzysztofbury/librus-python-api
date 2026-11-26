@@ -20,6 +20,12 @@ repos:
         language: system
         entry: uv run --locked ruff format --check
         types_or: [python, pyi]
+      - id: audit-ratchet
+        name: comment and marked-test ratchet
+        language: system
+        entry: uv run --locked python scripts/audit_ratchet.py check
+        pass_filenames: false
+        always_run: true
       - id: forbid-private-files
         name: Block local credentials, sessions, and raw captures
         language: fail

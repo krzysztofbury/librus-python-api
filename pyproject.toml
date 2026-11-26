@@ -81,7 +81,8 @@ target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "ASYNC"]
+# Why: shortcuts and dead code go to issues, not comments (AGENTS.md, Comments).
+select = ["E", "F", "I", "UP", "B", "ASYNC", "FIX", "ERA001"]
 
 [tool.mypy]
 python_version = "3.13"
